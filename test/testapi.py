@@ -35,6 +35,94 @@ def server_ready():
 
 
 
+##################################################
+# BEGIN OF LOGIN SCREEN
+# INCLUDES : Login components
+##################################################
+#service for login to Nineteen68
+##@app.route('/login/authenticateUser_Nineteen68',methods=['POST'])
+def authenticateUser(data):
+##    requestdata=request.data
+    requestdata=data
+    authenticateuser = "select password from users where username = '"+requestdata["username"]+"' allow filtering;"
+    queryresult = n68session.execute(authenticateuser)
+    res= {"rows":queryresult.current_rows}
+    return res
+
+#service for user ldap validation
+##@app.route('/login/authenticateUser_Nineteen68/ldap',methods=['POST'])
+def authenticateUser_Nineteen68_ldap(data):
+##    requestdata=request.data
+    requestdata=data
+    authenticateuserldap = "select ldapuser from users where username = '"+requestdata["username"]+"' allow filtering;"
+    queryresult = n68session.execute(authenticateuserldap)
+    res = {"rows":queryresult.current_rows}
+    return res
+
+#service for loading user information
+##@app.route('/login/loadUserInfo_Nineteen68',methods=['POST'])
+def loadUserInfo_Nineteen68(data):
+##    requestdata=request.data
+    requestdata=data
+    if(requestdata["query"] == 'userInfo'):
+        loaduserinfo1 = "select userid, emailid, firstname, lastname, defaultrole, additionalroles, username from users where username = '"+requestdata["username"]+"' allow filtering"
+        queryresult = n68session.execute(loaduserinfo1)
+    elif(requestdata["query"] == 'loggedinRole'):
+        loaduserinfo2 = "select rolename from roles where roleid = "+requestdata["roleid"]+" allow filtering"
+        queryresult = n68session.execute(loaduserinfo2)
+    elif(requestdata["query"] == 'userPlugins'):
+        loaduserinfo3 = "select dashboard,deadcode,mindmap,neuron2d,neuron3d,oxbowcode,reports from userpermissions WHERE roleid = "+requestdata["roleid"]+" allow filtering"
+        queryresult = n68session.execute(loaduserinfo3)
+    res = {"rows":queryresult.current_rows}
+    return res
+
+#service for getting rolename by roleid
+##@app.route('/login/getRoleNameByRoleId_Nineteen68',methods=['POST'])
+def getRoleNameByRoleId_Nineteen68(data):
+##    requestdata=request.data
+    requestdata=data
+    rolename = "select rolename from roles where roleid = "+requestdata["roleid"]+" allow filtering;"
+    queryresult = n68session.execute(rolename)
+    res = {"rows":queryresult.current_rows}
+    return res
+
+####@app.route('/design/authenticateUser_Nineteen68/ldap',methods=['POST'])
+##def authenticateUser_Nineteen68_ci(data):
+####    requestdata=request.data
+##    requestdata=data
+##    authenticateuser = "select password from users where username = '"+requestdata["username"]+"' allow filtering;"
+##    queryresult = n68session.execute(authenticateuser)
+##    res= {"rows":queryresult.current_rows}
+##    return res
+
+#utility checks whether user is having projects assigned
+##@app.route('/login/authenticateUser_Nineteen68/projassigned',methods=['POST'])
+def authenticateUser_Nineteen68_projassigned(data):
+    try:
+##        requestdata=json.loads(request.data)
+        requestdata=data
+        if(requestdata["query"] == 'getUsers'):
+            authenticateuserprojassigned1= "select userid,defaultrole from users where username = '"+requestdata["username"]+"' allow filtering;"
+            queryresult = n68session.execute(authenticateuserprojassigned1)
+        elif(requestdata["query"] == 'getUserRole'):
+            authenticateuserprojassigned2= "select rolename from roles where roleid = "+requestdata["roleid"]+" allow filtering;"
+            queryresult = n68session.execute(authenticateuserprojassigned2)
+        elif(requestdata["query"] == 'getAssignedProjects'):
+            authenticateuserprojassigned3= "select projectids from icepermissions where userid = "+requestdata["userid"]+" allow filtering;"
+            queryresult = icesession.execute(authenticateuserprojassigned3)
+        res= {"rows":queryresult.current_rows}
+        return res
+##            return jsonify(res)
+    except Exception as authenticateuserprojassignedexc:
+        print 'Error in authenticateUser_projassigned:\n',authenticateuserprojassignedexc
+        res={'rows':'fail'}
+        return res
+##        return jsonify(res)
+
+#########################
+# END OF LOGIN SCREEN
+#########################
+
 #########################
 # BEGIN OF DESIGN SCREEN
 # INCLUDES : scraping/ws-screen/design testcase creation
@@ -169,12 +257,56 @@ if __name__ == '__main__':
 #   ----------------------------
 #  readTestCase_ICE
 ##    data = {
-##			"screenid": "47ab4fe1-2114-4e67-8e89-ecefc2a99872",
-##			"testcasename":"BatchExecution_TestCase1",
-##			"testcaseid" : "74a090e4-0f67-4727-9229-6fa2f6112021",
-##            "versionnumber" : 1
+##			"screenid": "<screenid>",
+##			"testcasename":"<testcasename>",
+##			"testcaseid" : "<testcaseid>",
+##            "versionnumber" : <versionnumber>
 ##		}
 ##    response = readTestCase_ICE(data)
+##    print response
+#   ----------------------------
+#  authenticateUser_Nineteen68
+##    data = {
+##			"username": "<username>"
+##		  }
+##    response = authenticateUser(data)
+##    print response
+#   ----------------------------
+#  authenticateUser_Nineteen68_ldap
+##    data = {
+##			"username": "<username>"
+##		  }
+##    response = authenticateUser_Nineteen68_ldap(data)
+##    print response
+#   ----------------------------
+#  authenticateUser_Nineteen68_projassigned
+##    data = {
+##			"username": "<username>",
+##            "query":"getUsers"
+##            "query":"getUserRole",
+##            "roleid":"<roleid>"
+##            "query":"getAssignedProjects",
+##            "userid" :"<userid>"
+##		  }
+##    response = authenticateUser_Nineteen68_projassigned(data)
+##    print response
+#   ----------------------------
+#  loadUserInfo_Nineteen68
+##    data = {
+##			"username": "<username>",
+##            "query": "userInfo",
+##            "query": "loggedinRole",
+##            "query":"userPlugins",
+##            "roleid" :"<roleid>"
+##		  }
+##    response = loadUserInfo_Nineteen68(data)
+##    print response
+#   ----------------------------
+#  getRoleNameByRoleId_Nineteen68
+##    data = {
+##            "roleid" :"<roleid>"
+##		  }
+##    response = getRoleNameByRoleId_Nineteen68(data)
 ##    print response
 #   ----------------------------
 
