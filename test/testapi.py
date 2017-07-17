@@ -15,8 +15,8 @@ import json
 from cassandra.cluster import Cluster
 ##from flask_cassandra import CassandraCluster
 from cassandra.auth import PlainTextAuthProvider
-auth = PlainTextAuthProvider(username='nineteen68', password='TA@SLK2017')
-c = Cluster(['10.41.31.130'],auth_provider=auth)
+auth = PlainTextAuthProvider(username='db username', password='<db password>')
+c = Cluster(['<local db ip>'],auth_provider=auth)
 
 icesession = c.connect()
 n68session = c.connect()
@@ -73,6 +73,9 @@ def loadUserInfo_Nineteen68(data):
     elif(requestdata["query"] == 'userPlugins'):
         loaduserinfo3 = "select dashboard,deadcode,mindmap,neuron2d,neuron3d,oxbowcode,reports from userpermissions WHERE roleid = "+requestdata["roleid"]+" allow filtering"
         queryresult = n68session.execute(loaduserinfo3)
+    else:
+        res={'rows':'fail'}
+        return jsonify(res)
     res = {"rows":queryresult.current_rows}
     return res
 
@@ -110,6 +113,9 @@ def authenticateUser_Nineteen68_projassigned(data):
         elif(requestdata["query"] == 'getAssignedProjects'):
             authenticateuserprojassigned3= "select projectids from icepermissions where userid = "+requestdata["userid"]+" allow filtering;"
             queryresult = icesession.execute(authenticateuserprojassigned3)
+        else:
+            res={'rows':'fail'}
+            return jsonify(res)
         res= {"rows":queryresult.current_rows}
         return res
 ##            return jsonify(res)

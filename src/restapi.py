@@ -95,6 +95,9 @@ def authenticateUser_Nineteen68_projassigned():
         elif(requestdata["query"] == 'getAssignedProjects'):
             authenticateuserprojassigned3= "select projectids from icepermissions where userid = "+requestdata["userid"]+" allow filtering;"
             queryresult = icesession.execute(authenticateuserprojassigned3)
+        else:
+            res={'rows':'fail'}
+            return jsonify(res)
         res= {"rows":queryresult.current_rows}
         return jsonify(res)
     except Exception as authenticateuserprojassignedexc:
@@ -116,6 +119,9 @@ def loadUserInfo_Nineteen68():
         elif(requestdata["query"] == 'userPlugins'):
             loaduserinfo3 = "select dashboard,deadcode,mindmap,neuron2d,neuron3d,oxbowcode,reports from userpermissions WHERE roleid = "+requestdata["roleid"]+" allow filtering"
             queryresult = n68session.execute(loaduserinfo3)
+        else:
+            res={'rows':'fail'}
+            return jsonify(res)
         res= {"rows":queryresult.current_rows}
         return jsonify(res)
     except Exception as loaduserinfoexc:
