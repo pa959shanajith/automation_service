@@ -1,5 +1,5 @@
 #-------------------------------------------------------------------------------
-# Name:        module1
+# Name:        restapi.py
 # Purpose:
 #
 # Author:      vishvas.a
@@ -199,6 +199,142 @@ def getUserRoles():
 
 ##################################################
 # END OF ADMIN SCREEN
+##################################################
+
+##################################################
+# BEGIN OF REPORTS
+# INCLUDES : all reports related actions
+##################################################
+
+#fetching all the suite details
+@app.route('/reports/getAllSuites_ICE',methods=['POST'])
+def getAllSuites_ICE():
+    try:
+        requestdata=json.loads(request.data)
+        if(requestdata["query"] == 'domainid'):
+            getallsuitesquery1 = "SELECT domainid FROM icepermissions WHERE userid="+requestdata['userid']+";";
+            queryresult = icesession.execute(getallsuitesquery1)
+        elif(requestdata["query"] == 'projectsUnderDomain'):
+            getallsuitesquery2 = "SELECT projectid FROM projects WHERE domainid="+requestdata['domainid']+";";
+            queryresult = icesession.execute(getallsuitesquery2)
+        elif(requestdata["query"] == 'releasesUnderProject'):
+            getallsuitesquery3 = "SELECT releaseid FROM releases WHERE projectid="+requestdata['projectid'];
+            queryresult = icesession.execute(getallsuitesquery3)
+        elif(requestdata["query"] == 'cycleidUnderRelease'):
+            getallsuitesquery4 = "SELECT cycleid FROM cycles WHERE releaseid="+requestdata['releaseid'];
+            queryresult = icesession.execute(getallsuitesquery4)
+        elif(requestdata["query"] == 'suitesUnderCycle'):
+            getallsuitesquery5 = "SELECT testsuiteid,testsuitename FROM testsuites WHERE cycleid="+requestdata['cycleid'];
+            queryresult = icesession.execute(getallsuitesquery5)
+        else:
+            res={'rows':'fail'}
+            return jsonify(res)
+        res= {"rows":queryresult.current_rows}
+        return jsonify(res)
+    except Exception as getAllSuitesexc:
+        print 'Error in getAllSuites_ICE:\n',getAllSuitesexc
+        res={'rows':'fail'}
+        return jsonify(res)
+
+#fetching all the suite after execution
+@app.route('/reports/getSuiteDetailsInExecution_ICE',methods=['POST'])
+def getSuiteDetailsInExecution_ICE():
+    try:
+        requestdata=json.loads(request.data)
+        getsuitedetailsquery = "SELECT executionid,starttime,endtime FROM execution WHERE testsuiteid="+requestdata['suiteid'];
+        queryresult = icesession.execute(getsuitedetailsquery)
+        res= {"rows":queryresult.current_rows}
+        return jsonify(res)
+    except Exception as getsuitedetailsexc:
+        print 'Error in getAllSuites_ICE:\n',getsuitedetailsexc
+        res={'rows':'fail'}
+        return jsonify(res)
+
+#fetching all the reports status
+@app.route('/reports/reportStatusScenarios_ICE',methods=['POST'])
+def reportStatusScenarios_ICE():
+    try:
+        requestdata=json.loads(request.data)
+        if(requestdata["query"] == 'executiondetails'):
+            getreportstatusquery1 = "SELECT * FROM reports where executionid="+requestdata['executionid']+" ALLOW FILTERING";
+            queryresult = icesession.execute(getreportstatusquery1)
+        elif(requestdata["query"] == 'scenarioname'):
+            getreportstatusquery2 = "SELECT testscenarioname FROM testscenarios where testscenarioid="+requestdata['scenarioid']+" ALLOW FILTERING";
+            queryresult = icesession.execute(getreportstatusquery2)
+        else:
+            res={'rows':'fail'}
+            return jsonify(res)
+        res= {"rows":queryresult.current_rows}
+        return jsonify(res)
+    except Exception as getreportstatusexc:
+        print 'Error in reportStatusScenarios_ICE:\n',getreportstatusexc
+        res={'rows':'fail'}
+        return jsonify(res)
+
+#fetching the reports
+@app.route('/reports/getReport_Nineteen68',methods=['POST'])
+def getReport_Nineteen68():
+    try:
+        requestdata=json.loads(request.data)
+        if(requestdata["query"] == 'projectsUnderDomain'):
+            getreportquery1 ="select report,executedtime,testscenarioid from reports where reportid=" +requestdata['reportid']+" ALLOW FILTERING";
+            queryresult = icesession.execute(getreportquery1)
+        elif(requestdata["query"] == 'scenariodetails'):
+            getreportquery2 ="select testscenarioname,projectid from testscenarios where testscenarioid=" + requestdata['scenarioid'] + " ALLOW FILTERING";
+            queryresult = icesession.execute(getreportquery2)
+        elif(requestdata["query"] == 'cycleid'):
+            getreportquery3 ="select cycleid from testsuites where testsuiteid=" + requestdata['suiteid'] + " and testsuitename = '" + requestdata['suitename'] + "' ALLOW FILTERING";
+            queryresult = icesession.execute(getreportquery3)
+        elif(requestdata["query"] == 'cycledetails'):
+            getreportquery4 ="select cyclename,releaseid from cycles where cycleid=" + requestdata['cycleid']  + "ALLOW FILTERING";
+            queryresult = icesession.execute(getreportquery4)
+        elif(requestdata["query"] == 'releasedetails'):
+            getreportquery5 ="select releasename,projectid from releases where releaseid=" + requestdata['releaseid'] + " ALLOW FILTERING";
+            queryresult = icesession.execute(getreportquery5)
+        elif(requestdata["query"] == 'projectdetails'):
+            getreportquery6 ="select projectname,domainid from projects where projectid=" + requestdata['projectid']  + " ALLOW FILTERING";
+            queryresult = icesession.execute(getreportquery6)
+        elif(requestdata["query"] == 'domaindetails'):
+            getreportquery7 ="select domainname from domains where domainid=" + requestdata['domainid'] + " ALLOW FILTERING";
+            queryresult = icesession.execute(getreportquery7)
+        else:
+            res={'rows':'fail'}
+            return jsonify(res)
+        res= {"rows":queryresult.current_rows}
+        return jsonify(res)
+    except Exception as getreportexc:
+        print 'Error in getReport_Nineteen68:\n',getreportexc
+        res={'rows':'fail'}
+        return jsonify(res)
+
+
+#export json feature on reports
+@app.route('/reports/exportToJson_ICE',methods=['POST'])
+def exportToJson_ICE():
+    try:
+        requestdata=json.loads(request.data)
+        if(requestdata["query"] == 'reportdata'):
+            exporttojsonquery1 = "select report from reports where reportid ="+ requestdata['reportid'] + " ALLOW FILTERING ";
+            queryresult = icesession.execute(exporttojsonquery1)
+        elif(requestdata["query"] == 'scenarioid'):
+            exporttojsonquery2 = "select testscenarioid from reports where reportid ="+ requestdata['reportid'] + " ALLOW FILTERING ";
+            queryresult = icesession.execute(exporttojsonquery2)
+        elif(requestdata["query"] == 'scenarioname'):
+            exporttojsonquery3 = "SELECT testscenarioname FROM testscenarios where testscenarioid="+requestdata['scenarioid']+" ALLOW FILTERING";
+            queryresult = icesession.execute(exporttojsonquery3)
+        else:
+            res={'rows':'fail'}
+            return jsonify(res)
+        res= {"rows":queryresult.current_rows}
+        return jsonify(res)
+    except Exception as exporttojsonexc:
+        print 'Error in exportToJson_ICE:\n',exporttojsonexc
+        res={'rows':'fail'}
+        return jsonify(res)
+
+
+##################################################
+# END OF REPORTS
 ##################################################
 
 ##################################################
