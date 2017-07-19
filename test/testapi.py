@@ -42,7 +42,7 @@ def server_ready():
 #service for login to Nineteen68
 ##@app.route('/login/authenticateUser_Nineteen68',methods=['POST'])
 def authenticateUser(data):
-##    requestdata=request.data
+##    requestdata=json.loads(request.data)
     requestdata=data
     authenticateuser = "select password from users where username = '"+requestdata["username"]+"' allow filtering;"
     queryresult = n68session.execute(authenticateuser)
@@ -52,7 +52,7 @@ def authenticateUser(data):
 #service for user ldap validation
 ##@app.route('/login/authenticateUser_Nineteen68/ldap',methods=['POST'])
 def authenticateUser_Nineteen68_ldap(data):
-##    requestdata=request.data
+##    requestdata=json.loads(request.data)
     requestdata=data
     authenticateuserldap = "select ldapuser from users where username = '"+requestdata["username"]+"' allow filtering;"
     queryresult = n68session.execute(authenticateuserldap)
@@ -62,7 +62,7 @@ def authenticateUser_Nineteen68_ldap(data):
 #service for loading user information
 ##@app.route('/login/loadUserInfo_Nineteen68',methods=['POST'])
 def loadUserInfo_Nineteen68(data):
-##    requestdata=request.data
+##    requestdata=json.loads(request.data)
     requestdata=data
     if(requestdata["query"] == 'userInfo'):
         loaduserinfo1 = "select userid, emailid, firstname, lastname, defaultrole, additionalroles, username from users where username = '"+requestdata["username"]+"' allow filtering"
@@ -82,7 +82,7 @@ def loadUserInfo_Nineteen68(data):
 #service for getting rolename by roleid
 ##@app.route('/login/getRoleNameByRoleId_Nineteen68',methods=['POST'])
 def getRoleNameByRoleId_Nineteen68(data):
-##    requestdata=request.data
+##    requestdata=json.loads(request.data)
     requestdata=data
     rolename = "select rolename from roles where roleid = "+requestdata["roleid"]+" allow filtering;"
     queryresult = n68session.execute(rolename)
@@ -91,7 +91,7 @@ def getRoleNameByRoleId_Nineteen68(data):
 
 ####@app.route('/design/authenticateUser_Nineteen68/ldap',methods=['POST'])
 ##def authenticateUser_Nineteen68_ci(data):
-####    requestdata=request.data
+####    requestdata=json.loads(request.data)
 ##    requestdata=data
 ##    authenticateuser = "select password from users where username = '"+requestdata["username"]+"' allow filtering;"
 ##    queryresult = n68session.execute(authenticateuser)
@@ -154,7 +154,7 @@ def getKeywordDetails(data):
 #test case reading service
 ##@app.route('/design/readTestCase_ICE',methods=['POST'])
 def readTestCase_ICE(data):
-##    requestdata=request.data
+##    requestdata=json.loads(request.data)
     requestdata=data
     readtestcasequery = "select testcasesteps,testcasename from testcases where screenid= " + requestdata["screenid"] +" and testcasename='"+requestdata["testcasename"]+"'" +" and versionnumber="+str(requestdata["versionnumber"])+" and testcaseid=" + requestdata["testcaseid"];
     queryresult = icesession.execute(readtestcasequery)
@@ -185,6 +185,151 @@ def getUserRoles():
 #########################
 # END OF ADMIN SCREEN
 #########################
+
+##################################################
+# BEGIN OF REPORTS
+# INCLUDES : all reports related actions
+##################################################
+
+#fetching all the suite details
+##@app.route('/reports/getAllSuites_ICE',methods=['POST'])
+def getAllSuites_ICE(data):
+    try:
+    ##    requestdata=json.loads(request.data)
+        requestdata=data
+        if(requestdata["query"] == 'domainid'):
+            getallsuitesquery1 = "SELECT domainid FROM icepermissions WHERE userid="+requestdata['userid']+";";
+            queryresult = icesession.execute(getallsuitesquery1)
+        elif(requestdata["query"] == 'projectsUnderDomain'):
+            getallsuitesquery2 = "SELECT projectid FROM projects WHERE domainid="+requestdata['domainid']+";";
+            queryresult = icesession.execute(getallsuitesquery2)
+        elif(requestdata["query"] == 'releasesUnderProject'):
+            getallsuitesquery3 = "SELECT releaseid FROM releases WHERE projectid="+requestdata['projectid'];
+            queryresult = icesession.execute(getallsuitesquery3)
+        elif(requestdata["query"] == 'cycleidUnderRelease'):
+            getallsuitesquery4 = "SELECT cycleid FROM cycles WHERE releaseid="+requestdata['releaseid'];
+            queryresult = icesession.execute(getallsuitesquery4)
+        elif(requestdata["query"] == 'suitesUnderCycle'):
+            getallsuitesquery5 = "SELECT testsuiteid,testsuitename FROM testsuites WHERE cycleid="+requestdata['cycleid'];
+            queryresult = icesession.execute(getallsuitesquery5)
+        else:
+            res={'rows':'fail'}
+            return jsonify(res)
+        res= {"rows":queryresult.current_rows}
+        return jsonify(res)
+    except Exception as getAllSuitesexc:
+        print 'Error in getAllSuites_ICE:\n',getAllSuitesexc
+        res={'rows':'fail'}
+        return jsonify(res)
+
+#fetching all the suite after execution
+##@app.route('/reports/getSuiteDetailsInExecution_ICE',methods=['POST'])
+def getSuiteDetailsInExecution_ICE(data):
+    try:
+    ##    requestdata=json.loads(request.data)
+        requestdata=data
+        getsuitedetailsquery = "SELECT executionid,starttime,endtime FROM execution WHERE testsuiteid="+requestdata['suiteid'];
+        queryresult = icesession.execute(getsuitedetailsquery)
+        res= {"rows":queryresult.current_rows}
+##        return jsonify(res)
+        return res
+
+    except Exception as getsuitedetailsexc:
+        print 'Error in getAllSuites_ICE:\n',getsuitedetailsexc
+        res={'rows':'fail'}
+##        return jsonify(res)
+        return res
+
+#fetching all the report status
+##@app.route('/reports/reportStatusScenarios_ICE',methods=['POST'])
+def reportStatusScenarios_ICE(data):
+    try:
+    ##    requestdata=json.loads(request.data)
+        requestdata=data
+        if(requestdata["query"] == 'executiondetails'):
+            getreportstatusquery1 = "SELECT * FROM reports where executionid="+requestdata['executionid']+" ALLOW FILTERING";
+            queryresult = icesession.execute(getreportstatusquery1)
+        elif(requestdata["query"] == 'scenarioname'):
+            getreportstatusquery2 = "SELECT testscenarioname FROM testscenarios where testscenarioid="+requestdata['scenarioid']+" ALLOW FILTERING";
+            queryresult = icesession.execute(getreportstatusquery2)
+        else:
+            res={'rows':'fail'}
+##            return jsonify(res)
+        res= {"rows":queryresult.current_rows}
+##        return jsonify(res)
+        return res
+
+    except Exception as getsuitedetailsexc:
+        print 'Error in getAllSuites_ICE:\n',getsuitedetailsexc
+        res={'rows':'fail'}
+##        return jsonify(res)
+        return res
+
+#fetching the reports
+##@app.route('/reports/getReport_Nineteen68',methods=['POST'])
+def getReport_Nineteen68(data):
+    try:
+##        requestdata=json.loads(request.data)
+        requestdata=data
+        if(requestdata["query"] == 'projectsUnderDomain'):
+            getreportquery1 ="select report,executedtime,testscenarioid from reports where reportid=" +requestdata['reportid']+" ALLOW FILTERING";
+            queryresult = icesession.execute(getreportquery1)
+        elif(requestdata["query"] == 'scenariodetails'):
+            getreportquery2 ="select testscenarioname,projectid from testscenarios where testscenarioid=" + requestdata['scenarioid'] + " ALLOW FILTERING";
+            queryresult = icesession.execute(getreportquery2)
+        elif(requestdata["query"] == 'cycleid'):
+            getreportquery3 ="select cycleid from testsuites where testsuiteid=" + requestdata['suiteid'] + " and testsuitename = '" + requestdata['suitename'] + "' ALLOW FILTERING";
+            queryresult = icesession.execute(getreportquery3)
+        elif(requestdata["query"] == 'cycledetails'):
+            getreportquery4 ="select cyclename,releaseid from cycles where cycleid=" + requestdata['cycleid']  + "ALLOW FILTERING";
+            queryresult = icesession.execute(getreportquery4)
+        elif(requestdata["query"] == 'releasedetails'):
+            getreportquery5 ="select releasename,projectid from releases where releaseid=" + requestdata['releaseid'] + " ALLOW FILTERING";
+            queryresult = icesession.execute(getreportquery5)
+        elif(requestdata["query"] == 'projectdetails'):
+            getreportquery6 ="select projectname,domainid from projects where projectid=" + requestdata['projectid']  + " ALLOW FILTERING";
+            queryresult = icesession.execute(getreportquery6)
+        elif(requestdata["query"] == 'domaindetails'):
+            getreportquery7 ="select domainname from domains where domainid=" + requestdata['domainid'] + " ALLOW FILTERING";
+            queryresult = icesession.execute(getreportquery7)
+        else:
+            res={'rows':'fail'}
+##            return jsonify(res)
+            return res
+        res= {"rows":queryresult.current_rows}
+##        return jsonify(res)
+        return res
+    except Exception as getreportexc:
+        print 'Error in getReport_Nineteen68:\n',getreportexc
+        res={'rows':'fail'}
+        return res
+##        return jsonify(res)
+
+
+#export json feature on reports
+##@app.route('/reports/exportToJson_ICE',methods=['POST'])
+def exportToJson_ICE(data):
+##    requestdata=json.loads(request.data)
+    requestdata=data
+    if(requestdata["query"] == 'reportdata'):
+        exporttojsonquery1 = "select report from reports where reportid ="+ requestdata['reportid'] + " ALLOW FILTERING ";
+        queryresult = icesession.execute(exporttojsonquery1)
+    elif(requestdata["query"] == 'scenarioid'):
+        exporttojsonquery2 = "select testscenarioid from reports where reportid ="+ requestdata['reportid'] + " ALLOW FILTERING ";
+        queryresult = icesession.execute(exporttojsonquery2)
+    elif(requestdata["query"] == 'scenarioname'):
+        exporttojsonquery3 = "SELECT testscenarioname FROM testscenarios where testscenarioid="+requestdata['scenarioid']+" ALLOW FILTERING";
+        queryresult = icesession.execute(exporttojsonquery3)
+    else:
+        res={'rows':'fail'}
+##            return jsonify(res)
+    res= {"rows":queryresult.current_rows}
+##        return jsonify(res)
+    return res
+##################################################
+# END OF REPORTS
+##################################################
+
 
 #########################
 # BEGIN OF UTILITIES
@@ -315,7 +460,69 @@ if __name__ == '__main__':
 ##    response = getRoleNameByRoleId_Nineteen68(data)
 ##    print response
 #   ----------------------------
-
+#  getAllSuites_ICE
+##    data = {
+##                "query" : "domainid",
+##                "userid" :"9b57a7cb-0f82-499c-8e43-adccc247c590"
+##                "query" : "projectsUnderDomain",
+##                "domainid" :"e1cb0da2-44b8-4f8a-9ba8-8a290174881f"
+##                "query" :"releasesUnderProject",
+##                "projectid":"57dcec44-4955-4a23-b1d2-14afa8ec3c98"
+##                "query" :"cycleidUnderRelease",
+##                "releaseid":"0754cf4a-742d-4628-9d25-3b882f78b90d"
+##                "query": "suitesUnderCycle",
+##                "cycleid":"825c2143-90ac-4c58-b475-390dda7b0eff"
+##		  }
+##    response = getAllSuites_ICE(data)
+##    print response
+#   ----------------------------
+#   getSuiteDetailsInExecution_ICE
+##    data = {
+##            "suiteid" :"57ec9be0-4994-4526-beb5-5d042c9073b1"
+##		  }
+##    response = getSuiteDetailsInExecution_ICE(data)
+##    print response
+#   ----------------------------
+#   reportStatusScenarios_ICE
+##    data = {
+##            "query":"executiondetails",
+##            "executionid" :"20d702da-c365-42dd-97f1-1aebeb12a9dd"
+##            "query" : "scenarioname",
+##            "scenarioid":"ee567f9a-2451-486a-befc-d0547a99898a"
+##		  }
+##    response = reportStatusScenarios_ICE(data)
+##    print response
+#   ----------------------------
+#   getReport_Nineteen68
+##    data = {
+##            "query":"projectsUnderDomain",
+##            "reportid" :"e59decbd-9302-46d8-b59b-fe3558aeb18e"
+##            "query":"scenariodetails",
+##            "scenarioid":"ee567f9a-2451-486a-befc-d0547a99898a"
+##            "query":"cycleid",
+##            "suiteid":"3abdac8b-7715-4bde-b878-bce48a59d698",
+##            "suitename":"Ashwini_Suite1"
+##            "query":"cycledetails",
+##            "cycleid":"825c2143-90ac-4c58-b475-390dda7b0eff"
+##            "query":"releasedetails",
+##            "releaseid":"0754cf4a-742d-4628-9d25-3b882f78b90d"
+##            "query":"projectdetails",
+##            "projectid":"57dcec44-4955-4a23-b1d2-14afa8ec3c98"
+##            "query":"domaindetails",
+##            "domainid":"e1cb0da2-44b8-4f8a-9ba8-8a290174881f"
+##		  }
+##    response = getReport_Nineteen68(data)
+##    print response
+#   ----------------------------
+#   exportToJson_ICE
+##    data = {
+##            "query":"scenarioid",
+##            "reportid" :"e59decbd-9302-46d8-b59b-fe3558aeb18e"
+##            "query" : "scenarioname",
+##            "scenarioid":"ee567f9a-2451-486a-befc-d0547a99898a"
+##		  }
+##    response = exportToJson_ICE(data)
+##    print response
 #########################
 # TEST COMPONENTS END
 #########################
