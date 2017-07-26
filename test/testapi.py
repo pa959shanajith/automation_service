@@ -9,30 +9,51 @@
 # Copyright:   (c) vishvas.a 2017
 # Licence:     <your licence>
 #-------------------------------------------------------------------------------
+import os
 import json
+import datetime
+import uuid
 ##from flask import Flask, request , jsonify
 ##app = Flask(__name__)
+
+##import logging
+##from logging.handlers import RotatingFileHandler
 from cassandra.cluster import Cluster
 ##from flask_cassandra import CassandraCluster
 from cassandra.auth import PlainTextAuthProvider
-auth = PlainTextAuthProvider(username='db username', password='<db password>')
-c = Cluster(['<local db ip>'],auth_provider=auth)
+##parentdir=os.chdir("..")
+##config_path = parentdir+'/rest_conf.json'
+##rest_config = json.loads(open(config_path).read())
+##ip=rest_config['restapi']['databaseip']
+##key=rest_config['restapi']['dbusername']
+##pswd=rest_config['restapi']['dbpassword']
+##auth = PlainTextAuthProvider(username=key, password=pswd)
+auth = PlainTextAuthProvider(username='nineteen68', password='TA@SLK2017')
+cluster = Cluster(['10.41.31.130'],auth_provider=auth)
 
-icesession = c.connect()
-n68session = c.connect()
+icesession = cluster.connect()
+n68session = cluster.connect()
+icehistorysession = cluster.connect()
+n68historysession = cluster.connect()
 
 from cassandra.query import dict_factory
+
 icesession.row_factory = dict_factory
 icesession.set_keyspace('icetestautomation')
 
 n68session.row_factory = dict_factory
 n68session.set_keyspace('nineteen68')
 
+icehistorysession.row_factory = dict_factory
+icehistorysession.set_keyspace('icetestautomationhistory')
+
+n68historysession.row_factory = dict_factory
+n68historysession.set_keyspace('nineteen68history')
+
 #server check
 ##@app.route('/')
 def server_ready():
     return 'Data Server Ready!!!'
-
 
 
 ##################################################
@@ -65,18 +86,37 @@ def loadUserInfo_Nineteen68(data):
 ##    requestdata=json.loads(request.data)
     requestdata=data
     if(requestdata["query"] == 'userInfo'):
-        loaduserinfo1 = "select userid, emailid, firstname, lastname, defaultrole, additionalroles, username from users where username = '"+requestdata["username"]+"' allow filtering"
+        loaduserinfo1 = "select userid, emailid, firstname, lastname, defaultrole, ldapuser , additionalroles, username from users where username = '"+requestdata["username"]+"' allow filtering"
         queryresult = n68session.execute(loaduserinfo1)
+        rows=[]
+        for eachkey in queryresult.current_rows:
+        	userid = eachkey['userid']
+        	emailid = eachkey['emailid']
+        	firstname = eachkey['firstname']
+        	lastname = eachkey['lastname']
+        	defaultrole = eachkey['defaultrole']
+        	ldapuser = eachkey['ldapuser']
+        	username = eachkey['username']
+        	additionalroles=[]
+        	for eachrole in eachkey['additionalroles']:
+        		additionalroles.append(eachrole)
+
+        	eachobject={'userid':userid,'emailid':emailid,'firstname':firstname,
+        	'lastname':lastname,'defaultrole':defaultrole,'ldapuser':ldapuser,'username':username,'additionalroles':additionalroles}
+        	rows.append(eachobject)
+        res={'rows':rows}
+        return res
     elif(requestdata["query"] == 'loggedinRole'):
         loaduserinfo2 = "select rolename from roles where roleid = "+requestdata["roleid"]+" allow filtering"
         queryresult = n68session.execute(loaduserinfo2)
+        res = {"rows":queryresult.current_rows}
     elif(requestdata["query"] == 'userPlugins'):
         loaduserinfo3 = "select dashboard,deadcode,mindmap,neuron2d,neuron3d,oxbowcode,reports from userpermissions WHERE roleid = "+requestdata["roleid"]+" allow filtering"
         queryresult = n68session.execute(loaduserinfo3)
+        res = {"rows":queryresult.current_rows}
     else:
         res={'rows':'fail'}
         return jsonify(res)
-    res = {"rows":queryresult.current_rows}
     return res
 
 #service for getting rolename by roleid
@@ -128,6 +168,7 @@ def authenticateUser_Nineteen68_projassigned(data):
 #########################
 # END OF LOGIN SCREEN
 #########################
+
 
 #########################
 # BEGIN OF DESIGN SCREEN
@@ -181,6 +222,312 @@ def getUserRoles():
     res={'rows':queryresult.current_rows}
 ##    return jsonify(res)
     return res
+
+
+
+#service renders all the details of the child type
+#if domainid is provided all projects in domain is returned
+#if projectid is provided all release and cycle details is returned
+#if cycleid is provided, testsuite details is returned
+##@app.route('/admin/getDetails_ICE',methods=['POST'])
+def getDetails_ICE(data):
+    try:
+##        requestdata=json.loads(request.data)
+        requestdata=data
+        if(requestdata["query"] == 'domaindetails'):
+            getdetailsquery="select projectid,projectname from projects where domainid=" + requestdata['id'];
+            queryresult = icesession.execute(getdetailsquery)
+        elif(requestdata["query"] == 'projectsdetails'):
+            if(requestdata["subquery"] == 'projecttypeid'):
+                getdetailsquery="select projecttypeid,projectname from projects where projectid=" + requestdata['id'];
+            elif(requestdata["subquery"] == 'projecttypename'):
+                getdetailsquery="select projecttypename from projecttype where projecttypeid=" + requestdata['id'];
+            elif(requestdata["subquery"] == 'releasedetails'):
+                getdetailsquery="select releaseid,releasename from releases where projectid=" + requestdata['id'];
+            elif(requestdata["subquery"] == 'cycledetails'):
+                getdetailsquery="select cycleid,cyclename from cycles where releaseid=" + requestdata['id'];
+            queryresult = icesession.execute(getdetailsquery)
+        elif(requestdata["query"] == 'cycledetails'):
+            getdetailsquery="select testsuiteid,testsuitename from testsuites where cycleid=" + requestdata['id'];
+            queryresult = icesession.execute(getdetailsquery)
+        res={'rows':queryresult.current_rows}
+##    return jsonify(res)
+        return res
+    except Exception as getdetailsexc:
+        print 'Error in getDetails_ICE:\n',getdetailsexc
+        res={'rows':'fail'}
+##    return jsonify(res)
+        return res
+
+#service renders the names of all projects in domain/projects
+##@app.route('/admin/getNames_ICE',methods=['POST'])
+def getNames_ICE(data):
+    try:
+##        requestdata=json.loads(request.data)
+        requestdata=data
+        if(requestdata["query"] == 'domainsall'):
+            getnamesquery1="select projectid,projectname from projects where domainid="+requestdata['id'];
+            queryresult = icesession.execute(getnamesquery1)
+        elif(requestdata["query"] == 'projects'):
+            getnamesquery2="select projectid,projectname from projects where projectid="+requestdata['id'];
+            queryresult = icesession.execute(getnamesquery2)
+        elif(requestdata["query"] == 'releases'):
+            getnamesquery3="select releaseid,releasename from releases where releaseid="+requestdata['id'];
+            queryresult = icesession.execute(getnamesquery3)
+        elif(requestdata["query"] == 'cycles'):
+            getnamesquery4="select cycleid,cyclename from cycles where cycleid="+requestdata['id'];
+            queryresult = icesession.execute(getnamesquery4)
+        res={'rows':queryresult.current_rows}
+##    return jsonify(res)
+        return res
+    except Exception as getdetailsexc:
+        print 'Error in getDetails_ICE:\n',getdetailsexc
+        res={'rows':'fail'}
+##    return jsonify(res)
+        return res
+
+#service renders all the domains in DB
+##@app.route('/admin/getDomains_ICE',methods=['POST'])
+def getDomains_ICE():
+
+##    requestdata=json.loads(request.data)
+    getdomainsquery="select domainid,domainname from domains";
+    queryresult = icesession.execute(getdomainsquery)
+    res={'rows':queryresult.current_rows}
+    return res
+
+
+#service fetches projects assigned to user.
+##@app.route('/admin/getAssignedProjects_ICE',methods=['POST'])
+def getAssignedProjects_ICE(data):
+
+##    requestdata=json.loads(request.data)
+    requestdata=data
+    if(requestdata['query'] == 'projectid'):
+        getassingedprojectsquery1="select projectids from icepermissions where userid = "+requestdata['userid']+" and domainid = "+requestdata['domainid']+"";
+        queryresult = icesession.execute(getassingedprojectsquery1)
+    elif(requestdata['query'] == 'projectname'):
+        getassingedprojectsquery2="select projectname from projects where projectid = "+requestdata['projectid'];
+        queryresult = icesession.execute(getassingedprojectsquery2)
+    res={'rows':queryresult.current_rows}
+    return res
+
+#service creates new users into Nineteen68
+##@app.route('/admin/createUser_Nineteen68',methods=['POST'])
+def createUser_Nineteen68(data):
+    requestdata=data
+    if(requestdata['query'] == 'allusernames'):
+        createuserquery1=("select username from users")
+        queryresult = n68session.execute(createuserquery1)
+        res={'rows':queryresult.current_rows}
+    elif(requestdata['query'] == 'createuser'):
+        deactivated=requestdata['deactivated']
+        createuserquery2=("insert into users (userid,createdby,createdon,"
+                +"defaultrole,deactivated,emailid,firstname,lastname,ldapuser,password,username) values"
+                +"( "+requestdata['userid']+" , '"+requestdata['username']+"' , "
+                + str(getcurrentdate())+" , "+requestdata['defaultrole']+" , "
+                +str(deactivated)+" , '"+requestdata['emailid']+"' , '"
+                +requestdata['firstname']+"' , '"+requestdata['lastname']+"' , "
+                +requestdata['ldapuser']+" , '"+requestdata['password']+"' , '"
+                +requestdata['username']+"')")
+##        print createuserquery2
+##        queryresult = n68session.execute(createuserquery2)
+        res={'rows':'Success'}
+    return res
+
+#fetch user data into Nineteen68
+##@app.route('/admin/getUsers_Nineteen68',methods=['POST'])
+def getUsers_Nineteen68(data):
+    try:
+    ##    requestdata=json.loads(request.data)
+        requestdata=data
+        userroles = requestdata['userroles']
+        userrolesarr=[]
+        for eachroleobj in userroles:
+            if eachroleobj['rolename'] == 'Admin' or eachroleobj['rolename'] == 'Test Manager' :
+                userrolesarr.append(eachroleobj['roleid'])
+        print userrolesarr
+        useridslistquery = "select userid from icepermissions where projectids contains "+requestdata['projectid']+" allow filtering;"
+        queryresultuserids= icesession.execute(useridslistquery)
+
+        resultdata={}
+        userroles=[]
+        rids=[]
+        for row in queryresultuserids.current_rows:
+            queryforuser="select userid, username, defaultrole from users where userid="+str(row['userid'])
+            queryresultusername=n68session.execute(queryforuser)
+            if not queryresultusername.current_rows[0]['defaultrole'] in userrolesarr:
+            	print queryresultusername.current_rows[0]['username']
+                rids.append(row['userid'])
+                userroles.append(queryresultusername.current_rows[0]['username'])
+                resultdata["userRoles"]=userroles
+                resultdata["r_ids"]=rids
+        print resultdata
+    except Exception as getUsersexc:
+        print 'Error in getUsers_Nineteen68:\n',getUsersexc
+        res={'rows':'fail'}
+##        return jsonify(res)
+        return res
+
+#service update user data into Nineteen68
+##@app.route('/admin/updateUser_Nineteen68',methods=['POST'])
+def updateUser_Nineteen68(data):
+
+    try:
+    ##    requestdata=json.loads(request.data)
+        requestdata=data
+        if(requestdata['query'] == 'userdetails'):
+            updateuserquery1=("select username,password,firstname,lastname,"
+                +" emailid,ldapuser,additionalroles from users where"
+                +" userid=" + requestdata['userid'])
+            queryresult = n68session.execute(updateuserquery1)
+            res={'rows':queryresult.current_rows}
+        elif(requestdata['query'] == 'updateuser'):
+            updateuserquery2=("UPDATE users set "
+            +"username='" + requestdata['username']
+            + "', password='" + requestdata['password']
+            + "', firstname='" + requestdata['firstname']
+            + "', lastname='" + requestdata['lastname']
+            + "', modifiedby='" + requestdata['modifiedby']
+            + "', modifiedon=" + str(getcurrentdate())
+            + ", emailid='" + requestdata['emailid']
+            + "', ldapuser= " + str(requestdata['ldapuser'])
+            + ", modifiedbyrole= '" + str(requestdata['modifiedbyrole'])
+            + "', additionalroles= additionalroles + {" + str(requestdata['additionalroles'])
+            + "} where userid=" + str(requestdata['userid']))
+##            queryresult = n68session.execute(updateuserquery2)
+            print updateuserquery2
+            res={'rows':'Success'}
+        else:
+##            return jsonify(res)
+            return res
+        return res
+    except Exception as updateUserexc:
+        print updateUserexc
+        print 'Error in updateUser_nineteen68'
+        res={'rows':'fail'}
+##        return jsonify(res)
+        return res
+
+
+#service creates a complete project structure into ICE keyspace
+##@app.route('/admin/createProject_ICE',methods=['POST'])
+def createProject_ICE(data):
+
+    try:
+    ##    requestdata=json.loads(request.data)
+        requestdata=data
+        if(requestdata['query'] == 'projecttype'):
+            projecttypequery=("select projecttypeid from projecttype where"
+            +" projecttypename = '"+requestdata['projecttype']+"' allow filtering")
+            queryresult = icesession.execute(projecttypequery)
+        elif(requestdata['query'] == 'createproject'):
+            projectid =uuid.uuid4()
+            deletedonproject = False
+            createprojectquery1 = ("insert into projects (domainid,projectname,"
+            +"projectid,createdby,createdon,deleted,projecttypeid,"
+            +"skucodeproject,tags)values ( "+str(requestdata['domainid'])
+            +", '"+requestdata['projectname']+"' , "+str(projectid)
+            +", '"+requestdata['createdby']+"',"+str(getcurrentdate())
+            +", "+str(deletedonproject)+", "+requestdata['projecttypeid']
+            +",'"+requestdata['skucodeproject']+"' , ['"+requestdata['tags']+"']);")
+            res={'rows':'Success'}
+        elif(requestdata['query'] == 'createrelease'):
+            releaseid =uuid.uuid4()
+            deletedonrelease = False
+            createprojectquery2=("insert into releases (projectid,releasename,"
+            +"releaseid,createdby,createdon,deleted,skucoderelease,tags) values "
+            +"("+str(requestdata['projectid'])+", '"+requestdata['releasename']
+            +"' ,"+str(releaseid)+",'"+requestdata['createdby']
+            +"' ,"+str(getcurrentdate())+","+str(deletedonrelease)
+            +",'"+requestdata['skucoderelease']+"' ,['"+requestdata['tags']+"']);")
+            res={'rows':'Success'}
+        elif(requestdata['query'] == 'createcycle'):
+            cycleid =uuid.uuid4()
+            deletedoncycle = False
+            createprojectquery3=("insert into cycles (releaseid,cyclename, "
+            +"cycleid,createdby,createdon,deleted,skucodecycle,tags) values "
+            +" ("+str(requestdata['releaseid'])+", '"+requestdata['cyclename']
+            +"',"+str(cycleid)+",'"+requestdata['createdby']
+            +"',"+str(getcurrentdate())+","+str(deletedoncycle)
+            +",'"+requestdata['skucodecycle']+"' ,['"+requestdata['tags']+"']);")
+##                queryresult = icesession.execute(createprojectquery3)
+            res={'rows':'Success'}
+        else:
+            res={'rows':'fail'}
+##            return jsonify(res)
+            return res
+        return res
+    except Exception as updateUserexc:
+        print updateUserexc
+        print 'Error in updateUser_nineteen68'
+        res={'rows':'fail'}
+    ##        return jsonify(res)
+        return res
+
+#service updates the specified project structure into ICE keyspace
+##@app.route('/admin/updateProject_ICE',methods=['POST'])
+def updateProject_ICE(data):
+    res={'rows':'fail'}
+    try:
+##        requestdata=json.loads(request.data)
+        requestdata=data
+        if(requestdata['query'] == 'deleterelease'):
+            updateprojectquery1=("delete from releases where releasename='"
+            +requestdata['releasename']+"' and projectid="+requestdata['projectid']
+            +" and releaseid="+requestdata['releaseid'])
+            print updateprojectquery1
+        elif(requestdata['query'] == 'deletecycle'):
+            updateprojectquery2=("delete from cycles where cyclename='"
+            +requestdata['cyclename']+"' and releaseid="+requestdata['releaseid']
+            +" and cycleid="+requestdata['cycleid'])
+            print updateprojectquery2
+
+    except Exception as updateprojectexc:
+            import traceback
+            traceback.print_exc()
+            print('Error in updateProject_ICE')
+            res={'rows':'fail'}
+    ##        return jsonify(res)
+            return res
+
+
+#service assigns projects to a specific user
+##@app.route('/admin/assignProjects_ICE',methods=['POST'])
+def assignProjects_ICE(data):
+    try:
+    ##    requestdata=json.loads(request.data)
+        requestdata=data
+        if (requestdata['alreadyassigned'] != str(True)):
+            requestdata['projectids'] = ','.join(str(idval) for idval in requestdata['projectids'])
+            assignprojectsquery1 = "insert into icepermissions (userid, "
+            +"domainid,createdby,createdon,projectids) values"
+            +"("+str(requestdata['userid'])+","+str(requestdata['domainid'])
+            +",'"+requestdata['createdby']+"',"+str(getcurrentdate())
+            +", ["+requestdata['projectids']+"]);"
+            queryresult = icesession.execute(assignprojectsquery2)
+        elif (requestdata['alreadyassigned'] == str(True)):
+            requestdata['projectids'] = ','.join(str(idval) for idval in requestdata['projectids'])
+            assignprojectsquery2 = "update icepermissions set"
+            +" projectids = projectids + ["+requestdata['projectids']+"] "
+            +" modifiedby = "+requestdata['modifiedby']
+            +" modifiedon = "+str(getcurrentdate())
+            +" modifiedbyrole = '"+requestdata['modifiedbyrole']
+            +"' WHERE userid = "+str(requestdata['userid'])
+            +" and domainid = "+str(requestdata['domainid']);"
+            queryresult = icesession.execute(assignprojectsquery2)
+        else:
+    ##        return jsonify(res)
+            return res
+        res={'rows':'Success'}
+
+##        return jsonify(res)
+        return res
+    except Exception as assignprojectsexc:
+        print 'Error in assignProjects_ICE'
+        res={'rows':'fail'}
+    ##        return jsonify(res)
+        return res
 
 #########################
 # END OF ADMIN SCREEN
@@ -377,6 +724,20 @@ def encrypt_ICE(data):
 #########################
 
 
+def isemptyrequest(requestdata):
+    flag = False
+    for key in requestdata:
+        value = requestdata[key]
+        if value == 'undefined' or value == '' or value == 'null' or value == None:
+            flag = True
+    return flag
+
+def getcurrentdate():
+    currentdate= datetime.datetime.now()
+    beginingoftime = datetime.datetime.utcfromtimestamp(0)
+    differencedate= currentdate - beginingoftime
+    return long(differencedate.total_seconds() * 1000.0)
+
 
 #########################
 # END OF INTERNAL COMPONENTS
@@ -389,6 +750,12 @@ if __name__ == '__main__':
 #      http implementations
 ##    app.run(host='127.0.0.1',port=1990,debug=True)
 
+##    formatter = logging.Formatter("[%(asctime)s] {%(pathname)s:%(lineno)d} %(levelname)s - %(message)s")
+##    handler = RotatingFileHandler('restapi.log', maxBytes=10000, backupCount=1)
+##    handler.setLevel(logging.ERROR)
+##    handler.setFormatter(formatter)
+##    app.logger.addHandler(handler)
+##    app.run(host='127.0.0.1',port=1990,debug=True)
 #########################
 # TEST COMPONENTS
 #########################
@@ -402,7 +769,7 @@ if __name__ == '__main__':
 ##    response = getUserRoles()
 #   ----------------------------
 #  encrypt_ICE
-##    data = "Nineteen68"
+##    data = "Vidya@1234"
 ##    response = encrypt_ICE(data)
 ##    print response
 #   ----------------------------
@@ -444,7 +811,7 @@ if __name__ == '__main__':
 #   ----------------------------
 #  loadUserInfo_Nineteen68
 ##    data = {
-##			"username": "<username>",
+##			"username": "Vishvas_Admin",
 ##            "query": "userInfo",
 ##            "query": "loggedinRole",
 ##            "query":"userPlugins",
@@ -510,6 +877,7 @@ if __name__ == '__main__':
 ##            "projectid":"57dcec44-4955-4a23-b1d2-14afa8ec3c98"
 ##            "query":"domaindetails",
 ##            "domainid":"e1cb0da2-44b8-4f8a-9ba8-8a290174881f"
+
 ##		  }
 ##    response = getReport_Nineteen68(data)
 ##    print response
@@ -517,11 +885,172 @@ if __name__ == '__main__':
 #   exportToJson_ICE
 ##    data = {
 ##            "query":"scenarioid",
-##            "reportid" :"e59decbd-9302-46d8-b59b-fe3558aeb18e"
+##            "reportid" :"reportid"
 ##            "query" : "scenarioname",
-##            "scenarioid":"ee567f9a-2451-486a-befc-d0547a99898a"
+##            "scenarioid":"scenarioid"
 ##		  }
 ##    response = exportToJson_ICE(data)
+##    print response
+#   ----------------------------
+#   getDetails_ICE
+##    data = {
+##            "query":"domaindetails",
+##            "id" :"id"
+
+##            "query":"projectsdetails",
+##            "subquery":"projecttypeid",
+##            "id" :"id"
+
+##            "query":"projectsdetails",
+##            "subquery":"projecttypename",
+##            "id" :"id"
+
+##            "query":"projectsdetails",
+##            "subquery":"projecttypeid",
+##            "id" :"id"
+
+##            "query":"projectsdetails",
+##            "subquery":"releasedetails",
+##            "id" :"id"
+
+##            "query":"projectsdetails",
+##            "subquery":"cycledetails",
+##            "id" :"releaseid"
+
+##            "query":"cycledetails",
+##            "id" :"id"
+##		  }
+##    response = getDetails_ICE(data)
+##    print response
+#   ----------------------------
+#   getNames_ICE
+##    data = {
+##            "query":"domainsall",
+##            "id" :"domainid"
+##            "query":"projects",
+##            "id" :"projectid"
+##            "query":"releases",
+##            "id" :"releaseid"
+##            "query":"cycles",
+##            "id" :"id"
+##            }
+##    response = getNames_ICE(data)
+##    print response
+#   ----------------------------
+###   getDomains_ICE
+##    response = getDomains_ICE()
+##    print response
+#   ----------------------------
+#   getAssignedProjects_ICE
+##    data = {
+##            "query":"projectid",
+##            "domainid":"e1cb0da2-44b8-4f8a-9ba8-8a290174881f",
+##            "userid":"9b57a7cb-0f82-499c-8e43-adccc247c590"
+##            "query":"projectname",
+##            "projectid":"7d26c852-883e-4270-9e26-82958746c994"
+##            }
+##    response = getAssignedProjects_ICE(data)
+##    print response
+#   ----------------------------
+#   createUser_Nineteen68
+##    data = {
+##              userid,createdby,createdon,defaultrole,deactivated,emailid,firstname,lastname,ldapuser,password,username
+##            "query":"createuser",
+##            "userid":str(uuid.uuid4()),
+##            "createdby":"Vishvas_Admin",
+##            "deactivated": str(False),
+##            "defaultrole":'566702ae-8caf-42e9-9b20-fc2381c4cc0f',
+##            "emailid":"vishvas.a@slkgroup.com",
+##            "firstname":"Vishvas",
+##            "lastname":"Shrivats",
+##            "ldapuser":str(False),
+##            "password":"Vishvas@1",
+##            "username":"Vishvas"
+##            }
+##    response = createUser_Nineteen68(data)
+##    print response
+#   ----------------------------
+#   getUsers_Nineteen68
+##    data = {
+##    "userroles":[ { "roleid": 'b5e9cb4a-5299-4806-b7d7-544c30593a6e',
+##       "rolename": 'Admin' },
+##     { "roleid": '01c207fc-5ada-4cfb-b7fa-0f6e1626f896',
+##       "rolename": 'Business Analyst' },
+##     { "roleid": '566702ae-8caf-42e9-9b20-fc2381c4cc0f',
+##       "rolename": 'Test Lead' },
+##     { "roleid": '160d3943-e6d9-4630-a824-cabf54f225d2',
+##       "rolename": 'Test Manager' },
+##     { "roleid": 'ff03a568-e2f1-4cc8-9d09-b4a67513f165',
+##       "rolename": 'Tech Lead' },
+##     { "roleid": 'f482f197-8aaf-4f3b-bfd9-391fe0af441e',
+##       "rolename": 'Test Engineer' } ],
+##    "projectid":"57dcec44-4955-4a23-b1d2-14afa8ec3c98"
+##    }
+##    response = getUsers_Nineteen68(data)
+##    print response
+#   ----------------------------
+#   updateUser_Nineteen68
+##    data = {
+##        "userid":"9b57a7cb-0f82-499c-8e43-adccc247c590",
+##        "query":"userdetails"
+##    }
+##    response = updateUser_Nineteen68(data)
+##    print response
+##    data = {
+##        "additionalroles":{},
+##        "deactivated" :str(False),
+##        "emailid":"vishvas.shrivats@slkgroup.com",
+##        "firstname":response['rows'][0]['firstname'],
+##        "lastname":"Shrivats",
+##        "ldapuser":str(False),
+##        "modifiedby":"Vishvas_Admin",
+##        "modifiedbyrole" : "Admin",
+##        "password":response['rows'][0]['password'],
+##        "username":response['rows'][0]['username'],
+##        "userid":"9b57a7cb-0f82-499c-8e43-adccc247c590",
+##        "query":"updateuser"
+##    }
+##    response = updateUser_Nineteen68(data)
+##    print response
+#   ----------------------------
+#   createProject_ICE
+##    data = {
+##        "projecttype":"Web",
+##        "query":"projecttype"
+
+##            domainid,projectname,projectid,createdby,createdon,deleted,projecttypeid,skucodeproject,tags
+##        "query" : "createproject",
+##        "domainid" : "e1cb0da2-44b8-4f8a-9ba8-8a290174881f",
+##        "projectname":"New Project_SLK",
+##        "createdby":"Vishvas_Admin",
+##        "projecttypeid":"e9ed5428-64e4-45e0-b4f1-77e1803ab4fe",
+##        "skucodeproject" : "skucodeproject",
+##        "tags":"tags"
+
+##        projectid,releasename,releaseid,createdby,createdon,deleted,skucoderelease,tags
+##        "query":"createrelease",
+##        "projectid" :"57dcec44-4955-4a23-b1d2-14afa8ec3c98",
+##        "releasename":"New Release Name",
+##        "createdby":"Vishvas_Admin",
+##        "skucoderelease":"skucoderelease",
+##        "tags":"tags"
+
+##        "query":"createcycle",
+##        "releaseid" :"57dcec44-4955-4a23-b1d2-14afa8ec3c98",
+##        "cyclename":"New Cycle Name",
+##        "createdby":"Vishvas_Admin",
+##        "skucodecycle":"skucodecycle",
+##        "tags":"tags"
+##    }
+##    response = createProject_ICE(data)
+##    print response
+#   ----------------------------
+#   assignProjects_ICE
+##    data = {
+##        "projecttype":"Web",
+##        "query":"projecttype"
+##    }
+##    response = assignProjects_ICE(data)
 ##    print response
 #########################
 # TEST COMPONENTS END
