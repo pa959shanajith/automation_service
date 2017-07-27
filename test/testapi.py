@@ -761,15 +761,15 @@ if __name__ == '__main__':
 #########################
 #   ----------------------------
 # getKeywordDetails
-##    data = "Web"
-##    data = "Mobility"
+##    data = <getKeywordDetailsof>
+##    data = <getKeywordDetailsof>
 ##    response = getKeywordDetails(data)
 #   ----------------------------
 #  getUserRoles
 ##    response = getUserRoles()
 #   ----------------------------
 #  encrypt_ICE
-##    data = "Vidya@1234"
+##    data = <data>
 ##    response = encrypt_ICE(data)
 ##    print response
 #   ----------------------------
@@ -811,7 +811,7 @@ if __name__ == '__main__':
 #   ----------------------------
 #  loadUserInfo_Nineteen68
 ##    data = {
-##			"username": "Vishvas_Admin",
+##			"username": <username>,
 ##            "query": "userInfo",
 ##            "query": "loggedinRole",
 ##            "query":"userPlugins",
@@ -830,22 +830,22 @@ if __name__ == '__main__':
 #  getAllSuites_ICE
 ##    data = {
 ##                "query" : "domainid",
-##                "userid" :"9b57a7cb-0f82-499c-8e43-adccc247c590"
+##                "userid" :<userid>,
 ##                "query" : "projectsUnderDomain",
-##                "domainid" :"e1cb0da2-44b8-4f8a-9ba8-8a290174881f"
+##                "domainid" :<domainid>
 ##                "query" :"releasesUnderProject",
-##                "projectid":"57dcec44-4955-4a23-b1d2-14afa8ec3c98"
+##                "projectid":<projectid>
 ##                "query" :"cycleidUnderRelease",
-##                "releaseid":"0754cf4a-742d-4628-9d25-3b882f78b90d"
+##                "releaseid":<releaseid>
 ##                "query": "suitesUnderCycle",
-##                "cycleid":"825c2143-90ac-4c58-b475-390dda7b0eff"
+##                "cycleid":<cycleid>
 ##		  }
 ##    response = getAllSuites_ICE(data)
 ##    print response
 #   ----------------------------
 #   getSuiteDetailsInExecution_ICE
 ##    data = {
-##            "suiteid" :"57ec9be0-4994-4526-beb5-5d042c9073b1"
+##            "suiteid" :<suiteid>
 ##		  }
 ##    response = getSuiteDetailsInExecution_ICE(data)
 ##    print response
@@ -853,9 +853,9 @@ if __name__ == '__main__':
 #   reportStatusScenarios_ICE
 ##    data = {
 ##            "query":"executiondetails",
-##            "executionid" :"20d702da-c365-42dd-97f1-1aebeb12a9dd"
+##            "executionid" :<executionid>
 ##            "query" : "scenarioname",
-##            "scenarioid":"ee567f9a-2451-486a-befc-d0547a99898a"
+##            "scenarioid":<scenarioid>
 ##		  }
 ##    response = reportStatusScenarios_ICE(data)
 ##    print response
@@ -863,20 +863,20 @@ if __name__ == '__main__':
 #   getReport_Nineteen68
 ##    data = {
 ##            "query":"projectsUnderDomain",
-##            "reportid" :"e59decbd-9302-46d8-b59b-fe3558aeb18e"
+##            "reportid" :<reportid>
 ##            "query":"scenariodetails",
-##            "scenarioid":"ee567f9a-2451-486a-befc-d0547a99898a"
+##            "scenarioid":<scenarioid>
 ##            "query":"cycleid",
-##            "suiteid":"3abdac8b-7715-4bde-b878-bce48a59d698",
-##            "suitename":"Ashwini_Suite1"
+##            "suiteid":<suiteid>
+##            "suitename":<suitename>
 ##            "query":"cycledetails",
-##            "cycleid":"825c2143-90ac-4c58-b475-390dda7b0eff"
+##            "cycleid":<cycleid>
 ##            "query":"releasedetails",
-##            "releaseid":"0754cf4a-742d-4628-9d25-3b882f78b90d"
+##            "releaseid":<releaseid>
 ##            "query":"projectdetails",
-##            "projectid":"57dcec44-4955-4a23-b1d2-14afa8ec3c98"
+##            "projectid":<projectid>
 ##            "query":"domaindetails",
-##            "domainid":"e1cb0da2-44b8-4f8a-9ba8-8a290174881f"
+##            "domainid":<domainid>
 
 ##		  }
 ##    response = getReport_Nineteen68(data)
@@ -944,10 +944,10 @@ if __name__ == '__main__':
 #   getAssignedProjects_ICE
 ##    data = {
 ##            "query":"projectid",
-##            "domainid":"e1cb0da2-44b8-4f8a-9ba8-8a290174881f",
-##            "userid":"9b57a7cb-0f82-499c-8e43-adccc247c590"
-##            "query":"projectname",
-##            "projectid":"7d26c852-883e-4270-9e26-82958746c994"
+##            "domainid":<domainid>,
+##            "userid":<userid>,
+##            "query":<query>,
+##            "projectid":<projectid>
 ##            }
 ##    response = getAssignedProjects_ICE(data)
 ##    print response
@@ -956,58 +956,47 @@ if __name__ == '__main__':
 ##    data = {
 ##              userid,createdby,createdon,defaultrole,deactivated,emailid,firstname,lastname,ldapuser,password,username
 ##            "query":"createuser",
-##            "userid":str(uuid.uuid4()),
-##            "createdby":"Vishvas_Admin",
-##            "deactivated": str(False),
-##            "defaultrole":'566702ae-8caf-42e9-9b20-fc2381c4cc0f',
-##            "emailid":"vishvas.a@slkgroup.com",
-##            "firstname":"Vishvas",
-##            "lastname":"Shrivats",
-##            "ldapuser":str(False),
-##            "password":"Vishvas@1",
-##            "username":"Vishvas"
+##            "userid":<userid>
+##            "createdby":<createdby>,
+##            "deactivated": <deactivated>,
+##            "defaultrole":<defaultrole>,
+##            "emailid":<emailid>,
+##            "firstname":<firstname>,
+##            "lastname":<lastname>,
+##            "ldapuser":<ldapuser>,
+##            "password":<password>,
+##            "username":<username>
 ##            }
 ##    response = createUser_Nineteen68(data)
 ##    print response
 #   ----------------------------
 #   getUsers_Nineteen68
 ##    data = {
-##    "userroles":[ { "roleid": 'b5e9cb4a-5299-4806-b7d7-544c30593a6e',
-##       "rolename": 'Admin' },
-##     { "roleid": '01c207fc-5ada-4cfb-b7fa-0f6e1626f896',
-##       "rolename": 'Business Analyst' },
-##     { "roleid": '566702ae-8caf-42e9-9b20-fc2381c4cc0f',
-##       "rolename": 'Test Lead' },
-##     { "roleid": '160d3943-e6d9-4630-a824-cabf54f225d2',
-##       "rolename": 'Test Manager' },
-##     { "roleid": 'ff03a568-e2f1-4cc8-9d09-b4a67513f165',
-##       "rolename": 'Tech Lead' },
-##     { "roleid": 'f482f197-8aaf-4f3b-bfd9-391fe0af441e',
-##       "rolename": 'Test Engineer' } ],
-##    "projectid":"57dcec44-4955-4a23-b1d2-14afa8ec3c98"
+##    "userroles":<userroles>,
+##    "projectid":<projectid>
 ##    }
 ##    response = getUsers_Nineteen68(data)
 ##    print response
 #   ----------------------------
 #   updateUser_Nineteen68
 ##    data = {
-##        "userid":"9b57a7cb-0f82-499c-8e43-adccc247c590",
+##        "userid":<userid>
 ##        "query":"userdetails"
 ##    }
 ##    response = updateUser_Nineteen68(data)
 ##    print response
 ##    data = {
-##        "additionalroles":{},
-##        "deactivated" :str(False),
-##        "emailid":"vishvas.shrivats@slkgroup.com",
-##        "firstname":response['rows'][0]['firstname'],
-##        "lastname":"Shrivats",
-##        "ldapuser":str(False),
-##        "modifiedby":"Vishvas_Admin",
-##        "modifiedbyrole" : "Admin",
-##        "password":response['rows'][0]['password'],
-##        "username":response['rows'][0]['username'],
-##        "userid":"9b57a7cb-0f82-499c-8e43-adccc247c590",
+##        "additionalroles":<additionalroles>,
+##        "deactivated" :<deactivated>,
+##        "emailid":<emailid>,
+##        "firstname":<firstname>,
+##        "lastname":<lastname>,
+##        "ldapuser":<ldapuser>,
+##        "modifiedby":<modifiedby>,
+##        "modifiedbyrole" : <modifiedbyrole>
+##        "password":<password>
+##        "username":<username>,
+##        "userid":<userid>,
 ##        "query":"updateuser"
 ##    }
 ##    response = updateUser_Nineteen68(data)
@@ -1018,27 +1007,27 @@ if __name__ == '__main__':
 ##        "projecttype":"Web",
 ##        "query":"projecttype"
 
-##            domainid,projectname,projectid,createdby,createdon,deleted,projecttypeid,skucodeproject,tags
+## domainid,projectname,projectid,createdby,createdon,deleted,projecttypeid,skucodeproject,tags
 ##        "query" : "createproject",
-##        "domainid" : "e1cb0da2-44b8-4f8a-9ba8-8a290174881f",
-##        "projectname":"New Project_SLK",
-##        "createdby":"Vishvas_Admin",
-##        "projecttypeid":"e9ed5428-64e4-45e0-b4f1-77e1803ab4fe",
+##        "domainid" : "<domainid>",
+##        "projectname":<projectname>",
+##        "createdby":<createdby>,
+##        "projecttypeid":<projecttypeid>,
 ##        "skucodeproject" : "skucodeproject",
 ##        "tags":"tags"
 
-##        projectid,releasename,releaseid,createdby,createdon,deleted,skucoderelease,tags
+## projectid,releasename,releaseid,createdby,createdon,deleted,skucoderelease,tags
 ##        "query":"createrelease",
-##        "projectid" :"57dcec44-4955-4a23-b1d2-14afa8ec3c98",
-##        "releasename":"New Release Name",
-##        "createdby":"Vishvas_Admin",
+##        "projectid" :<projectid>,
+##        "releasename":<releasename>,
+##        "createdby":"<createdby>",
 ##        "skucoderelease":"skucoderelease",
 ##        "tags":"tags"
 
 ##        "query":"createcycle",
-##        "releaseid" :"57dcec44-4955-4a23-b1d2-14afa8ec3c98",
-##        "cyclename":"New Cycle Name",
-##        "createdby":"Vishvas_Admin",
+##        "releaseid" :<releaseid>,
+##        "cyclename":<cyclename>,
+##        "createdby":"<createdby>",
 ##        "skucodecycle":"skucodecycle",
 ##        "tags":"tags"
 ##    }
@@ -1047,7 +1036,7 @@ if __name__ == '__main__':
 #   ----------------------------
 #   assignProjects_ICE
 ##    data = {
-##        "projecttype":"Web",
+##        "projecttype":<projecttype>,
 ##        "query":"projecttype"
 ##    }
 ##    response = assignProjects_ICE(data)
