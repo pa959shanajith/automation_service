@@ -470,18 +470,31 @@ def updateUser_Nineteen68():
                 res={'rows':rows}
             elif(requestdata['query'] == 'updateuser'):
                 requestdata['additionalroles'] = ','.join(str(roleid) for roleid in requestdata['additionalroles'])
-                updateuserquery2=("UPDATE users set "
-                +"username='" + requestdata['username']
-                + "', password='" + requestdata['password']
-                + "', firstname='" + requestdata['firstname']
-                + "', lastname='" + requestdata['lastname']
-                + "', modifiedby='" + requestdata['modifiedby']
-                + "', modifiedon=" + str(getcurrentdate())
-                + ", emailid='" + requestdata['emailid']
-                + "', ldapuser= " + str(requestdata['ldapuser'])
-                + ", modifiedbyrole= '" + str(requestdata['modifiedbyrole'])
-                + "', additionalroles= additionalroles + {" + str(requestdata['additionalroles'])
-                + "} where userid=" + str(requestdata['userid']))
+                if requestdata['password'] == 'existing':
+                    updateuserquery2=("UPDATE users set "
+                    +"username='" + requestdata['username']
+                    + "', firstname='" + requestdata['firstname']
+                    + "', lastname='" + requestdata['lastname']
+                    + "', modifiedby='" + requestdata['modifiedby']
+                    + "', modifiedon=" + str(getcurrentdate())
+                    + ", emailid='" + requestdata['emailid']
+                    + "', ldapuser= " + str(requestdata['ldapuser'])
+                    + ", modifiedbyrole= '" + str(requestdata['modifiedbyrole'])
+                    + "', additionalroles= additionalroles + {" + str(requestdata['additionalroles'])
+                    + "} where userid=" + str(requestdata['userid']))
+                else:
+                    updateuserquery2=("UPDATE users set "
+                    +"username='" + requestdata['username']
+                    + "', password='" + requestdata['password']
+                    + "', firstname='" + requestdata['firstname']
+                    + "', lastname='" + requestdata['lastname']
+                    + "', modifiedby='" + requestdata['modifiedby']
+                    + "', modifiedon=" + str(getcurrentdate())
+                    + ", emailid='" + requestdata['emailid']
+                    + "', ldapuser= " + str(requestdata['ldapuser'])
+                    + ", modifiedbyrole= '" + str(requestdata['modifiedbyrole'])
+                    + "', additionalroles= additionalroles + {" + str(requestdata['additionalroles'])
+                    + "} where userid=" + str(requestdata['userid']))
                 queryresult = n68session.execute(updateuserquery2)
                 res={'rows':'Success'}
             else:
