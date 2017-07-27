@@ -19,7 +19,7 @@ from cassandra.cluster import Cluster
 from flask_cassandra import CassandraCluster
 from cassandra.auth import PlainTextAuthProvider
 auth = PlainTextAuthProvider(username='<databaseusername>', password='databasepassword')
-c = Cluster(['<databaseip>'],auth_provider=auth)
+cluster = Cluster(['<databaseip>'],auth_provider=auth)
 
 
 icesession = cluster.connect()
