@@ -616,15 +616,16 @@ def getUsers_Nineteen68():
                 queryforuser=("select userid, username, defaultrole from users "
                         +"where userid="+str(row['userid']))
                 queryresultusername=n68session.execute(queryforuser)
-                if not queryresultusername.current_rows[0]['defaultrole'] in userrolesarr:
-                    rids.append(row['userid'])
-                    userroles.append(queryresultusername.current_rows[0]['username'])
-                    res["userRoles"]=userroles
-                    res["r_ids"]=rids
-            return jsonify(res)
+                if not(len(queryresultusername.current_rows) == 0):
+                    if not (str(queryresultusername.current_rows[0]['defaultrole']) in userrolesarr):
+                        rids.append(row['userid'])
+                        userroles.append(queryresultusername.current_rows[0]['username'])
+                        res["userRoles"]=userroles
+                        res["r_ids"]=rids
         else:
             app.logger.error('Empty data received. get users - Mind Maps.')
             return jsonify(res)
+        return jsonify(res)
     except Exception as getUsersexc:
         app.logger.error('Error in getUsers_Nineteen68')
         return jsonify(res)
