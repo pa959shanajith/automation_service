@@ -247,21 +247,161 @@ def readTestCase_ICE():
     try:
         requestdata=json.loads(request.data)
         if not isemptyrequest(requestdata):
-            readtestcasequery = ("select testcasesteps,testcasename "
-                            +"from testcases where "
-                            +"screenid= " + requestdata["screenid"]
-                            +" and testcasename='"+requestdata["testcasename"]+"'"
-                            +" and versionnumber="+str(requestdata["versionnumber"])
-                            +" and testcaseid=" + requestdata["testcaseid"])
-            queryresult = icesession.execute(readtestcasequery)
-            res= {"rows": queryresult.current_rows}
-            return jsonify(res)
+            if(requestdata['query'] == "readtestcase"):
+                readtestcasequery1 = ("select testcasesteps,testcasename "
+                                +"from testcases where "
+                                +"screenid= " + requestdata["screenid"]
+                                +" and testcasename='"+requestdata["testcasename"]+"'"
+                                +" and versionnumber="+str(requestdata["versionnumber"])
+                                +" and testcaseid=" + requestdata["testcaseid"])
+                queryresult = icesession.execute(readtestcasequery1)
+            elif(requestdata['query'] == "testcaseid"):
+                readtestcasequery2 = ("select screenid,testcasename,testcasesteps"
+                +" from testcases where testcaseid="+ requestdata['testcaseid'])
+                queryresult = icesession.execute(readtestcasequery2)
+            elif(requestdata['query'] == "screenid"):
+                readtestcasequery3 = ("select testcaseid,testcasename,testcasesteps "
+                +"from testcases where screenid=" + requestdata['screenid'])
+                queryresult = icesession.execute(readtestcasequery3)
         else:
             app.logger.error('Empty data received. reading Testcase')
             return jsonify(res)
+        res= {"rows": queryresult.current_rows}
+        return jsonify(res)
     except Exception as readtestcaseexc:
         app.logger.error('Error in readTestCase_ICE.')
         return jsonify(res)
+
+
+# fetches the screen data
+@app.route('/design/getScrapeDataScreenLevel_ICE',methods=['POST'])
+def getScrapeDataScreenLevel_ICE():
+    res={'rows':'fail'}
+    try:
+        requestdata=json.loads(request.data)
+        if not isemptyrequest(requestdata):
+            if (requestdata['query'] == 'getscrapedata'):
+                getscrapedataquery1=("select screenid,screenname,screendata from "
+                +"screens where screenid="+requestdata['screenid']
+                +" and projectid="+requestdata['projectid']+" allow filtering ;")
+                queryresult = icesession.execute(getscrapedataquery1)
+                res = {"rows":queryresult.current_rows}
+            elif(requestdata['query'] == 'debugtestcase'):
+                getscrapedataquery2=("select screenid,screenname,screendata from "
+                +"screens where screenid="+requestdata['screenid']
+                +" allow filtering ;")
+                queryresult = icesession.execute(getscrapedataquery2)
+                res = {"rows":queryresult.current_rows}
+        else:
+            app.logger.error('Empty data received. reading Testcase')
+            return jsonify(res)
+        return jsonify(res)
+    except Exception as getscrapedataexc:
+        app.logger.error('Error in getScrapeDataScreenLevel_ICE.')
+        return jsonify(res)
+
+# fetches data for debug the testcase
+@app.route('/design/debugTestCase_ICE',methods=['POST'])
+def debugTestCase_ICE():
+    res={'rows':'fail'}
+    try:
+        requestdata=json.loads(request.data)
+        if not isemptyrequest(requestdata):
+            gettestcasedataquery=("select screenid,testcasename,testcasesteps "
+            +"from testcases where testcaseid=" + requestdata['testcaseid'])
+            queryresult = icesession.execute(gettestcasedataquery)
+            res = {"rows":queryresult.current_rows}
+        else:
+            app.logger.error('Empty data received. reading Testcase')
+            return jsonify(res)
+        return jsonify(res)
+    except Exception as debugtestcaseexc:
+        app.logger.error('Error in debugTestCase_ICE.')
+        return jsonify(res)
+
+# updates the screen data
+@app.route('/design/updateScreen_ICE',methods=['POST'])
+def updateScreen_ICE():
+    res={'rows':'fail'}
+    try:
+        requestdata=json.loads(request.data)
+        if not isemptyrequest(requestdata):
+            updatescreenquery=("update icetestautomation.screens set"
+			+" screendata ='"+ requestdata['scrapedata'] +"',"
+			+" modifiedby ='" + requestdata['modifiedby'] + "',"
+			+" modifiedon = '" + str(getcurrentdate())
+			+"', skucodescreen ='" + requestdata['skucodescreen']
+			+"' where screenid = "+requestdata['screenid']
+			+" and projectid = "+requestdata['projectid']
+			+" and screenname ='" + requestdata['screenname']
+			+"' and versionnumber = "+str(requestdata['versionnumber'])
+            +" IF EXISTS; ")
+            queryresult = icesession.execute(updatescreenquery)
+            res = {"rows":"Success"}
+
+        else:
+            app.logger.error('Empty data received. updating screen')
+            return jsonify(res)
+        return jsonify(res)
+    except Exception as updatescreenexc:
+        app.logger.error('Error in updateScreen_ICE.')
+        return jsonify(res)
+
+#test case updating service
+@app.route('/design/updateTestCase_ICE',methods=['POST'])
+def updateTestCase_ICE():
+##    requestdata=json.loads(request.data)
+    res={'rows':'fail'}
+    try:
+        requestdata=json.loads(request.data)
+        if not isemptyrequest(requestdata):
+            if(requestdata["query"] == 'checktestcaseexist'):
+                updatetestcasequery1 = "select testcaseid from testcases where screenid=" + requestdata['screenid'] +  " allow filtering"
+                queryresult = icesession.execute(updatetestcasequery1)
+                res= {"rows": queryresult.current_rows}
+                res =  jsonify(res)
+            elif(requestdata["query"] == 'updatetestcasedata'):
+                updatetestcasequery2 = ("update testcases set "
+                + "modifiedby = '" + requestdata['modifiedby']
+                + "', modifiedon='" + str(getcurrentdate())
+        		+"',  skucodetestcase='" + requestdata["skucodetestcase"]
+        		+"',  testcasesteps='" + requestdata["testcasesteps"]
+        		+"' where versionnumber = "+str(requestdata["versionnumber"])
+                +" and screenid=" + str(requestdata["screenid"])
+                + " and testcaseid=" + str(requestdata["testcaseid"])
+                + " and testcasename='" + requestdata["testcasename"] + "' if exists;")
+                queryresult = icesession.execute(updatetestcasequery2)
+                res= {"rows": queryresult.current_rows}
+                res =  jsonify(res)
+
+    except Exception as updatetestcaseexception:
+        app.logger.error('Error in updateTestCase_ICE.')
+    ##        return jsonify(res)
+    return res
+
+#get testcases by scenario ids for add dependent testcases
+@app.route('/design/getTestcasesByScenarioId_ICE',methods=['POST'])
+def getTestcasesByScenarioId_ICE():
+    res={'rows':'fail'}
+    try:
+        requestdata=json.loads(request.data)
+        if not isemptyrequest(requestdata):
+            if(requestdata["query"] == 'gettestcaseids'):
+                gettestcaseidquery1  = ("select testcaseids from testscenarios "
+                +"where testscenarioid = "+requestdata["testscenarioid"]+" allow filtering")
+                queryresult = icesession.execute(gettestcaseidquery1)
+            elif(requestdata["query"] == 'gettestcasedetails'):
+                gettestcaseidquery2 = ("select testcasename from testcases where"
+                +" testcaseid = "+requestdata["eachtestcaseid"]+" allow filtering")
+                queryresult = icesession.execute(gettestcaseidquery2)
+            else:
+                res={'rows':'fail'}
+            res= {"rows":queryresult.current_rows}
+        res=jsonify(res)
+    except Exception as gettestcasesbyscenarioidexception:
+        app.logger.error('Error in updateTestCase_ICE.')
+    return res
+
 
 ##################################################
 # END OF DESIGN SCREEN
