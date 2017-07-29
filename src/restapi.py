@@ -206,7 +206,110 @@ def loadUserInfo_Nineteen68():
 #########################
 # END OF LOGIN SCREEN
 #########################
+##################################################
+# BEGIN OF CREATE_ICE
+# INCLUDES : all Mindmap related queries
+##################################################
 
+#getting Release_iDs of Project
+@app.route('/create_ice/getReleaseIDs_Ninteen68',methods=['POST'])
+def getReleaseIDs_Ninteen68():
+    res={'rows':'fail'}
+    try:
+       requestdata=json.loads(request.data)
+       if not isemptyrequest(requestdata):
+            projectid=requestdata['projectid']
+            getReleaseDetails = ("select releasename,releaseid from icetestautomation.releases "+
+            "where projectid"+'='+ projectid)
+            queryresult = icesession.execute(getReleaseDetails)
+            res={'rows':queryresult.current_rows}
+       else:
+            app.logger.error("Invalid Project Id in getReleaseIDs_Ninteen68")
+    except Exception as e:
+        app.logger.error('Error in getReleaseIDs_Ninteen68.')
+    return jsonify(res)
+
+
+@app.route('/create_ice/getCycleIDs_Ninteen68',methods=['POST'])
+def getCycleIDs_Ninteen68():
+    res={'rows':'fail'}
+    try:
+       requestdata=json.loads(request.data)
+       if not isemptyrequest(requestdata):
+            releaseid=requestdata['releaseid']
+            getCycleDetails = ("select cyclename,cycleid from icetestautomation.cycles "+
+            "where releaseid"+'='+ releaseid)
+            queryresult = icesession.execute(getCycleDetails)
+            res={'rows':queryresult.current_rows}
+       else:
+            app.logger.error("Invalid Releaseid Id in getCycleIDs_Ninteen68")
+    except Exception as e:
+        app.logger.error('Error in getCycleIDs_Ninteen68.')
+    return jsonify(res)
+
+@app.route('/create_ice/getProjectType_Nineteen68',methods=['POST'])
+def getProjectType_Nineteen68():
+    res={'rows':'fail'}
+    try:
+       requestdata=json.loads(request.data)
+       if not isemptyrequest(requestdata):
+            projectid=requestdata['projectid']
+            getProjectType = ("select projecttypeid FROM icetestautomation.projects "+
+            "where projectid"+'='+ projectid)
+            queryresult = icesession.execute(getProjectType)
+            res={'rows':queryresult.current_rows}
+       else:
+            app.logger.error("Invalid Projectid Id in getProjectType_Nineteen68")
+    except Exception as e:
+        app.logger.error('Error in getProjectType_Nineteen68.')
+    return jsonify(res)
+
+#getting ProjectID and names of project sassigned to particular user
+@app.route('/create_ice/getProjectIDs_Nineteen68',methods=['POST'])
+def getProjectIDs_Nineteen68():
+    res={'rows':'fail'}
+    try:
+       requestdata=json.loads(request.data)
+       if not isemptyrequest(requestdata):
+            if(requestdata['query'] == 'getprojids'):
+                userid=requestdata['userid']
+                getProjIds = ("select projectids FROM icetestautomation.icepermissions "+
+                "where userid="+userid)
+                queryresult = icesession.execute(getProjIds)
+                res={'rows':queryresult.current_rows}
+            elif (requestdata['query'] == 'getprojectname'):
+                projectid=requestdata['projectid']
+                getprojectname = ("select projectname,projecttypeid FROM icetestautomation.projects "+
+                "where projectid="+projectid)
+                queryresult = icesession.execute(getprojectname)
+                res={'rows':queryresult.current_rows}
+       else:
+            app.logger.error("Invalid UserId/ProjectId in getProjectIDs_Nineteen68")
+    except Exception as e:
+        app.logger.error('Error in getProjectIDs_Nineteen68.')
+    return jsonify(res)
+
+#getting names of module/scenario/screen/testcase name of given id 
+@app.route('/create_ice/getNames_Ninteen68',methods=['POST'])
+def getNames_Nineteen68():
+    res={'rows':'fail'}
+    try:
+       requestdata=json.loads(request.data)
+       if not isemptyrequest(requestdata):
+            name=requestdata['name']
+            id=requestdata['id']
+            getname_query=(names_query[name]+id)
+            queryresult = icesession.execute(getname_query)
+            res={'rows':queryresult.current_rows}
+       else:
+            app.logger.error("Invalid UserId/ProjectId in getProjectIDs_Nineteen68")
+    except Exception as e:
+        app.logger.error('Error in getNames_Ninteen68.')
+    return jsonify(res)
+
+##################################################
+# END OF CREATE_ICE
+##################################################
 
 ##################################################
 # BEGIN OF DESIGN SCREEN
@@ -1042,6 +1145,20 @@ def getcurrentdate():
     beginingoftime = datetime.datetime.utcfromtimestamp(0)
     differencedate= currentdate - beginingoftime
     return long(differencedate.total_seconds() * 1000.0)
+
+###########################
+# BEGIN OF GLOBAL VARIABLES
+###########################
+
+names_query={}
+names_query['module']='select modulename,testscenarioids FROM modules where moduleid='
+names_query['scenario']='select testscenarioname FROM testscenarios where testscenarioid='
+names_query['screen']='select screenname FROM screens where screenid='
+names_query['testcase']='select testcasename FROM testcases where testcaseid='
+
+###########################
+# BEGIN OF GLOBAL VARIABLES
+###########################
 
 #########################
 # END OF INTERNAL COMPONENTS
