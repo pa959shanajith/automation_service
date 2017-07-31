@@ -485,7 +485,7 @@ def updateTestCase_ICE():
     return res
 
 #fetches all the testcases under a test scenario
-@app.route('/admin/getTestcaseDetailsForScenario_ICE',methods=['POST'])
+@app.route('/suite/getTestcaseDetailsForScenario_ICE',methods=['POST'])
 def getTestcaseDetailsForScenario_ICE():
     res={'rows':'fail'}
     try:
@@ -525,7 +525,7 @@ def getTestcaseDetailsForScenario_ICE():
 # INCLUDES : all execution related actions
 ##################################################
 
-#get testcases by scenario ids for add dependent testcases
+#get dependant testcases by scenario ids for add dependent testcases
 @app.route('/design/getTestcasesByScenarioId_ICE',methods=['POST'])
 def getTestcasesByScenarioId_ICE():
     res={'rows':'fail'}
