@@ -476,11 +476,54 @@ def updateTestCase_ICE():
                 queryresult = icesession.execute(updatetestcasequery2)
                 res= {"rows": queryresult.current_rows}
                 res =  jsonify(res)
-
+        else:
+            app.logger.error('Empty data received. updating testcases')
+            res =  jsonify(res)
     except Exception as updatetestcaseexception:
         app.logger.error('Error in updateTestCase_ICE.')
     ##        return jsonify(res)
     return res
+
+#fetches all the testcases under a test scenario
+@app.route('/admin/getTestcaseDetailsForScenario_ICE',methods=['POST'])
+def getTestcaseDetailsForScenario_ICE():
+    res={'rows':'fail'}
+    try:
+        requestdata=json.loads(request.data)
+        if not isemptyrequest(requestdata):
+            if(requestdata["query"] == 'testscenariotable'):
+                gettestscenarioquery1=("select testcaseids from testscenarios where "
+                +"testscenarioid="+requestdata["testscenarioid"])
+                queryresult = icesession.execute(gettestscenarioquery1)
+            elif(requestdata["query"] == 'testcasetable'):
+                gettestscenarioquery2=("select testcasename,screenid from "
+                +"testcases where testcaseid="+requestdata["testcaseid"])
+                queryresult = icesession.execute(gettestscenarioquery2)
+            elif(requestdata["query"] == 'screentable'):
+                gettestscenarioquery3=("select screenname,projectid from "
+                +"screens where screenid="+requestdata["screenid"])
+                queryresult = icesession.execute(gettestscenarioquery3)
+            elif(requestdata["query"] == 'projecttable'):
+                gettestscenarioquery4=("select projectname from projects "
+                +"where projectid="+requestdata["projectid"])
+                queryresult = icesession.execute(gettestscenarioquery4)
+            res = {'rows':queryresult.current_rows}
+            res =  jsonify(res)
+        else:
+            app.logger.error('Empty data received. getting testcases from scenarios.')
+            res =  jsonify(res)
+    except Exception as userrolesexc:
+        app.logger.error('Error in getTestcaseDetailsForScenario_ICE.')
+    return res
+##################################################
+# END OF DESIGN SCREEN
+##################################################
+
+
+##################################################
+# BEGIN OF EXECUTION
+# INCLUDES : all execution related actions
+##################################################
 
 #get testcases by scenario ids for add dependent testcases
 @app.route('/design/getTestcasesByScenarioId_ICE',methods=['POST'])
@@ -500,14 +543,18 @@ def getTestcasesByScenarioId_ICE():
             else:
                 res={'rows':'fail'}
             res= {"rows":queryresult.current_rows}
-        res=jsonify(res)
+            res =  jsonify(res)
+        else:
+            app.logger.error('Empty data received. getting testcases.')
+            res =  jsonify(res)
     except Exception as gettestcasesbyscenarioidexception:
-        app.logger.error('Error in updateTestCase_ICE.')
+        app.logger.error('Error in getTestcasesByScenarioId_ICE.')
     return res
 
 
+
 ##################################################
-# END OF DESIGN SCREEN
+# END OF EXECUTION
 ##################################################
 
 
