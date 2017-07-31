@@ -691,6 +691,45 @@ def updateTestSuite_ICE():
         app.logger.error('Error in updateTestSuite_ICE')
         return jsonify(res)
 
+@app.route('/suite/ExecuteTestSuite_ICE',methods=['POST'])
+def ExecuteTestSuite_ICE() :
+    res={'rows':'fail'}
+    try:
+        requestdata=json.loads(request.data)
+        if not isemptyrequest(requestdata):
+            if(requestdata['query'] == 'testcaseid'):
+                exporttojsonquery1="select testcaseids from testscenarios where testscenarioid=" + requestdata['testscenarioid']
+                print  exporttojsonquery1
+                queryresult = icesession.execute(exporttojsonquery1)
+            elif(requestdata['query'] == 'testcasesteps'):
+                exporttojsonquery2="select screenid from testcases where testcaseid="+ requestdata['testcaseid']
+                print  exporttojsonquery2
+                queryresult = icesession.execute(exporttojsonquery2)
+            elif(requestdata['query'] == 'getscreendataquery'):
+                exporttojsonquery3="select screendata from screens where screenid=" + requestdata['screenid']
+                print  exporttojsonquery3
+                queryresult = icesession.execute(exporttojsonquery3)
+            elif(requestdata['query'] == 'testcasestepsquery'):
+                exporttojsonquery4="select testcasesteps,testcasename from testcases where testcaseid = "+ requestdata['testcaseid']
+                print  exporttojsonquery4
+                queryresult = icesession.execute(exporttojsonquery4)
+            elif(requestdata['query'] == 'insertreportquery'):
+                exporttojsonquery5="insert into reports (reportid,executionid,testsuiteid,testscenarioid,executedtime,browser,modifiedon,status,report) values (" + requestdata['reportid'] + "," + requestdata['executionid']+ "," + requestdata['testsuiteid'] + "," + requestdata['testscenarioid'] + "," + str(getcurrentdate()) + ",'" + requestdata['browser'] + "'," + str(getcurrentdate()) + ",'" + requestdata['status']+ "','" + requestdata['report'] + "')"
+                queryresult = icesession.execute(exporttojsonquery5)
+            elif(requestdata['query'] == 'inserintotexecutionquery'):
+               exporttojsonquery6= "insert into execution (testsuiteid,executionid,starttime,endtime) values (" + requestdata['testsuiteid'] + "," + requestdata['executionid'] + "," + requestdata['starttime'] + "," + str(getcurrentdate()) + ")"
+               queryresult = icesession.execute(exporttojsonquery6)
+            else:
+                    return jsonify(res)
+        else:
+            app.logger.error('Empty data received. assign projects.')
+            return jsonify(res)
+        res={'rows':queryresult.current_rows}
+        return jsonify(res)
+    except Exception as execuitetestsuiteexc:
+        app.logger.error('Error in execuiteTestSuite_ICE')
+        return jsonify(res)
+
 ##################################################
 # END OF EXECUTION
 ##################################################
