@@ -551,7 +551,145 @@ def getTestcasesByScenarioId_ICE():
         app.logger.error('Error in getTestcasesByScenarioId_ICE.')
     return res
 
+#read test suite nineteen68
+@app.route('/suite/readTestSuite_ICE',methods=['POST'])
+def readTestSuite_ICE():
+    res={'rows':'fail'}
+    try:
+            requestdata=json.loads(request.data)
+            print (requestdata)
+        #if not isemptyrequest(requestdata):
+            if(requestdata["query"] == 'testsuitecheck'):
+                exporttojsonquery1 = ("select donotexecute,conditioncheck, "
+                +"getparampaths,testscenarioids from testsuites "
+                +" where testsuiteid="+ requestdata['testsuiteid']
+                + " and cycleid="+requestdata['cycleid'])
+                queryresult = icesession.execute(exporttojsonquery1)
+            elif(requestdata["query"] == 'selectmodule'):
+                exporttojsonquery2 = ("select * FROM modules where "
+                +"moduleid=" + requestdata["moduleid"]
+                + " and modulename='" + requestdata["modulename"]
+                + "' allow filtering")
+                queryresult = icesession.execute(exporttojsonquery2)
+            elif(requestdata["query"] == 'testcasesteps'):
+                requestdata['conditioncheck'] = ','.join(str(idval) for idval in requestdata['conditioncheck'])
+                requestdata['donotexecute'] = ','.join(str(idval) for idval in requestdata['donotexecute'])
+                requestdata['getparampaths'] = ','.join(str("'"+idval+"'") for idval in requestdata['getparampaths'])
+                getparampaths=[]
+                for eachgetparampath in requestdata['getparampaths']:
+                    getparampaths.append(eachgetparampath)
+                requestdata['testscenarioids'] = ','.join(str(idval) for idval in requestdata['testscenarioids'])
+                exporttojsonquery3 = ("insert into testsuites "+
+                "(cycleid,testsuitename,testsuiteid,versionnumber,conditioncheck,"
+                +"createdby,createdon,createdthrough,deleted,donotexecute,getparampaths,skucodetestsuite,tags,testscenarioids) "+
+                "values ("
+                +requestdata["cycleid"]+",'"+requestdata["testsuitename"]+"',"
+                +requestdata["testsuiteid"]+","+requestdata["versionnumber"] +",["
+                +requestdata["conditioncheck"]+"],'"+requestdata["createdby"]+"',"
+                +str(getcurrentdate())+",'"+requestdata["createdthrough"]+"',"
+                +requestdata["deleted"]+",["+requestdata["donotexecute"]+"],"
+                +getparampaths+",'"+requestdata["skucodetestsuite"]+"',['"
+                +requestdata["tags"]+"'],["+requestdata["testscenarioids"]+"])")
+                queryresult = icesession.execute(exporttojsonquery3)
+            elif(requestdata["query"] == 'fetchdata'):
+                exporttojsonquery4 = ("select * from testsuites "+
+                "where testsuiteid = " + requestdata["testsuiteid"]
+                + " and cycleid=" + requestdata["cycleid"] + " allow filtering")
+                queryresult = icesession.execute(exporttojsonquery4)
+            elif(requestdata["query"] == 'delete'):
+                exporttojsonquery5 = ("delete from testsuites where "+
+                "testsuiteid=" + requestdata["testsuiteid"]
+                + " and cycleid=" + requestdata["cycleid"]
+                + " and testsuitename='" + requestdata["testsuitename"] + "'")
+                queryresult = icesession.execute(exporttojsonquery5)
+            elif(requestdata["query"] == 'updatescenarioinnsuite'):
+                requestdata['conditioncheck'] = ','.join(str(idval) for idval in requestdata['conditioncheck'])
+                requestdata['donotexecute'] = ','.join(str(idval) for idval in requestdata['donotexecute'])
+                requestdata['getparampaths'] = ','.join(str(idval) for idval in requestdata['getparampaths'])
+                requestdata['testscenarioids'] = ','.join(str(idval) for idval in requestdata['testscenarioids'])
+                exporttojsonquery6 = ("insert into testsuites (cycleid,testsuitename,testsuiteid,versionnumber,conditioncheck,"
+                +"createdby,createdon,createdthrough,deleted,donotexecute,"
+                +"getparampaths,modifiedby,modifiedon,skucodetestsuite,tags,testscenarioids) values ("
+                +requestdata["cycleid"]+",'"+requestdata["testsuitename"]+"',"
+                +requestdata["testsuiteid"]+","+requestdata["versionnumber"]
+                +",["+requestdata["conditioncheck"]+"],'"+requestdata["createdby"]+"',"
+                +requestdata["createdon"]+",'"+requestdata["createdthrough"]+"',"
+                +requestdata["deleted"]+",["+requestdata["donotexecute"]+"],["+
+                requestdata["getparampaths"]+"],'"+requestdata["modifiedby"]+"',"
+                +str(getcurrentdate())+",'"+requestdata["skucodetestsuite"]+"',['"+
+                requestdata["tags"]+"'],["+requestdata["testscenarioids"]+"])")
+                queryresult = icesession.execute(exporttojsonquery6)
+            elif(requestdata["query"] == 'testcasename'):
+                exporttojsonquery7 = ("select testscenarioname,projectid from testscenarios where "
+                +"testscenarioid=" +  requestdata["testscenarioid"])
+                queryresult = icesession.execute(exporttojsonquery7)
+            elif(requestdata["query"] == 'projectname'):
+                exporttojsonquery8 = ("select projectname from projects where "
+                +"projectid = " + requestdata["projectid"] + " allow filtering")
+                queryresult = icesession.execute(exporttojsonquery8)
+            elif(requestdata["query"] == 'readTestSuite_ICE'):
+                exporttojsonquery9 = ("select donotexecute,conditioncheck,getparampaths,testscenarioids from testsuites where "
+                +"testsuiteid= " +requestdata["testsuiteid"]
+                + " and cycleid=" + requestdata["cycleid"]
+                + " and testsuitename='" + requestdata["testsuitename"] + "'")
+                queryresult = icesession.execute(exporttojsonquery9)
+            else:
+                return jsonify(res)
+            res= {"rows":queryresult.current_rows}
+            return jsonify(res)
 
+    except Exception as exporttojsonexc:
+        app.logger.error('Error in exportToJson_ICE.')
+        import traceback
+        traceback.print_exc()
+        res={'rows':'fail'}
+        return jsonify(res)
+
+#-------------------------------------------------
+#author : pavan.nayak
+#date:31/07/2017
+#-------------------------------------------------
+@app.route('/suits/updateTestSuite_ICE',methods=['POST'])
+def updateTestSuite_ICE():
+    res={'rows':'fail'}
+    try:
+        requestdata=json.loads(request.data)
+        if not isemptyrequest(requestdata):
+            if(requestdata['query'] == 'deletetestsuitequery'):
+                deletetestsuitequery=("delete conditioncheck,donotexecute,"
+                +"getparampaths,testscenarioids from testsuites where cycleid="
+                +str(requestdata['cycleid'])
+                +" and testsuitename='"+requestdata['testsuitename']
+                +"' and testsuiteid="+str(requestdata['testsuiteid'])
+                +" and versionnumber ="+str(requestdata['versionnumber'])+";")
+                queryresult = icesession.execute(deletetestsuitequery)
+            elif(requestdata['query'] == 'updatetestsuitedataquery'):
+                updatetestsuitedataquery=("update testsuites set"
+                +" conditioncheck= conditioncheck + [" + requestdata['conditioncheck']
+                +"], donotexecute=donotexecute + [" + str(requestdata['donotexecute'])
+                +"],getparampaths=getparampaths + [ "+requestdata['getparampaths']
+                +"],testscenarioids=testscenarioids + ["+ requestdata['testscenarioids']
+                +"],modifiedby='"+ requestdata['modifiedby']
+                +"', modifiedbyrole='"+requestdata['modifiedbyrole']
+                +"',skucodetestsuite='"+requestdata['skucodetestsuite']
+                +"',tags=['"+requestdata['tags']
+                +"'], modifiedon="+str(getcurrentdate())
+                +" where cycleid="+ requestdata['cycleid']
+                +" and testsuiteid="+ requestdata['testsuiteid']
+                +" and versionnumber = "+ str( requestdata['versionnumber'])
+                +" and testsuitename='"+ requestdata['testsuitename']
+                +"';")
+                queryresult = icesession.execute(updatetestsuitedataquery)
+            else:
+                return jsonify(res)
+        else:
+            app.logger.error('Empty data received. assign projects.')
+            return jsonify(res)
+        res={'rows':'Success'}
+        return jsonify(res)
+    except Exception as updatetestsuiteexc:
+        app.logger.error('Error in updateTestSuite_ICE')
+        return jsonify(res)
 
 ##################################################
 # END OF EXECUTION
