@@ -459,7 +459,8 @@ def updateTestCase_ICE():
         requestdata=json.loads(request.data)
         if not isemptyrequest(requestdata):
             if(requestdata["query"] == 'checktestcaseexist'):
-                updatetestcasequery1 = "select testcaseid from testcases where screenid=" + requestdata['screenid'] +  " allow filtering"
+                updatetestcasequery1 = ("select testcaseid from testcases where "
+                +"screenid=" + requestdata['screenid'] +  " allow filtering")
                 queryresult = icesession.execute(updatetestcasequery1)
                 res= {"rows": queryresult.current_rows}
                 res =  jsonify(res)
@@ -698,26 +699,35 @@ def ExecuteTestSuite_ICE() :
         requestdata=json.loads(request.data)
         if not isemptyrequest(requestdata):
             if(requestdata['query'] == 'testcaseid'):
-                exporttojsonquery1="select testcaseids from testscenarios where testscenarioid=" + requestdata['testscenarioid']
-                print  exporttojsonquery1
+                exporttojsonquery1=("select testcaseids from testscenarios where"
+                +" testscenarioid=" + requestdata['testscenarioid'])
                 queryresult = icesession.execute(exporttojsonquery1)
             elif(requestdata['query'] == 'testcasesteps'):
-                exporttojsonquery2="select screenid from testcases where testcaseid="+ requestdata['testcaseid']
-                print  exporttojsonquery2
+                exporttojsonquery2=("select screenid from testcases where "
+                +"testcaseid="+ requestdata['testcaseid'])
                 queryresult = icesession.execute(exporttojsonquery2)
             elif(requestdata['query'] == 'getscreendataquery'):
-                exporttojsonquery3="select screendata from screens where screenid=" + requestdata['screenid']
-                print  exporttojsonquery3
+                exporttojsonquery3=("select screendata from screens where "
+                +"screenid=" + requestdata['screenid'])
                 queryresult = icesession.execute(exporttojsonquery3)
             elif(requestdata['query'] == 'testcasestepsquery'):
-                exporttojsonquery4="select testcasesteps,testcasename from testcases where testcaseid = "+ requestdata['testcaseid']
-                print  exporttojsonquery4
+                exporttojsonquery4=("select testcasesteps,testcasename from "
+                +"testcases where testcaseid = "+ requestdata['testcaseid'])
                 queryresult = icesession.execute(exporttojsonquery4)
             elif(requestdata['query'] == 'insertreportquery'):
-                exporttojsonquery5="insert into reports (reportid,executionid,testsuiteid,testscenarioid,executedtime,browser,modifiedon,status,report) values (" + requestdata['reportid'] + "," + requestdata['executionid']+ "," + requestdata['testsuiteid'] + "," + requestdata['testscenarioid'] + "," + str(getcurrentdate()) + ",'" + requestdata['browser'] + "'," + str(getcurrentdate()) + ",'" + requestdata['status']+ "','" + requestdata['report'] + "')"
+                exporttojsonquery5=("insert into reports (reportid,executionid,"
+            +"testsuiteid,testscenarioid,executedtime,browser,modifiedon,status,"
+            +"report) values (" + requestdata['reportid'] + ","
+            + requestdata['executionid']+ "," + requestdata['testsuiteid']
+            + "," + requestdata['testscenarioid'] + "," + str(getcurrentdate())
+            + ",'" + requestdata['browser'] + "'," + str(getcurrentdate())
+            + ",'" + requestdata['status']+ "','" + requestdata['report'] + "')")
                 queryresult = icesession.execute(exporttojsonquery5)
             elif(requestdata['query'] == 'inserintotexecutionquery'):
-               exporttojsonquery6= "insert into execution (testsuiteid,executionid,starttime,endtime) values (" + requestdata['testsuiteid'] + "," + requestdata['executionid'] + "," + requestdata['starttime'] + "," + str(getcurrentdate()) + ")"
+               exporttojsonquery6= ("insert into execution (testsuiteid,"
+            +"executionid,starttime,endtime) values (" + requestdata['testsuiteid']
+            + "," + requestdata['executionid']+ "," + requestdata['starttime']
+            + "," + str(getcurrentdate()) + ")")
                queryresult = icesession.execute(exporttojsonquery6)
             else:
                     return jsonify(res)
