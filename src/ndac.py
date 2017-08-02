@@ -45,10 +45,11 @@ n68historysession.set_keyspace('nineteen68history')
 def server_ready():
     return 'Data Server Ready!!!'
 
-##################################################
+
+################################################################################
 # BEGIN OF LOGIN SCREEN
 # INCLUDES : Login components
-##################################################
+################################################################################
 
 #service for login to Nineteen68
 @app.route('/login/authenticateUser_Nineteen68',methods=['POST'])
@@ -202,14 +203,15 @@ def loadUserInfo_Nineteen68():
         app.logger.error('Error in loadUserInfo_Nineteen68.')
         return jsonify(res)
 
-
-#########################
+################################################################################
 # END OF LOGIN SCREEN
-#########################
-##################################################
-# BEGIN OF CREATE_ICE
+################################################################################
+
+
+################################################################################
+# BEGIN OF MIND MAPS
 # INCLUDES : all Mindmap related queries
-##################################################
+################################################################################
 
 #getting Release_iDs of Project
 @app.route('/create_ice/getReleaseIDs_Ninteen68',methods=['POST'])
@@ -289,7 +291,7 @@ def getProjectIDs_Nineteen68():
         app.logger.error('Error in getProjectIDs_Nineteen68.')
     return jsonify(res)
 
-#getting names of module/scenario/screen/testcase name of given id 
+#getting names of module/scenario/screen/testcase name of given id
 @app.route('/create_ice/getNames_Ninteen68',methods=['POST'])
 def getNames_Nineteen68():
     res={'rows':'fail'}
@@ -297,8 +299,8 @@ def getNames_Nineteen68():
        requestdata=json.loads(request.data)
        if not isemptyrequest(requestdata):
             name=requestdata['name']
-            id=requestdata['id']
-            getname_query=(names_query[name]+id)
+            nodeid=requestdata['id']
+            getname_query=(query[name]+nodeid)
             queryresult = icesession.execute(getname_query)
             res={'rows':queryresult.current_rows}
        else:
@@ -307,14 +309,432 @@ def getNames_Nineteen68():
         app.logger.error('Error in getNames_Ninteen68.')
     return jsonify(res)
 
-##################################################
-# END OF CREATE_ICE
-##################################################
+#getting names of module/scenario/screen/testcase name of given id
+@app.route('/create_ice/testscreen_exists_ICE',methods=['POST'])
+def testscreen_exists_ICE():
+    res={'rows':'fail'}
+    try:
+       requestdata=json.loads(request.data)
+       if not isemptyrequest(requestdata):
+            screen_name=requestdata['screen_name']
+            screen_check =("select screenid from screens where screenname='"+screen_name
+            +"' ALLOW FILTERING")
+            queryresult = icesession.execute(screen_check)
+            res={'rows':queryresult.current_rows}
+       else:
+            app.logger.error("Invalid screenname in testscreen_exists")
+    except Exception as e:
+        app.logger.error('Error in testscreen_exists.')
+    return jsonify(res)
 
-##################################################
+
+#getting names of module/scenario/screen/testcase name of given id
+@app.route('/create_ice/testcase_exists_ICE',methods=['POST'])
+def testcase_exists_ICE():
+    res={'rows':'fail'}
+    try:
+       requestdata=json.loads(request.data)
+       if not isemptyrequest(requestdata):
+            testcase_name=requestdata['testcase_name']
+            testcase_check =("select testcaseid from testcases where testcasename='"+testcase_name
+            +"' ALLOW FILTERING")
+            queryresult = icesession.execute(testcase_check)
+            res={'rows':queryresult.current_rows}
+       else:
+            app.logger.error("Invalid testcase_name in testcase_exists")
+    except Exception as e:
+        app.logger.error('Error in testcase_exists.')
+    return jsonify(res)
+
+
+#getting names of module/scenario/screen/testcase name of given id
+@app.route('/create_ice/testsuiteid_exists_ICE',methods=['POST'])
+def testsuiteid_exists_ICE():
+    res={'rows':'fail'}
+    try:
+       requestdata=json.loads(request.data)
+       if not isemptyrequest(requestdata):
+            query_name=requestdata['name']
+            if query_name=='suite_check':
+                testsuite_exists(requestdata['project_id'],requestdata['module_name'])
+            else:
+                testsuite_exists(requestdata['project_id'],requestdata['module_name'],requestdata['module_id'])
+            testsuite_check=query[query_name]
+            queryresult = icesession.execute(testsuite_check)
+            res={'rows':queryresult.current_rows}
+       else:
+            app.logger.error("Invalid input in testsuiteid_exists_ICE")
+    except Exception as e:
+        app.logger.error('Error in testsuiteid_exists_ICE.')
+    return jsonify(res)
+
+@app.route('/create_ice/testscenariosid_exists_ICE',methods=['POST'])
+def testscenariosid_exists_ICE():
+    res={'rows':'fail'}
+    try:
+       requestdata=json.loads(request.data)
+       if not isemptyrequest(requestdata):
+            query_name=requestdata['name']
+            if query_name=='scenario_check':
+                testscenario_exists(requestdata['project_id'],requestdata['scenario_name'])
+            else:
+                testscenario_exists(requestdata['project_id'],requestdata['scenario_name'],requestdata['scenario_id'])
+            testscenario_check=query[query_name]
+            queryresult = icesession.execute(testscenario_check)
+            res={'rows':queryresult.current_rows}
+       else:
+            app.logger.error("Invalid input in testscenariosid_exists")
+    except Exception as e:
+        app.logger.error('Error in testscenariosid_exists.')
+    return jsonify(res)
+
+
+@app.route('/create_ice/testscreenid_exists_ICE',methods=['POST'])
+def testscreenid_exists_ICE():
+    res={'rows':'fail'}
+    try:
+       requestdata=json.loads(request.data)
+       if not isemptyrequest(requestdata):
+            query_name=requestdata['name']
+            if query_name=='screen_check':
+                testscreen_exists(requestdata['project_id'],requestdata['screen_name'])
+            else:
+                testscreen_exists(requestdata['project_id'],requestdata['screen_name'],requestdata['screen_id'])
+            testscreen_check=query[query_name]
+            queryresult = icesession.execute(testscreen_check)
+            res={'rows':queryresult.current_rows}
+       else:
+            app.logger.error("Invalid input in testscreenid_exists_ICE")
+    except Exception as e:
+        app.logger.error('Error in testscreenid_exists_ICE.')
+    return jsonify(res)
+
+@app.route('/create_ice/testcaseid_exists_ICE',methods=['POST'])
+def testcaseid_exists_ICE():
+    res={'rows':'fail'}
+    try:
+       requestdata=json.loads(request.data)
+       if not isemptyrequest(requestdata):
+            query_name=requestdata['name']
+            if query_name=='testcase_check':
+                testcase_exists(requestdata['screen_id'],requestdata['testcase_name'])
+            else:
+                testcase_exists(requestdata['screen_id'],requestdata['testcase_name'],requestdata['testcase_id'])
+            testcase_check=query[query_name]
+            queryresult = icesession.execute(testcase_check)
+            res={'rows':queryresult.current_rows}
+       else:
+            app.logger.error("Invalid input in testcaseid_exists_ICE")
+    except Exception as e:
+        app.logger.error('Error in testcaseid_exists_ICE.')
+    return jsonify(res)
+
+@app.route('/create_ice/get_node_details_ICE',methods=['POST'])
+def get_node_details_ICE():
+    res={'rows':'fail'}
+    try:
+       requestdata=json.loads(request.data)
+       if not isemptyrequest(requestdata):
+            query_name=requestdata['name']
+            get_node_data=query[query_name]+requestdata['id']
+            queryresult = icesession.execute(get_node_data)
+            res={'rows':queryresult.current_rows}
+       else:
+            app.logger.error("Invalid input in testcase_exists")
+    except Exception as e:
+        print e
+        import traceback
+        traceback.print_exc()
+        app.logger.error('Error in testcase_exists.')
+    return jsonify(res)
+
+@app.route('/create_ice/delete_node_ICE',methods=['POST'])
+def delete_node_ICE():
+    res={'rows':'fail'}
+    try:
+       requestdata=json.loads(request.data)
+       if not isemptyrequest(requestdata):
+            query_name=requestdata['name']
+            get_delete_query(requestdata['id'],requestdata['node_name'],requestdata['version_number'],requestdata['parent_node_id'])
+            delete_query=query[query_name]
+            queryresult = icesession.execute(delete_query)
+            res={'rows':'Success'}
+       else:
+            app.logger.error("Invalid testcase_name in testscenario_exists")
+    except Exception as e:
+        app.logger.error('Error in testcase_exists.')
+    return jsonify(res)
+
+@app.route('/create_ice/insertInSuite_ICE',methods=['POST'])
+def insertInSuite_ICE():
+    res={'rows':'fail'}
+    try:
+       requestdata=json.loads(request.data)
+       if not isemptyrequest(requestdata):
+           if(requestdata["query"] == 'notflagsuite'):
+                create_suite_query1 = ("insert into modules "
+                +"(projectid,modulename,moduleid,versionnumber,createdby,createdon,"
+                +" createdthrough,deleted,skucodemodule,tags,testscenarioids) values( "
+                +requestdata['projectid']+",'" + requestdata['modulename']
+                +"'," + requestdata['moduleid'] + ","+requestdata['versionnumber']
+                +",'"+requestdata['createdby']+"'," + str(getcurrentdate())
+                + ",'"+requestdata['createdthrough']+"',"+str(requestdata['deleted'])
+                +", '"+requestdata['skucodemodule']+"',['"+requestdata['tags']+"'],[])")
+                queryresult = icesession.execute(create_suite_query1)
+                res={'rows':'Success'}
+           elif(requestdata["query"] == 'selectsuite'):
+                create_suite_query2 = ("select moduleid from modules "
+                +" where modulename='"+requestdata["modulename"]+"' allow filtering;")
+                queryresult = icesession.execute(create_suite_query2)
+                res={'rows':'Success'}
+       else:
+            app.logger.error("Invalid input in insertInSuite_ICE")
+    except Exception as e:
+        app.logger.error('Error in insertInSuite_ICE.')
+    return jsonify(res)
+
+@app.route('/create_ice/insertInScenarios_ICE',methods=['POST'])
+def insertInScenarios_ICE():
+    res={'rows':'fail'}
+    try:
+       requestdata=json.loads(request.data)
+       if not isemptyrequest(requestdata):
+           if(requestdata["query"] == 'notflagscenarios'):
+                create_scenario_query1 = ("insert into testscenarios(projectid,"
+                +"testscenarioname,testscenarioid,createdby,createdon,skucodetestscenario,"
+                +"tags,testcaseids,deleted) values ("+requestdata['projectid'] + ",'"
+                +requestdata['testscenarioname']+"',"+requestdata['testscenarioid']
+                +",'"+requestdata['createdby']+"'," + str(getcurrentdate())
+                +", '"+requestdata['skucodetestscenario']+"',['"+requestdata['tags']+"'],[],"+str(requestdata['deleted'])+")")
+                queryresult = icesession.execute(create_scenario_query1)
+                res={'rows':'success'}
+           elif(requestdata["query"] == 'deletescenarios'):
+                delete_scenario_query = ("delete testcaseids from testscenarios"
+                +" where testscenarioid="+requestdata['testscenarioid']+" and "
+                +"testscenarioname='"+requestdata['testscenarioname'] +"' and "
+                +"projectid = "+requestdata['projectid'])
+                queryresult = icesession.execute(delete_scenario_query)
+                res={'rows':'Success'}
+       else:
+            app.logger.error("Invalid input in insertInScenarios_ICE")
+    except Exception as e:
+        app.logger.error('Error in insertInScenarios_ICE.')
+    return jsonify(res)
+
+@app.route('/create_ice/insertInScreen_ICE',methods=['POST'])
+def insertInScreen_ICE():
+    res={'rows':'fail'}
+    try:
+       requestdata=json.loads(request.data)
+       if not isemptyrequest(requestdata):
+            if(requestdata["query"] == 'notflagscreen'):
+                create_screen_query1 = ("insert into screens (projectid,screenname,"
+                +" screenid,versionnumber,createdby,createdon,createdthrough,"
+                +" deleted,skucodescreen,tags) values ("+requestdata['projectid']
+                +", '"+requestdata['screenname']+"'," + requestdata['screenid']
+                +" , "+requestdata['versionnumber']+" ,'"+requestdata['createdby']
+                +"'," + str(getcurrentdate())+", '"+requestdata['createdthrough']
+                +"' , "+str(requestdata['deleted'])+","+requestdata['skucodescreen']
+                +",['"+requestdata['tags']+"'] )")
+                queryresult = icesession.execute(create_screen_query1)
+                res={'rows':'Success'}
+
+            elif(requestdata["query"] == 'selectscreen'):
+                select_screen_query = ("select screenid from screens where "
+                +"screenname='"+requestdata['screenname']+"' allow filtering;")
+                queryresult = icesession.execute(select_screen_query)
+                res={'rows':'Success'}
+       else:
+            app.logger.error("Invalid input in insertInScreen_ICE")
+    except Exception as e:
+        app.logger.error('Error in insertInScreen_ICE.')
+    return jsonify(res)
+
+@app.route('/create_ice/insertInTestcase_ICE',methods=['POST'])
+def insertInTestcase_ICE():
+    res={'rows':'fail'}
+    try:
+       requestdata=json.loads(request.data)
+       if not isemptyrequest(requestdata):
+            if(requestdata["query"] == 'notflagtestcase'):
+                create_testcase_query1 = ("insert into testcases (screenid,"
+                +"testcasename,testcaseid,versionnumber,createdby,createdon,"
+                +"createdthrough,deleted,skucodetestcase,tags,testcasesteps)values ("
+                +requestdata['screenid'] + ",'" + requestdata['testcasename']
+                +"'," + requestdata['testcaseid'] + ","+requestdata['versionnumber']
+                +",'"+ requestdata['createdby']+"'," + str(getcurrentdate())+", '"
+                +requestdata['createdthrough'] +"',"+str(requestdata['deleted'])+",'"
+                +requestdata['skucodetestcase']+"',['"+requestdata['tags']+"'], '')")
+                queryresult = icesession.execute(create_testcase_query1)
+                res={'rows':'Success'}
+
+            elif(requestdata["query"] == 'selecttestcase'):
+                select_testcase_query = ("select testcaseid from testcases "
+                +"where testcasename='"+requestdata['tags']+"'  allow filtering")
+                queryresult = icesession.execute(select_testcase_query)
+                res={'rows':'Success'}
+       else:
+            app.logger.error("Invalid input in insertInTestcase_ICE")
+    except Exception as e:
+        app.logger.error('Error in insertInTestcase_ICE.')
+    return jsonify(res)
+
+@app.route('/create_ice/updateTestScenario_ICE',methods=['POST'])
+def updateTestScenario_ICE():
+    res={'rows':'fail'}
+    try:
+       requestdata=json.loads(request.data)
+       if not isemptyrequest(requestdata):
+##            requestdata['testcaseid']=','.join(str(idval) for idval in requestdata['testcaseid'])
+            updateicescenario_query =("update testscenarios set "
+            +"testcaseids=testcaseids+["+requestdata['testcaseid']
+            +"],modifiedby='"+requestdata['modifiedby']
+            +"',modifiedon="+str(getcurrentdate())
+            +" where projectid ="+requestdata['projectid']
+            +"and testscenarioid ="+requestdata['testscenarioid']
+            +" and testscenarioname = '"+requestdata['testscenarioname']+"'")
+            queryresult = icesession.execute(updateicescenario_query)
+            res={'rows':'Success'}
+       else:
+            app.logger.error("Invalid input in updateTestScenario_ICE")
+    except Exception as e:
+        app.logger.error('Error in updateTestScenario_ICE.')
+    return jsonify(res)
+
+@app.route('/create_ice/updateModule_ICE',methods=['POST'])
+def updateModule_ICE():
+    res={'rows':'fail'}
+    try:
+       requestdata=json.loads(request.data)
+       if not isemptyrequest(requestdata):
+            requestdata['testscenarioids']=','.join(str(idval) for idval in requestdata['testscenarioids'])
+            updateicemodules_query = ("update modules set "
+            +"testscenarioids = ["+requestdata['testscenarioids']+"] where "
+            +"moduleid="+requestdata['moduleid']+" and "
+            +"projectid="+requestdata['projectid']+" and "
+            +"modulename='"+requestdata['modulename']+"' and "
+            +"versionnumber="+requestdata['versionnumber'])
+            queryresult = icesession.execute(updateicemodules_query)
+            res={'rows':'Success'}
+       else:
+            app.logger.error("Invalid input in updateModule_ICE")
+    except Exception as e:
+        app.logger.error('Error in updateModule_ICE.')
+    return jsonify(res)
+
+@app.route('/create_ice/updateModulename_ICE',methods=['POST'])
+def updateModulename_ICE():
+    res={'rows':'fail'}
+    try:
+       requestdata=json.loads(request.data)
+       if not isemptyrequest(requestdata):
+             requestdata['testscenarioids']=','.join(str(idval) for idval in requestdata['testscenarioids'])
+             update_modulename_query =("insert into modules "
+             +"(projectid,modulename,moduleid,versionnumber,modifiedby,modifiedbyrole,modifiedon,createdby,createdon,"
+             +" createdthrough,deleted,skucodemodule,tags,testscenarioids) values ("
+             +requestdata['projectid']+",'" + requestdata['modulename']
+             +"'," + requestdata['moduleid'] + ","+requestdata['versionnumber']
+             +",'"+requestdata['modifiedby']+"','"+requestdata['modifiedbyrole']
+             +"',"+ str(getcurrentdate())+",'"+requestdata['createdby'] +"'," + str(getcurrentdate())
+             + ",'"+requestdata['createdthrough']+"',"+requestdata['deleted']
+             +", '"+requestdata['skucodemodule']+"',['"+requestdata['tags']+"'],["+requestdata['testscenarioids']+"])")
+             queryresult = icesession.execute(update_modulename_query)
+             res={'rows':'Success'}
+       else:
+            app.logger.error("Invalid input in updateModulename_ICE")
+    except Exception as e:
+        app.logger.error('Error in updateModulename_ICE.')
+    return jsonify(res)
+
+@app.route('/create_ice/updateTestscenarioname_ICE',methods=['POST'])
+def updateTestscenarioname_ICE():
+    res={'rows':'fail'}
+    try:
+       requestdata=json.loads(request.data)
+       if not isemptyrequest(requestdata):
+            requestdata['testcaseids'] = ','.join(str(idval) for idval in requestdata['testcaseids'])
+            update_testscenario_name_query =("insert into testscenarios "
+             +"(projectid,testscenarioname,testscenarioid,modifiedby,modifiedbyrole,modifiedon,createdby,createdon,"
+             +" deleted,skucodetestscenario,tags,testcaseids) values ("
+             +requestdata['projectid']+",'"+ requestdata['testscenarioname']
+             +"',"+requestdata['testscenarioid']
+             +",'"+requestdata['modifiedby']+"','"+requestdata['modifiedbyrole']
+             +"',"+ str(getcurrentdate())+",'"+requestdata['createdby'] +"'," + requestdata['createdon']
+             + ","+requestdata['deleted']+",'"+requestdata['skucodetestscenario']+"',['"
+             +requestdata['tags']+"'],["+requestdata['testcaseids']+"])")
+            queryresult = icesession.execute(update_testscenario_name_query)
+            res={'rows':'Success'}
+       else:
+            app.logger.error("Invalid input in updateTestscenarioname_ICE")
+    except Exception as e:
+        app.logger.error('Error in updateTestscenarioname_ICE.')
+    return jsonify(res)
+
+
+@app.route('/create_ice/updateScreenname_ICE',methods=['POST'])
+def updateScreenname_ICE():
+    res={'rows':'fail'}
+    try:
+
+        requestdata=json.loads(request.data)
+        if(requestdata['screendata'] == ''):
+            requestdata['screendata'] = ' '
+        if not isemptyrequest(requestdata):
+            update_screenname_query =("insert into screens (projectid,screenname,"
+            +"screenid,versionnumber,createdby,createdon,createdthrough,deleted,"
+            +"modifiedby,modifiedbyrole,modifiedon,screendata,skucodescreen,tags"
+            +") values ("+requestdata['projectid']+",'"+requestdata['screenname']
+            +"',"+requestdata['screenid']+","+requestdata['versionnumber']
+            +",'"+requestdata['createdby']+"',"+requestdata['createdon']
+            +",'"+requestdata['createdthrough']+"',"+requestdata['deleted']
+            +",'"+requestdata['modifiedby']+"','"+requestdata['modifiedbyrole']
+            +"',"+str(getcurrentdate())+",'"+requestdata['screendata']
+            +"','"+requestdata['skucodescreen']+"',['"+requestdata['tags']+"'])")
+            queryresult = icesession.execute(update_screenname_query)
+            res={'rows':'Success'}
+        else:
+            app.logger.error("Invalid input in updateScreenname_ICE")
+    except Exception as e:
+        app.logger.error('Error in updateScreenname_ICE.')
+    return jsonify(res)
+
+
+@app.route('/create_ice/updateTestcasename_ICE',methods=['POST'])
+def updateTestcasename_ICE():
+    res={'rows':'fail'}
+    try:
+       requestdata=json.loads(request.data)
+       if(requestdata['testcasesteps'] == ''):
+            requestdata['testcasesteps'] = ' '
+       if not isemptyrequest(requestdata):
+            update_testcasename_query =("insert into testcases (screenid,testcasename,"
+            "testcaseid,versionnumber,createdby,createdon,createdthrough,deleted,"
+            +"modifiedby,modifiedbyrole,modifiedon,skucodetestcase,tags,"
+            +"testcasesteps) values ("+requestdata['screenid']+",'"
+            +requestdata['testcasename']+"',"+requestdata['testcaseid']+","
+            +requestdata['versionnumber']+",'"+requestdata['createdby']
+            +"',"+requestdata['createdon']+",'"+requestdata['createdthrough']
+            +"',"+requestdata['deleted']+",'"+requestdata['modifiedby']
+            +"','"+requestdata['modifiedbyrole']+"',"+str(getcurrentdate())
+            +",'"+requestdata['skucodetestcase']+"',['"+requestdata['tags']
+            +"'],'"+requestdata['testcasesteps']+"')")
+            queryresult = icesession.execute(update_testcasename_query)
+            res={'rows':'Success'}
+       else:
+            app.logger.error("Invalid input in updateTestcasename_ICE")
+    except Exception as e:
+        app.logger.error('Error in updateTestcasename_ICE.')
+    return jsonify(res)
+
+################################################################################
+# END OF MIND MAPS
+################################################################################
+
+
+################################################################################
 # BEGIN OF DESIGN SCREEN
 # INCLUDES : scraping/ws-screen/design testcase creation
-##################################################
+################################################################################
 
 #keywords loader for design screen
 @app.route('/design/getKeywordDetails_ICE',methods=['POST'])
@@ -459,7 +879,8 @@ def updateTestCase_ICE():
         requestdata=json.loads(request.data)
         if not isemptyrequest(requestdata):
             if(requestdata["query"] == 'checktestcaseexist'):
-                updatetestcasequery1 = "select testcaseid from testcases where screenid=" + requestdata['screenid'] +  " allow filtering"
+                updatetestcasequery1 = ("select testcaseid from testcases where "
+                +"screenid=" + requestdata['screenid'] +  " allow filtering")
                 queryresult = icesession.execute(updatetestcasequery1)
                 res= {"rows": queryresult.current_rows}
                 res =  jsonify(res)
@@ -476,13 +897,56 @@ def updateTestCase_ICE():
                 queryresult = icesession.execute(updatetestcasequery2)
                 res= {"rows": queryresult.current_rows}
                 res =  jsonify(res)
-
+        else:
+            app.logger.error('Empty data received. updating testcases')
+            res =  jsonify(res)
     except Exception as updatetestcaseexception:
         app.logger.error('Error in updateTestCase_ICE.')
-    ##        return jsonify(res)
     return res
 
-#get testcases by scenario ids for add dependent testcases
+#fetches all the testcases under a test scenario
+@app.route('/suite/getTestcaseDetailsForScenario_ICE',methods=['POST'])
+def getTestcaseDetailsForScenario_ICE():
+    res={'rows':'fail'}
+    try:
+        requestdata=json.loads(request.data)
+        if not isemptyrequest(requestdata):
+            if(requestdata["query"] == 'testscenariotable'):
+                gettestscenarioquery1=("select testcaseids from testscenarios where "
+                +"testscenarioid="+requestdata["testscenarioid"])
+                queryresult = icesession.execute(gettestscenarioquery1)
+            elif(requestdata["query"] == 'testcasetable'):
+                gettestscenarioquery2=("select testcasename,screenid from "
+                +"testcases where testcaseid="+requestdata["testcaseid"])
+                queryresult = icesession.execute(gettestscenarioquery2)
+            elif(requestdata["query"] == 'screentable'):
+                gettestscenarioquery3=("select screenname,projectid from "
+                +"screens where screenid="+requestdata["screenid"])
+                queryresult = icesession.execute(gettestscenarioquery3)
+            elif(requestdata["query"] == 'projecttable'):
+                gettestscenarioquery4=("select projectname from projects "
+                +"where projectid="+requestdata["projectid"])
+                queryresult = icesession.execute(gettestscenarioquery4)
+            res = {'rows':queryresult.current_rows}
+            res =  jsonify(res)
+        else:
+            app.logger.error('Empty data received. getting testcases from scenarios.')
+            res =  jsonify(res)
+    except Exception as userrolesexc:
+        app.logger.error('Error in getTestcaseDetailsForScenario_ICE.')
+    return res
+
+################################################################################
+# END OF DESIGN SCREEN
+################################################################################
+
+
+################################################################################
+# BEGIN OF EXECUTION
+# INCLUDES : all execution related actions
+################################################################################
+
+#get dependant testcases by scenario ids for add dependent testcases
 @app.route('/design/getTestcasesByScenarioId_ICE',methods=['POST'])
 def getTestcasesByScenarioId_ICE():
     res={'rows':'fail'}
@@ -500,21 +964,210 @@ def getTestcasesByScenarioId_ICE():
             else:
                 res={'rows':'fail'}
             res= {"rows":queryresult.current_rows}
-        res=jsonify(res)
+            res =  jsonify(res)
+        else:
+            app.logger.error('Empty data received. getting testcases.')
+            res =  jsonify(res)
     except Exception as gettestcasesbyscenarioidexception:
-        app.logger.error('Error in updateTestCase_ICE.')
+        app.logger.error('Error in getTestcasesByScenarioId_ICE.')
     return res
 
+#read test suite nineteen68
+@app.route('/suite/readTestSuite_ICE',methods=['POST'])
+def readTestSuite_ICE():
+    res={'rows':'fail'}
+    try:
+            requestdata=json.loads(request.data)
+        #if not isemptyrequest(requestdata):
+            if(requestdata["query"] == 'testsuitecheck'):
+                exporttojsonquery1 = ("select donotexecute,conditioncheck, "
+                +"getparampaths,testscenarioids from testsuites "
+                +" where testsuiteid="+ requestdata['testsuiteid']
+                + " and cycleid="+requestdata['cycleid'])
+                queryresult = icesession.execute(exporttojsonquery1)
+            elif(requestdata["query"] == 'selectmodule'):
+                exporttojsonquery2 = ("select * FROM modules where "
+                +"moduleid=" + requestdata["moduleid"]
+                + " and modulename='" + requestdata["modulename"]
+                + "' allow filtering")
+                queryresult = icesession.execute(exporttojsonquery2)
+            elif(requestdata["query"] == 'testcasesteps'):
+                requestdata['conditioncheck'] = ','.join(str(idval) for idval in requestdata['conditioncheck'])
+                requestdata['donotexecute'] = ','.join(str(idval) for idval in requestdata['donotexecute'])
+                requestdata['getparampaths'] = ','.join(str("'"+idval+"'") for idval in requestdata['getparampaths'])
+                getparampaths=[]
+                for eachgetparampath in requestdata['getparampaths']:
+                    getparampaths.append(eachgetparampath)
+                requestdata['testscenarioids'] = ','.join(str(idval) for idval in requestdata['testscenarioids'])
+                exporttojsonquery3 = ("insert into testsuites "+
+                "(cycleid,testsuitename,testsuiteid,versionnumber,conditioncheck,"
+                +"createdby,createdon,createdthrough,deleted,donotexecute,getparampaths,skucodetestsuite,tags,testscenarioids) "+
+                "values ("
+                +requestdata["cycleid"]+",'"+requestdata["testsuitename"]+"',"
+                +requestdata["testsuiteid"]+","+requestdata["versionnumber"] +",["
+                +requestdata["conditioncheck"]+"],'"+requestdata["createdby"]+"',"
+                +str(getcurrentdate())+",'"+requestdata["createdthrough"]+"',"
+                +requestdata["deleted"]+",["+requestdata["donotexecute"]+"],"
+                +getparampaths+",'"+requestdata["skucodetestsuite"]+"',['"
+                +requestdata["tags"]+"'],["+requestdata["testscenarioids"]+"])")
+                queryresult = icesession.execute(exporttojsonquery3)
+            elif(requestdata["query"] == 'fetchdata'):
+                exporttojsonquery4 = ("select * from testsuites "+
+                "where testsuiteid = " + requestdata["testsuiteid"]
+                + " and cycleid=" + requestdata["cycleid"] + " allow filtering")
+                queryresult = icesession.execute(exporttojsonquery4)
+            elif(requestdata["query"] == 'delete'):
+                exporttojsonquery5 = ("delete from testsuites where "+
+                "testsuiteid=" + requestdata["testsuiteid"]
+                + " and cycleid=" + requestdata["cycleid"]
+                + " and testsuitename='" + requestdata["testsuitename"] + "'")
+                queryresult = icesession.execute(exporttojsonquery5)
+            elif(requestdata["query"] == 'updatescenarioinnsuite'):
+                requestdata['conditioncheck'] = ','.join(str(idval) for idval in requestdata['conditioncheck'])
+                requestdata['donotexecute'] = ','.join(str(idval) for idval in requestdata['donotexecute'])
+                requestdata['getparampaths'] = ','.join(str(idval) for idval in requestdata['getparampaths'])
+                requestdata['testscenarioids'] = ','.join(str(idval) for idval in requestdata['testscenarioids'])
+                exporttojsonquery6 = ("insert into testsuites (cycleid,testsuitename,testsuiteid,versionnumber,conditioncheck,"
+                +"createdby,createdon,createdthrough,deleted,donotexecute,"
+                +"getparampaths,modifiedby,modifiedon,skucodetestsuite,tags,testscenarioids) values ("
+                +requestdata["cycleid"]+",'"+requestdata["testsuitename"]+"',"
+                +requestdata["testsuiteid"]+","+requestdata["versionnumber"]
+                +",["+requestdata["conditioncheck"]+"],'"+requestdata["createdby"]+"',"
+                +requestdata["createdon"]+",'"+requestdata["createdthrough"]+"',"
+                +requestdata["deleted"]+",["+requestdata["donotexecute"]+"],["+
+                requestdata["getparampaths"]+"],'"+requestdata["modifiedby"]+"',"
+                +str(getcurrentdate())+",'"+requestdata["skucodetestsuite"]+"',['"+
+                requestdata["tags"]+"'],["+requestdata["testscenarioids"]+"])")
+                queryresult = icesession.execute(exporttojsonquery6)
+            elif(requestdata["query"] == 'testcasename'):
+                exporttojsonquery7 = ("select testscenarioname,projectid from testscenarios where "
+                +"testscenarioid=" +  requestdata["testscenarioid"])
+                queryresult = icesession.execute(exporttojsonquery7)
+            elif(requestdata["query"] == 'projectname'):
+                exporttojsonquery8 = ("select projectname from projects where "
+                +"projectid = " + requestdata["projectid"] + " allow filtering")
+                queryresult = icesession.execute(exporttojsonquery8)
+            elif(requestdata["query"] == 'readTestSuite_ICE'):
+                exporttojsonquery9 = ("select donotexecute,conditioncheck,getparampaths,testscenarioids from testsuites where "
+                +"testsuiteid= " +requestdata["testsuiteid"]
+                + " and cycleid=" + requestdata["cycleid"]
+                + " and testsuitename='" + requestdata["testsuitename"] + "'")
+                queryresult = icesession.execute(exporttojsonquery9)
+            else:
+                return jsonify(res)
+            res= {"rows":queryresult.current_rows}
+            return jsonify(res)
 
-##################################################
-# END OF DESIGN SCREEN
-##################################################
+    except Exception as exporttojsonexc:
+        app.logger.error('Error in exportToJson_ICE.')
+        import traceback
+        traceback.print_exc()
+        res={'rows':'fail'}
+        return jsonify(res)
+
+#-------------------------------------------------
+#author : pavan.nayak
+#date:31/07/2017
+#-------------------------------------------------
+@app.route('/suits/updateTestSuite_ICE',methods=['POST'])
+def updateTestSuite_ICE():
+    res={'rows':'fail'}
+    try:
+        requestdata=json.loads(request.data)
+        if not isemptyrequest(requestdata):
+            if(requestdata['query'] == 'deletetestsuitequery'):
+                deletetestsuitequery=("delete conditioncheck,donotexecute,"
+                +"getparampaths,testscenarioids from testsuites where cycleid="
+                +str(requestdata['cycleid'])
+                +" and testsuitename='"+requestdata['testsuitename']
+                +"' and testsuiteid="+str(requestdata['testsuiteid'])
+                +" and versionnumber ="+str(requestdata['versionnumber'])+";")
+                queryresult = icesession.execute(deletetestsuitequery)
+            elif(requestdata['query'] == 'updatetestsuitedataquery'):
+                updatetestsuitedataquery=("update testsuites set"
+                +" conditioncheck= conditioncheck + [" + requestdata['conditioncheck']
+                +"], donotexecute=donotexecute + [" + str(requestdata['donotexecute'])
+                +"],getparampaths=getparampaths + [ "+requestdata['getparampaths']
+                +"],testscenarioids=testscenarioids + ["+ requestdata['testscenarioids']
+                +"],modifiedby='"+ requestdata['modifiedby']
+                +"', modifiedbyrole='"+requestdata['modifiedbyrole']
+                +"',skucodetestsuite='"+requestdata['skucodetestsuite']
+                +"',tags=['"+requestdata['tags']
+                +"'], modifiedon="+str(getcurrentdate())
+                +" where cycleid="+ requestdata['cycleid']
+                +" and testsuiteid="+ requestdata['testsuiteid']
+                +" and versionnumber = "+ str( requestdata['versionnumber'])
+                +" and testsuitename='"+ requestdata['testsuitename']
+                +"';")
+                queryresult = icesession.execute(updatetestsuitedataquery)
+            else:
+                return jsonify(res)
+        else:
+            app.logger.error('Empty data received. assign projects.')
+            return jsonify(res)
+        res={'rows':'Success'}
+        return jsonify(res)
+    except Exception as updatetestsuiteexc:
+        app.logger.error('Error in updateTestSuite_ICE')
+        return jsonify(res)
+
+@app.route('/suite/ExecuteTestSuite_ICE',methods=['POST'])
+def ExecuteTestSuite_ICE() :
+    res={'rows':'fail'}
+    try:
+        requestdata=json.loads(request.data)
+        if not isemptyrequest(requestdata):
+            if(requestdata['query'] == 'testcaseid'):
+                exporttojsonquery1=("select testcaseids from testscenarios where"
+                +" testscenarioid=" + requestdata['testscenarioid'])
+                queryresult = icesession.execute(exporttojsonquery1)
+            elif(requestdata['query'] == 'testcasesteps'):
+                exporttojsonquery2=("select screenid from testcases where "
+                +"testcaseid="+ requestdata['testcaseid'])
+                queryresult = icesession.execute(exporttojsonquery2)
+            elif(requestdata['query'] == 'getscreendataquery'):
+                exporttojsonquery3=("select screendata from screens where "
+                +"screenid=" + requestdata['screenid'])
+                queryresult = icesession.execute(exporttojsonquery3)
+            elif(requestdata['query'] == 'testcasestepsquery'):
+                exporttojsonquery4=("select testcasesteps,testcasename from "
+                +"testcases where testcaseid = "+ requestdata['testcaseid'])
+                queryresult = icesession.execute(exporttojsonquery4)
+            elif(requestdata['query'] == 'insertreportquery'):
+                exporttojsonquery5=("insert into reports (reportid,executionid,"
+            +"testsuiteid,testscenarioid,executedtime,browser,modifiedon,status,"
+            +"report) values (" + requestdata['reportid'] + ","
+            + requestdata['executionid']+ "," + requestdata['testsuiteid']
+            + "," + requestdata['testscenarioid'] + "," + str(getcurrentdate())
+            + ",'" + requestdata['browser'] + "'," + str(getcurrentdate())
+            + ",'" + requestdata['status']+ "','" + requestdata['report'] + "')")
+                queryresult = icesession.execute(exporttojsonquery5)
+            elif(requestdata['query'] == 'inserintotexecutionquery'):
+               exporttojsonquery6= ("insert into execution (testsuiteid,"
+            +"executionid,starttime,endtime) values (" + requestdata['testsuiteid']
+            + "," + requestdata['executionid']+ "," + requestdata['starttime']
+            + "," + str(getcurrentdate()) + ")")
+               queryresult = icesession.execute(exporttojsonquery6)
+            else:
+                return jsonify(res)
+        else:
+            app.logger.error('Empty data received. assign projects.')
+            return jsonify(res)
+        res={'rows':queryresult.current_rows}
+        return jsonify(res)
+    except Exception as execuitetestsuiteexc:
+        app.logger.error('Error in execuiteTestSuite_ICE')
+        return jsonify(res)
+
+################################################################################
+# END OF EXECUTION
+################################################################################
 
 
-##################################################
+################################################################################
 # BEGIN OF ADMIN SCREEN
 # INCLUDES : all admin related actions
-##################################################
+################################################################################
 
 #fetches the user roles for assigning during creation/updation user
 @app.route('/admin/getUserRoles_Nineteen68',methods=['POST'])
@@ -682,7 +1335,6 @@ def createUser_Nineteen68():
         app.logger.error('Error in createUser_Nineteen68.')
         return jsonify(res)
 
-
 #service update user data into Nineteen68
 @app.route('/admin/updateUser_Nineteen68',methods=['POST'])
 def updateUser_Nineteen68():
@@ -750,7 +1402,6 @@ def updateUser_Nineteen68():
         app.logger.error('Error in updateUser_nineteen68')
         res={'rows':'fail'}
         return jsonify(res)
-
 
 #service creates a complete project structure into ICE keyspace
 @app.route('/admin/createProject_ICE',methods=['POST'])
@@ -873,7 +1524,6 @@ def getUsers_Nineteen68():
         app.logger.error('Error in getUsers_Nineteen68')
         return jsonify(res)
 
-
 #service assigns projects to a specific user
 @app.route('/admin/assignProjects_ICE',methods=['POST'])
 def assignProjects_ICE():
@@ -910,14 +1560,15 @@ def assignProjects_ICE():
         app.logger.error('Error in assignProjects_ICE')
         return jsonify(res)
 
-##################################################
+################################################################################
 # END OF ADMIN SCREEN
-##################################################
+################################################################################
 
-##################################################
+
+################################################################################
 # BEGIN OF REPORTS
 # INCLUDES : all reports related actions
-##################################################
+################################################################################
 
 #fetching all the suite details
 @app.route('/reports/getAllSuites_ICE',methods=['POST'])
@@ -1055,7 +1706,6 @@ def getReport_Nineteen68():
         app.logger.error('Error in getReport_Nineteen68.')
         return jsonify(res)
 
-
 #export json feature on reports
 @app.route('/reports/exportToJson_ICE',methods=['POST'])
 def exportToJson_ICE():
@@ -1088,15 +1738,15 @@ def exportToJson_ICE():
         res={'rows':'fail'}
         return jsonify(res)
 
-
-##################################################
+################################################################################
 # END OF REPORTS
-##################################################
+################################################################################
 
-##################################################
+
+################################################################################
 # BEGIN OF UTILITIES
 # INCLUDES : all admin related actions
-##################################################
+################################################################################
 
 #encrpytion utility AES
 @app.route('/utility/encrypt_ICE/aes',methods=['POST'])
@@ -1122,15 +1772,38 @@ def encrypt_ICE():
         app.logger.error('Error in encrypt_ICE.')
         return str(res)
 
-##################################################
+################################################################################
 # END OF UTILITIES
-##################################################
+################################################################################
 
-#########################
+
+################################################################################
 # BEGIN OF INTERNAL COMPONENTS
-#########################
+################################################################################
+
+###########################
+# BEGIN OF GLOBAL VARIABLES
+###########################
+
+query={}
+query['module']='select modulename,testscenarioids FROM modules where moduleid='
+query['scenario']='select testscenarioname FROM testscenarios where testscenarioid='
+query['screen']='select screenname FROM screens where screenid='
+query['testcase']='select testcasename FROM testcases where testcaseid='
+#Getting complete details of single node
+query['module_details']='select * from modules where moduleid='
+query['testscenario_details']='select * from testscenarios where testscenarioid='
+query['screen_details']='select * from screens where screenid='
+query['testcase_details']='select * from testcases where testcaseid='
 
 
+###########################
+# END OF GLOBAL VARIABLES
+###########################
+
+############################
+# BEGIN OF GENERIC FUNCTIONS
+############################
 def isemptyrequest(requestdata):
     flag = False
     for key in requestdata:
@@ -1146,23 +1819,37 @@ def getcurrentdate():
     differencedate= currentdate - beginingoftime
     return long(differencedate.total_seconds() * 1000.0)
 
-###########################
-# BEGIN OF GLOBAL VARIABLES
-###########################
+def testsuite_exists(project_id,module_name,moduleid=''):
+    query['suite_check']="select moduleid FROM modules where projectid="+project_id+" and modulename='"+module_name+"' ALLOW FILTERING"
+    query['suite_check_id']="select moduleid FROM modules where projectid="+project_id+" and modulename='"+module_name+"' and moduleid="+moduleid+" ALLOW FILTERING"
 
-names_query={}
-names_query['module']='select modulename,testscenarioids FROM modules where moduleid='
-names_query['scenario']='select testscenarioname FROM testscenarios where testscenarioid='
-names_query['screen']='select screenname FROM screens where screenid='
-names_query['testcase']='select testcasename FROM testcases where testcaseid='
+def testscenario_exists(project_id,testscenario_name,testscenario_id=''):
+    query['scenario_check'] = "select testscenarioid from testscenarios where projectid="+project_id+" and testscenarioname='"+testscenario_name+"' ALLOW FILTERING"
+    query['scenario_check_id'] = "select testscenarioid from testscenarios where projectid="+project_id+" and testscenarioname='"+testscenario_name+"' and testscenarioid = "+testscenario_id+" ALLOW FILTERING"
 
-###########################
-# BEGIN OF GLOBAL VARIABLES
-###########################
 
-#########################
+def testscreen_exists(project_id,screen_name,screen_id=''):
+    query['screen_check'] = "select screenid from screens where projectid="+project_id+" and screenname='"+screen_name+"' ALLOW FILTERING"
+    query['screen_check_id'] = "select testscenarioid from testscenarios where projectid="+project_id+" and testscenarioname='"+screen_name+"' and testscenarioid = "+screen_id+" ALLOW FILTERING"
+
+def testcase_exists(screen_id,testcase_name,testcase_id=''):
+    query['testcase_check'] = "select testcaseid from testcases where screenid="+screen_id+" and testcasename='"+testcase_name+"' ALLOW FILTERING"
+    query['testcase_check_id'] = "select testcaseid from testcases where screenid="+screen_id+" and testcasename='"+testcase_name+"' and testcaseid="+testcase_id+" ALLOW FILTERING"
+
+def get_delete_query(node_id,node_name,node_version_number,node_parentid,projectid=None):
+    node_version_number=str(node_version_number)
+    query['delete_module']="delete FROM modules WHERE moduleid="+node_id+" and modulename='"+node_name+"' and versionnumber="+node_version_number+" and projectid="+node_parentid
+    query['delete_testscenario']="delete FROM testscenarios WHERE testscenarioid="+node_id+" and testscenarioname='"+node_name+"' and projectid="+node_parentid
+    query['delete_screen']="delete FROM screens WHERE screenid="+node_id+" and screenname='"+node_name+"' and versionnumber="+node_version_number+" and projectid="+node_parentid
+    query['delete_testcase']="delete FROM testcases WHERE testcaseid="+node_id+" and testcasename='"+node_name+"' and versionnumber="+node_version_number+" and screenid="+node_parentid
+
+############################
+# END OF GENERIC FUNCTIONS
+############################
+
+################################################################################
 # END OF INTERNAL COMPONENTS
-#########################
+################################################################################
 
 if __name__ == '__main__':
 ##    context = ('cert.pem', 'key.pem')#certificate and key files
