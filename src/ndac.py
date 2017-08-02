@@ -534,8 +534,8 @@ def insertInScreen_ICE():
                 +", '"+requestdata['screenname']+"'," + requestdata['screenid']
                 +" , "+requestdata['versionnumber']+" ,'"+requestdata['createdby']
                 +"'," + str(getcurrentdate())+", '"+requestdata['createdthrough']
-                +"' , "+str(requestdata['deleted'])+","+requestdata['skucodescreen']
-                +",['"+requestdata['tags']+"'] )")
+                +"' , "+str(requestdata['deleted'])+",'"+requestdata['skucodescreen']
+                +"',['"+requestdata['tags']+"'] )")
                 queryresult = icesession.execute(create_screen_query1)
                 res={'rows':'Success'}
 
@@ -1069,7 +1069,7 @@ def readTestSuite_ICE():
 #author : pavan.nayak
 #date:31/07/2017
 #-------------------------------------------------
-@app.route('/suits/updateTestSuite_ICE',methods=['POST'])
+@app.route('/suite/updateTestSuite_ICE',methods=['POST'])
 def updateTestSuite_ICE():
     res={'rows':'fail'}
     try:
