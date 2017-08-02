@@ -45,10 +45,11 @@ n68historysession.set_keyspace('nineteen68history')
 def server_ready():
     return 'Data Server Ready!!!'
 
-##################################################
+
+################################################################################
 # BEGIN OF LOGIN SCREEN
 # INCLUDES : Login components
-##################################################
+################################################################################
 
 #service for login to Nineteen68
 @app.route('/login/authenticateUser_Nineteen68',methods=['POST'])
@@ -202,14 +203,15 @@ def loadUserInfo_Nineteen68():
         app.logger.error('Error in loadUserInfo_Nineteen68.')
         return jsonify(res)
 
-
-#########################
+################################################################################
 # END OF LOGIN SCREEN
-#########################
-##################################################
-# BEGIN OF CREATE_ICE
+################################################################################
+
+
+################################################################################
+# BEGIN OF MIND MAPS
 # INCLUDES : all Mindmap related queries
-##################################################
+################################################################################
 
 #getting Release_iDs of Project
 @app.route('/create_ice/getReleaseIDs_Ninteen68',methods=['POST'])
@@ -289,7 +291,7 @@ def getProjectIDs_Nineteen68():
         app.logger.error('Error in getProjectIDs_Nineteen68.')
     return jsonify(res)
 
-#getting names of module/scenario/screen/testcase name of given id 
+#getting names of module/scenario/screen/testcase name of given id
 @app.route('/create_ice/getNames_Ninteen68',methods=['POST'])
 def getNames_Nineteen68():
     res={'rows':'fail'}
@@ -297,8 +299,8 @@ def getNames_Nineteen68():
        requestdata=json.loads(request.data)
        if not isemptyrequest(requestdata):
             name=requestdata['name']
-            id=requestdata['id']
-            getname_query=(names_query[name]+id)
+            user_projectid=requestdata['id']
+            getname_query=(query[name]+user_projectid)
             queryresult = icesession.execute(getname_query)
             res={'rows':queryresult.current_rows}
        else:
@@ -336,7 +338,6 @@ def testcase_exists_ICE():
             testcase_name=requestdata['testcase_name']
             testcase_check =("select testcaseid from testcases where testcasename='"+testcase_name
             +"' ALLOW FILTERING")
-
             queryresult = icesession.execute(testcase_check)
             res={'rows':queryresult.current_rows}
        else:
@@ -447,8 +448,6 @@ def get_node_details_ICE():
         app.logger.error('Error in testcase_exists.')
     return jsonify(res)
 
-
-
 @app.route('/create_ice/delete_node_ICE',methods=['POST'])
 def delete_node_ICE():
     res={'rows':'fail'}
@@ -457,7 +456,7 @@ def delete_node_ICE():
        if not isemptyrequest(requestdata):
             query_name=requestdata['name']
             get_delete_query(requestdata['id'],requestdata['node_name'],requestdata['version_number'],requestdata['parent_node_id'])
-            delete_query=query[query_name]\
+            delete_query=query[query_name]
             queryresult = icesession.execute(delete_query)
             res={'rows':'Success'}
        else:
@@ -465,7 +464,6 @@ def delete_node_ICE():
     except Exception as e:
         app.logger.error('Error in testcase_exists.')
     return jsonify(res)
-
 
 @app.route('/create_ice/insertInSuite_ICE',methods=['POST'])
 def insertInSuite_ICE():
@@ -495,7 +493,6 @@ def insertInSuite_ICE():
         app.logger.error('Error in insertInSuite_ICE.')
     return jsonify(res)
 
-
 @app.route('/create_ice/insertInScenarios_ICE',methods=['POST'])
 def insertInScenarios_ICE():
     res={'rows':'fail'}
@@ -518,7 +515,6 @@ def insertInScenarios_ICE():
                 +"projectid = "+requestdata['projectid'])
                 queryresult = icesession.execute(delete_scenario_query)
                 res={'rows':'Success'}
-
        else:
             app.logger.error("Invalid input in insertInScenarios_ICE")
     except Exception as e:
@@ -730,17 +726,15 @@ def updateTestcasename_ICE():
         app.logger.error('Error in updateTestcasename_ICE.')
     return jsonify(res)
 
+################################################################################
+# END OF MIND MAPS
+################################################################################
 
 
-
-##################################################
-# END OF CREATE_ICE
-##################################################
-
-##################################################
+################################################################################
 # BEGIN OF DESIGN SCREEN
 # INCLUDES : scraping/ws-screen/design testcase creation
-##################################################
+################################################################################
 
 #keywords loader for design screen
 @app.route('/design/getKeywordDetails_ICE',methods=['POST'])
@@ -908,7 +902,6 @@ def updateTestCase_ICE():
             res =  jsonify(res)
     except Exception as updatetestcaseexception:
         app.logger.error('Error in updateTestCase_ICE.')
-    ##        return jsonify(res)
     return res
 
 #fetches all the testcases under a test scenario
@@ -942,15 +935,16 @@ def getTestcaseDetailsForScenario_ICE():
     except Exception as userrolesexc:
         app.logger.error('Error in getTestcaseDetailsForScenario_ICE.')
     return res
-##################################################
+
+################################################################################
 # END OF DESIGN SCREEN
-##################################################
+################################################################################
 
 
-##################################################
+################################################################################
 # BEGIN OF EXECUTION
 # INCLUDES : all execution related actions
-##################################################
+################################################################################
 
 #get dependant testcases by scenario ids for add dependent testcases
 @app.route('/design/getTestcasesByScenarioId_ICE',methods=['POST'])
@@ -1155,7 +1149,7 @@ def ExecuteTestSuite_ICE() :
             + "," + str(getcurrentdate()) + ")")
                queryresult = icesession.execute(exporttojsonquery6)
             else:
-                    return jsonify(res)
+                return jsonify(res)
         else:
             app.logger.error('Empty data received. assign projects.')
             return jsonify(res)
@@ -1165,15 +1159,15 @@ def ExecuteTestSuite_ICE() :
         app.logger.error('Error in execuiteTestSuite_ICE')
         return jsonify(res)
 
-##################################################
+################################################################################
 # END OF EXECUTION
-##################################################
+################################################################################
 
 
-##################################################
+################################################################################
 # BEGIN OF ADMIN SCREEN
 # INCLUDES : all admin related actions
-##################################################
+################################################################################
 
 #fetches the user roles for assigning during creation/updation user
 @app.route('/admin/getUserRoles_Nineteen68',methods=['POST'])
@@ -1341,7 +1335,6 @@ def createUser_Nineteen68():
         app.logger.error('Error in createUser_Nineteen68.')
         return jsonify(res)
 
-
 #service update user data into Nineteen68
 @app.route('/admin/updateUser_Nineteen68',methods=['POST'])
 def updateUser_Nineteen68():
@@ -1409,7 +1402,6 @@ def updateUser_Nineteen68():
         app.logger.error('Error in updateUser_nineteen68')
         res={'rows':'fail'}
         return jsonify(res)
-
 
 #service creates a complete project structure into ICE keyspace
 @app.route('/admin/createProject_ICE',methods=['POST'])
@@ -1532,7 +1524,6 @@ def getUsers_Nineteen68():
         app.logger.error('Error in getUsers_Nineteen68')
         return jsonify(res)
 
-
 #service assigns projects to a specific user
 @app.route('/admin/assignProjects_ICE',methods=['POST'])
 def assignProjects_ICE():
@@ -1569,14 +1560,15 @@ def assignProjects_ICE():
         app.logger.error('Error in assignProjects_ICE')
         return jsonify(res)
 
-##################################################
+################################################################################
 # END OF ADMIN SCREEN
-##################################################
+################################################################################
 
-##################################################
+
+################################################################################
 # BEGIN OF REPORTS
 # INCLUDES : all reports related actions
-##################################################
+################################################################################
 
 #fetching all the suite details
 @app.route('/reports/getAllSuites_ICE',methods=['POST'])
@@ -1714,7 +1706,6 @@ def getReport_Nineteen68():
         app.logger.error('Error in getReport_Nineteen68.')
         return jsonify(res)
 
-
 #export json feature on reports
 @app.route('/reports/exportToJson_ICE',methods=['POST'])
 def exportToJson_ICE():
@@ -1747,15 +1738,15 @@ def exportToJson_ICE():
         res={'rows':'fail'}
         return jsonify(res)
 
-
-##################################################
+################################################################################
 # END OF REPORTS
-##################################################
+################################################################################
 
-##################################################
+
+################################################################################
 # BEGIN OF UTILITIES
 # INCLUDES : all admin related actions
-##################################################
+################################################################################
 
 #encrpytion utility AES
 @app.route('/utility/encrypt_ICE/aes',methods=['POST'])
@@ -1781,29 +1772,14 @@ def encrypt_ICE():
         app.logger.error('Error in encrypt_ICE.')
         return str(res)
 
-##################################################
+################################################################################
 # END OF UTILITIES
-##################################################
+################################################################################
 
-#########################
+
+################################################################################
 # BEGIN OF INTERNAL COMPONENTS
-#########################
-
-
-def isemptyrequest(requestdata):
-    flag = False
-    for key in requestdata:
-        value = requestdata[key]
-        if key != 'additionalroles':
-            if value == 'undefined' or value == '' or value == 'null' or value == None:
-                flag = True
-    return flag
-
-def getcurrentdate():
-    currentdate= datetime.datetime.now()
-    beginingoftime = datetime.datetime.utcfromtimestamp(0)
-    differencedate= currentdate - beginingoftime
-    return long(differencedate.total_seconds() * 1000.0)
+################################################################################
 
 ###########################
 # BEGIN OF GLOBAL VARIABLES
@@ -1819,6 +1795,29 @@ query['module_details']='select * from modules where moduleid='
 query['testscenario_details']='select * from testscenarios where testscenarioid='
 query['screen_details']='select * from screens where screenid='
 query['testcase_details']='select * from testcases where testcaseid='
+
+
+###########################
+# END OF GLOBAL VARIABLES
+###########################
+
+############################
+# BEGIN OF GENERIC FUNCTIONS
+############################
+def isemptyrequest(requestdata):
+    flag = False
+    for key in requestdata:
+        value = requestdata[key]
+        if key != 'additionalroles':
+            if value == 'undefined' or value == '' or value == 'null' or value == None:
+                flag = True
+    return flag
+
+def getcurrentdate():
+    currentdate= datetime.datetime.now()
+    beginingoftime = datetime.datetime.utcfromtimestamp(0)
+    differencedate= currentdate - beginingoftime
+    return long(differencedate.total_seconds() * 1000.0)
 
 def testsuite_exists(project_id,module_name,moduleid=''):
     query['suite_check']="select moduleid FROM modules where projectid="+project_id+" and modulename='"+module_name+"' ALLOW FILTERING"
@@ -1844,14 +1843,13 @@ def get_delete_query(node_id,node_name,node_version_number,node_parentid,project
     query['delete_screen']="delete FROM screens WHERE screenid="+node_id+" and screenname='"+node_name+"' and versionnumber="+node_version_number+" and projectid="+node_parentid
     query['delete_testcase']="delete FROM testcases WHERE testcaseid="+node_id+" and testcasename='"+node_name+"' and versionnumber="+node_version_number+" and screenid="+node_parentid
 
+############################
+# END OF GENERIC FUNCTIONS
+############################
 
-###########################
-# BEGIN OF GLOBAL VARIABLES
-###########################
-
-#########################
+################################################################################
 # END OF INTERNAL COMPONENTS
-#########################
+################################################################################
 
 if __name__ == '__main__':
 ##    context = ('cert.pem', 'key.pem')#certificate and key files
