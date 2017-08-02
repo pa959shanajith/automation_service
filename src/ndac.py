@@ -299,8 +299,8 @@ def getNames_Nineteen68():
        requestdata=json.loads(request.data)
        if not isemptyrequest(requestdata):
             name=requestdata['name']
-            user_projectid=requestdata['id']
-            getname_query=(query[name]+user_projectid)
+            nodeid=requestdata['id']
+            getname_query=(query[name]+nodeid)
             queryresult = icesession.execute(getname_query)
             res={'rows':queryresult.current_rows}
        else:
