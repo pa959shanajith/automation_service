@@ -1166,6 +1166,81 @@ def ExecuteTestSuite_ICE() :
 # END OF EXECUTION
 ################################################################################
 
+################################################################################
+# BEGIN OF QUALITYCENTRE
+# INCLUDES : all qc related actions
+################################################################################
+#fetches the user roles for assigning during creation/updation user
+@app.route('/qualityCenter/qcProjectDetails_ICE',methods=['POST'])
+def qcProjectDetails_ICE():
+    res={'rows':'fail'}
+    try:
+        requestdata=json.loads(request.data)
+        if not isemptyrequest(requestdata):
+            if(requestdata["query"] == 'getprojectDetails'):
+                qcprojectdetailsquery1  = ("select projectids from icepermissions where userid="+requestdata["userid"])
+                queryresult = icesession.execute(qcprojectdetailsquery1)
+            elif(requestdata["query"] == 'projectname1'):
+                qcprojectdetailsquery2 = ("select projectname from projects where projectid="+requestdata["projectid"])
+                queryresult = icesession.execute(qcprojectdetailsquery2)
+            elif(requestdata["query"] == 'scenariodata'):
+                qcprojectdetailsquery3  = ("SELECT testscenarioid,testscenarioname FROM testscenarios where projectid="+requestdata["projectid"])
+                queryresult = icesession.execute(qcprojectdetailsquery3)
+            else:
+                res={'rows':'fail'}
+            res= {"rows":queryresult.current_rows}
+            res =  jsonify(res)
+        else:
+            app.logger.error('Empty data received. getting qcProjectDetails.')
+            res =  jsonify(res)
+    except Exception as gettestcasesbyscenarioidexception:
+        app.logger.error('Error in qcProjectDetails_ICE.')
+    return res
+
+@app.route('/qualityCenter/saveQcDetails_ICE',methods=['POST'])
+def saveQcDetails_ICE():
+    res={'rows':'fail'}
+    try:
+        requestdata=json.loads(request.data)
+        if not isemptyrequest(requestdata):
+            if(requestdata["query"] == 'saveQcDetails_ICE'):
+                gettestcaseidquery1  = ("INSERT INTO qualitycenterdetails (testscenarioid,qcdetailsid,qcdomain,qcfolderpath,qcproject,qctestcase,qctestset) VALUES ("+requestdata["testscenarioid"]
+                +","+requestdata["testscenarioid"]+",'"+requestdata["qcdomain"]+"','"+requestdata["qcfolderpath"]+"','"+requestdata["qcproject"]
+                +"','"+requestdata["qctestcase"]+"','"+requestdata["qctestset"]+"')")
+                queryresult = icesession.execute(gettestcaseidquery1)
+            else:
+                res={'rows':'fail'}
+            res= {"rows":queryresult.current_rows}
+            res =  jsonify(res)
+        else:
+            app.logger.error('Empty data received. getting saveQcDetails.')
+            res =  jsonify(res)
+    except Exception as gettestcasesbyscenarioidexception:
+        app.logger.error('Error in saveQcDetails_ICE.')
+    return res
+
+@app.route('/qualityCenter/viewQcMappedList_ICE',methods=['POST'])
+def viewQcMappedList_ICE():
+    res={'rows':'fail'}
+    try:
+        requestdata=json.loads(request.data)
+        if not isemptyrequest(requestdata):
+            if(requestdata["query"] == 'qcdetails'):
+                viewqcmappedquery1  = ("SELECT * FROM qualitycenterdetails where testscenarioid="+requestdata["testscenarioid"])
+                queryresult = icesession.execute(viewqcmappedquery1)
+            else:
+                res={'rows':'fail'}
+            res= {"rows":queryresult.current_rows}
+            res =  jsonify(res)
+        else:
+            app.logger.error('Empty data received. getting QcMappedList.')
+            res =  jsonify(res)
+    except Exception as gettestcasesbyscenarioidexception:
+        app.logger.error('Error in viewQcMappedList_ICE.')
+    return res
+################################################################################
+# END OF QUALITYCENTRE
+################################################################################
 
 ################################################################################
 # BEGIN OF ADMIN SCREEN
@@ -1378,7 +1453,7 @@ def updateUser_Nineteen68():
                     + ", emailid='" + requestdata['emailid']
                     + "', ldapuser= " + str(requestdata['ldapuser'])
                     + ", modifiedbyrole= '" + str(requestdata['modifiedbyrole'])
-                    + "', additionalroles= additionalroles + {" + str(requestdata['additionalroles'])
+                    + "', additionalroles= {" + str(requestdata['additionalroles'])
                     + "} where userid=" + str(requestdata['userid']))
                 else:
                     updateuserquery2=("UPDATE users set "
@@ -1391,7 +1466,7 @@ def updateUser_Nineteen68():
                     + ", emailid='" + requestdata['emailid']
                     + "', ldapuser= " + str(requestdata['ldapuser'])
                     + ", modifiedbyrole= '" + str(requestdata['modifiedbyrole'])
-                    + "', additionalroles= additionalroles + {" + str(requestdata['additionalroles'])
+                    + "', additionalroles= {" + str(requestdata['additionalroles'])
                     + "} where userid=" + str(requestdata['userid']))
                 queryresult = n68session.execute(updateuserquery2)
                 res={'rows':'Success'}
