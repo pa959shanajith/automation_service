@@ -1,0 +1,8 @@
+{
+	"ndac": {
+		"licenseserver":"licenseserverip",
+		"databaseip": "databaseip",
+		"dbusername": "dbusername",
+		"dbpassword": "dbpassword"
+	}
+}
