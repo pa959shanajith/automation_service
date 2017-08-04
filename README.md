@@ -54,5 +54,7 @@ Werkzeug==0.12.2
 
 winpython==1.7.20170128
 
+waitress==1.0.2
+
 *requests==2.18.1* **Recommended for testing purposes only**
 
