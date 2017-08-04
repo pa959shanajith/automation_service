@@ -1,5 +1,5 @@
 #-------------------------------------------------------------------------------
-# Name:        restapi.py
+# Name:        ndac.py
 # Purpose:
 #
 # Author:      vishvas.a
@@ -9,18 +9,34 @@
 # Licence:     <your licence>
 #-------------------------------------------------------------------------------
 import json
-from flask import Flask, request , jsonify
+import requests
+import subprocess
+import sqlite3
 import logging
-import datetime
+from datetime import datetime
 import uuid
-from logging.handlers import RotatingFileHandler
+import sys
+import ast
+
+from flask import Flask, request , jsonify
+from waitress import serve
+from logging.handlers import TimedRotatingFileHandler
 app = Flask(__name__)
+
+
+import os
+os.chdir("..")
+#nineteen68 folder location is parent directory
+parentdir=os.getcwd()
+config_path = parentdir+'\\server config.json'
+rest_config = json.loads(open(config_path).read())
+
+lsip = rest_config['ndac']['licenseserver']
 from cassandra.cluster import Cluster
 from flask_cassandra import CassandraCluster
 from cassandra.auth import PlainTextAuthProvider
-auth = PlainTextAuthProvider(username='<databaseusername>', password='databasepassword')
-cluster = Cluster(['<databaseip>'],auth_provider=auth)
-
+auth = PlainTextAuthProvider(username=rest_config['ndac']['dbusername'], password=rest_config['ndac']['dbpassword'])
+cluster = Cluster([rest_config['ndac']['databaseip']],auth_provider=auth)
 
 icesession = cluster.connect()
 n68session = cluster.connect()
@@ -442,9 +458,9 @@ def get_node_details_ICE():
        else:
             app.logger.error("Invalid input in testcase_exists")
     except Exception as e:
-        print e
-        import traceback
-        traceback.print_exc()
+##        print e
+##        import traceback
+##        traceback.print_exc()
         app.logger.error('Error in testcase_exists.')
     return jsonify(res)
 
@@ -1872,11 +1888,34 @@ query['scenario']='select testscenarioname FROM testscenarios where testscenario
 query['screen']='select screenname FROM screens where screenid='
 query['testcase']='select testcasename FROM testcases where testcaseid='
 #Getting complete details of single node
+mine='\x4e\x36\x38\x53\x51\x4c\x69\x74\x65\x44\x61\x74\x61\x53\x65\x63\x72\x65\x74\x4b\x65\x79\x43\x6f\x6d\x70\x4f\x4e\x65\x6e\x74\x73'
 query['module_details']='select * from modules where moduleid='
 query['testscenario_details']='select * from testscenarios where testscenarioid='
 query['screen_details']='select * from screens where screenid='
 query['testcase_details']='select * from testcases where testcaseid='
-
+numberofdays=1
+omgall="\x4e\x69\x6e\x65\x74\x65\x65\x6e\x36\x38\x6e\x64\x61\x74\x63\x6c\x69\x63\x65\x6e\x73\x69\x6e\x67"
+ndacinfo = {
+	"action": "",
+	"sysinfo": {
+		"mac": "",
+		"tkn": ""
+	},
+	"btchinfo": {
+		"prevbtch": {
+			"prevbtchtym": "",
+			"prevbtchmsg": ""
+		},
+		"nxtbtch": "",
+		"btchstts": ""
+	},
+	"modelinfo": {
+		"execs_in_day": [{
+			"time": "",
+			"execs": ""
+		}]
+	}
+}
 
 ###########################
 # END OF GLOBAL VARIABLES
@@ -1889,7 +1928,8 @@ def isemptyrequest(requestdata):
     flag = False
     for key in requestdata:
         value = requestdata[key]
-        if key != 'additionalroles' or key != 'getparampaths':
+        if (key != 'additionalroles'
+            and key != 'getparampaths' and key != 'testcasesteps'):
             if value == 'undefined' or value == '' or value == 'null' or value == None:
                 flag = True
     return flag
@@ -1928,11 +1968,296 @@ def get_delete_query(node_id,node_name,node_version_number,node_parentid,project
 # END OF GENERIC FUNCTIONS
 ############################
 
+###################################
+# START LICENSING SERVER COMPONENTS
+###################################
+
+def getMacAddress():
+    if sys.platform == 'win32':
+        for line in os.popen("ipconfig /all"):
+            if line.lstrip().startswith('Physical Address'):
+                mac = line.split(':')[1].strip().replace('-',':')
+                break
+    else:
+        for line in os.popen("/sbin/ifconfig"):
+            if line.find('Ether') > -1:
+                mac = line.split()[4]
+                break
+    return mac
+
+
+def basecheckonls():
+    basecheckstatus=False
+##    print mac
+##    data= {"action":"register","sysinfo":physical_trans,"visited":"no"}
+    baserequest= {
+	   "action": "register",
+	   "sysinfo": {
+		  "mac": mac,
+		  "token": ""
+	       },
+	   "visited": "no"
+    }
+    try:
+        baserequest=wrap(str(baserequest),omgall)
+        connectresponse = connectingls(baserequest)
+##        print 'connectresponse:::',connectresponse
+        if connectresponse != False:
+            actresp = unwrap(str(connectresponse),omgall)
+##            print 'This is the value',actresp
+            actresp = ast.literal_eval(actresp)
+            if actresp['action'] == 'error':
+                    app.logger.error(actresp['lsinfotondac']['message'])
+            else:
+                baseresponse = ndacinfo
+                baseresponse['sysinfo']['tkn']=actresp['lsinfotondac']['lstokentondac'];
+##                baseresponse['sysinfo']['tkn']='';
+                baseresponse['sysinfo']['mac']=mac;
+                baseresponse['action']=actresp['action']
+##                print 'NDAC info:::\n\n',baseresponse
+                wrappedbaseresponse=wrap(str(baseresponse),mine)
+                dataholderresp=dataholder(wrappedbaseresponse,'new')
+                if dataholderresp != False:
+                    basecheckstatus = dataholderresp
+##                a=dataholder(mywrapeddata,'select')
+##                print '\n\n\n',a
+##                myunwrapeddata=unwrap(str(a),mine)
+##                print '\n\n',myunwrapeddata
+        else:
+            app.logger.error("Unable to connect to Server")
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        app.logger.error("Unable to contact storage areas")
+    return basecheckstatus
+
+def modelinfoprocessor(resultset,processingdata):
+    modelinfo=[]
+    try:
+        bgnyesday = getbgntime('prev',datetime.now())
+        bgnoftday = getbgntime('curr',datetime.now())
+        daybforedate=''
+        if (processingdata['btchinfo']['btchstts'] == 'error' or
+            processingdata['btchinfo']['btchstts'] == ''):
+            daybforedate=getbgntime('daybefore',datetime.now())
+        if daybforedate != '':
+            for days in range(0,2):
+                modelinfo.append(dataprocessor(resultset,daybforedate,bgnyesday))
+                daybforedate=bgnyesday
+                bgnyesday=bgnoftday
+        else:
+            modelinfo.append(dataprocessor(resultset,bgnyesday,bgnoftday))
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        app.logger.error("Unable to contact storage areas 3")
+    return modelinfo
+
+def updateonls():
+    try:
+        resultset=getexecs_in_day()
+        selected=dataholder('','select')
+        myunwrapeddata=unwrap(str(selected),mine)
+        processingdata = ast.literal_eval(myunwrapeddata)
+        updaterequest={}
+        modelinfo={}
+    ##    updaterequest = processingdata
+    ##    if 'btchinfo' in updaterequest:
+    ##        updaterequest.pop('btchinfo', None)
+        updaterequest['sysinfo'] = processingdata['sysinfo']
+        updaterequest['modelinfo']=modelinfo
+        modelinfores = modelinfoprocessor(resultset,processingdata)
+        updaterequest['modelinfo']['execs_in_day']=modelinfores
+    ##    execs_in_day = {}
+    ##    execs_in_day['time'] = str(curr)
+    ##    execs_in_day['execs'] = str(numberofexecs)
+    ##    updaterequest['modelinfo'].append(execs_in_day)
+        updaterequest['action'] = 'update'
+    ##    print '\nupdaterequest:::::\n\n',updaterequest
+        wrappedupdaterequest=wrap(str(updaterequest),omgall)
+        updateresponse = connectingls(wrappedupdaterequest)
+    ##    print '\nupdateresponse:::::\n\n',updateresponse
+        if updateresponse != False:
+            updateresponse=unwrap(str(updateresponse),omgall)
+            updateresponse = ast.literal_eval(updateresponse)
+    ##        print '\n\n',updateresponse
+            if updateresponse['action'] == 'error':
+                app.logger.error(updateresponse['lsinfotondac']['message'])
+                errorstorage=dataholder('','select')
+                errorunwrap=unwrap(str(errorstorage),mine)
+                errorprocessed = ast.literal_eval(errorunwrap)
+    ##            errorprocessed['btchinfo']={}
+                failtime=datetime.now()
+    ##            errorprocessed['btchinfo']['prevbtch']={}
+                errorprocessed['btchinfo']['prevbtch']['prevbtchtym'] =str(failtime)
+                errorprocessed['btchinfo']['prevbtch']['prevbtchmsg'] = updateresponse['lsinfotondac']['message']
+                nxtbatch = getbgntime('nxt',failtime)
+                errorprocessed['btchinfo']['nxtbtch'] = str(nxtbatch)
+                errorprocessed['btchinfo']['btchstts'] = updateresponse['action']
+                errorprocessed['action'] = 'update'
+                errorprocessed=wrap(str(errorstorage),mine)
+                updatestatus = dataholder(errorprocessed,'update')
+    ##            print '\nerrorprocessed:::::\n\n',updatestatus
+            else:
+                successstorage=dataholder('','select')
+    ##            print '\n first successstorage:::::\n\n',successstorage
+                successunwrap=unwrap(str(successstorage),mine)
+                successstorage = ast.literal_eval(successunwrap)
+                successstorage['action'] = 'update'
+                successstorage['btchinfo']['btchstts'] = updateresponse['lsinfotondac']['message']
+                successstorage['btchinfo']['nxtbtch'] = str(getbgntime('nxt',datetime.now()))
+    ##            print '\n unwrapped successstorage:::::\n\n',successstorage
+                successstorage=wrap(str(successstorage),mine)
+    ##            print '\nsuccessstorage:::::\n\n',successstorage
+                updatestatus = dataholder(str(successstorage),'update')
+
+        else:
+            app.logger.error("Could not connect to Server")
+    except Exception as e:
+##        import traceback
+##        traceback.print_exc()
+        app.logger.error("Unable to contact storage areas")
+
+def getbgntime(requiredday,currentday):
+    import datetime
+    day = ''
+    if requiredday == 'prev':
+        yesterday=currentday - datetime.timedelta(1)
+        day=datetime.datetime(yesterday.year, yesterday.month, yesterday.day,0,0,0,0)
+    elif requiredday == 'nxt':
+        tomorrow=currentday + datetime.timedelta(1)
+        day=datetime.datetime(tomorrow.year, tomorrow.month, tomorrow.day,0,0,0,0)
+    elif requiredday == 'daybefore':
+        daybefore=currentday - datetime.timedelta(2)
+        day=datetime.datetime(daybefore.year, daybefore.month, daybefore.day,0,0,0,0)
+    elif requiredday == 'curr':
+        day=datetime.datetime(currentday.year, currentday.month, currentday.day,0,0,0,0)
+    return day
+
+def getexecs_in_day():
+    res = {"rows":"fail"}
+    try:
+        query="select * from reports"
+        queryresult = icesession.execute(query)
+    ##    print queryresult.current_rows
+        res= {"rows":queryresult.current_rows}
+    except Exception as getexecs_in_dayexc:
+        import traceback
+        traceback.print_exc()
+        app.logger.error("Unable to contact storage areas 2")
+    return res
+
+def dataprocessor(resultset,fromdate,todate):
+    processorres = False
+    count = 0
+    try:
+        eachexecs_in_day={"execs":"","time":""}
+        curr=datetime.now()
+        if resultset['rows'] != 'fail':
+            for eachrow in resultset['rows']:
+                exectime=eachrow['executedtime']
+                if exectime != None:
+                    if (exectime >= fromdate and exectime < todate):
+                        count = count + 1
+        eachexecs_in_day['time'] = str(todate)
+        eachexecs_in_day['execs'] = str(count)
+    except Exception as getexecs_in_dayexc:
+        import traceback
+        traceback.print_exc()
+        app.logger.error("Unable to perform internal actions")
+    return eachexecs_in_day
+
+def connectingls(data):
+    try:
+        connectionstatus=False
+        lsresponse = requests.post('http://'+lsip+":5000/ndacrequest",data=data)
+##        lsresponse = requests.post("http://127.0.0.1:5000/ndacrequest",data=data)
+        if lsresponse.status_code == 200:
+            connectionstatus = lsresponse.content
+        else:
+            app.logger.error("Status Code:",lsresponse.content)
+    except Exception as e:
+##        import traceback
+##        traceback.print_exc()
+        app.logger.error("Liscense server must be running")
+        connectionstatus = False
+    return connectionstatus
+
+def cronograph():
+    try:
+        from threading import Timer
+        x=datetime.today()
+        updatehr=01
+        updatemin=00
+        updatesec=00
+        updatemcrs=00
+        y=x.replace(day=x.day+1, hour=updatehr, minute=updatemin, second=updatesec, microsecond=updatemcrs)
+        delta_t=y-x
+        secs=delta_t.seconds+1
+        t = Timer(secs, updateonls)
+        t.start()
+        app.logger.error("<<<<Server Turns active>>>>")
+    except Exception as cronoexeption:
+        import traceback
+        traceback.print_exc()
+        app.logger.error("<<<<Issue with the Server>>>>")
+
+def dataholder(data,querytype):
+    try:
+        dataholderresp=False
+        #connect to a database(creates if doesnt exist)
+        conn = sqlite3.connect("data.db")
+        #create cursor
+        cursor = conn.cursor()
+        if querytype == 'update':
+            conn.execute("UPDATE clndls SET intrtkndt = ? WHERE sysid = 'ndackey'",[data])
+            dataholderresp = True
+        elif querytype == 'new':
+            cursor.execute("CREATE TABLE IF NOT EXISTS clndls (sysid TEXT PRIMARY KEY, intrtkndt TEXT);")
+            cursor.execute("INSERT INTO clndls(sysid,intrtkndt) VALUES ('ndackey','"+data+"')")
+            dataholderresp = True
+        elif querytype == 'select':
+            cursor1=conn.execute("SELECT intrtkndt FROM clndls WHERE sysid='ndackey'")
+            for a in cursor1:
+                dataholderresp = a[0]
+        conn.commit()
+        conn.close()
+    except Exception as dataholderexeption:
+##        import traceback
+##        traceback.print_exc()
+        app.logger.error("<<<<Issue with the Storing>>>>")
+
+    return dataholderresp
+
+from Crypto import Random
+from Crypto.Cipher import AES
+BS = 16
+def pad(data):
+    padding = BS - len(data) % BS
+    return data + padding * chr(padding)
+
+def unpad(data):
+    return data[0:-ord(data[-1])]
+
+def unwrap(hex_data, key, iv='0'*16):
+    data = ''.join(map(chr, bytearray.fromhex(hex_data)))
+    aes = AES.new(key, AES.MODE_CBC, iv)
+    return unpad(aes.decrypt(data))
+
+def wrap(data, key, iv='0'*16):
+    aes = AES.new(key, AES.MODE_CBC, iv)
+    return aes.encrypt(pad(data)).encode('hex')
+
+##################################
+# END LICENSING SERVER COMPONENTS
+##################################
+
 ################################################################################
 # END OF INTERNAL COMPONENTS
 ################################################################################
 
 if __name__ == '__main__':
+
 ##    context = ('cert.pem', 'key.pem')#certificate and key files
 ##    #https implementation
 ##    app.run(host='127.0.0.1',port=1990,debug=True,ssl_context=context)
@@ -1940,8 +2265,15 @@ if __name__ == '__main__':
 
     #http implementations
     formatter = logging.Formatter("[%(asctime)s] {%(pathname)s:%(lineno)d} %(levelname)s - %(message)s")
-    handler = RotatingFileHandler('restapi.log', maxBytes=10000, backupCount=1)
+    handler = TimedRotatingFileHandler(parentdir+'/Portable_python/ndac/logs/ndac'+datetime.now().strftime("_%Y%m%d-%H%M%S")+'.log',when='d', encoding='utf-8', backupCount=1)
     handler.setLevel(logging.INFO)
     handler.setFormatter(formatter)
     app.logger.addHandler(handler)
-    app.run(host='127.0.0.1',port=1990,debug=True)
+    p = subprocess.Popen(['getmac'], stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+    physical_trans,b = p.communicate()
+    mac = getMacAddress()
+    ndacinfo['sysinfo']['mac']=mac
+    if (basecheckonls()):
+        cronograph()
+##        app.run(host='127.0.0.1',port=1990,debug=False)
+        serve(app,host='127.0.0.1',port=1990)
