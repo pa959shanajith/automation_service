@@ -534,8 +534,8 @@ def insertInScreen_ICE():
                 +", '"+requestdata['screenname']+"'," + requestdata['screenid']
                 +" , "+requestdata['versionnumber']+" ,'"+requestdata['createdby']
                 +"'," + str(getcurrentdate())+", '"+requestdata['createdthrough']
-                +"' , "+str(requestdata['deleted'])+","+requestdata['skucodescreen']
-                +",['"+requestdata['tags']+"'] )")
+                +"' , "+str(requestdata['deleted'])+",'"+requestdata['skucodescreen']
+                +"',['"+requestdata['tags']+"'] )")
                 queryresult = icesession.execute(create_screen_query1)
                 res={'rows':'Success'}
 
@@ -977,20 +977,20 @@ def getTestcasesByScenarioId_ICE():
 def readTestSuite_ICE():
     res={'rows':'fail'}
     try:
-            requestdata=json.loads(request.data)
-        #if not isemptyrequest(requestdata):
+        requestdata=json.loads(request.data)
+        if not isemptyrequest(requestdata):
             if(requestdata["query"] == 'testsuitecheck'):
-                exporttojsonquery1 = ("select donotexecute,conditioncheck, "
+                readtestsuitequery1 = ("select donotexecute,conditioncheck, "
                 +"getparampaths,testscenarioids from testsuites "
                 +" where testsuiteid="+ requestdata['testsuiteid']
                 + " and cycleid="+requestdata['cycleid'])
-                queryresult = icesession.execute(exporttojsonquery1)
+                queryresult = icesession.execute(readtestsuitequery1)
             elif(requestdata["query"] == 'selectmodule'):
-                exporttojsonquery2 = ("select * FROM modules where "
+                readtestsuitequery2 = ("select * FROM modules where "
                 +"moduleid=" + requestdata["moduleid"]
                 + " and modulename='" + requestdata["modulename"]
                 + "' allow filtering")
-                queryresult = icesession.execute(exporttojsonquery2)
+                queryresult = icesession.execute(readtestsuitequery2)
             elif(requestdata["query"] == 'testcasesteps'):
                 requestdata['conditioncheck'] = ','.join(str(idval) for idval in requestdata['conditioncheck'])
                 requestdata['donotexecute'] = ','.join(str(idval) for idval in requestdata['donotexecute'])
@@ -999,7 +999,7 @@ def readTestSuite_ICE():
                 for eachgetparampath in requestdata['getparampaths']:
                     getparampaths.append(eachgetparampath)
                 requestdata['testscenarioids'] = ','.join(str(idval) for idval in requestdata['testscenarioids'])
-                exporttojsonquery3 = ("insert into testsuites "+
+                readtestsuitequery3 = ("insert into testsuites "+
                 "(cycleid,testsuitename,testsuiteid,versionnumber,conditioncheck,"
                 +"createdby,createdon,createdthrough,deleted,donotexecute,getparampaths,skucodetestsuite,tags,testscenarioids) "+
                 "values ("
@@ -1010,24 +1010,24 @@ def readTestSuite_ICE():
                 +requestdata["deleted"]+",["+requestdata["donotexecute"]+"],"
                 +getparampaths+",'"+requestdata["skucodetestsuite"]+"',['"
                 +requestdata["tags"]+"'],["+requestdata["testscenarioids"]+"])")
-                queryresult = icesession.execute(exporttojsonquery3)
+                queryresult = icesession.execute(readtestsuitequery3)
             elif(requestdata["query"] == 'fetchdata'):
-                exporttojsonquery4 = ("select * from testsuites "+
+                readtestsuitequery4 = ("select * from testsuites "+
                 "where testsuiteid = " + requestdata["testsuiteid"]
                 + " and cycleid=" + requestdata["cycleid"] + " allow filtering")
-                queryresult = icesession.execute(exporttojsonquery4)
+                queryresult = icesession.execute(readtestsuitequery4)
             elif(requestdata["query"] == 'delete'):
-                exporttojsonquery5 = ("delete from testsuites where "+
+                readtestsuitequery5 = ("delete from testsuites where "+
                 "testsuiteid=" + requestdata["testsuiteid"]
                 + " and cycleid=" + requestdata["cycleid"]
                 + " and testsuitename='" + requestdata["testsuitename"] + "'")
-                queryresult = icesession.execute(exporttojsonquery5)
+                queryresult = icesession.execute(readtestsuitequery5)
             elif(requestdata["query"] == 'updatescenarioinnsuite'):
                 requestdata['conditioncheck'] = ','.join(str(idval) for idval in requestdata['conditioncheck'])
                 requestdata['donotexecute'] = ','.join(str(idval) for idval in requestdata['donotexecute'])
                 requestdata['getparampaths'] = ','.join(str(idval) for idval in requestdata['getparampaths'])
                 requestdata['testscenarioids'] = ','.join(str(idval) for idval in requestdata['testscenarioids'])
-                exporttojsonquery6 = ("insert into testsuites (cycleid,testsuitename,testsuiteid,versionnumber,conditioncheck,"
+                readtestsuitequery6 = ("insert into testsuites (cycleid,testsuitename,testsuiteid,versionnumber,conditioncheck,"
                 +"createdby,createdon,createdthrough,deleted,donotexecute,"
                 +"getparampaths,modifiedby,modifiedon,skucodetestsuite,tags,testscenarioids) values ("
                 +requestdata["cycleid"]+",'"+requestdata["testsuitename"]+"',"
@@ -1038,28 +1038,31 @@ def readTestSuite_ICE():
                 requestdata["getparampaths"]+"],'"+requestdata["modifiedby"]+"',"
                 +str(getcurrentdate())+",'"+requestdata["skucodetestsuite"]+"',['"+
                 requestdata["tags"]+"'],["+requestdata["testscenarioids"]+"])")
-                queryresult = icesession.execute(exporttojsonquery6)
+                queryresult = icesession.execute(readtestsuitequery6)
             elif(requestdata["query"] == 'testcasename'):
-                exporttojsonquery7 = ("select testscenarioname,projectid from testscenarios where "
+                readtestsuitequery7 = ("select testscenarioname,projectid from testscenarios where "
                 +"testscenarioid=" +  requestdata["testscenarioid"])
-                queryresult = icesession.execute(exporttojsonquery7)
+                queryresult = icesession.execute(readtestsuitequery7)
             elif(requestdata["query"] == 'projectname'):
-                exporttojsonquery8 = ("select projectname from projects where "
+                readtestsuitequery8 = ("select projectname from projects where "
                 +"projectid = " + requestdata["projectid"] + " allow filtering")
-                queryresult = icesession.execute(exporttojsonquery8)
+                queryresult = icesession.execute(readtestsuitequery8)
             elif(requestdata["query"] == 'readTestSuite_ICE'):
-                exporttojsonquery9 = ("select donotexecute,conditioncheck,getparampaths,testscenarioids from testsuites where "
+                readtestsuitequery9 = ("select donotexecute,conditioncheck,getparampaths,testscenarioids from testsuites where "
                 +"testsuiteid= " +requestdata["testsuiteid"]
                 + " and cycleid=" + requestdata["cycleid"]
                 + " and testsuitename='" + requestdata["testsuitename"] + "'")
-                queryresult = icesession.execute(exporttojsonquery9)
+                queryresult = icesession.execute(readtestsuitequery9)
             else:
                 return jsonify(res)
-            res= {"rows":queryresult.current_rows}
+        else:
+            app.logger.error('Empty data received. assign projects.')
             return jsonify(res)
+        res= {"rows":queryresult.current_rows}
+        return jsonify(res)
 
     except Exception as exporttojsonexc:
-        app.logger.error('Error in exportToJson_ICE.')
+        app.logger.error('Error in readTestSuite_ICE.')
         import traceback
         traceback.print_exc()
         res={'rows':'fail'}
@@ -1069,7 +1072,7 @@ def readTestSuite_ICE():
 #author : pavan.nayak
 #date:31/07/2017
 #-------------------------------------------------
-@app.route('/suits/updateTestSuite_ICE',methods=['POST'])
+@app.route('/suite/updateTestSuite_ICE',methods=['POST'])
 def updateTestSuite_ICE():
     res={'rows':'fail'}
     try:
@@ -1118,36 +1121,36 @@ def ExecuteTestSuite_ICE() :
         requestdata=json.loads(request.data)
         if not isemptyrequest(requestdata):
             if(requestdata['query'] == 'testcaseid'):
-                exporttojsonquery1=("select testcaseids from testscenarios where"
+                executetestsuitequery1=("select testcaseids from testscenarios where"
                 +" testscenarioid=" + requestdata['testscenarioid'])
-                queryresult = icesession.execute(exporttojsonquery1)
+                queryresult = icesession.execute(executetestsuitequery1)
             elif(requestdata['query'] == 'testcasesteps'):
-                exporttojsonquery2=("select screenid from testcases where "
+                executetestsuitequery2=("select screenid from testcases where "
                 +"testcaseid="+ requestdata['testcaseid'])
-                queryresult = icesession.execute(exporttojsonquery2)
+                queryresult = icesession.execute(executetestsuitequery2)
             elif(requestdata['query'] == 'getscreendataquery'):
-                exporttojsonquery3=("select screendata from screens where "
+                executetestsuitequery3=("select screendata from screens where "
                 +"screenid=" + requestdata['screenid'])
-                queryresult = icesession.execute(exporttojsonquery3)
+                queryresult = icesession.execute(executetestsuitequery3)
             elif(requestdata['query'] == 'testcasestepsquery'):
-                exporttojsonquery4=("select testcasesteps,testcasename from "
+                executetestsuitequery4=("select testcasesteps,testcasename from "
                 +"testcases where testcaseid = "+ requestdata['testcaseid'])
-                queryresult = icesession.execute(exporttojsonquery4)
+                queryresult = icesession.execute(executetestsuitequery4)
             elif(requestdata['query'] == 'insertreportquery'):
-                exporttojsonquery5=("insert into reports (reportid,executionid,"
+                executetestsuitequery5=("insert into reports (reportid,executionid,"
             +"testsuiteid,testscenarioid,executedtime,browser,modifiedon,status,"
             +"report) values (" + requestdata['reportid'] + ","
             + requestdata['executionid']+ "," + requestdata['testsuiteid']
             + "," + requestdata['testscenarioid'] + "," + str(getcurrentdate())
             + ",'" + requestdata['browser'] + "'," + str(getcurrentdate())
             + ",'" + requestdata['status']+ "','" + requestdata['report'] + "')")
-                queryresult = icesession.execute(exporttojsonquery5)
+                queryresult = icesession.execute(executetestsuitequery5)
             elif(requestdata['query'] == 'inserintotexecutionquery'):
-               exporttojsonquery6= ("insert into execution (testsuiteid,"
+               executetestsuitequery6= ("insert into execution (testsuiteid,"
             +"executionid,starttime,endtime) values (" + requestdata['testsuiteid']
             + "," + requestdata['executionid']+ "," + requestdata['starttime']
             + "," + str(getcurrentdate()) + ")")
-               queryresult = icesession.execute(exporttojsonquery6)
+               queryresult = icesession.execute(executetestsuitequery6)
             else:
                 return jsonify(res)
         else:
@@ -1163,6 +1166,81 @@ def ExecuteTestSuite_ICE() :
 # END OF EXECUTION
 ################################################################################
 
+################################################################################
+# BEGIN OF QUALITYCENTRE
+# INCLUDES : all qc related actions
+################################################################################
+#fetches the user roles for assigning during creation/updation user
+@app.route('/qualityCenter/qcProjectDetails_ICE',methods=['POST'])
+def qcProjectDetails_ICE():
+    res={'rows':'fail'}
+    try:
+        requestdata=json.loads(request.data)
+        if not isemptyrequest(requestdata):
+            if(requestdata["query"] == 'getprojectDetails'):
+                qcprojectdetailsquery1  = ("select projectids from icepermissions where userid="+requestdata["userid"])
+                queryresult = icesession.execute(qcprojectdetailsquery1)
+            elif(requestdata["query"] == 'projectname1'):
+                qcprojectdetailsquery2 = ("select projectname from projects where projectid="+requestdata["projectid"])
+                queryresult = icesession.execute(qcprojectdetailsquery2)
+            elif(requestdata["query"] == 'scenariodata'):
+                qcprojectdetailsquery3  = ("SELECT testscenarioid,testscenarioname FROM testscenarios where projectid="+requestdata["projectid"])
+                queryresult = icesession.execute(qcprojectdetailsquery3)
+            else:
+                res={'rows':'fail'}
+            res= {"rows":queryresult.current_rows}
+            res =  jsonify(res)
+        else:
+            app.logger.error('Empty data received. getting qcProjectDetails.')
+            res =  jsonify(res)
+    except Exception as gettestcasesbyscenarioidexception:
+        app.logger.error('Error in qcProjectDetails_ICE.')
+    return res
+
+@app.route('/qualityCenter/saveQcDetails_ICE',methods=['POST'])
+def saveQcDetails_ICE():
+    res={'rows':'fail'}
+    try:
+        requestdata=json.loads(request.data)
+        if not isemptyrequest(requestdata):
+            if(requestdata["query"] == 'saveQcDetails_ICE'):
+                gettestcaseidquery1  = ("INSERT INTO qualitycenterdetails (testscenarioid,qcdetailsid,qcdomain,qcfolderpath,qcproject,qctestcase,qctestset) VALUES ("+requestdata["testscenarioid"]
+                +","+requestdata["testscenarioid"]+",'"+requestdata["qcdomain"]+"','"+requestdata["qcfolderpath"]+"','"+requestdata["qcproject"]
+                +"','"+requestdata["qctestcase"]+"','"+requestdata["qctestset"]+"')")
+                queryresult = icesession.execute(gettestcaseidquery1)
+            else:
+                res={'rows':'fail'}
+            res= {"rows":queryresult.current_rows}
+            res =  jsonify(res)
+        else:
+            app.logger.error('Empty data received. getting saveQcDetails.')
+            res =  jsonify(res)
+    except Exception as gettestcasesbyscenarioidexception:
+        app.logger.error('Error in saveQcDetails_ICE.')
+    return res
+
+@app.route('/qualityCenter/viewQcMappedList_ICE',methods=['POST'])
+def viewQcMappedList_ICE():
+    res={'rows':'fail'}
+    try:
+        requestdata=json.loads(request.data)
+        if not isemptyrequest(requestdata):
+            if(requestdata["query"] == 'qcdetails'):
+                viewqcmappedquery1  = ("SELECT * FROM qualitycenterdetails where testscenarioid="+requestdata["testscenarioid"])
+                queryresult = icesession.execute(viewqcmappedquery1)
+            else:
+                res={'rows':'fail'}
+            res= {"rows":queryresult.current_rows}
+            res =  jsonify(res)
+        else:
+            app.logger.error('Empty data received. getting QcMappedList.')
+            res =  jsonify(res)
+    except Exception as gettestcasesbyscenarioidexception:
+        app.logger.error('Error in viewQcMappedList_ICE.')
+    return res
+################################################################################
+# END OF QUALITYCENTRE
+################################################################################
 
 ################################################################################
 # BEGIN OF ADMIN SCREEN
@@ -1375,7 +1453,7 @@ def updateUser_Nineteen68():
                     + ", emailid='" + requestdata['emailid']
                     + "', ldapuser= " + str(requestdata['ldapuser'])
                     + ", modifiedbyrole= '" + str(requestdata['modifiedbyrole'])
-                    + "', additionalroles= additionalroles + {" + str(requestdata['additionalroles'])
+                    + "', additionalroles= {" + str(requestdata['additionalroles'])
                     + "} where userid=" + str(requestdata['userid']))
                 else:
                     updateuserquery2=("UPDATE users set "
@@ -1388,7 +1466,7 @@ def updateUser_Nineteen68():
                     + ", emailid='" + requestdata['emailid']
                     + "', ldapuser= " + str(requestdata['ldapuser'])
                     + ", modifiedbyrole= '" + str(requestdata['modifiedbyrole'])
-                    + "', additionalroles= additionalroles + {" + str(requestdata['additionalroles'])
+                    + "', additionalroles= {" + str(requestdata['additionalroles'])
                     + "} where userid=" + str(requestdata['userid']))
                 queryresult = n68session.execute(updateuserquery2)
                 res={'rows':'Success'}
@@ -1808,7 +1886,7 @@ def isemptyrequest(requestdata):
     flag = False
     for key in requestdata:
         value = requestdata[key]
-        if key != 'additionalroles':
+        if key != 'additionalroles' or key != 'getparampaths':
             if value == 'undefined' or value == '' or value == 'null' or value == None:
                 flag = True
     return flag
