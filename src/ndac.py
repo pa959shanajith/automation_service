@@ -997,7 +997,10 @@ def readTestSuite_ICE():
                 requestdata['getparampaths'] = ','.join(str("'"+idval+"'") for idval in requestdata['getparampaths'])
                 getparampaths=[]
                 for eachgetparampath in requestdata['getparampaths']:
-                    getparampaths.append(eachgetparampath)
+                    if(eachgetparampath == ''):
+                        getparampaths.append(' ')
+                    else:
+                        getparampaths.append(eachgetparampath)
                 requestdata['testscenarioids'] = ','.join(str(idval) for idval in requestdata['testscenarioids'])
                 readtestsuitequery3 = ("insert into testsuites "+
                 "(cycleid,testsuitename,testsuiteid,versionnumber,conditioncheck,"
@@ -1007,8 +1010,8 @@ def readTestSuite_ICE():
                 +requestdata["testsuiteid"]+","+requestdata["versionnumber"] +",["
                 +requestdata["conditioncheck"]+"],'"+requestdata["createdby"]+"',"
                 +str(getcurrentdate())+",'"+requestdata["createdthrough"]+"',"
-                +requestdata["deleted"]+",["+requestdata["donotexecute"]+"],"
-                +getparampaths+",'"+requestdata["skucodetestsuite"]+"',['"
+                +requestdata["deleted"]+",["+requestdata["donotexecute"]+"],["
+                +requestdata['getparampaths'] +"],'"+requestdata["skucodetestsuite"]+"',['"
                 +requestdata["tags"]+"'],["+requestdata["testscenarioids"]+"])")
                 queryresult = icesession.execute(readtestsuitequery3)
             elif(requestdata["query"] == 'fetchdata'):
