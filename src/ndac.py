@@ -1,5 +1,5 @@
 #-------------------------------------------------------------------------------
-# Name:        restapi.py
+# Name:        ndac.py
 # Purpose:
 #
 # Author:      vishvas.a
@@ -18,8 +18,9 @@ app = Flask(__name__)
 from cassandra.cluster import Cluster
 from flask_cassandra import CassandraCluster
 from cassandra.auth import PlainTextAuthProvider
-auth = PlainTextAuthProvider(username='<databaseusername>', password='databasepassword')
-cluster = Cluster(['<databaseip>'],auth_provider=auth)
+from waitress import serve
+auth = PlainTextAuthProvider(username='nineteen68', password='TA@SLK2017')
+cluster = Cluster(['10.41.31.130'],auth_provider=auth)
 
 
 icesession = cluster.connect()
@@ -442,9 +443,9 @@ def get_node_details_ICE():
        else:
             app.logger.error("Invalid input in testcase_exists")
     except Exception as e:
-        print e
-        import traceback
-        traceback.print_exc()
+##        print e
+##        import traceback
+##        traceback.print_exc()
         app.logger.error('Error in testcase_exists.')
     return jsonify(res)
 
@@ -997,7 +998,10 @@ def readTestSuite_ICE():
                 requestdata['getparampaths'] = ','.join(str("'"+idval+"'") for idval in requestdata['getparampaths'])
                 getparampaths=[]
                 for eachgetparampath in requestdata['getparampaths']:
-                    getparampaths.append(eachgetparampath)
+                    if(eachgetparampath == ''):
+                        getparampaths.append(' ')
+                    else:
+                        getparampaths.append(eachgetparampath)
                 requestdata['testscenarioids'] = ','.join(str(idval) for idval in requestdata['testscenarioids'])
                 readtestsuitequery3 = ("insert into testsuites "+
                 "(cycleid,testsuitename,testsuiteid,versionnumber,conditioncheck,"
@@ -1007,8 +1011,8 @@ def readTestSuite_ICE():
                 +requestdata["testsuiteid"]+","+requestdata["versionnumber"] +",["
                 +requestdata["conditioncheck"]+"],'"+requestdata["createdby"]+"',"
                 +str(getcurrentdate())+",'"+requestdata["createdthrough"]+"',"
-                +requestdata["deleted"]+",["+requestdata["donotexecute"]+"],"
-                +getparampaths+",'"+requestdata["skucodetestsuite"]+"',['"
+                +requestdata["deleted"]+",["+requestdata["donotexecute"]+"],["
+                +requestdata['getparampaths'] +"],'"+requestdata["skucodetestsuite"]+"',['"
                 +requestdata["tags"]+"'],["+requestdata["testscenarioids"]+"])")
                 queryresult = icesession.execute(readtestsuitequery3)
             elif(requestdata["query"] == 'fetchdata'):
@@ -1886,7 +1890,8 @@ def isemptyrequest(requestdata):
     flag = False
     for key in requestdata:
         value = requestdata[key]
-        if key != 'additionalroles' or key != 'getparampaths':
+        if (key != 'additionalroles'
+            and key != 'getparampaths' and key != 'testcasesteps'):
             if value == 'undefined' or value == '' or value == 'null' or value == None:
                 flag = True
     return flag
@@ -1937,8 +1942,9 @@ if __name__ == '__main__':
 
     #http implementations
     formatter = logging.Formatter("[%(asctime)s] {%(pathname)s:%(lineno)d} %(levelname)s - %(message)s")
-    handler = RotatingFileHandler('restapi.log', maxBytes=10000, backupCount=1)
+    handler = RotatingFileHandler('ndac.log', maxBytes=10000, backupCount=1)
     handler.setLevel(logging.INFO)
     handler.setFormatter(formatter)
     app.logger.addHandler(handler)
-    app.run(host='127.0.0.1',port=1990,debug=True)
+##        app.run(host='127.0.0.1',port=1990,debug=False)
+    serve(app,host='127.0.0.1',port=1990)
