@@ -1935,8 +1935,8 @@ def isemptyrequest(requestdata):
     return flag
 
 def getcurrentdate():
-    currentdate= datetime.datetime.now()
-    beginingoftime = datetime.datetime.utcfromtimestamp(0)
+    currentdate= datetime.now()
+    beginingoftime = datetime.utcfromtimestamp(0)
     differencedate= currentdate - beginingoftime
     return long(differencedate.total_seconds() * 1000.0)
 
@@ -2225,7 +2225,7 @@ def dataholder(data,querytype):
     try:
         dataholderresp=False
         #connect to a database(creates if doesnt exist)
-        conn = sqlite3.connect("data.db")
+        conn = sqlite3.connect(parentdir+"/Portable_python/ndac/logs/data.db")
         #create cursor
         cursor = conn.cursor()
         if querytype == 'update':
@@ -2233,7 +2233,11 @@ def dataholder(data,querytype):
             dataholderresp = True
         elif querytype == 'new':
             cursor.execute("CREATE TABLE IF NOT EXISTS clndls (sysid TEXT PRIMARY KEY, intrtkndt TEXT);")
-            cursor.execute("INSERT INTO clndls(sysid,intrtkndt) VALUES ('ndackey','"+data+"')")
+            try:
+                cursor.execute("INSERT INTO clndls(sysid,intrtkndt) VALUES ('ndackey','"+data+"')")
+            except Exception as e:
+                dataholderresp = False
+##                app.logger.error("<<<<Running on existing DB>>>>")
             dataholderresp = True
         elif querytype == 'select':
             cursor1=conn.execute("SELECT intrtkndt FROM clndls WHERE sysid='ndackey'")
