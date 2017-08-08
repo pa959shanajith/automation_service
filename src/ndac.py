@@ -2114,6 +2114,22 @@ def updateonls():
                     successstorage=wrap(str(successstorage),mine)
         ##            print '\nsuccessstorage:::::\n\n',successstorage
                     updatestatus = dataholder(str(successstorage),'update')
+                else:
+                    app.logger.error('Server Authentication Failed.Invalid Server Authentication.')
+                    errorstorage=dataholder('','select')
+                    errorunwrap=unwrap(str(errorstorage),mine)
+                    errorprocessed = ast.literal_eval(errorunwrap)
+        ##            errorprocessed['btchinfo']={}
+                    failtime=datetime.now()
+        ##            errorprocessed['btchinfo']['prevbtch']={}
+                    errorprocessed['btchinfo']['prevbtch']['prevbtchtym'] =str(failtime)
+                    errorprocessed['btchinfo']['prevbtch']['prevbtchmsg'] = updateresponse['lsinfotondac']['message']
+                    nxtbatch = getbgntime('nxt',failtime)
+                    errorprocessed['btchinfo']['nxtbtch'] = str(nxtbatch)
+                    errorprocessed['btchinfo']['btchstts'] = updateresponse['action']
+                    errorprocessed['action'] = 'update'
+                    errorprocessed=wrap(str(errorstorage),mine)
+                    updatestatus = dataholder(errorprocessed,'update')
         else:
             app.logger.error("Could not connect to Server")
     except Exception as e:
@@ -2190,8 +2206,8 @@ def cronograph():
     try:
         from threading import Timer
         x=datetime.today()
-        updatehr=01
-        updatemin=00
+        updatehr=10
+        updatemin=20
         updatesec=00
         updatemcrs=00
         y=x.replace(day=x.day+1, hour=updatehr, minute=updatemin, second=updatesec, microsecond=updatemcrs)
