@@ -2206,8 +2206,8 @@ def cronograph():
     try:
         from threading import Timer
         x=datetime.today()
-        updatehr=10
-        updatemin=20
+        updatehr=01
+        updatemin=00
         updatesec=00
         updatemcrs=00
         y=x.replace(day=x.day+1, hour=updatehr, minute=updatemin, second=updatesec, microsecond=updatemcrs)
