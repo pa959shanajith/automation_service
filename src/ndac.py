@@ -1087,8 +1087,8 @@ def readTestSuite_ICE():
 
     except Exception as exporttojsonexc:
         app.logger.error('Error in readTestSuite_ICE.')
-        import traceback
-        traceback.print_exc()
+##        import traceback
+##        traceback.print_exc()
         res={'rows':'fail'}
         return jsonify(res)
 
@@ -2065,7 +2065,7 @@ def basecheckonls():
         app.logger.error("Unable to contact storage areas")
     return basecheckstatus
 
-def modelinfoprocessor(resultset,processingdata):
+def modelinfoprocessor(processingdata):
     modelinfo=[]
     try:
         bgnyesday = getbgntime('prev',datetime.now())
@@ -2076,10 +2076,20 @@ def modelinfoprocessor(resultset,processingdata):
             daybforedate=getbgntime('daybefore',datetime.now())
         if daybforedate != '':
             for days in range(0,2):
+                bgnts=gettimestamp(daybforedate)
+                endts=gettimestamp(bgnyesday)
+##                print bgnts
+##                print endts
+                resultset=getexecs_in_day(bgnts,endts)
                 modelinfo.append(dataprocessor(resultset,daybforedate,bgnyesday))
                 daybforedate=bgnyesday
                 bgnyesday=bgnoftday
         else:
+            bgnts=gettimestamp(bgnyesday)
+            endts=gettimestamp(bgnoftday)
+##            print bgnts
+##            print endts
+            resultset=getexecs_in_day(bgnts,endts)
             modelinfo.append(dataprocessor(resultset,bgnyesday,bgnoftday))
     except Exception as e:
         import traceback
@@ -2087,9 +2097,18 @@ def modelinfoprocessor(resultset,processingdata):
         app.logger.error("Unable to contact storage areas 3")
     return modelinfo
 
+def gettimestamp(date):
+    timestampdata=''
+    import time
+    import calendar
+##    print time.strftime(str(date))
+    date= datetime.strptime(str(date),"%Y-%m-%d %H:%M:%S")
+    timestampdata = calendar.timegm(date.utctimetuple()) * 1000
+    return timestampdata
+
 def updateonls():
     try:
-        resultset=getexecs_in_day()
+##        resultset=getexecs_in_day()
         selected=dataholder('','select')
         myunwrapeddata=unwrap(str(selected),mine)
         processingdata = ast.literal_eval(myunwrapeddata)
@@ -2100,7 +2119,7 @@ def updateonls():
     ##        updaterequest.pop('btchinfo', None)
         updaterequest['sysinfo'] = processingdata['sysinfo']
         updaterequest['modelinfo']=modelinfo
-        modelinfores = modelinfoprocessor(resultset,processingdata)
+        modelinfores = modelinfoprocessor(processingdata)
         updaterequest['modelinfo']['execs_in_day']=modelinfores
     ##    execs_in_day = {}
     ##    execs_in_day['time'] = str(curr)
@@ -2189,10 +2208,11 @@ def getbgntime(requiredday,currentday):
         day=datetime.datetime(currentday.year, currentday.month, currentday.day,0,0,0,0)
     return day
 
-def getexecs_in_day():
+def getexecs_in_day(bgnts,endts):
     res = {"rows":"fail"}
     try:
-        query="select * from reports"
+        query=("select * from reports where executedtime  >= "
+            +str(bgnts)+" and executedtime <= "+str(endts)+" allow filtering;")
         queryresult = icesession.execute(query)
     ##    print queryresult.current_rows
         res= {"rows":queryresult.current_rows}
@@ -2216,9 +2236,9 @@ def dataprocessor(resultset,fromdate,todate):
                         count = count + 1
         eachexecs_in_day['time'] = str(todate)
         eachexecs_in_day['execs'] = str(count)
-    except Exception as getexecs_in_dayexc:
-        import traceback
-        traceback.print_exc()
+    except Exception as dataprocessorexc:
+##        import traceback
+##        traceback.print_exc()
         app.logger.error("Unable to perform internal actions")
     return eachexecs_in_day
 
@@ -2280,8 +2300,8 @@ def scheduleenabler(starttime):
 ##        t.start()
 ##        app.logger.error("Server Turns active at "+str(starttime))
     except Exception as cronoexeption:
-        import traceback
-        traceback.print_exc()
+##        import traceback
+##        traceback.print_exc()
         app.logger.error("<<<<Issue with the Server>>>>")
 
 def cronograph():
@@ -2299,8 +2319,8 @@ def cronograph():
         t.start()
         app.logger.error("<<<<Server Turns active>>>>")
     except Exception as cronoexeption:
-        import traceback
-        traceback.print_exc()
+##        import traceback
+##        traceback.print_exc()
         app.logger.error("<<<<Issue with the Server>>>>")
 
 def dataholder(data,querytype):
@@ -2420,8 +2440,8 @@ if __name__ == '__main__':
                 else:
                     app.logger.error("Please contact Team - Nineteen68. Issue: offlineuser.key");
         except Exception as e:
-            import traceback
-            traceback.print_exc()
+##            import traceback
+##            traceback.print_exc()
             app.logger.error("Please contact Team - Nineteen68. Issue: Offline user")
 
     else:
