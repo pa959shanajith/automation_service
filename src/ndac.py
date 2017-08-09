@@ -23,6 +23,11 @@ from waitress import serve
 from logging.handlers import TimedRotatingFileHandler
 app = Flask(__name__)
 
+import argparse
+parser = argparse.ArgumentParser()
+parser.add_argument("-k","--verbosity", type=str, help="offline user"
+                    +"registration. Provide the offline registration filename")
+args = parser.parse_args()
 
 import os
 os.chdir("..")
@@ -50,11 +55,11 @@ icesession.set_keyspace('icetestautomation')
 n68session.row_factory = dict_factory
 n68session.set_keyspace('nineteen68')
 
-icehistorysession.row_factory = dict_factory
-icehistorysession.set_keyspace('icetestautomationhistory')
-
-n68historysession.row_factory = dict_factory
-n68historysession.set_keyspace('nineteen68history')
+#default values for offline user
+offlinestarttime=''
+offlineendtime=''
+offlineuser = False
+usersession = False
 
 #server check
 @app.route('/')
@@ -1890,6 +1895,7 @@ query['testcase']='select testcasename FROM testcases where testcaseid='
 #Getting complete details of single node
 mine='\x4e\x36\x38\x53\x51\x4c\x69\x74\x65\x44\x61\x74\x61\x53\x65\x63\x72\x65\x74\x4b\x65\x79\x43\x6f\x6d\x70\x4f\x4e\x65\x6e\x74\x73'
 query['module_details']='select * from modules where moduleid='
+offreg='\x69\x41\x6d\x4e\x6f\x74\x4f\x6e\x6c\x69\x6e\x65\x55\x73\x65\x72\x49\x4e\x65\x65\x64\x4e\x6f\x74\x52\x65\x67\x69\x73\x74\x65\x72'
 query['testscenario_details']='select * from testscenarios where testscenarioid='
 query['screen_details']='select * from screens where screenid='
 query['testcase_details']='select * from testcases where testcaseid='
@@ -1926,12 +1932,36 @@ ndacinfo = {
 ############################
 def isemptyrequest(requestdata):
     flag = False
-    for key in requestdata:
-        value = requestdata[key]
-        if (key != 'additionalroles'
-            and key != 'getparampaths' and key != 'testcasesteps'):
-            if value == 'undefined' or value == '' or value == 'null' or value == None:
+    global offlineuser
+    if (offlineuser != True):
+        for key in requestdata:
+            value = requestdata[key]
+            if (key != 'additionalroles'
+                and key != 'getparampaths' and key != 'testcasesteps'):
+                if value == 'undefined' or value == '' or value == 'null' or value == None:
+                    app.logger.error(key)
+                    flag = True
+    else:
+        global usersession
+        global offlinestarttime
+        global offlineendtime
+        currenttime=datetime.now()
+        if usersession != False:
+            if (currenttime >= offlinestarttime and currenttime <= offlineendtime):
+                for key in requestdata:
+                    value = requestdata[key]
+                    if (key != 'additionalroles'
+                        and key != 'getparampaths' and key != 'testcasesteps'):
+                        if value == 'undefined' or value == '' or value == 'null' or value == None:
+                            app.logger.error(key)
+                            flag = True
+            else:
+                app.logger.error("Offline user session expired... "
+                +"Please contact Team - Nineteen68 for Enabling")
+                usersession = False
                 flag = True
+        else:
+            flag = True
     return flag
 
 def getcurrentdate():
@@ -1973,15 +2003,19 @@ def get_delete_query(node_id,node_name,node_version_number,node_parentid,project
 ###################################
 
 def getMacAddress():
+    mac=''
     if sys.platform == 'win32':
         for line in os.popen("ipconfig /all"):
             if line.lstrip().startswith('Physical Address'):
-                mac = line.split(':')[1].strip().replace('-',':')
+##                mac = line.split(':')[1].strip().replace('-',':')
+                mac = line.split(':')[1].strip()
+                mac = mac+'    '
                 break
     else:
         for line in os.popen("/sbin/ifconfig"):
             if line.find('Ether') > -1:
                 mac = line.split()[4]
+                mac = mac+'    '
                 break
     return mac
 
@@ -2151,6 +2185,8 @@ def getbgntime(requiredday,currentday):
         day=datetime.datetime(daybefore.year, daybefore.month, daybefore.day,0,0,0,0)
     elif requiredday == 'curr':
         day=datetime.datetime(currentday.year, currentday.month, currentday.day,0,0,0,0)
+    elif requiredday == 'indate':
+        day=datetime.datetime(currentday.year, currentday.month, currentday.day,0,0,0,0)
     return day
 
 def getexecs_in_day():
@@ -2202,6 +2238,52 @@ def connectingls(data):
         connectionstatus = False
     return connectionstatus
 
+def offlineuserenabler(startdate,enddate,usermac):
+    enabled = False
+    mac = getMacAddress()
+    if usermac in mac.strip():
+        hastimebegin=timerbegins(startdate,enddate)
+        enabled = hastimebegin
+    return enabled
+
+def timerbegins(startdate,enddate):
+    global offlinestarttime
+    offlinestarttime=startdate
+    global offlineendtime
+    offlineendtime=enddate
+    if ((offlinestarttime < offlineendtime) and
+        (offlineendtime > datetime.now()) and (datetime.now() >= offlinestarttime)):
+        global offlineuser
+        global usersession
+        usersession=True
+        offlineuser = True
+    return usersession
+
+def scheduleenabler(starttime):
+    try:
+        import threading
+##        x=datetime.today()
+##        updatehr=01
+##        updatemin=00
+##        updatesec=00
+##        updatemcrs=00
+##        y=x.replace(day=x.day+1, hour=updatehr, minute=updatemin, second=updatesec, microsecond=updatemcrs)
+
+        runningtime = starttime - datetime.now()
+        delay = (runningtime).total_seconds()
+        threading.Timer(delay, beginserver).start()
+        global offlineuser
+        offlineuser = True
+##        delta_t=starttime-datetime.now()
+##        secs=starttime.seconds+1
+##        t = Timer(secs,beginserver)
+##        t.start()
+##        app.logger.error("Server Turns active at "+str(starttime))
+    except Exception as cronoexeption:
+        import traceback
+        traceback.print_exc()
+        app.logger.error("<<<<Issue with the Server>>>>")
+
 def cronograph():
     try:
         from threading import Timer
@@ -2252,6 +2334,10 @@ def dataholder(data,querytype):
 
     return dataholderresp
 
+
+def beginserver():
+    serve(app,host='127.0.0.1',port=1990)
+
 from Crypto import Random
 from Crypto.Cipher import AES
 BS = 16
@@ -2296,7 +2382,51 @@ if __name__ == '__main__':
     physical_trans,b = p.communicate()
     mac = getMacAddress()
     ndacinfo['sysinfo']['mac']=mac
-    if (basecheckonls()):
-        cronograph()
-##        app.run(host='127.0.0.1',port=1990,debug=False)
-        serve(app,host='127.0.0.1',port=1990)
+    if args.verbosity:
+        try:
+            f = open(sys.argv[-1],"r")
+            contents = f.read()
+            f.close()
+            userinformation=unwrap(str(contents),offreg)
+            userinfo=ast.literal_eval(userinformation)
+
+            startdate = userinfo['offlinereginfo']['startdate']
+            if not ('-' in startdate):
+                startdate = datetime.strptime(startdate, '%m/%d/%Y')
+                startdate = getbgntime('indate',startdate)
+##                print startdate
+##                startdate = datetime.strptime(startdate,'%m/%d/%Y %H%M%S')
+            else:
+                startdate = datetime.strptime(startdate, '%m/%d/%Y-%H%M%S')
+
+            enddate = userinfo['offlinereginfo']['enddate']
+            if not ('-' in enddate):
+                enddate = datetime.strptime(enddate, '%m/%d/%Y')
+                enddate = getbgntime('indate',enddate)
+##                print enddate
+##                enddate = datetime.strptime(enddate,'%m/%d/%Y %H%M%S')
+            else:
+                enddate = datetime.strptime(enddate, '%m/%d/%Y-%H%M%S')
+
+            mac = userinfo['offlinereginfo']['mac']
+
+            enabled = offlineuserenabler(startdate,enddate,mac)
+            if enabled == True:
+                beginserver()
+            else:
+                if (startdate > datetime.now()):
+                    scheduleenabler(offlinestarttime)
+                    app.logger.error("Server starts only after : "+str(offlinestarttime))
+                else:
+                    app.logger.error("Please contact Team - Nineteen68. Issue: offlineuser.key");
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            app.logger.error("Please contact Team - Nineteen68. Issue: Offline user")
+
+    else:
+        if (basecheckonls()):
+            cronograph()
+        ##        app.run(host='127.0.0.1',port=1990,debug=False)
+
+            beginserver()
