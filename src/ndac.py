@@ -247,7 +247,7 @@ def getReleaseIDs_Ninteen68():
             queryresult = icesession.execute(getReleaseDetails)
             res={'rows':queryresult.current_rows}
        else:
-            app.logger.error('Empty data received. getReleaseIDs_Ninteen68")
+            app.logger.error("Empty data received. getReleaseIDs_Ninteen68")
     except Exception as e:
         app.logger.error('Error in getReleaseIDs_Ninteen68.')
     return jsonify(res)
@@ -265,7 +265,7 @@ def getCycleIDs_Ninteen68():
             queryresult = icesession.execute(getCycleDetails)
             res={'rows':queryresult.current_rows}
        else:
-            app.logger.error('Empty data received. getCycleIDs_Ninteen68")
+            app.logger.error("Empty data received. getCycleIDs_Ninteen68")
     except Exception as e:
         app.logger.error('Error in getCycleIDs_Ninteen68.')
     return jsonify(res)
@@ -282,7 +282,7 @@ def getProjectType_Nineteen68():
             queryresult = icesession.execute(getProjectType)
             res={'rows':queryresult.current_rows}
        else:
-            app.logger.error('Empty data received. getProjectType_Nineteen68")
+            app.logger.error("Empty data received. getProjectType_Nineteen68")
     except Exception as e:
         app.logger.error('Error in getProjectType_Nineteen68.')
     return jsonify(res)
@@ -307,7 +307,7 @@ def getProjectIDs_Nineteen68():
                 queryresult = icesession.execute(getprojectname)
                 res={'rows':queryresult.current_rows}
        else:
-            app.logger.error('Empty data received. getProjectIDs_Nineteen68")
+            app.logger.error("Empty data received. getProjectIDs_Nineteen68")
     except Exception as e:
         app.logger.error('Error in getProjectIDs_Nineteen68.')
     return jsonify(res)
@@ -325,7 +325,7 @@ def getNames_Nineteen68():
             queryresult = icesession.execute(getname_query)
             res={'rows':queryresult.current_rows}
        else:
-            app.logger.error('Empty data received. getProjectIDs_Nineteen68")
+            app.logger.error("Empty data received. getProjectIDs_Nineteen68")
     except Exception as e:
         app.logger.error('Error in getNames_Ninteen68.')
     return jsonify(res)
@@ -343,7 +343,7 @@ def testscreen_exists_ICE():
             queryresult = icesession.execute(screen_check)
             res={'rows':queryresult.current_rows}
        else:
-            app.logger.error('Empty data received. testscreen_exists")
+            app.logger.error("Empty data received. testscreen_exists")
     except Exception as e:
         app.logger.error('Error in testscreen_exists.')
     return jsonify(res)
@@ -362,7 +362,7 @@ def testcase_exists_ICE():
             queryresult = icesession.execute(testcase_check)
             res={'rows':queryresult.current_rows}
        else:
-            app.logger.error('Empty data received. testcase_exists")
+            app.logger.error("Empty data received. testcase_exists")
     except Exception as e:
         app.logger.error('Error in testcase_exists.')
     return jsonify(res)
@@ -384,7 +384,7 @@ def testsuiteid_exists_ICE():
             queryresult = icesession.execute(testsuite_check)
             res={'rows':queryresult.current_rows}
        else:
-            app.logger.error('Empty data received. testsuiteid_exists_ICE")
+            app.logger.error("Empty data received. testsuiteid_exists_ICE")
     except Exception as e:
         app.logger.error('Error in testsuiteid_exists_ICE.')
     return jsonify(res)
@@ -404,7 +404,7 @@ def testscenariosid_exists_ICE():
             queryresult = icesession.execute(testscenario_check)
             res={'rows':queryresult.current_rows}
        else:
-            app.logger.error('Empty data received. testscenariosid_exists")
+            app.logger.error("Empty data received. testscenariosid_exists")
     except Exception as e:
         app.logger.error('Error in testscenariosid_exists.')
     return jsonify(res)
@@ -425,7 +425,7 @@ def testscreenid_exists_ICE():
             queryresult = icesession.execute(testscreen_check)
             res={'rows':queryresult.current_rows}
        else:
-            app.logger.error('Empty data received. testscreenid_exists_ICE")
+            app.logger.error("Empty data received. testscreenid_exists_ICE")
     except Exception as e:
         app.logger.error('Error in testscreenid_exists_ICE.')
     return jsonify(res)
@@ -445,7 +445,7 @@ def testcaseid_exists_ICE():
             queryresult = icesession.execute(testcase_check)
             res={'rows':queryresult.current_rows}
        else:
-            app.logger.error('Empty data received. testcaseid_exists_ICE")
+            app.logger.error("Empty data received. testcaseid_exists_ICE")
     except Exception as e:
         app.logger.error('Error in testcaseid_exists_ICE.')
     return jsonify(res)
@@ -461,7 +461,7 @@ def get_node_details_ICE():
             queryresult = icesession.execute(get_node_data)
             res={'rows':queryresult.current_rows}
        else:
-            app.logger.error('Empty data received. testcase_exists")
+            app.logger.error("Empty data received. testcase_exists")
     except Exception as e:
 ##        print e
 ##        import traceback
@@ -481,7 +481,7 @@ def delete_node_ICE():
             queryresult = icesession.execute(delete_query)
             res={'rows':'Success'}
        else:
-            app.logger.error('Empty data received. testscenario_exists")
+            app.logger.error("Empty data received. testscenario_exists")
     except Exception as e:
         app.logger.error('Error in testcase_exists.')
     return jsonify(res)
@@ -509,7 +509,7 @@ def insertInSuite_ICE():
                 queryresult = icesession.execute(create_suite_query2)
                 res={'rows':'Success'}
        else:
-            app.logger.error('Empty data received. insertInSuite_ICE")
+            app.logger.error("Empty data received. insertInSuite_ICE")
     except Exception as e:
         app.logger.error('Error in insertInSuite_ICE.')
     return jsonify(res)
@@ -537,7 +537,7 @@ def insertInScenarios_ICE():
                 queryresult = icesession.execute(delete_scenario_query)
                 res={'rows':'Success'}
        else:
-            app.logger.error('Empty data received. insertInScenarios_ICE")
+            app.logger.error("Empty data received. insertInScenarios_ICE")
     except Exception as e:
         app.logger.error('Error in insertInScenarios_ICE.')
     return jsonify(res)
@@ -566,7 +566,7 @@ def insertInScreen_ICE():
                 queryresult = icesession.execute(select_screen_query)
                 res={'rows':'Success'}
        else:
-            app.logger.error('Empty data received. insertInScreen_ICE")
+            app.logger.error("Empty data received. insertInScreen_ICE")
     except Exception as e:
         app.logger.error('Error in insertInScreen_ICE.')
     return jsonify(res)
@@ -595,7 +595,7 @@ def insertInTestcase_ICE():
                 queryresult = icesession.execute(select_testcase_query)
                 res={'rows':'Success'}
        else:
-            app.logger.error('Empty data received. insertInTestcase_ICE")
+            app.logger.error("Empty data received. insertInTestcase_ICE")
     except Exception as e:
         app.logger.error('Error in insertInTestcase_ICE.')
     return jsonify(res)
@@ -617,7 +617,7 @@ def updateTestScenario_ICE():
             queryresult = icesession.execute(updateicescenario_query)
             res={'rows':'Success'}
        else:
-            app.logger.error('Empty data received. updateTestScenario_ICE")
+            app.logger.error("Empty data received. updateTestScenario_ICE")
     except Exception as e:
         app.logger.error('Error in updateTestScenario_ICE.')
     return jsonify(res)
@@ -638,7 +638,7 @@ def updateModule_ICE():
             queryresult = icesession.execute(updateicemodules_query)
             res={'rows':'Success'}
        else:
-            app.logger.error('Empty data received. updateModule_ICE")
+            app.logger.error("Empty data received. updateModule_ICE")
     except Exception as e:
         app.logger.error('Error in updateModule_ICE.')
     return jsonify(res)
@@ -662,7 +662,7 @@ def updateModulename_ICE():
              queryresult = icesession.execute(update_modulename_query)
              res={'rows':'Success'}
        else:
-            app.logger.error('Empty data received. updateModulename_ICE")
+            app.logger.error("Empty data received. updateModulename_ICE")
     except Exception as e:
         app.logger.error('Error in updateModulename_ICE.')
     return jsonify(res)
@@ -686,7 +686,7 @@ def updateTestscenarioname_ICE():
             queryresult = icesession.execute(update_testscenario_name_query)
             res={'rows':'Success'}
        else:
-            app.logger.error('Empty data received. updateTestscenarioname_ICE")
+            app.logger.error("Empty data received. updateTestscenarioname_ICE")
     except Exception as e:
         app.logger.error('Error in updateTestscenarioname_ICE.')
     return jsonify(res)
@@ -714,7 +714,7 @@ def updateScreenname_ICE():
             queryresult = icesession.execute(update_screenname_query)
             res={'rows':'Success'}
         else:
-            app.logger.error('Empty data received. updateScreenname_ICE")
+            app.logger.error("Empty data received. updateScreenname_ICE")
     except Exception as e:
         app.logger.error('Error in updateScreenname_ICE.')
     return jsonify(res)
@@ -742,7 +742,7 @@ def updateTestcasename_ICE():
             queryresult = icesession.execute(update_testcasename_query)
             res={'rows':'Success'}
        else:
-            app.logger.error('Empty data received. updateTestcasename_ICE")
+            app.logger.error("Empty data received. updateTestcasename_ICE")
     except Exception as e:
         app.logger.error('Error in updateTestcasename_ICE.')
     return jsonify(res)
