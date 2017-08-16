@@ -12,7 +12,10 @@ import json
 import requests
 import subprocess
 import sqlite3
+
 import logging
+handler=''
+
 from datetime import datetime
 import uuid
 import sys
@@ -40,27 +43,33 @@ lsip = rest_config['ndac']['licenseserver']
 from cassandra.cluster import Cluster
 from flask_cassandra import CassandraCluster
 from cassandra.auth import PlainTextAuthProvider
-auth = PlainTextAuthProvider(username=rest_config['ndac']['dbusername'], password=rest_config['ndac']['dbpassword'])
-cluster = Cluster([rest_config['ndac']['databaseip']],auth_provider=auth)
+dbup = False
+try:
+    auth = PlainTextAuthProvider(username=rest_config['ndac']['dbusername'], password=rest_config['ndac']['dbpassword'])
+    cluster = Cluster([rest_config['ndac']['databaseip']],auth_provider=auth)
 
-icesession = cluster.connect()
-n68session = cluster.connect()
-icehistorysession = cluster.connect()
-n68historysession = cluster.connect()
+    icesession = cluster.connect()
+    n68session = cluster.connect()
+    icehistorysession = cluster.connect()
+    n68historysession = cluster.connect()
 
-from cassandra.query import dict_factory
-icesession.row_factory = dict_factory
-icesession.set_keyspace('icetestautomation')
-
-n68session.row_factory = dict_factory
-n68session.set_keyspace('nineteen68')
+    from cassandra.query import dict_factory
+    icesession.row_factory = dict_factory
+    icesession.set_keyspace('icetestautomation')
+    n68session.row_factory = dict_factory
+    n68session.set_keyspace('nineteen68')
+    dbup = True
+except Exception as dbexception:
+    app.logger.critical('Error in Database connectivity...');
 
 #default values for offline user
 offlinestarttime=''
 offlineendtime=''
 offlineuser = False
+onlineuser = False
 usersession = False
-
+lsondayone = ""
+lsondaytwo = ""
 #server check
 @app.route('/')
 def server_ready():
@@ -84,12 +93,27 @@ def authenticateUser_Nineteen68():
                                 +"allow filtering;")
             queryresult = n68session.execute(authenticateuser)
             res= {"rows":queryresult.current_rows}
+            res=closehonor(res)
+            if 'dayone' in res:
+                app.logger.critical('Licenses will expire tomorrow.')
+            elif 'daytwo' in res:
+                app.logger.critical('Licenses expired.')
             return jsonify(res)
         else:
             app.logger.error('Empty data received. authentication')
+            res=closehonor(res)
+            if 'dayone' in res:
+                app.logger.critical('Licenses will expire tomorrow.')
+            elif 'daytwo' in res:
+                app.logger.critical('Licenses expired.')
             return jsonify(res)
     except Exception as authenticateuserexc:
         app.logger.error('Error in authenticateUser.')
+        res=closehonor(res)
+        if 'dayone' in res:
+            app.logger.critical('Licenses will expire tomorrow.')
+        elif 'daytwo' in res:
+            app.logger.critical('Licenses expired.')
         return jsonify(res)
 
 #service for user ldap validation
@@ -104,12 +128,15 @@ def authenticateUser_Nineteen68_ldap():
                                     +"allow filtering;")
             queryresult = n68session.execute(authenticateuserldap)
             res= {"rows":queryresult.current_rows}
+            res=closehonor(res)
             return jsonify(res)
         else:
             app.logger.error('Empty data received. authentication')
+            res=closehonor(res)
             return jsonify(res)
     except Exception as authenticateuserldapexc:
         app.logger.error('Error in authenticateUser_ldap.')
+        res=closehonor(res)
         return jsonify(res)
 
 #service for getting rolename by roleid
@@ -1933,7 +1960,9 @@ ndacinfo = {
 def isemptyrequest(requestdata):
     flag = False
     global offlineuser
-    if (offlineuser != True):
+    global usersession
+    global onlineuser
+    if (offlineuser != True and onlineuser != False):
         for key in requestdata:
             value = requestdata[key]
             if (key != 'additionalroles'
@@ -1942,7 +1971,6 @@ def isemptyrequest(requestdata):
                     app.logger.error(key)
                     flag = True
     else:
-        global usersession
         global offlinestarttime
         global offlineendtime
         currenttime=datetime.now()
@@ -1956,12 +1984,27 @@ def isemptyrequest(requestdata):
                             app.logger.error(key)
                             flag = True
             else:
-                app.logger.error("Offline user session expired... "
-                +"Please contact Team - Nineteen68 for Enabling")
+                global handler
+                handler.setLevel(logging.CRITICAL)
+                app.logger.addHandler(handler)
+                app.logger.critical("User validity expired... "
+                +"Please contact Nineteen68 Team for Enabling")
+                handler.setLevel(logging.disable(logging.CRITICAL))
+                app.logger.addHandler(handler)
                 usersession = False
                 flag = True
         else:
-            flag = True
+            if offlineuser == True:
+                app.logger.critical("Access to Nineteen68 Expires")
+            else:
+                flag = True
+                global handler
+                handler.setLevel(logging.CRITICAL)
+                app.logger.addHandler(handler)
+                app.logger.critical("User validity expired... "
+                +"Please contact Nineteen68 Team for Enabling")
+                handler.setLevel(logging.disable(logging.CRITICAL))
+                app.logger.addHandler(handler)
     return flag
 
 def getcurrentdate():
@@ -2024,14 +2067,8 @@ def basecheckonls():
     basecheckstatus=False
 ##    print mac
 ##    data= {"action":"register","sysinfo":physical_trans,"visited":"no"}
-    baserequest= {
-	   "action": "register",
-	   "sysinfo": {
-		  "mac": mac,
-		  "token": ""
-	       },
-	   "visited": "no"
-    }
+    baserequest= {"action": "register","sysinfo": {"mac": mac,"token": ""},
+	   "visited": "no"}
     try:
         baserequest=wrap(str(baserequest),omgall)
         connectresponse = connectingls(baserequest)
@@ -2057,12 +2094,14 @@ def basecheckonls():
 ##                print '\n\n\n',a
 ##                myunwrapeddata=unwrap(str(a),mine)
 ##                print '\n\n',myunwrapeddata
+            global onlineuser
+            onlineuser = True
         else:
             app.logger.error("Unable to connect to Server")
     except Exception as e:
         import traceback
         traceback.print_exc()
-        app.logger.error("Unable to contact storage areas")
+        app.logger.critical("Unable to contact storage areas")
     return basecheckstatus
 
 def modelinfoprocessor(processingdata):
@@ -2092,9 +2131,9 @@ def modelinfoprocessor(processingdata):
             resultset=getexecs_in_day(bgnts,endts)
             modelinfo.append(dataprocessor(resultset,bgnyesday,bgnoftday))
     except Exception as e:
-        import traceback
-        traceback.print_exc()
-        app.logger.error("Unable to contact storage areas 3")
+##        import traceback
+##        traceback.print_exc()
+        app.logger.critical("Unable to contact storage areas 3")
     return modelinfo
 
 def gettimestamp(date):
@@ -2107,41 +2146,31 @@ def gettimestamp(date):
     return timestampdata
 
 def updateonls():
+    global lsondayone
+    global lsondaytwo
     try:
-##        resultset=getexecs_in_day()
         selected=dataholder('','select')
         myunwrapeddata=unwrap(str(selected),mine)
         processingdata = ast.literal_eval(myunwrapeddata)
         updaterequest={}
         modelinfo={}
-    ##    updaterequest = processingdata
-    ##    if 'btchinfo' in updaterequest:
-    ##        updaterequest.pop('btchinfo', None)
         updaterequest['sysinfo'] = processingdata['sysinfo']
         updaterequest['modelinfo']=modelinfo
         modelinfores = modelinfoprocessor(processingdata)
         updaterequest['modelinfo']['execs_in_day']=modelinfores
-    ##    execs_in_day = {}
-    ##    execs_in_day['time'] = str(curr)
-    ##    execs_in_day['execs'] = str(numberofexecs)
-    ##    updaterequest['modelinfo'].append(execs_in_day)
         updaterequest['action'] = 'update'
-    ##    print '\nupdaterequest:::::\n\n',updaterequest
         wrappedupdaterequest=wrap(str(updaterequest),omgall)
         updateresponse = connectingls(wrappedupdaterequest)
-    ##    print '\nupdateresponse:::::\n\n',updateresponse
         if updateresponse != False:
+            cronograph()
             updateresponse=unwrap(str(updateresponse),omgall)
             updateresponse = ast.literal_eval(updateresponse)
-    ##        print '\n\n',updateresponse
             if updateresponse['action'] == 'error':
                 app.logger.error(updateresponse['lsinfotondac']['message'])
                 errorstorage=dataholder('','select')
                 errorunwrap=unwrap(str(errorstorage),mine)
                 errorprocessed = ast.literal_eval(errorunwrap)
-    ##            errorprocessed['btchinfo']={}
                 failtime=datetime.now()
-    ##            errorprocessed['btchinfo']['prevbtch']={}
                 errorprocessed['btchinfo']['prevbtch']['prevbtchtym'] =str(failtime)
                 errorprocessed['btchinfo']['prevbtch']['prevbtchmsg'] = updateresponse['lsinfotondac']['message']
                 nxtbatch = getbgntime('nxt',failtime)
@@ -2150,31 +2179,35 @@ def updateonls():
                 errorprocessed['action'] = 'update'
                 errorprocessed=wrap(str(errorstorage),mine)
                 updatestatus = dataholder(errorprocessed,'update')
-    ##            print '\nerrorprocessed:::::\n\n',updatestatus
+                if lsondayone != True and lsondaytwo != True:
+                    lsondayone = True
+                    app.logger.error("Could not connect to Server")
+                elif lsondayone == True and lsondaytwo !=True:
+                    lsondaytwo = True
+                    global onlineuser
+                    onlineuser = False
+                    app.logger.error("License Expired.")
             else:
                 completemsg=updateresponse['lsinfotondac']['message']
                 token=processingdata['sysinfo']['tkn']
                 tokenreturned=completemsg.split('success')[1]
                 if (token == tokenreturned):
+                    lsondayone = False
+                    lsondaytwo = False
                     successstorage=dataholder('','select')
-        ##            print '\n first successstorage:::::\n\n',successstorage
                     successunwrap=unwrap(str(successstorage),mine)
                     successstorage = ast.literal_eval(successunwrap)
                     successstorage['action'] = 'update'
                     successstorage['btchinfo']['btchstts'] = 'success'
                     successstorage['btchinfo']['nxtbtch'] = str(getbgntime('nxt',datetime.now()))
-        ##            print '\n unwrapped successstorage:::::\n\n',successstorage
                     successstorage=wrap(str(successstorage),mine)
-        ##            print '\nsuccessstorage:::::\n\n',successstorage
                     updatestatus = dataholder(str(successstorage),'update')
                 else:
                     app.logger.error('Server Authentication Failed.Invalid Server Authentication.')
                     errorstorage=dataholder('','select')
                     errorunwrap=unwrap(str(errorstorage),mine)
                     errorprocessed = ast.literal_eval(errorunwrap)
-        ##            errorprocessed['btchinfo']={}
                     failtime=datetime.now()
-        ##            errorprocessed['btchinfo']['prevbtch']={}
                     errorprocessed['btchinfo']['prevbtch']['prevbtchtym'] =str(failtime)
                     errorprocessed['btchinfo']['prevbtch']['prevbtchmsg'] = updateresponse['lsinfotondac']['message']
                     nxtbatch = getbgntime('nxt',failtime)
@@ -2183,12 +2216,28 @@ def updateonls():
                     errorprocessed['action'] = 'update'
                     errorprocessed=wrap(str(errorstorage),mine)
                     updatestatus = dataholder(errorprocessed,'update')
+                    if lsondayone != True and lsondaytwo != True:
+                        lsondayone = True
+                        app.logger.error("Could not connect to Server")
+                    elif lsondayone == True and lsondaytwo !=True:
+                        lsondaytwo = True
+                        global onlineuser
+                        onlineuser = False
+                        app.logger.error("License Expired.")
         else:
-            app.logger.error("Could not connect to Server")
+            if lsondayone != True and lsondaytwo != True:
+                cronograph()
+                lsondayone = True
+                app.logger.error("Could not connect to Server")
+            elif lsondayone == True and lsondaytwo != True:
+                lsondaytwo = True
+                global onlineuser
+                onlineuser = False
+                app.logger.error("Licenses Expired.")
     except Exception as e:
-##        import traceback
-##        traceback.print_exc()
-        app.logger.error("Unable to contact storage areas")
+        import traceback
+        traceback.print_exc()
+        app.logger.critical("Unable to contact storage areas")
 
 def getbgntime(requiredday,currentday):
     import datetime
@@ -2219,7 +2268,7 @@ def getexecs_in_day(bgnts,endts):
     except Exception as getexecs_in_dayexc:
         import traceback
         traceback.print_exc()
-        app.logger.error("Unable to contact storage areas 2")
+        app.logger.critical("Unable to contact storage areas 2")
     return res
 
 def dataprocessor(resultset,fromdate,todate):
@@ -2239,7 +2288,7 @@ def dataprocessor(resultset,fromdate,todate):
     except Exception as dataprocessorexc:
 ##        import traceback
 ##        traceback.print_exc()
-        app.logger.error("Unable to perform internal actions")
+        app.logger.critical("Unable to perform internal actions")
     return eachexecs_in_day
 
 def connectingls(data):
@@ -2249,12 +2298,12 @@ def connectingls(data):
 ##        lsresponse = requests.post("http://127.0.0.1:5000/ndacrequest",data=data)
         if lsresponse.status_code == 200:
             connectionstatus = lsresponse.content
-        else:
-            app.logger.error("Status Code:",lsresponse.content)
+##        else:
+##            app.logger.error("Status Code:",lsresponse.content)
     except Exception as e:
 ##        import traceback
 ##        traceback.print_exc()
-        app.logger.error("Liscense server must be running")
+        app.logger.critical("Liscense server must be running")
         connectionstatus = False
     return connectionstatus
 
@@ -2282,27 +2331,15 @@ def timerbegins(startdate,enddate):
 def scheduleenabler(starttime):
     try:
         import threading
-##        x=datetime.today()
-##        updatehr=01
-##        updatemin=00
-##        updatesec=00
-##        updatemcrs=00
-##        y=x.replace(day=x.day+1, hour=updatehr, minute=updatemin, second=updatesec, microsecond=updatemcrs)
-
         runningtime = starttime - datetime.now()
         delay = (runningtime).total_seconds()
         threading.Timer(delay, beginserver).start()
         global offlineuser
         offlineuser = True
-##        delta_t=starttime-datetime.now()
-##        secs=starttime.seconds+1
-##        t = Timer(secs,beginserver)
-##        t.start()
-##        app.logger.error("Server Turns active at "+str(starttime))
-    except Exception as cronoexeption:
+    except Exception as scheduleenablerexeption:
 ##        import traceback
 ##        traceback.print_exc()
-        app.logger.error("<<<<Issue with the Server>>>>")
+        app.logger.critical("<<<<Issue with the Server>>>>")
 
 def cronograph():
     try:
@@ -2313,15 +2350,17 @@ def cronograph():
         updatesec=00
         updatemcrs=00
         y=x.replace(day=x.day+1, hour=updatehr, minute=updatemin, second=updatesec, microsecond=updatemcrs)
+        #for development purposes only
+##        y=x.replace(day=x.day, hour=x.hour, minute=x.minute+1, second=updatesec, microsecond=updatemcrs)
+
         delta_t=y-x
         secs=delta_t.seconds+1
         t = Timer(secs, updateonls)
         t.start()
-        app.logger.error("<<<<Server Turns active>>>>")
     except Exception as cronoexeption:
 ##        import traceback
 ##        traceback.print_exc()
-        app.logger.error("<<<<Issue with the Server>>>>")
+        app.logger.critical("<<<<Issue with the Server>>>>")
 
 def dataholder(data,querytype):
     try:
@@ -2350,13 +2389,30 @@ def dataholder(data,querytype):
     except Exception as dataholderexeption:
 ##        import traceback
 ##        traceback.print_exc()
-        app.logger.error("<<<<Issue with the Storing>>>>")
+        app.logger.critical("<<<<Issue with the Storing>>>>")
 
     return dataholderresp
 
 
 def beginserver():
-    serve(app,host='127.0.0.1',port=1990)
+    if dbup:
+        serve(app,host='127.0.0.1',port=1990)
+        app.logger.error("<<<<Server Turns active>>>>")
+    else:
+        app.logger.critical("<<<<Database needs to be Started>>>>")
+
+def closehonor(result):
+    res={}
+    global lsondayone
+    global lsondaytwo
+    if lsondayone == True:
+        result["dayone"]="True"
+        res=result
+    elif lsondaytwo == True:
+        res["daytwo"]="True"
+    else:
+        res=result
+    return res
 
 from Crypto import Random
 from Crypto.Cipher import AES
@@ -2394,12 +2450,13 @@ if __name__ == '__main__':
 
     #http implementations
     formatter = logging.Formatter("[%(asctime)s] {%(pathname)s:%(lineno)d} %(levelname)s - %(message)s")
-    handler = TimedRotatingFileHandler(parentdir+'/Portable_python/ndac/logs/ndac'+datetime.now().strftime("_%Y%m%d-%H%M%S")+'.log',when='d', encoding='utf-8', backupCount=1)
-    handler.setLevel(logging.INFO)
+    inhandler = TimedRotatingFileHandler(parentdir+'/Portable_python/ndac/logs/ndac'+datetime.now().strftime("_%Y%m%d-%H%M%S")+'.log',when='d', encoding='utf-8', backupCount=1)
+    global handler
+    handler=inhandler
+    handler.setLevel(logging.ERROR)
     handler.setFormatter(formatter)
     app.logger.addHandler(handler)
-    p = subprocess.Popen(['getmac'], stdout=subprocess.PIPE,stderr=subprocess.PIPE)
-    physical_trans,b = p.communicate()
+    app.logger.propagate = False
     mac = getMacAddress()
     ndacinfo['sysinfo']['mac']=mac
     if args.verbosity:
@@ -2442,7 +2499,7 @@ if __name__ == '__main__':
         except Exception as e:
 ##            import traceback
 ##            traceback.print_exc()
-            app.logger.error("Please contact Team - Nineteen68. Issue: Offline user")
+            app.logger.critical("Please contact Team - Nineteen68. Issue: Offline user")
 
     else:
         if (basecheckonls()):
