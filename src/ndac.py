@@ -1994,8 +1994,11 @@ def isemptyrequest(requestdata):
                 usersession = False
                 flag = True
         else:
-            if offlineuser == True:
-                app.logger.critical("Access to Nineteen68 Expires")
+            if offlineuser != True:
+                flag = True
+                app.logger.critical("Access to Nineteen68 Expires.")
+                handler.setLevel(logging.disable(logging.CRITICAL))
+                app.logger.addHandler(handler)
             else:
                 flag = True
                 global handler
@@ -2309,7 +2312,12 @@ def connectingls(data):
 
 def offlineuserenabler(startdate,enddate,usermac):
     enabled = False
-    mac = getMacAddress()
+    # this is provided as there was a request to create a key
+    # without mac address
+    if usermac != 'nomacaddress':
+        mac = getMacAddress()
+    else:
+        mac = usermac
     if usermac in mac.strip():
         hastimebegin=timerbegins(startdate,enddate)
         enabled = hastimebegin
@@ -2484,9 +2492,13 @@ if __name__ == '__main__':
 ##                enddate = datetime.strptime(enddate,'%m/%d/%Y %H%M%S')
             else:
                 enddate = datetime.strptime(enddate, '%m/%d/%Y-%H%M%S')
-
-            mac = userinfo['offlinereginfo']['mac']
-
+            # this is provided as there was a request to create a key
+            # without mac address
+            if 'mac' in userinfo['offlinereginfo']:
+                if userinfo['offlinereginfo']['mac'] != 'NO':
+                    mac = userinfo['offlinereginfo']['mac']
+                else:
+                    mac = 'nomacaddress'
             enabled = offlineuserenabler(startdate,enddate,mac)
             if enabled == True:
                 beginserver()
