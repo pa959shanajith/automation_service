@@ -11,8 +11,13 @@
 import argparse
 import sys
 import ast
-parser = argparse.ArgumentParser()
-parser.add_argument("User Details", type=str, help="Input should be usermacid;startdate[mm/dd/yyyy{-hhmmss}];enddate[mm/dd/yyyy{-hhmmss}], SPECIFYING TIME IS OPTIONAL")
+parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
+##subparsers = parser.add_subparsers()
+##parser_start = subparsers.add_parser("User Details", formatter_class=argparse.RawTextHelpFormatter)
+parser.add_argument("INPUT DETAILS:", help="{MACADDRESS};STARTDATE;ENDDATE"
+                    +"\n\nDATE FORMAT : mm/dd/yyyy{-hhmmss}"
+                    +"\nSPECIFYING MACADDRESS and TIME IS OPTIONAL"
+                    +"\nSpecify NO , if MACADDRESS is not provided.")
 args = parser.parse_args()
 
 from Crypto import Random
@@ -46,7 +51,7 @@ def wrap(data, key, iv='0'*16):
 def jsoncreator(macid,startdate,enddate):
 ##    global contents
 ##    contents = ast.literal_eval(contents)
-    print contents
+##    print contents
     contents['offlinereginfo']['mac'] = macid
     contents['offlinereginfo']['startdate'] = startdate
     contents['offlinereginfo']['enddate'] = enddate
@@ -72,7 +77,7 @@ if __name__ == '__main__':
             +"Please use it for Offline Registration to Nineteen68")
         else:
             print 'File should be run with the following command\n'
-            print 'python.exe offline_registration_file_generator.py <usermacid>;<startdate[mm/dd/yyyy{-hhmmss}]>;<enddate[mm/dd/yyyy{-hhmmss}]>'
+            print 'python.exe offline_registration_file_generator.py {MACADDRESS};<startdate[mm/dd/yyyy{-hhmmss}]>;<enddate[mm/dd/yyyy{-hhmmss}]> \n Specify NO , if MACADDRESS is not provided.'
     except Exception as e:
         import traceback
         traceback.print_exc()
