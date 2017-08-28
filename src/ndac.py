@@ -76,6 +76,81 @@ def server_ready():
     return 'Data Server Ready!!!'
 
 
+
+###########################################################################################
+#######################################################
+#Saving assist data in global variables
+#######################################################
+#Step 1 Loading Data from JSON
+import sys
+sys.path.append('D:\\Nineteen68 Server_ndac\\Portable_python\\ndac\\src\\assist')
+from SQLite_DataSetups import SQLite_DataSetup
+import sqlite3
+import os
+ds = SQLite_DataSetup()
+ds.loadData()
+questions = ds.getQuestions()
+pquestions = ds.getPQuestions()
+pages = ds.getPages()
+weights = ds.getWeightages()
+answers = ds.getAnswers()
+keywords = ds.getKeywords()
+#2 D array: Ques, processed Ques & Frequency
+newQuesInfo = ds.getNewQuesInfo()
+#A list to save every single relevant query asked by user
+savedQueries = [[]]
+updateW = [[]]
+
+
+#Training the Bot
+
+chatbot = 0
+import threading
+def trainProfJ():
+    from chatterbot import ChatBot
+    global chatbot
+    #print "starting training parallely"
+    chatbot = ChatBot(
+        'Prof J',
+        trainer='chatterbot.trainers.ChatterBotCorpusTrainer'
+    )
+    #Train based on the english corpus
+    chatbot.train("chatterbot.corpus.english")
+    #print chatbot.get_response("how are you")
+   # print "chatbot training successfully completed.."
+
+#Starting chatbot training Parallely
+threading.Thread(target = trainProfJ).start()
+########################################################
+
+#########################################################
+#Updating the sqlite database
+updateTime = 60
+def updateWeightages():
+    global weights
+    #print "inside update weightages..."
+    base = os.getcwd()
+    path = base + "\\Portable_python\\ProfJ.db"
+    conn = sqlite3.connect(path)
+    c = conn.cursor()
+    #print "thread called the function...in every : ",updateTime, " seconds"
+    for i in range(len(weights)):
+        c.execute('UPDATE mainDB SET Weightage= ? WHERE qid = ?',(weights[i],i))
+    conn.commit()
+    conn.close()
+    return True
+#Invoking parallel thread which will update the weightages of the questions in the DB
+from  RepeatedTimer import repeatedTimer
+
+updaterThread = repeatedTimer(updateTime,updateWeightages)
+updaterThread.start()
+#Basic Setup of ProfJ
+#####################################################################################
+
+#######################################################
+#Global variables for prof J ready
+#######################################################
+
 ################################################################################
 # BEGIN OF LOGIN SCREEN
 # INCLUDES : Login components
@@ -1904,6 +1979,60 @@ def encrypt_ICE():
 ################################################################################
 # END OF UTILITIES
 ################################################################################
+
+##################################################
+# BEGIN OF CHATBOT
+##################################################
+
+#Prof J First Service: Getting Best Matches
+@app.route('/chatbot/getTopMatches_ProfJ',methods=['POST'])
+def getTopMatches_ProfJ():
+    #print "getting top matches for ya.."
+    #print request.data
+    query = str(request.data)
+    global newQuesInfo
+    global savedQueries
+
+    #Importing Modules for Prof J
+    from keyword_matcher import ProfJ
+    import xlrd
+    from collections import OrderedDict
+    import simplejson as json
+    from nltk.stem import PorterStemmer
+
+
+    #Step 2 Matching query with Data
+    profj = ProfJ(pages,questions,answers,keywords,weights,pquestions,newQuesInfo,savedQueries)
+    response,newQuesInfo,savedQueries = profj.start(query)
+    if response[0][1] == "Please be relevant..I work soulfully for Nineteen68":
+        response[0][1] = str(chatbot.get_response(query))
+##    print "---------------The status of global variable---------------"
+##    print "newQuesInfo after this query: ",newQuesInfo
+##    print "State of saved query after this query: ",savedQueries
+##    print"------------------------------------------------------------"
+    res={'rows':response}
+    return jsonify(res)
+
+#Prof J Second Service: Updating the Question's Frequency
+@app.route('/chatbot/updateFrequency_ProfJ',methods=['POST'])
+def updateFrequency_ProfJ():
+    #print "updating the frequency.."
+    #print request.data
+    qid = request.data
+    weights[int(qid)] += 1
+    #print weights[int(qid)]
+    temp = []
+    temp.append(qid)
+    temp.append(weights[int(qid)])
+   # print(weights[int(qid)])
+    response = True
+    res={'rows': response}
+    return jsonify(res)
+
+##################################################
+# END OF CHATBOT
+##################################################
+
 
 
 ################################################################################
