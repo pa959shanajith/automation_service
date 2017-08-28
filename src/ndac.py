@@ -1987,7 +1987,6 @@ def encrypt_ICE():
 #Prof J First Service: Getting Best Matches
 @app.route('/chatbot/getTopMatches_ProfJ',methods=['POST'])
 def getTopMatches_ProfJ():
-    #print "getting top matches for ya.."
     #print request.data
     query = str(request.data)
     global newQuesInfo
