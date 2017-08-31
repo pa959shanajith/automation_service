@@ -83,8 +83,8 @@ def server_ready():
 #######################################################
 #Step 1 Loading Data from JSON
 import sys
- base = os.getcwd()
- path = base + "\\Portable_python\\ndac\\src\\assist"
+base = os.getcwd()
+path = base + "\\Portable_python\\ndac\\src\\assist"
 sys.path.append(path)
 from SQLite_DataSetups import SQLite_DataSetup
 import sqlite3
@@ -104,7 +104,7 @@ savedQueries = [[]]
 updateW = [[]]
 
 
-#Training the Bot
+#Training the ChatBot
 
 chatbot = 0
 import threading
