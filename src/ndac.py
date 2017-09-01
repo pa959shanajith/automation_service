@@ -1911,6 +1911,7 @@ def encrypt_ICE():
 #Prof J First Service: Getting Best Matches
 @app.route('/chatbot/getTopMatches_ProfJ',methods=['POST'])
 def getTopMatches_ProfJ():
+    #print "getting top matches for ya.."
     #print request.data
     query = str(request.data)
     global newQuesInfo
@@ -1918,6 +1919,7 @@ def getTopMatches_ProfJ():
 
     #Importing Modules for Prof J
     from keyword_matcher import ProfJ
+    import xlrd
     from collections import OrderedDict
     import simplejson as json
     from nltk.stem import PorterStemmer
