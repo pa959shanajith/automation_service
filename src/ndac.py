@@ -1,6 +1,6 @@
 #-------------------------------------------------------------------------------
 # Name:        ndac.py
-# Purpose:
+# Purpose:     Security Aspects, Licensing components and ProfJ
 #
 # Author:      vishvas.a
 #
