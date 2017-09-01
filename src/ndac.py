@@ -310,8 +310,7 @@ def loadUserInfo_Nineteen68():
                                     +" allow filtering")
                 queryresult = n68session.execute(loaduserinfo2)
             elif(requestdata["query"] == 'userPlugins'):
-                loaduserinfo3 = ("select dashboard, deadcode, mindmap, neuron2d,"
-                                +"neuron3d, oxbowcode, reports from "
+                loaduserinfo3 = ("select * from "
                                 +"userpermissions where roleid = "
                                 +requestdata["roleid"]+" allow filtering")
                 queryresult = n68session.execute(loaduserinfo3)
@@ -2574,6 +2573,96 @@ def wrap(data, key, iv='0'*16):
 # END LICENSING SERVER COMPONENTS
 ##################################
 
+
+####################################
+#Begining of ProfJ assist Components
+####################################
+
+#Saving assist data in global variables
+#Step 1 Loading Data from JSON
+try:
+    import sys
+    base = os.getcwd()
+    path = base + "\\Portable_python\\ndac\\src\\assist"
+    sys.path.append(path)
+    from SQLite_DataSetups import SQLite_DataSetup
+    import sqlite3
+except:
+    app.logger.error('Error in accessing assist files..')
+try:
+    ds = SQLite_DataSetup()
+    ds.loadData()
+    questions = ds.getQuestions()
+    pquestions = ds.getPQuestions()
+    pages = ds.getPages()
+    weights = ds.getWeightages()
+    answers = ds.getAnswers()
+    keywords = ds.getKeywords()
+    #2 D array: Ques, processed Ques & Frequency
+    newQuesInfo = ds.getNewQuesInfo()
+    #A list to save every single relevant query asked by user
+    savedQueries = [[]]
+    updateW = [[]]
+except:
+        app.logger.error('Unable to use assist module SQLite_DataSetups..')
+
+
+#Training the Bot
+
+try:
+    chatbot = 0
+    import threading
+    def trainProfJ():
+        try:
+            from chatterbot import ChatBot
+        except:
+            app.logger.error('Portable python used doesnot have chatterbot module..please ask for latest portable python')
+        global chatbot
+        #print "starting training parallely"
+        chatbot = ChatBot(
+            'Prof J',
+            trainer='chatterbot.trainers.ChatterBotCorpusTrainer'
+        )
+        #Train based on the english corpus
+        chatbot.train("chatterbot.corpus.english")
+       # print "chatbot training successfully completed.."
+
+    #Starting chatbot training Parallely
+    threading.Thread(target = trainProfJ).start()
+except:
+    app.logger.error('Unable to train chatbot..Ensure that you have chatterbot modules in Portable Python')
+
+
+#Updating the sqlite database
+updateTime = 60
+def updateWeightages():
+    try:
+        global weights
+        #print "inside update weightages..."
+        base = os.getcwd()
+        path = base + "\\Portable_python\\ProfJ.db"
+        conn = sqlite3.connect(path)
+        c = conn.cursor()
+        #print "thread called the function...in every : ",updateTime, " seconds"
+        for i in range(len(weights)):
+            c.execute('UPDATE mainDB SET Weightage= ? WHERE qid = ?',(weights[i],i))
+        conn.commit()
+        conn.close()
+        return True
+    except:
+        app.logger.error('Cannot update weightages in ProfJ database')
+#Invoking parallel thread which will update the weightages of the questions in the DB
+try:
+    from  RepeatedTimer import repeatedTimer
+
+    updaterThread = repeatedTimer(updateTime,updateWeightages)
+    updaterThread.start()
+except:
+    app.logger.error('Cannot access repeatedTimer Module..or it can not call periodic function to update the weightage.')
+#Basic Setup of ProfJ Done!
+################################################
+#End of ProfJ assist components
+################################################
 ################################################################################
 # END OF INTERNAL COMPONENTS
 ################################################################################
