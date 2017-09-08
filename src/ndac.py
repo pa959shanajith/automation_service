@@ -8,6 +8,9 @@
 # Copyright:   (c) vishvas.a 2017
 # Licence:     <your licence>
 #-------------------------------------------------------------------------------
+import sys
+import os
+sys.path.append('./packages/Lib/site-packages')
 import json
 import requests
 import subprocess
@@ -18,7 +21,7 @@ handler=''
 
 from datetime import datetime
 import uuid
-import sys
+
 import ast
 
 from flask import Flask, request , jsonify
@@ -32,11 +35,14 @@ parser.add_argument("-k","--verbosity", type=str, help="offline user"
                     +"registration. Provide the offline registration filename")
 args = parser.parse_args()
 
-import os
-os.chdir("..")
+
+##os.chdir("..")
 #nineteen68 folder location is parent directory
-parentdir=os.getcwd()
-config_path = parentdir+'\\server config.json'
+currdir=os.getcwd()
+config_path = currdir+'/server_config.json'
+assistpath = currdir + "/ndac_internals/assist"
+logspath= currdir + "/ndac_internals/logs"
+
 rest_config = json.loads(open(config_path).read())
 
 lsip = rest_config['ndac']['licenseserver']
@@ -1911,47 +1917,58 @@ def encrypt_ICE():
 #Prof J First Service: Getting Best Matches
 @app.route('/chatbot/getTopMatches_ProfJ',methods=['POST'])
 def getTopMatches_ProfJ():
-    #print "getting top matches for ya.."
-    #print request.data
-    query = str(request.data)
-    global newQuesInfo
-    global savedQueries
+    try:
+##        print "getting top matches for ya.."
+##        print request.data
+        query = str(request.data)
+        global newQuesInfo
+        global savedQueries
 
-    #Importing Modules for Prof J
-    from keyword_matcher import ProfJ
-    import xlrd
-    from collections import OrderedDict
-    import simplejson as json
-    from nltk.stem import PorterStemmer
+        #Importing Modules for Prof J
+
+    ##    import xlrd
+##        from collections import OrderedDict
+##        import simplejson as json
+
+##        from nltk.stem import PorterStemmer
 
 
-    #Step 2 Matching query with Data
-    profj = ProfJ(pages,questions,answers,keywords,weights,pquestions,newQuesInfo,savedQueries)
-    response,newQuesInfo,savedQueries = profj.start(query)
-    if response[0][1] == "Please be relevant..I work soulfully for Nineteen68":
-        response[0][1] = str(chatbot.get_response(query))
-##    print "---------------The status of global variable---------------"
-##    print "newQuesInfo after this query: ",newQuesInfo
-##    print "State of saved query after this query: ",savedQueries
-##    print"------------------------------------------------------------"
-    res={'rows':response}
-    return jsonify(res)
+        #Step 2 Matching query with Data
+        profj = ProfJ(pages,questions,answers,keywords,weights,pquestions,newQuesInfo,savedQueries)
+        response,newQuesInfo,savedQueries = profj.start(query)
+        #if response[0][1] == "Please be relevant..I work soulfully for Nineteen68":
+            #response[0][1] = str(chatbot.get_response(query))
+##        print "---------------The status of global variable---------------"
+##        print "newQuesInfo after this query: ",newQuesInfo
+##        print "State of saved query after this query: ",savedQueries
+##        print"------------------------------------------------------------"
+        res={'rows':response}
+        return jsonify(res)
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        res={'rows':'fail'}
 
 #Prof J Second Service: Updating the Question's Frequency
 @app.route('/chatbot/updateFrequency_ProfJ',methods=['POST'])
 def updateFrequency_ProfJ():
-    #print "updating the frequency.."
-    #print request.data
-    qid = request.data
-    weights[int(qid)] += 1
-    #print weights[int(qid)]
-    temp = []
-    temp.append(qid)
-    temp.append(weights[int(qid)])
-   # print(weights[int(qid)])
-    response = True
-    res={'rows': response}
-    return jsonify(res)
+    try:
+##        print "updating the frequency.."
+##        print request.data
+        qid = request.data
+        weights[int(qid)] += 1
+##        print weights[int(qid)]
+        temp = []
+        temp.append(qid)
+        temp.append(weights[int(qid)])
+##        print(weights[int(qid)])
+        response = True
+        res={'rows': response}
+        return jsonify(res)
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        res={'rows':'fail'}
 
 ##################################################
 # END OF CHATBOT
@@ -2427,7 +2444,7 @@ def dataholder(data,querytype):
     try:
         dataholderresp=False
         #connect to a database(creates if doesnt exist)
-        conn = sqlite3.connect(parentdir+"/Portable_python/ndac/logs/data.db")
+        conn = sqlite3.connect(logspath+"/data.db")
         #create cursor
         cursor = conn.cursor()
         if querytype == 'update':
@@ -2505,15 +2522,172 @@ def wrap(data, key, iv='0'*16):
 
 #Saving assist data in global variables
 #Step 1 Loading Data from JSON
-try:
-    import sys
-    base = os.getcwd()
-    path = base + "\\Portable_python\\ndac\\src\\assist"
-    sys.path.append(path)
-    from SQLite_DataSetups import SQLite_DataSetup
-    import sqlite3
-except:
-    app.logger.error('Error in accessing assist files..')
+##try:
+##    import sys
+##    base = os.getcwd()
+##    #path = base + "\\Portable_python\\ndac\\src\\assist"
+##    #sys.path.append(path)
+
+##    import sqlite3
+##except:
+##    app.logger.error('Error in accessing assist files..')
+
+
+#Setting up Data
+##try:
+    # File to read the Data from SQLite File into an array.
+##    import sqlite3
+##except:
+##    print "Error Imprting module sqlite."
+
+
+class SQLite_DataSetup():
+    try:
+        def __init__(self):
+            self.questions=[] # to store the questions
+            self.pages=[] # to store the pages
+            self.keywords=[] # to store the keywords
+            self.weightages=[] # to store the weightages
+            self.answers=[] # to store the answers
+            self.pquestions=[] #preprocessed questions
+            self.newQuesInfo=[] #list to store relevant info about new questions
+    except:
+        app.logger.error("Error in __init__ function.")
+
+
+
+        # Function to Load Data using JSON file.
+    def loadData(self):
+       # print "wfsdvaqusgwnqbwh"
+##        import os
+        #print "OS.cwd()------------",os.getcwd()
+##        base = os.getcwd()
+##        print 'base',base
+        path = assistpath + "/ProfJ.db"
+        conn = sqlite3.connect(path)
+        c = conn.cursor()
+           # print data
+
+        # Preparing the lists
+        for row in c.execute('SELECT * FROM mainDB'):
+
+            self.weightages.append(int(row[1]))
+            self.questions.append(row[2])
+            self.answers.append(row[3])
+
+            self.keywords.append(row[4])
+            self.pages.append(row[5])
+
+            self.pquestions.append(row[6])
+
+
+        for col in c.execute('SELECT * FROM NewQuestions'):
+            info =[]
+            info.append(col[1])
+            info.append(col[2])
+            info.append(col[3])
+
+            self.newQuesInfo.append(info)
+        conn.close()
+
+
+
+
+    try:
+        # Function to get the Pages.
+        def getPages(self):
+            return self.pages
+    except:
+
+        app.logger.error("Error in getPages()")
+
+    try:
+        # Function to return the Questions.
+        def getQuestions(self):
+            return self.questions
+    except:
+        app.logger.error("Error in getQuestions()")
+
+    try:
+        # Function to return the Answers.
+        def getAnswers(self):
+            return self.answers
+    except:
+        app.logger.error("Error in getAnswers()")
+
+    try:
+        # Function to retun the Weights.
+        def getWeightages(self):
+            return self.weightages
+    except:
+        app.logger.error("Error in getWeightages()")
+
+    try:
+        # Function to return Keywords.
+        def getKeywords(self):
+            return self.keywords
+    except:
+        app.logger.error("Error in getKeywords()")
+
+    try:
+        # Function to get the Processed Questions.
+        def getPQuestions(self):
+            return self.pquestions
+    except:
+        app.logger.error("Error in getPQuestions()")
+
+    try:
+        # Function to get the New Questions.
+        def getNewQuesInfo(self):
+            return self.newQuesInfo
+    except:
+        app.logger.error("Error in getNewQuesInfo()")
+
+    try:
+        # Function to update the captured Queries.
+        def updateCaptureTable(self,savedQueries):
+            t = []
+            for list in savedQueries:
+                temp = []
+                temp.append(list[0])
+                temp.append(list[1])
+                temp1 = tuple(temp)
+                t.append(temp1)
+            #print t
+            #inserting values in table:
+            conn = sqlite3.connect('ProfJ.db')
+            c = conn.cursor()
+            c.executemany('INSERT INTO CapturedQueries VALUES (?,?)', t)
+            conn.commit()
+##            for row in c.execute('SELECT * FROM CapturedQueries'):
+##                print row
+            conn.close()
+            return savedQueries
+    except:
+        app.logger.error("Error in updateCaptureTable()")
+##
+##    try:
+##            # Function to update the weightages in Database[Used periodically by thread].
+##            def updateWeightages(self,weightages):
+##                print "inside update weightages..."
+##                conn = sqlite3.connect('ProfJ.db')
+##                c = conn.cursor()
+##                for i in range(len(weightages)):
+##                    c.execute('UPDATE mainDB SET Weightage= ? WHERE qid = ?',(weightage[i],i))
+##                conn.commit()
+##                conn.close()
+##                return True
+##    except:
+##            print "Error in updateCaptureTable()"
+
+    try:
+        # Function to update the new questions in the database.
+        def updateCaptureTable(self):
+            return True
+    except:
+        app.logger.error("Error in updateCaptureTable()")
+
+
 try:
     ds = SQLite_DataSetup()
     ds.loadData()
@@ -2529,33 +2703,38 @@ try:
     savedQueries = [[]]
     updateW = [[]]
 except:
-        app.logger.error('Unable to use assist module SQLite_DataSetups..')
+    import traceback
+    traceback.print_exc()
+    app.logger.error('Unable to use assist module SQLite_DataSetups..')
 
 
 #Training the Bot
 
-try:
-    chatbot = 0
-    import threading
-    def trainProfJ():
-        try:
-            from chatterbot import ChatBot
-        except:
-            app.logger.error('Portable python used doesnot have chatterbot module..please ask for latest portable python')
-        global chatbot
+#try:
+    #chatbot = 0
+    #import threading
+    #def trainProfJ():
+
+        #try:
+            #from chatterbot import ChatBot
+        #except:
+            #app.logger.error('Portable python used doesnot have chatterbot module..please ask for latest portable python')
+        #global chatbot
         #print "starting training parallely"
-        chatbot = ChatBot(
-            'Prof J',
-            trainer='chatterbot.trainers.ChatterBotCorpusTrainer'
-        )
+        #chatbot = ChatBot(
+
+            #'Prof J',
+            #trainer='chatterbot.trainers.ChatterBotCorpusTrainer'
+
+        #)
         #Train based on the english corpus
-        chatbot.train("chatterbot.corpus.english")
+        #chatbot.train("chatterbot.corpus.english")
        # print "chatbot training successfully completed.."
 
     #Starting chatbot training Parallely
-    threading.Thread(target = trainProfJ).start()
-except:
-    app.logger.error('Unable to train chatbot..Ensure that you have chatterbot modules in Portable Python')
+    #threading.Thread(target = trainProfJ).start()
+#except:
+    #app.logger.error('Unable to train chatbot..Ensure that you have chatterbot modules in Portable Python')
 
 
 #Updating the sqlite database
@@ -2563,27 +2742,227 @@ updateTime = 60
 def updateWeightages():
     try:
         global weights
-        #print "inside update weightages..."
+##        print "inside update weightages..."
         base = os.getcwd()
-        path = base + "\\Portable_python\\ProfJ.db"
+
+        path = assistpath+"/ProfJ.db"
         conn = sqlite3.connect(path)
         c = conn.cursor()
-        #print "thread called the function...in every : ",updateTime, " seconds"
+##        print "thread called the function...in every : ",updateTime, " seconds"
         for i in range(len(weights)):
             c.execute('UPDATE mainDB SET Weightage= ? WHERE qid = ?',(weights[i],i))
         conn.commit()
         conn.close()
         return True
     except:
+        import traceback
+        traceback.print_exc()
         app.logger.error('Cannot update weightages in ProfJ database')
 #Invoking parallel thread which will update the weightages of the questions in the DB
 try:
-    from  RepeatedTimer import repeatedTimer
+
+    from threading import Timer,Thread,Event
+    class repeatedTimer():
+
+       def __init__(self,t,hFunction):
+          self.t=t
+          self.hFunction = hFunction
+          self.thread = Timer(self.t,self.handle_function)
+
+       def handle_function(self):
+          self.hFunction()
+          self.thread = Timer(self.t,self.handle_function)
+          self.thread.start()
+
+       def start(self):
+          self.thread.start()
+
+       def cancel(self):
+          self.thread.cancel()
 
     updaterThread = repeatedTimer(updateTime,updateWeightages)
     updaterThread.start()
 except:
+    import traceback
+    traceback.print_exc()
     app.logger.error('Cannot access repeatedTimer Module..or it can not call periodic function to update the weightage.')
+
+
+try:
+    import logging
+    import logging.config
+    from nltk.stem import PorterStemmer
+    import simplejson
+except:
+    import traceback
+    traceback.print_exc()
+    app.logger.error("Error in importing core modules ProfJ")
+
+class ProfJ():
+
+    def Preprocess(self,query_string):
+        #creating configuration for logging
+##        import os
+        #print "OS.cwd()------------",os.getcwd()
+##        base = os.getcwd()
+##        print 'BASE in profJ',base
+        path = assistpath + "/logging_config.conf"
+        logging.config.fileConfig(path,disable_existing_loggers=False)
+
+        # Create logger object. This will be used for logging.
+        logger = logging.getLogger("ProfJ")
+
+        logger.info("Qustion asked is "+query_string)
+
+        #Step 1: Punctuations Removal
+        query1_str = "".join(c for c in query_string if c not in ('@','!','.',':','>','<','"','\'','?','*','/','&','(',')','-'))
+##        print "Query after Step 1 of processing:[punctuations removed] ",query1_str
+
+        #Step 2: Converting string into lowercase
+        query2 = [w.lower() for w in query1_str.split()]
+        query2_str = " ".join(query2)
+##        print "Query after Step 2 of processing:[lower Case] ",query2_str
+
+
+        #Step 3: Correcting appostropes.. Need this dictionary to be quite large
+        APPOSTOPHES = {"s" : "is", "'re" : "are","m":"am"}
+        words = (' '.join(query2_str.split("'"))).split()
+        query5 = [ APPOSTOPHES[word] if word in APPOSTOPHES else word for word in words]
+##        print "Query after Step 3 of processing:[appostophes]: ",query5
+
+        import simplejson
+        #Step 4: Normalizing words
+        path = assistpath + "/SYNONYMS.json"
+        with open(path,"r") as data_file:
+                SYNONYMS = simplejson.load(data_file)
+        query6 = [ SYNONYMS[word] if word in SYNONYMS else word for word in query5]
+##        print "Query after Step 6 of processing:[synonyms]: ",query6
+
+
+        #Step 5: Stemming
+        ps = PorterStemmer()
+        query_final=set([ps.stem(i) for i in query6])
+##        print "Query after Step 7 of processing:[stemming] ",query_final
+        return query_final
+
+
+    def matcher(self,query_final):
+        intersection = []
+        for q in self.pquestions:
+            q1 = set (q.split(" "))
+           # print "Supposedly Questions", q1
+            intersection.append (len(query_final & q1))
+           # print len(query_final & q1)
+        return intersection
+
+    def getTopX(self,intersection):
+        relevance=[]
+        cnt = 0
+        for i in intersection:
+            relevance.append(10**(i+2) + self.weights[cnt])
+            cnt+=1
+
+        max_index = [i[0] for i in sorted(enumerate(relevance), key=lambda x:x[1],reverse=True)]
+        #max_value = [i[1] for i in sorted(enumerate(relevance), key=lambda x:x[1],reverse=True)]
+
+        #print max_value
+        # print max_index
+        ans = []
+        #print "-------------------------------------------------"
+        for i in range(self.topX):
+            #print questions_original[max_index[i]]
+            if(intersection[max_index[i]]==0):
+                break
+            ans.append(self.questions[max_index[i]])
+            #print (self.questions[max_index[i]]+ "( Intersection: "+str(intersection[max_index[i]])+ " Weightage: "+str(self.weights[max_index[i]])+")")
+        #print "-------------------------------------------------"
+        return ans
+
+    def calculateRel(self,query_final):
+            try:
+                #Check whether query contains n68 domain or not
+##                import sys
+##                import os
+##                base = os.getcwd()
+##                path = base + "\\keywords_db.txt"
+                path = assistpath+"/keywords_db.txt"
+                f = open(path,"r")
+                key = f.read()
+                keywords = set(key.split())
+
+                if (len(query_final)==0):
+                    match=0
+                else:
+                    match=len(query_final & keywords)/float(len(query_final))
+                #print "Percentage Match [In my domain]", match*100,"%"
+                return match
+            except:
+                app.logger.error("keywords_db.txt not found.")
+##                print "keywords_db.txt not foud."
+
+    def __init__(self,pages,questions,answers,keywords,weights,pquestions, newQuesInfo, savedQueries):
+        self.questions = questions
+        self.pages = pages
+        self.weights = weights
+        self.answers = answers
+        self.keywords = keywords
+        self.pquestions = pquestions
+        self.newQuesInfo = newQuesInfo
+        self.topX = 5
+        self.userQuery=""
+        self.savedQueries = savedQueries # Captures all the "Relevant" queries asked by User, It is list of list[[query1,page1],[query2,page2]]
+
+    def setState(self,state):
+        self.state = state
+
+    def start(self,userQuery):
+        response = []
+##        print "I am the right one"
+        query_string = userQuery
+        self.userQuery = userQuery
+        if query_string is not None:
+            #when all the plugins will be activeted
+            currPage = "mindmaps"
+            query_final = self.Preprocess(query_string)
+            rel = self.calculateRel(query_final)
+            if (rel > 0):
+                temp = []
+                temp.append(query_string)
+                temp.append(currPage)
+                self.savedQueries.append(temp)
+                #getting intersection
+                intersection = self.matcher(query_final)
+                #displaying most common and most frequent
+                ques = self.getTopX(intersection)
+                if ques:
+                    for i in range(len(ques)):
+                        temp = []
+                        temp.append(self.questions.index(ques[i]))
+                        temp.append(self.questions[self.questions.index(ques[i])])
+                        temp.append(self.answers[self.questions.index(ques[i])])
+                        response.append(temp)
+##                    print response
+                else:
+                    response = [[-1,"Sometimes, I may not have the information you need...We recorded your query..will get back to you soon",-1]]
+                    flag = True
+                    for nques in self.newQuesInfo:
+                        if(str(query_final) is nques[1]):
+                            nques[2] = nques[2] + 1
+                            flag = False
+                    if (flag):
+                        temp =[]
+                        temp.append(str(query_string))
+                        temp.append(str(query_final))
+                        temp.append(0)
+                        self.newQuesInfo.append(temp)
+
+                    #self.newKeys.append(query_string)
+            else:
+                response = [[-1, "Please be relevant..I work soulfully for Nineteen68", -1]]
+        else:
+            response = [-1, "Invalid Input...Please try again", -1]
+        return response, self.newQuesInfo, self.savedQueries
+
 #Basic Setup of ProfJ Done!
 ################################################
 #End of ProfJ assist components
@@ -2601,7 +2980,7 @@ if __name__ == '__main__':
 
     #http implementations
     formatter = logging.Formatter("[%(asctime)s] {%(pathname)s:%(lineno)d} %(levelname)s - %(message)s")
-    inhandler = TimedRotatingFileHandler(parentdir+'/Portable_python/ndac/logs/ndac'+datetime.now().strftime("_%Y%m%d-%H%M%S")+'.log',when='d', encoding='utf-8', backupCount=1)
+    inhandler = TimedRotatingFileHandler(logspath+'/ndac/ndac'+datetime.now().strftime("_%Y%m%d-%H%M%S")+'.log',when='d', encoding='utf-8', backupCount=1)
     global handler
     handler=inhandler
     handler.setLevel(logging.ERROR)
