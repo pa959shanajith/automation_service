@@ -31,7 +31,7 @@ app = Flask(__name__)
 
 import argparse
 parser = argparse.ArgumentParser()
-parser.add_argument("-k","--verbosity", type=str, help="offline user"
+parser.add_argument("-k","--verbosity", type=str, help="home user"
                     +"registration. Provide the offline registration filename")
 args = parser.parse_args()
 
@@ -43,16 +43,16 @@ config_path = currdir+'/server_config.json'
 assistpath = currdir + "/ndac_internals/assist"
 logspath= currdir + "/ndac_internals/logs"
 
-rest_config = json.loads(open(config_path).read())
+ndac_conf = json.loads(open(config_path).read())
 
-lsip = rest_config['ndac']['licenseserver']
+lsip = ndac_conf['ndac']['licenseserver']
 from cassandra.cluster import Cluster
 from flask_cassandra import CassandraCluster
 from cassandra.auth import PlainTextAuthProvider
 dbup = False
 try:
-    auth = PlainTextAuthProvider(username=rest_config['ndac']['dbusername'], password=rest_config['ndac']['dbpassword'])
-    cluster = Cluster([rest_config['ndac']['databaseip']],auth_provider=auth)
+    auth = PlainTextAuthProvider(username=ndac_conf['ndac']['dbusername'], password=ndac_conf['ndac']['dbpassword'])
+    cluster = Cluster([ndac_conf['ndac']['databaseip']],auth_provider=auth)
 
     icesession = cluster.connect()
     n68session = cluster.connect()
@@ -62,6 +62,7 @@ try:
     from cassandra.query import dict_factory
     icesession.row_factory = dict_factory
     icesession.set_keyspace('icetestautomation')
+
     n68session.row_factory = dict_factory
     n68session.set_keyspace('nineteen68')
     dbup = True
@@ -76,6 +77,13 @@ onlineuser = False
 usersession = False
 lsondayone = ""
 lsondaytwo = ""
+
+#counters for License
+debugcounter = 0
+scenarioscounter = 0
+gtestsuiteid = []
+suitescounter = 0
+
 #server check
 @app.route('/')
 def server_ready():
@@ -835,6 +843,9 @@ def readTestCase_ICE():
                 readtestcasequery2 = ("select screenid,testcasename,testcasesteps"
                 +" from testcases where testcaseid="+ requestdata['testcaseid'])
                 queryresult = icesession.execute(readtestcasequery2)
+                count = debugcounter + 1
+                userid = requestdata['userid']
+                counterupdator('testcases',userid,count)
             elif(requestdata['query'] == "screenid"):
                 readtestcasequery3 = ("select testcaseid,testcasename,testcasesteps "
                 +"from testcases where screenid=" + requestdata['screenid'])
@@ -1180,6 +1191,11 @@ def ExecuteTestSuite_ICE() :
                 executetestsuitequery1=("select testcaseids from testscenarios where"
                 +" testscenarioid=" + requestdata['testscenarioid'])
                 queryresult = icesession.execute(executetestsuitequery1)
+                global scenarioscounter
+                scenarioscounter = 0
+                userid=requestdata['userid']
+                scenarioscounter = scenarioscounter + 1
+                counterupdator('testscenarios',userid,scenarioscounter)
             elif(requestdata['query'] == 'testcasesteps'):
                 executetestsuitequery2=("select screenid from testcases where "
                 +"testcaseid="+ requestdata['testcaseid'])
@@ -1906,6 +1922,29 @@ def encrypt_ICE():
         app.logger.error('Error in encrypt_ICE.')
         return str(res)
 
+#directly updates license data
+@app.route('/utility/dataUpdator_ICE',methods=['POST'])
+def dataUpdator_ICE():
+    res={'rows':'fail'}
+    try:
+        requestdata=json.loads(request.data)
+        if not isemptyrequest(requestdata):
+            if requestdata['query'] == 'testsuites':
+                count = requestdata['count']
+                userid = requestdata['userid']
+                response = counterupdator('testsuites',userid,count)
+                if response != True:
+                    res={'rows':'fail'}
+                else:
+                    res={'rows':'success'}
+            else:
+                res = {'rows':'fail'}
+        else:
+            app.logger.error('Empty data received. Data Updator.')
+    except Exception as exporttojsonexc:
+        app.logger.error('Error in dataUpdator_ICE.')
+    return jsonify(res)
+
 ################################################################################
 # END OF UTILITIES
 ################################################################################
@@ -1999,25 +2038,19 @@ query['testcase_details']='select * from testcases where testcaseid='
 numberofdays=1
 omgall="\x4e\x69\x6e\x65\x74\x65\x65\x6e\x36\x38\x6e\x64\x61\x74\x63\x6c\x69\x63\x65\x6e\x73\x69\x6e\x67"
 ndacinfo = {
-	"action": "",
-	"sysinfo": {
-		"mac": "",
-		"tkn": ""
-	},
-	"btchinfo": {
-		"prevbtch": {
-			"prevbtchtym": "",
-			"prevbtchmsg": ""
-		},
-		"nxtbtch": "",
-		"btchstts": ""
-	},
-	"modelinfo": {
-		"execs_in_day": [{
-			"time": "",
-			"execs": ""
-		}]
-	}
+                "action": "",
+                "sysinfo": {"mac": "","tkn": ""},
+                "btchinfo": {
+                                "prevbtch": {"prevbtchtym": "","prevbtchmsg": ""},
+                                "nxtbtch": "",
+                                "btchstts": ""
+                },
+                "modelinfo": {
+                                "reports_in_day": [{"day": "","reprt_cnt": ""}],
+        "suites_init":[{"day":"","suite_cnt":"","usr_data":[{"id":"","rns":""}]}],
+                                "cnario_init":[{"day":"","cnario_cnt":"","usr_data":[{"id":"","rns":""}]}],
+                                "tcases_init":[{"day":"","tcases_cnt":"","usr_data":[{"id":"","rns":""}]}]
+                }
 }
 
 ###########################
@@ -2113,11 +2146,202 @@ def get_delete_query(node_id,node_name,node_version_number,node_parentid,project
 ############################
 # END OF GENERIC FUNCTIONS
 ############################
+################################################################################
+# BEGIN OF COUNTERS
+################################################################################
+def counterupdator(updatortype,userid,count):
+    status=False
+    try:
+        beginingoftime = datetime.utcfromtimestamp(0)
+        currentdateindays = getbgntime('curr',datetime.now()) - beginingoftime
+        currentdate = long(currentdateindays.total_seconds() * 1000.0)
+        updatorarray = ["update counters set counter=counter + ",
+                    " where counterdate= "," and userid = "," and countertype= ",";"]
+        updatequery=(updatorarray[0]+str(count)+updatorarray[1]
+                    +str(currentdate)+updatorarray[2]+userid+updatorarray[3]+"'"
+                    +updatortype+"'"+updatorarray[4])
+        icesession.execute(updatequery)
+        status = True
+    except Exception as counterupdatorexc:
+##        import traceback
+##        traceback.print_exc()
+        app.logger.error('Error in counterupdatorexc.')
+    return status
 
-###################################
-# START LICENSING SERVER COMPONENTS
-###################################
+def getreports_in_day(bgnts,endts):
+    res = {"rows":"fail"}
+    try:
+        query=("select * from reports where executedtime  >= "
+            +str(bgnts)+" and executedtime <= "+str(endts)+" allow filtering;")
+        queryresult = icesession.execute(query)
+    ##    print queryresult.current_rows
+        res= {"rows":queryresult.current_rows}
+    except Exception as getreports_in_dayexc:
+##        import traceback
+##        traceback.print_exc()
+        app.logger.critical("Unable to contact storage areas 2 reports")
+    return res
 
+def getsuites_inititated(bgnts,endts):
+    res = {"rows":"fail"}
+    try:
+        suitequery=("select * from counters where counterdate >= "+str(bgnts)
+        +" and counterdate < "+str(endts)
+        +" and countertype='testsuites' ALLOW FILTERING;")
+        queryresult = icesession.execute(suitequery)
+        res= {"rows":queryresult.current_rows}
+
+    except Exception as getsuites_inititatedexc:
+##        import traceback
+##        traceback.print_exc()
+        app.logger.critical("Unable to contact storage areas 2 suites")
+    return res
+
+def getscenario_inititated(bgnts,endts):
+    res = {"rows":"fail"}
+    try:
+        scenarioquery=("select * from counters where counterdate >= "+str(bgnts)
+        +" and counterdate < "+str(endts)
+        +" and countertype='testscenarios' ALLOW FILTERING;")
+        queryresult = icesession.execute(scenarioquery)
+        res= {"rows":queryresult.current_rows}
+    except Exception as getscenario_inititatedexc:
+##        import traceback
+##        traceback.print_exc()
+        app.logger.critical("Unable to contact storage areas 2 scenarios")
+    return res
+
+def gettestcases_inititated(bgnts,endts):
+    res = {"rows":"fail"}
+    try:
+        testcasesquery=("select * from counters where counterdate >= "+str(bgnts)
+        +" and counterdate < "+str(endts)
+        +" and countertype='testcases' ALLOW FILTERING;")
+        queryresult = icesession.execute(testcasesquery)
+        res = {"rows":queryresult.current_rows}
+
+    except Exception as gettestcases_inititatedexc:
+##        import traceback
+##        traceback.print_exc()
+        app.logger.critical("Unable to contact storage areas 2 cases")
+    return res
+
+def modelinfoprocessor(processingdata):
+    modelinfo={}
+    try:
+        bgnyesday = getbgntime('prev',datetime.now())
+        bgnoftday = getbgntime('curr',datetime.now())
+        daybforedate=''
+        if (processingdata['btchinfo']['btchstts'] == 'error' or
+            processingdata['btchinfo']['btchstts'] == ''):
+            daybforedate=getbgntime('daybefore',datetime.now())
+        suiteinfo=[]
+        cnarioinfo=[]
+        tcasesinfo=[]
+        if daybforedate != '':
+            for days in range(0,2):
+                bgnts=gettimestamp(daybforedate)
+                endts=gettimestamp(bgnyesday)
+##                print bgnts
+##                print endts
+                resultset=getreports_in_day(bgnts,endts)
+                modelinfo['reports_in_day']=reportdataprocessor(resultset,daybforedate,bgnyesday)
+                suiteinfo.append(dataprocessor('testsuites',bgnts,endts,bgnyesday))
+                cnarioinfo.append(dataprocessor('testscenarios',bgnts,endts,bgnyesday))
+                tcasesinfo.append(dataprocessor('testcases',bgnts,endts,bgnyesday))
+                modelinfo['suites_init'] = suiteinfo
+                modelinfo['cnario_init'] = cnarioinfo
+                modelinfo['tcases_init'] = tcasesinfo
+                daybforedate=bgnyesday
+                bgnyesday=bgnoftday
+        else:
+            bgnts=gettimestamp(bgnyesday)
+            endts=gettimestamp(bgnoftday)
+##            print bgnts
+##            print endts
+            resultset=getreports_in_day(bgnts,endts)
+            modelinfo['reports_in_day']=reportdataprocessor(resultset,bgnyesday,bgnoftday)
+            suiteinfo.append(dataprocessor('testsuites',bgnts,endts,bgnoftday))
+            cnarioinfo.append(dataprocessor('testscenarios',bgnts,endts,bgnoftday))
+            tcasesinfo.append(dataprocessor('testcases',bgnts,endts,bgnoftday))
+            modelinfo['suites_init'] = suiteinfo
+            modelinfo['cnario_init'] = cnarioinfo
+            modelinfo['tcases_init'] = tcasesinfo
+    except Exception as e:
+##        import traceback
+##        traceback.print_exc()
+        app.logger.critical("Unable to contact storage areas 3")
+    return modelinfo
+
+def dataprocessor(datatofetch,fromdate,todate,date):
+    respobj={}
+    total_cnt=0
+    dataresp=''
+    try:
+        if datatofetch == 'testsuites':
+            dataresp=getsuites_inititated(fromdate,todate)
+            usr_data=[]
+            for eachrow in dataresp['rows']:
+                userin_data={}
+                userin_data['rns'] = str(eachrow['counter'])
+                total_cnt = total_cnt + int(eachrow['counter'])
+                userin_data['id'] = str(eachrow['userid'])
+                usr_data.append(userin_data)
+            respobj['suite_cnt'] = str(total_cnt)
+        elif datatofetch == 'testscenarios':
+            dataresp=getscenario_inititated(fromdate,todate)
+            usr_data=[]
+            for eachrow in dataresp['rows']:
+                userin_data={}
+                userin_data['rns'] = str(eachrow['counter'])
+                total_cnt = total_cnt + int(eachrow['counter'])
+                userin_data['id'] = str(eachrow['userid'])
+                usr_data.append(userin_data)
+            respobj['cnario_cnt'] = str(total_cnt)
+        elif datatofetch == 'testcases':
+            dataresp=gettestcases_inititated(fromdate,todate)
+            usr_data=[]
+            for eachrow in dataresp['rows']:
+                userin_data={}
+                userin_data['rns'] = str(eachrow['counter'])
+                total_cnt = total_cnt + int(eachrow['counter'])
+                userin_data['id'] = str(eachrow['userid'])
+                usr_data.append(userin_data)
+            respobj['tcases_cnt'] = str(total_cnt)
+        respobj['day'] = str(date)
+        respobj['usr_data'] = usr_data
+    except Exception as dataprocessorexc:
+##        import traceback
+##        traceback.print_exc()
+        app.logger.critical("Unable to contact storage areas 4")
+    return respobj
+
+def reportdataprocessor(resultset,fromdate,todate):
+    processorres = False
+    count = 0
+    try:
+        eachreports_in_day={"reprt_cnt":"","day":""}
+        curr=datetime.now()
+        if resultset['rows'] != 'fail':
+            for eachrow in resultset['rows']:
+                exectime=eachrow['executedtime']
+                if exectime != None:
+                    if (exectime >= fromdate and exectime < todate):
+                        count = count + 1
+        eachreports_in_day['day'] = str(todate)
+        eachreports_in_day['reprt_cnt'] = str(count)
+    except Exception as reportdataprocessorexc:
+##        import traceback
+##        traceback.print_exc()
+        app.logger.critical("Unable to perform internal actions")
+    return eachreports_in_day
+
+################################################################################
+# END OF COUNTERS
+################################################################################
+################################################################################
+# START LICENSING COMPONENTS
+################################################################################
 def getMacAddress():
     mac=''
     if sys.platform == 'win32':
@@ -2135,13 +2359,22 @@ def getMacAddress():
                 break
     return mac
 
+def gettimestamp(date):
+    timestampdata=''
+    import time
+    import calendar
+##    print time.strftime(str(date))
+    date= datetime.strptime(str(date),"%Y-%m-%d %H:%M:%S")
+    timestampdata = calendar.timegm(date.utctimetuple()) * 1000
+    return timestampdata
+
 
 def basecheckonls():
     basecheckstatus=False
 ##    print mac
 ##    data= {"action":"register","sysinfo":physical_trans,"visited":"no"}
-    baserequest= {"action": "register","sysinfo": {"mac": mac,"token": ""},
-	   "visited": "no"}
+    baserequest= {"action": "register","sysinfo": {"mac": mac.strip(),"token": ""},
+                   "visited": "no"}
     try:
         baserequest=wrap(str(baserequest),omgall)
         connectresponse = connectingls(baserequest)
@@ -2156,7 +2389,7 @@ def basecheckonls():
                 baseresponse = ndacinfo
                 baseresponse['sysinfo']['tkn']=actresp['lsinfotondac']['lstokentondac'];
 ##                baseresponse['sysinfo']['tkn']='';
-                baseresponse['sysinfo']['mac']=mac;
+                baseresponse['sysinfo']['mac']=mac.strip();
                 baseresponse['action']=actresp['action']
 ##                print 'NDAC info:::\n\n',baseresponse
                 wrappedbaseresponse=wrap(str(baseresponse),mine)
@@ -2172,51 +2405,10 @@ def basecheckonls():
         else:
             app.logger.error("Unable to connect to Server")
     except Exception as e:
-        import traceback
-        traceback.print_exc()
-        app.logger.critical("Unable to contact storage areas")
-    return basecheckstatus
-
-def modelinfoprocessor(processingdata):
-    modelinfo=[]
-    try:
-        bgnyesday = getbgntime('prev',datetime.now())
-        bgnoftday = getbgntime('curr',datetime.now())
-        daybforedate=''
-        if (processingdata['btchinfo']['btchstts'] == 'error' or
-            processingdata['btchinfo']['btchstts'] == ''):
-            daybforedate=getbgntime('daybefore',datetime.now())
-        if daybforedate != '':
-            for days in range(0,2):
-                bgnts=gettimestamp(daybforedate)
-                endts=gettimestamp(bgnyesday)
-##                print bgnts
-##                print endts
-                resultset=getexecs_in_day(bgnts,endts)
-                modelinfo.append(dataprocessor(resultset,daybforedate,bgnyesday))
-                daybforedate=bgnyesday
-                bgnyesday=bgnoftday
-        else:
-            bgnts=gettimestamp(bgnyesday)
-            endts=gettimestamp(bgnoftday)
-##            print bgnts
-##            print endts
-            resultset=getexecs_in_day(bgnts,endts)
-            modelinfo.append(dataprocessor(resultset,bgnyesday,bgnoftday))
-    except Exception as e:
 ##        import traceback
 ##        traceback.print_exc()
-        app.logger.critical("Unable to contact storage areas 3")
-    return modelinfo
-
-def gettimestamp(date):
-    timestampdata=''
-    import time
-    import calendar
-##    print time.strftime(str(date))
-    date= datetime.strptime(str(date),"%Y-%m-%d %H:%M:%S")
-    timestampdata = calendar.timegm(date.utctimetuple()) * 1000
-    return timestampdata
+        app.logger.critical("Unable to contact storage areas")
+    return basecheckstatus
 
 def updateonls():
     global lsondayone
@@ -2229,8 +2421,10 @@ def updateonls():
         modelinfo={}
         updaterequest['sysinfo'] = processingdata['sysinfo']
         updaterequest['modelinfo']=modelinfo
+##        modelinfores = modelinfoprocessor(processingdata)
+##        updaterequest['modelinfo']['execs_in_day']=modelinfores
         modelinfores = modelinfoprocessor(processingdata)
-        updaterequest['modelinfo']['execs_in_day']=modelinfores
+        updaterequest['modelinfo'] = modelinfores
         updaterequest['action'] = 'update'
         wrappedupdaterequest=wrap(str(updaterequest),omgall)
         updateresponse = connectingls(wrappedupdaterequest)
@@ -2329,40 +2523,6 @@ def getbgntime(requiredday,currentday):
     elif requiredday == 'indate':
         day=datetime.datetime(currentday.year, currentday.month, currentday.day,0,0,0,0)
     return day
-
-def getexecs_in_day(bgnts,endts):
-    res = {"rows":"fail"}
-    try:
-        query=("select * from reports where executedtime  >= "
-            +str(bgnts)+" and executedtime <= "+str(endts)+" allow filtering;")
-        queryresult = icesession.execute(query)
-    ##    print queryresult.current_rows
-        res= {"rows":queryresult.current_rows}
-    except Exception as getexecs_in_dayexc:
-        import traceback
-        traceback.print_exc()
-        app.logger.critical("Unable to contact storage areas 2")
-    return res
-
-def dataprocessor(resultset,fromdate,todate):
-    processorres = False
-    count = 0
-    try:
-        eachexecs_in_day={"execs":"","time":""}
-        curr=datetime.now()
-        if resultset['rows'] != 'fail':
-            for eachrow in resultset['rows']:
-                exectime=eachrow['executedtime']
-                if exectime != None:
-                    if (exectime >= fromdate and exectime < todate):
-                        count = count + 1
-        eachexecs_in_day['time'] = str(todate)
-        eachexecs_in_day['execs'] = str(count)
-    except Exception as dataprocessorexc:
-##        import traceback
-##        traceback.print_exc()
-        app.logger.critical("Unable to perform internal actions")
-    return eachexecs_in_day
 
 def connectingls(data):
     try:
