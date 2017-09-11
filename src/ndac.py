@@ -10,7 +10,7 @@
 #-------------------------------------------------------------------------------
 import sys
 import os
-sys.path.append('./packages/Lib/site-packages')
+#sys.path.append('./packages/Lib/site-packages')
 import json
 import requests
 import subprocess
