@@ -52,7 +52,7 @@ from cassandra.auth import PlainTextAuthProvider
 dbup = False
 try:
     auth = PlainTextAuthProvider(username=ndac_conf['ndac']['dbusername'], password=ndac_conf['ndac']['dbpassword'])
-    cluster = Cluster([ndac_conf['ndac']['databaseip']],auth_provider=auth)
+    cluster = Cluster([ndac_conf['ndac']['databaseip']],port=int(ndac_conf['ndac']['dbport']),auth_provider=auth)
 
     icesession = cluster.connect()
     n68session = cluster.connect()
