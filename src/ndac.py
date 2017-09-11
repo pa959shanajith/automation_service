@@ -8,6 +8,9 @@
 # Copyright:   (c) vishvas.a 2017
 # Licence:     <your licence>
 #-------------------------------------------------------------------------------
+import sys
+import os
+#sys.path.append('./packages/Lib/site-packages')
 import json
 import requests
 import subprocess
@@ -18,7 +21,7 @@ handler=''
 
 from datetime import datetime
 import uuid
-import sys
+
 import ast
 
 from flask import Flask, request , jsonify
@@ -28,25 +31,28 @@ app = Flask(__name__)
 
 import argparse
 parser = argparse.ArgumentParser()
-parser.add_argument("-k","--verbosity", type=str, help="offline user"
+parser.add_argument("-k","--verbosity", type=str, help="home user"
                     +"registration. Provide the offline registration filename")
 args = parser.parse_args()
 
-import os
-os.chdir("..")
-#nineteen68 folder location is parent directory
-parentdir=os.getcwd()
-config_path = parentdir+'\\server config.json'
-rest_config = json.loads(open(config_path).read())
 
-lsip = rest_config['ndac']['licenseserver']
+##os.chdir("..")
+#nineteen68 folder location is parent directory
+currdir=os.getcwd()
+config_path = currdir+'/server_config.json'
+assistpath = currdir + "/ndac_internals/assist"
+logspath= currdir + "/ndac_internals/logs"
+
+ndac_conf = json.loads(open(config_path).read())
+
+lsip = ndac_conf['ndac']['licenseserver']
 from cassandra.cluster import Cluster
 from flask_cassandra import CassandraCluster
 from cassandra.auth import PlainTextAuthProvider
 dbup = False
 try:
-    auth = PlainTextAuthProvider(username=rest_config['ndac']['dbusername'], password=rest_config['ndac']['dbpassword'])
-    cluster = Cluster([rest_config['ndac']['databaseip']],auth_provider=auth)
+    auth = PlainTextAuthProvider(username=ndac_conf['ndac']['dbusername'], password=ndac_conf['ndac']['dbpassword'])
+    cluster = Cluster([ndac_conf['ndac']['databaseip']],port=int(ndac_conf['ndac']['dbport']),auth_provider=auth)
 
     icesession = cluster.connect()
     n68session = cluster.connect()
@@ -56,6 +62,7 @@ try:
     from cassandra.query import dict_factory
     icesession.row_factory = dict_factory
     icesession.set_keyspace('icetestautomation')
+
     n68session.row_factory = dict_factory
     n68session.set_keyspace('nineteen68')
     dbup = True
@@ -70,6 +77,13 @@ onlineuser = False
 usersession = False
 lsondayone = ""
 lsondaytwo = ""
+
+#counters for License
+debugcounter = 0
+scenarioscounter = 0
+gtestsuiteid = []
+suitescounter = 0
+
 #server check
 @app.route('/')
 def server_ready():
@@ -829,6 +843,9 @@ def readTestCase_ICE():
                 readtestcasequery2 = ("select screenid,testcasename,testcasesteps"
                 +" from testcases where testcaseid="+ requestdata['testcaseid'])
                 queryresult = icesession.execute(readtestcasequery2)
+                count = debugcounter + 1
+                userid = requestdata['userid']
+                counterupdator('testcases',userid,count)
             elif(requestdata['query'] == "screenid"):
                 readtestcasequery3 = ("select testcaseid,testcasename,testcasesteps "
                 +"from testcases where screenid=" + requestdata['screenid'])
@@ -1174,6 +1191,11 @@ def ExecuteTestSuite_ICE() :
                 executetestsuitequery1=("select testcaseids from testscenarios where"
                 +" testscenarioid=" + requestdata['testscenarioid'])
                 queryresult = icesession.execute(executetestsuitequery1)
+                global scenarioscounter
+                scenarioscounter = 0
+                userid=requestdata['userid']
+                scenarioscounter = scenarioscounter + 1
+                counterupdator('testscenarios',userid,scenarioscounter)
             elif(requestdata['query'] == 'testcasesteps'):
                 executetestsuitequery2=("select screenid from testcases where "
                 +"testcaseid="+ requestdata['testcaseid'])
@@ -1900,6 +1922,29 @@ def encrypt_ICE():
         app.logger.error('Error in encrypt_ICE.')
         return str(res)
 
+#directly updates license data
+@app.route('/utility/dataUpdator_ICE',methods=['POST'])
+def dataUpdator_ICE():
+    res={'rows':'fail'}
+    try:
+        requestdata=json.loads(request.data)
+        if not isemptyrequest(requestdata):
+            if requestdata['query'] == 'testsuites':
+                count = requestdata['count']
+                userid = requestdata['userid']
+                response = counterupdator('testsuites',userid,count)
+                if response != True:
+                    res={'rows':'fail'}
+                else:
+                    res={'rows':'success'}
+            else:
+                res = {'rows':'fail'}
+        else:
+            app.logger.error('Empty data received. Data Updator.')
+    except Exception as exporttojsonexc:
+        app.logger.error('Error in dataUpdator_ICE.')
+    return jsonify(res)
+
 ################################################################################
 # END OF UTILITIES
 ################################################################################
@@ -1911,47 +1956,58 @@ def encrypt_ICE():
 #Prof J First Service: Getting Best Matches
 @app.route('/chatbot/getTopMatches_ProfJ',methods=['POST'])
 def getTopMatches_ProfJ():
-    #print "getting top matches for ya.."
-    #print request.data
-    query = str(request.data)
-    global newQuesInfo
-    global savedQueries
+    try:
+##        print "getting top matches for ya.."
+##        print request.data
+        query = str(request.data)
+        global newQuesInfo
+        global savedQueries
 
-    #Importing Modules for Prof J
-    from keyword_matcher import ProfJ
-    import xlrd
-    from collections import OrderedDict
-    import simplejson as json
-    from nltk.stem import PorterStemmer
+        #Importing Modules for Prof J
+
+    ##    import xlrd
+##        from collections import OrderedDict
+##        import simplejson as json
+
+##        from nltk.stem import PorterStemmer
 
 
-    #Step 2 Matching query with Data
-    profj = ProfJ(pages,questions,answers,keywords,weights,pquestions,newQuesInfo,savedQueries)
-    response,newQuesInfo,savedQueries = profj.start(query)
-    if response[0][1] == "Please be relevant..I work soulfully for Nineteen68":
-        response[0][1] = str(chatbot.get_response(query))
-##    print "---------------The status of global variable---------------"
-##    print "newQuesInfo after this query: ",newQuesInfo
-##    print "State of saved query after this query: ",savedQueries
-##    print"------------------------------------------------------------"
-    res={'rows':response}
-    return jsonify(res)
+        #Step 2 Matching query with Data
+        profj = ProfJ(pages,questions,answers,keywords,weights,pquestions,newQuesInfo,savedQueries)
+        response,newQuesInfo,savedQueries = profj.start(query)
+        #if response[0][1] == "Please be relevant..I work soulfully for Nineteen68":
+            #response[0][1] = str(chatbot.get_response(query))
+##        print "---------------The status of global variable---------------"
+##        print "newQuesInfo after this query: ",newQuesInfo
+##        print "State of saved query after this query: ",savedQueries
+##        print"------------------------------------------------------------"
+        res={'rows':response}
+        return jsonify(res)
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        res={'rows':'fail'}
 
 #Prof J Second Service: Updating the Question's Frequency
 @app.route('/chatbot/updateFrequency_ProfJ',methods=['POST'])
 def updateFrequency_ProfJ():
-    #print "updating the frequency.."
-    #print request.data
-    qid = request.data
-    weights[int(qid)] += 1
-    #print weights[int(qid)]
-    temp = []
-    temp.append(qid)
-    temp.append(weights[int(qid)])
-   # print(weights[int(qid)])
-    response = True
-    res={'rows': response}
-    return jsonify(res)
+    try:
+##        print "updating the frequency.."
+##        print request.data
+        qid = request.data
+        weights[int(qid)] += 1
+##        print weights[int(qid)]
+        temp = []
+        temp.append(qid)
+        temp.append(weights[int(qid)])
+##        print(weights[int(qid)])
+        response = True
+        res={'rows': response}
+        return jsonify(res)
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        res={'rows':'fail'}
 
 ##################################################
 # END OF CHATBOT
@@ -1982,25 +2038,19 @@ query['testcase_details']='select * from testcases where testcaseid='
 numberofdays=1
 omgall="\x4e\x69\x6e\x65\x74\x65\x65\x6e\x36\x38\x6e\x64\x61\x74\x63\x6c\x69\x63\x65\x6e\x73\x69\x6e\x67"
 ndacinfo = {
-	"action": "",
-	"sysinfo": {
-		"mac": "",
-		"tkn": ""
-	},
-	"btchinfo": {
-		"prevbtch": {
-			"prevbtchtym": "",
-			"prevbtchmsg": ""
-		},
-		"nxtbtch": "",
-		"btchstts": ""
-	},
-	"modelinfo": {
-		"execs_in_day": [{
-			"time": "",
-			"execs": ""
-		}]
-	}
+                "action": "",
+                "sysinfo": {"mac": "","tkn": ""},
+                "btchinfo": {
+                                "prevbtch": {"prevbtchtym": "","prevbtchmsg": ""},
+                                "nxtbtch": "",
+                                "btchstts": ""
+                },
+                "modelinfo": {
+                                "reports_in_day": [{"day": "","reprt_cnt": ""}],
+        "suites_init":[{"day":"","suite_cnt":"","usr_data":[{"id":"","rns":""}]}],
+                                "cnario_init":[{"day":"","cnario_cnt":"","usr_data":[{"id":"","rns":""}]}],
+                                "tcases_init":[{"day":"","tcases_cnt":"","usr_data":[{"id":"","rns":""}]}]
+                }
 }
 
 ###########################
@@ -2096,11 +2146,202 @@ def get_delete_query(node_id,node_name,node_version_number,node_parentid,project
 ############################
 # END OF GENERIC FUNCTIONS
 ############################
+################################################################################
+# BEGIN OF COUNTERS
+################################################################################
+def counterupdator(updatortype,userid,count):
+    status=False
+    try:
+        beginingoftime = datetime.utcfromtimestamp(0)
+        currentdateindays = getbgntime('curr',datetime.now()) - beginingoftime
+        currentdate = long(currentdateindays.total_seconds() * 1000.0)
+        updatorarray = ["update counters set counter=counter + ",
+                    " where counterdate= "," and userid = "," and countertype= ",";"]
+        updatequery=(updatorarray[0]+str(count)+updatorarray[1]
+                    +str(currentdate)+updatorarray[2]+userid+updatorarray[3]+"'"
+                    +updatortype+"'"+updatorarray[4])
+        icesession.execute(updatequery)
+        status = True
+    except Exception as counterupdatorexc:
+##        import traceback
+##        traceback.print_exc()
+        app.logger.error('Error in counterupdatorexc.')
+    return status
 
-###################################
-# START LICENSING SERVER COMPONENTS
-###################################
+def getreports_in_day(bgnts,endts):
+    res = {"rows":"fail"}
+    try:
+        query=("select * from reports where executedtime  >= "
+            +str(bgnts)+" and executedtime <= "+str(endts)+" allow filtering;")
+        queryresult = icesession.execute(query)
+    ##    print queryresult.current_rows
+        res= {"rows":queryresult.current_rows}
+    except Exception as getreports_in_dayexc:
+##        import traceback
+##        traceback.print_exc()
+        app.logger.critical("Unable to contact storage areas 2 reports")
+    return res
 
+def getsuites_inititated(bgnts,endts):
+    res = {"rows":"fail"}
+    try:
+        suitequery=("select * from counters where counterdate >= "+str(bgnts)
+        +" and counterdate < "+str(endts)
+        +" and countertype='testsuites' ALLOW FILTERING;")
+        queryresult = icesession.execute(suitequery)
+        res= {"rows":queryresult.current_rows}
+
+    except Exception as getsuites_inititatedexc:
+##        import traceback
+##        traceback.print_exc()
+        app.logger.critical("Unable to contact storage areas 2 suites")
+    return res
+
+def getscenario_inititated(bgnts,endts):
+    res = {"rows":"fail"}
+    try:
+        scenarioquery=("select * from counters where counterdate >= "+str(bgnts)
+        +" and counterdate < "+str(endts)
+        +" and countertype='testscenarios' ALLOW FILTERING;")
+        queryresult = icesession.execute(scenarioquery)
+        res= {"rows":queryresult.current_rows}
+    except Exception as getscenario_inititatedexc:
+##        import traceback
+##        traceback.print_exc()
+        app.logger.critical("Unable to contact storage areas 2 scenarios")
+    return res
+
+def gettestcases_inititated(bgnts,endts):
+    res = {"rows":"fail"}
+    try:
+        testcasesquery=("select * from counters where counterdate >= "+str(bgnts)
+        +" and counterdate < "+str(endts)
+        +" and countertype='testcases' ALLOW FILTERING;")
+        queryresult = icesession.execute(testcasesquery)
+        res = {"rows":queryresult.current_rows}
+
+    except Exception as gettestcases_inititatedexc:
+##        import traceback
+##        traceback.print_exc()
+        app.logger.critical("Unable to contact storage areas 2 cases")
+    return res
+
+def modelinfoprocessor(processingdata):
+    modelinfo={}
+    try:
+        bgnyesday = getbgntime('prev',datetime.now())
+        bgnoftday = getbgntime('curr',datetime.now())
+        daybforedate=''
+        if (processingdata['btchinfo']['btchstts'] == 'error' or
+            processingdata['btchinfo']['btchstts'] == ''):
+            daybforedate=getbgntime('daybefore',datetime.now())
+        suiteinfo=[]
+        cnarioinfo=[]
+        tcasesinfo=[]
+        if daybforedate != '':
+            for days in range(0,2):
+                bgnts=gettimestamp(daybforedate)
+                endts=gettimestamp(bgnyesday)
+##                print bgnts
+##                print endts
+                resultset=getreports_in_day(bgnts,endts)
+                modelinfo['reports_in_day']=reportdataprocessor(resultset,daybforedate,bgnyesday)
+                suiteinfo.append(dataprocessor('testsuites',bgnts,endts,bgnyesday))
+                cnarioinfo.append(dataprocessor('testscenarios',bgnts,endts,bgnyesday))
+                tcasesinfo.append(dataprocessor('testcases',bgnts,endts,bgnyesday))
+                modelinfo['suites_init'] = suiteinfo
+                modelinfo['cnario_init'] = cnarioinfo
+                modelinfo['tcases_init'] = tcasesinfo
+                daybforedate=bgnyesday
+                bgnyesday=bgnoftday
+        else:
+            bgnts=gettimestamp(bgnyesday)
+            endts=gettimestamp(bgnoftday)
+##            print bgnts
+##            print endts
+            resultset=getreports_in_day(bgnts,endts)
+            modelinfo['reports_in_day']=reportdataprocessor(resultset,bgnyesday,bgnoftday)
+            suiteinfo.append(dataprocessor('testsuites',bgnts,endts,bgnoftday))
+            cnarioinfo.append(dataprocessor('testscenarios',bgnts,endts,bgnoftday))
+            tcasesinfo.append(dataprocessor('testcases',bgnts,endts,bgnoftday))
+            modelinfo['suites_init'] = suiteinfo
+            modelinfo['cnario_init'] = cnarioinfo
+            modelinfo['tcases_init'] = tcasesinfo
+    except Exception as e:
+##        import traceback
+##        traceback.print_exc()
+        app.logger.critical("Unable to contact storage areas 3")
+    return modelinfo
+
+def dataprocessor(datatofetch,fromdate,todate,date):
+    respobj={}
+    total_cnt=0
+    dataresp=''
+    try:
+        if datatofetch == 'testsuites':
+            dataresp=getsuites_inititated(fromdate,todate)
+            usr_data=[]
+            for eachrow in dataresp['rows']:
+                userin_data={}
+                userin_data['rns'] = str(eachrow['counter'])
+                total_cnt = total_cnt + int(eachrow['counter'])
+                userin_data['id'] = str(eachrow['userid'])
+                usr_data.append(userin_data)
+            respobj['suite_cnt'] = str(total_cnt)
+        elif datatofetch == 'testscenarios':
+            dataresp=getscenario_inititated(fromdate,todate)
+            usr_data=[]
+            for eachrow in dataresp['rows']:
+                userin_data={}
+                userin_data['rns'] = str(eachrow['counter'])
+                total_cnt = total_cnt + int(eachrow['counter'])
+                userin_data['id'] = str(eachrow['userid'])
+                usr_data.append(userin_data)
+            respobj['cnario_cnt'] = str(total_cnt)
+        elif datatofetch == 'testcases':
+            dataresp=gettestcases_inititated(fromdate,todate)
+            usr_data=[]
+            for eachrow in dataresp['rows']:
+                userin_data={}
+                userin_data['rns'] = str(eachrow['counter'])
+                total_cnt = total_cnt + int(eachrow['counter'])
+                userin_data['id'] = str(eachrow['userid'])
+                usr_data.append(userin_data)
+            respobj['tcases_cnt'] = str(total_cnt)
+        respobj['day'] = str(date)
+        respobj['usr_data'] = usr_data
+    except Exception as dataprocessorexc:
+##        import traceback
+##        traceback.print_exc()
+        app.logger.critical("Unable to contact storage areas 4")
+    return respobj
+
+def reportdataprocessor(resultset,fromdate,todate):
+    processorres = False
+    count = 0
+    try:
+        eachreports_in_day={"reprt_cnt":"","day":""}
+        curr=datetime.now()
+        if resultset['rows'] != 'fail':
+            for eachrow in resultset['rows']:
+                exectime=eachrow['executedtime']
+                if exectime != None:
+                    if (exectime >= fromdate and exectime < todate):
+                        count = count + 1
+        eachreports_in_day['day'] = str(todate)
+        eachreports_in_day['reprt_cnt'] = str(count)
+    except Exception as reportdataprocessorexc:
+##        import traceback
+##        traceback.print_exc()
+        app.logger.critical("Unable to perform internal actions")
+    return eachreports_in_day
+
+################################################################################
+# END OF COUNTERS
+################################################################################
+################################################################################
+# START LICENSING COMPONENTS
+################################################################################
 def getMacAddress():
     mac=''
     if sys.platform == 'win32':
@@ -2118,13 +2359,22 @@ def getMacAddress():
                 break
     return mac
 
+def gettimestamp(date):
+    timestampdata=''
+    import time
+    import calendar
+##    print time.strftime(str(date))
+    date= datetime.strptime(str(date),"%Y-%m-%d %H:%M:%S")
+    timestampdata = calendar.timegm(date.utctimetuple()) * 1000
+    return timestampdata
+
 
 def basecheckonls():
     basecheckstatus=False
 ##    print mac
 ##    data= {"action":"register","sysinfo":physical_trans,"visited":"no"}
-    baserequest= {"action": "register","sysinfo": {"mac": mac,"token": ""},
-	   "visited": "no"}
+    baserequest= {"action": "register","sysinfo": {"mac": mac.strip(),"token": ""},
+                   "visited": "no"}
     try:
         baserequest=wrap(str(baserequest),omgall)
         connectresponse = connectingls(baserequest)
@@ -2139,7 +2389,7 @@ def basecheckonls():
                 baseresponse = ndacinfo
                 baseresponse['sysinfo']['tkn']=actresp['lsinfotondac']['lstokentondac'];
 ##                baseresponse['sysinfo']['tkn']='';
-                baseresponse['sysinfo']['mac']=mac;
+                baseresponse['sysinfo']['mac']=mac.strip();
                 baseresponse['action']=actresp['action']
 ##                print 'NDAC info:::\n\n',baseresponse
                 wrappedbaseresponse=wrap(str(baseresponse),mine)
@@ -2155,51 +2405,10 @@ def basecheckonls():
         else:
             app.logger.error("Unable to connect to Server")
     except Exception as e:
-        import traceback
-        traceback.print_exc()
-        app.logger.critical("Unable to contact storage areas")
-    return basecheckstatus
-
-def modelinfoprocessor(processingdata):
-    modelinfo=[]
-    try:
-        bgnyesday = getbgntime('prev',datetime.now())
-        bgnoftday = getbgntime('curr',datetime.now())
-        daybforedate=''
-        if (processingdata['btchinfo']['btchstts'] == 'error' or
-            processingdata['btchinfo']['btchstts'] == ''):
-            daybforedate=getbgntime('daybefore',datetime.now())
-        if daybforedate != '':
-            for days in range(0,2):
-                bgnts=gettimestamp(daybforedate)
-                endts=gettimestamp(bgnyesday)
-##                print bgnts
-##                print endts
-                resultset=getexecs_in_day(bgnts,endts)
-                modelinfo.append(dataprocessor(resultset,daybforedate,bgnyesday))
-                daybforedate=bgnyesday
-                bgnyesday=bgnoftday
-        else:
-            bgnts=gettimestamp(bgnyesday)
-            endts=gettimestamp(bgnoftday)
-##            print bgnts
-##            print endts
-            resultset=getexecs_in_day(bgnts,endts)
-            modelinfo.append(dataprocessor(resultset,bgnyesday,bgnoftday))
-    except Exception as e:
 ##        import traceback
 ##        traceback.print_exc()
-        app.logger.critical("Unable to contact storage areas 3")
-    return modelinfo
-
-def gettimestamp(date):
-    timestampdata=''
-    import time
-    import calendar
-##    print time.strftime(str(date))
-    date= datetime.strptime(str(date),"%Y-%m-%d %H:%M:%S")
-    timestampdata = calendar.timegm(date.utctimetuple()) * 1000
-    return timestampdata
+        app.logger.critical("Unable to contact storage areas")
+    return basecheckstatus
 
 def updateonls():
     global lsondayone
@@ -2212,8 +2421,10 @@ def updateonls():
         modelinfo={}
         updaterequest['sysinfo'] = processingdata['sysinfo']
         updaterequest['modelinfo']=modelinfo
+##        modelinfores = modelinfoprocessor(processingdata)
+##        updaterequest['modelinfo']['execs_in_day']=modelinfores
         modelinfores = modelinfoprocessor(processingdata)
-        updaterequest['modelinfo']['execs_in_day']=modelinfores
+        updaterequest['modelinfo'] = modelinfores
         updaterequest['action'] = 'update'
         wrappedupdaterequest=wrap(str(updaterequest),omgall)
         updateresponse = connectingls(wrappedupdaterequest)
@@ -2313,40 +2524,6 @@ def getbgntime(requiredday,currentday):
         day=datetime.datetime(currentday.year, currentday.month, currentday.day,0,0,0,0)
     return day
 
-def getexecs_in_day(bgnts,endts):
-    res = {"rows":"fail"}
-    try:
-        query=("select * from reports where executedtime  >= "
-            +str(bgnts)+" and executedtime <= "+str(endts)+" allow filtering;")
-        queryresult = icesession.execute(query)
-    ##    print queryresult.current_rows
-        res= {"rows":queryresult.current_rows}
-    except Exception as getexecs_in_dayexc:
-        import traceback
-        traceback.print_exc()
-        app.logger.critical("Unable to contact storage areas 2")
-    return res
-
-def dataprocessor(resultset,fromdate,todate):
-    processorres = False
-    count = 0
-    try:
-        eachexecs_in_day={"execs":"","time":""}
-        curr=datetime.now()
-        if resultset['rows'] != 'fail':
-            for eachrow in resultset['rows']:
-                exectime=eachrow['executedtime']
-                if exectime != None:
-                    if (exectime >= fromdate and exectime < todate):
-                        count = count + 1
-        eachexecs_in_day['time'] = str(todate)
-        eachexecs_in_day['execs'] = str(count)
-    except Exception as dataprocessorexc:
-##        import traceback
-##        traceback.print_exc()
-        app.logger.critical("Unable to perform internal actions")
-    return eachexecs_in_day
-
 def connectingls(data):
     try:
         connectionstatus=False
@@ -2427,7 +2604,7 @@ def dataholder(data,querytype):
     try:
         dataholderresp=False
         #connect to a database(creates if doesnt exist)
-        conn = sqlite3.connect(parentdir+"/Portable_python/ndac/logs/data.db")
+        conn = sqlite3.connect(logspath+"/data.db")
         #create cursor
         cursor = conn.cursor()
         if querytype == 'update':
@@ -2505,15 +2682,172 @@ def wrap(data, key, iv='0'*16):
 
 #Saving assist data in global variables
 #Step 1 Loading Data from JSON
-try:
-    import sys
-    base = os.getcwd()
-    path = base + "\\Portable_python\\ndac\\src\\assist"
-    sys.path.append(path)
-    from SQLite_DataSetups import SQLite_DataSetup
-    import sqlite3
-except:
-    app.logger.error('Error in accessing assist files..')
+##try:
+##    import sys
+##    base = os.getcwd()
+##    #path = base + "\\Portable_python\\ndac\\src\\assist"
+##    #sys.path.append(path)
+
+##    import sqlite3
+##except:
+##    app.logger.error('Error in accessing assist files..')
+
+
+#Setting up Data
+##try:
+    # File to read the Data from SQLite File into an array.
+##    import sqlite3
+##except:
+##    print "Error Imprting module sqlite."
+
+
+class SQLite_DataSetup():
+    try:
+        def __init__(self):
+            self.questions=[] # to store the questions
+            self.pages=[] # to store the pages
+            self.keywords=[] # to store the keywords
+            self.weightages=[] # to store the weightages
+            self.answers=[] # to store the answers
+            self.pquestions=[] #preprocessed questions
+            self.newQuesInfo=[] #list to store relevant info about new questions
+    except:
+        app.logger.error("Error in __init__ function.")
+
+
+
+        # Function to Load Data using JSON file.
+    def loadData(self):
+       # print "wfsdvaqusgwnqbwh"
+##        import os
+        #print "OS.cwd()------------",os.getcwd()
+##        base = os.getcwd()
+##        print 'base',base
+        path = assistpath + "/ProfJ.db"
+        conn = sqlite3.connect(path)
+        c = conn.cursor()
+           # print data
+
+        # Preparing the lists
+        for row in c.execute('SELECT * FROM mainDB'):
+
+            self.weightages.append(int(row[1]))
+            self.questions.append(row[2])
+            self.answers.append(row[3])
+
+            self.keywords.append(row[4])
+            self.pages.append(row[5])
+
+            self.pquestions.append(row[6])
+
+
+        for col in c.execute('SELECT * FROM NewQuestions'):
+            info =[]
+            info.append(col[1])
+            info.append(col[2])
+            info.append(col[3])
+
+            self.newQuesInfo.append(info)
+        conn.close()
+
+
+
+
+    try:
+        # Function to get the Pages.
+        def getPages(self):
+            return self.pages
+    except:
+
+        app.logger.error("Error in getPages()")
+
+    try:
+        # Function to return the Questions.
+        def getQuestions(self):
+            return self.questions
+    except:
+        app.logger.error("Error in getQuestions()")
+
+    try:
+        # Function to return the Answers.
+        def getAnswers(self):
+            return self.answers
+    except:
+        app.logger.error("Error in getAnswers()")
+
+    try:
+        # Function to retun the Weights.
+        def getWeightages(self):
+            return self.weightages
+    except:
+        app.logger.error("Error in getWeightages()")
+
+    try:
+        # Function to return Keywords.
+        def getKeywords(self):
+            return self.keywords
+    except:
+        app.logger.error("Error in getKeywords()")
+
+    try:
+        # Function to get the Processed Questions.
+        def getPQuestions(self):
+            return self.pquestions
+    except:
+        app.logger.error("Error in getPQuestions()")
+
+    try:
+        # Function to get the New Questions.
+        def getNewQuesInfo(self):
+            return self.newQuesInfo
+    except:
+        app.logger.error("Error in getNewQuesInfo()")
+
+    try:
+        # Function to update the captured Queries.
+        def updateCaptureTable(self,savedQueries):
+            t = []
+            for list in savedQueries:
+                temp = []
+                temp.append(list[0])
+                temp.append(list[1])
+                temp1 = tuple(temp)
+                t.append(temp1)
+            #print t
+            #inserting values in table:
+            conn = sqlite3.connect('ProfJ.db')
+            c = conn.cursor()
+            c.executemany('INSERT INTO CapturedQueries VALUES (?,?)', t)
+            conn.commit()
+##            for row in c.execute('SELECT * FROM CapturedQueries'):
+##                print row
+            conn.close()
+            return savedQueries
+    except:
+        app.logger.error("Error in updateCaptureTable()")
+##
+##    try:
+##            # Function to update the weightages in Database[Used periodically by thread].
+##            def updateWeightages(self,weightages):
+##                print "inside update weightages..."
+##                conn = sqlite3.connect('ProfJ.db')
+##                c = conn.cursor()
+##                for i in range(len(weightages)):
+##                    c.execute('UPDATE mainDB SET Weightage= ? WHERE qid = ?',(weightage[i],i))
+##                conn.commit()
+##                conn.close()
+##                return True
+##    except:
+##            print "Error in updateCaptureTable()"
+
+    try:
+        # Function to update the new questions in the database.
+        def updateCaptureTable(self):
+            return True
+    except:
+        app.logger.error("Error in updateCaptureTable()")
+
+
 try:
     ds = SQLite_DataSetup()
     ds.loadData()
@@ -2529,33 +2863,38 @@ try:
     savedQueries = [[]]
     updateW = [[]]
 except:
-        app.logger.error('Unable to use assist module SQLite_DataSetups..')
+    import traceback
+    traceback.print_exc()
+    app.logger.error('Unable to use assist module SQLite_DataSetups..')
 
 
 #Training the Bot
 
-try:
-    chatbot = 0
-    import threading
-    def trainProfJ():
-        try:
-            from chatterbot import ChatBot
-        except:
-            app.logger.error('Portable python used doesnot have chatterbot module..please ask for latest portable python')
-        global chatbot
+#try:
+    #chatbot = 0
+    #import threading
+    #def trainProfJ():
+
+        #try:
+            #from chatterbot import ChatBot
+        #except:
+            #app.logger.error('Portable python used doesnot have chatterbot module..please ask for latest portable python')
+        #global chatbot
         #print "starting training parallely"
-        chatbot = ChatBot(
-            'Prof J',
-            trainer='chatterbot.trainers.ChatterBotCorpusTrainer'
-        )
+        #chatbot = ChatBot(
+
+            #'Prof J',
+            #trainer='chatterbot.trainers.ChatterBotCorpusTrainer'
+
+        #)
         #Train based on the english corpus
-        chatbot.train("chatterbot.corpus.english")
+        #chatbot.train("chatterbot.corpus.english")
        # print "chatbot training successfully completed.."
 
     #Starting chatbot training Parallely
-    threading.Thread(target = trainProfJ).start()
-except:
-    app.logger.error('Unable to train chatbot..Ensure that you have chatterbot modules in Portable Python')
+    #threading.Thread(target = trainProfJ).start()
+#except:
+    #app.logger.error('Unable to train chatbot..Ensure that you have chatterbot modules in Portable Python')
 
 
 #Updating the sqlite database
@@ -2563,27 +2902,227 @@ updateTime = 60
 def updateWeightages():
     try:
         global weights
-        #print "inside update weightages..."
+##        print "inside update weightages..."
         base = os.getcwd()
-        path = base + "\\Portable_python\\ProfJ.db"
+
+        path = assistpath+"/ProfJ.db"
         conn = sqlite3.connect(path)
         c = conn.cursor()
-        #print "thread called the function...in every : ",updateTime, " seconds"
+##        print "thread called the function...in every : ",updateTime, " seconds"
         for i in range(len(weights)):
             c.execute('UPDATE mainDB SET Weightage= ? WHERE qid = ?',(weights[i],i))
         conn.commit()
         conn.close()
         return True
     except:
+        import traceback
+        traceback.print_exc()
         app.logger.error('Cannot update weightages in ProfJ database')
 #Invoking parallel thread which will update the weightages of the questions in the DB
 try:
-    from  RepeatedTimer import repeatedTimer
+
+    from threading import Timer,Thread,Event
+    class repeatedTimer():
+
+       def __init__(self,t,hFunction):
+          self.t=t
+          self.hFunction = hFunction
+          self.thread = Timer(self.t,self.handle_function)
+
+       def handle_function(self):
+          self.hFunction()
+          self.thread = Timer(self.t,self.handle_function)
+          self.thread.start()
+
+       def start(self):
+          self.thread.start()
+
+       def cancel(self):
+          self.thread.cancel()
 
     updaterThread = repeatedTimer(updateTime,updateWeightages)
     updaterThread.start()
 except:
+    import traceback
+    traceback.print_exc()
     app.logger.error('Cannot access repeatedTimer Module..or it can not call periodic function to update the weightage.')
+
+
+try:
+    import logging
+    import logging.config
+    from nltk.stem import PorterStemmer
+    import simplejson
+except:
+    import traceback
+    traceback.print_exc()
+    app.logger.error("Error in importing core modules ProfJ")
+
+class ProfJ():
+
+    def Preprocess(self,query_string):
+        #creating configuration for logging
+##        import os
+        #print "OS.cwd()------------",os.getcwd()
+##        base = os.getcwd()
+##        print 'BASE in profJ',base
+        path = assistpath + "/logging_config.conf"
+        logging.config.fileConfig(path,disable_existing_loggers=False)
+
+        # Create logger object. This will be used for logging.
+        logger = logging.getLogger("ProfJ")
+
+        logger.info("Qustion asked is "+query_string)
+
+        #Step 1: Punctuations Removal
+        query1_str = "".join(c for c in query_string if c not in ('@','!','.',':','>','<','"','\'','?','*','/','&','(',')','-'))
+##        print "Query after Step 1 of processing:[punctuations removed] ",query1_str
+
+        #Step 2: Converting string into lowercase
+        query2 = [w.lower() for w in query1_str.split()]
+        query2_str = " ".join(query2)
+##        print "Query after Step 2 of processing:[lower Case] ",query2_str
+
+
+        #Step 3: Correcting appostropes.. Need this dictionary to be quite large
+        APPOSTOPHES = {"s" : "is", "'re" : "are","m":"am"}
+        words = (' '.join(query2_str.split("'"))).split()
+        query5 = [ APPOSTOPHES[word] if word in APPOSTOPHES else word for word in words]
+##        print "Query after Step 3 of processing:[appostophes]: ",query5
+
+        import simplejson
+        #Step 4: Normalizing words
+        path = assistpath + "/SYNONYMS.json"
+        with open(path,"r") as data_file:
+                SYNONYMS = simplejson.load(data_file)
+        query6 = [ SYNONYMS[word] if word in SYNONYMS else word for word in query5]
+##        print "Query after Step 6 of processing:[synonyms]: ",query6
+
+
+        #Step 5: Stemming
+        ps = PorterStemmer()
+        query_final=set([ps.stem(i) for i in query6])
+##        print "Query after Step 7 of processing:[stemming] ",query_final
+        return query_final
+
+
+    def matcher(self,query_final):
+        intersection = []
+        for q in self.pquestions:
+            q1 = set (q.split(" "))
+           # print "Supposedly Questions", q1
+            intersection.append (len(query_final & q1))
+           # print len(query_final & q1)
+        return intersection
+
+    def getTopX(self,intersection):
+        relevance=[]
+        cnt = 0
+        for i in intersection:
+            relevance.append(10**(i+2) + self.weights[cnt])
+            cnt+=1
+
+        max_index = [i[0] for i in sorted(enumerate(relevance), key=lambda x:x[1],reverse=True)]
+        #max_value = [i[1] for i in sorted(enumerate(relevance), key=lambda x:x[1],reverse=True)]
+
+        #print max_value
+        # print max_index
+        ans = []
+        #print "-------------------------------------------------"
+        for i in range(self.topX):
+            #print questions_original[max_index[i]]
+            if(intersection[max_index[i]]==0):
+                break
+            ans.append(self.questions[max_index[i]])
+            #print (self.questions[max_index[i]]+ "( Intersection: "+str(intersection[max_index[i]])+ " Weightage: "+str(self.weights[max_index[i]])+")")
+        #print "-------------------------------------------------"
+        return ans
+
+    def calculateRel(self,query_final):
+            try:
+                #Check whether query contains n68 domain or not
+##                import sys
+##                import os
+##                base = os.getcwd()
+##                path = base + "\\keywords_db.txt"
+                path = assistpath+"/keywords_db.txt"
+                f = open(path,"r")
+                key = f.read()
+                keywords = set(key.split())
+
+                if (len(query_final)==0):
+                    match=0
+                else:
+                    match=len(query_final & keywords)/float(len(query_final))
+                #print "Percentage Match [In my domain]", match*100,"%"
+                return match
+            except:
+                app.logger.error("keywords_db.txt not found.")
+##                print "keywords_db.txt not foud."
+
+    def __init__(self,pages,questions,answers,keywords,weights,pquestions, newQuesInfo, savedQueries):
+        self.questions = questions
+        self.pages = pages
+        self.weights = weights
+        self.answers = answers
+        self.keywords = keywords
+        self.pquestions = pquestions
+        self.newQuesInfo = newQuesInfo
+        self.topX = 5
+        self.userQuery=""
+        self.savedQueries = savedQueries # Captures all the "Relevant" queries asked by User, It is list of list[[query1,page1],[query2,page2]]
+
+    def setState(self,state):
+        self.state = state
+
+    def start(self,userQuery):
+        response = []
+##        print "I am the right one"
+        query_string = userQuery
+        self.userQuery = userQuery
+        if query_string is not None:
+            #when all the plugins will be activeted
+            currPage = "mindmaps"
+            query_final = self.Preprocess(query_string)
+            rel = self.calculateRel(query_final)
+            if (rel > 0):
+                temp = []
+                temp.append(query_string)
+                temp.append(currPage)
+                self.savedQueries.append(temp)
+                #getting intersection
+                intersection = self.matcher(query_final)
+                #displaying most common and most frequent
+                ques = self.getTopX(intersection)
+                if ques:
+                    for i in range(len(ques)):
+                        temp = []
+                        temp.append(self.questions.index(ques[i]))
+                        temp.append(self.questions[self.questions.index(ques[i])])
+                        temp.append(self.answers[self.questions.index(ques[i])])
+                        response.append(temp)
+##                    print response
+                else:
+                    response = [[-1,"Sometimes, I may not have the information you need...We recorded your query..will get back to you soon",-1]]
+                    flag = True
+                    for nques in self.newQuesInfo:
+                        if(str(query_final) is nques[1]):
+                            nques[2] = nques[2] + 1
+                            flag = False
+                    if (flag):
+                        temp =[]
+                        temp.append(str(query_string))
+                        temp.append(str(query_final))
+                        temp.append(0)
+                        self.newQuesInfo.append(temp)
+
+                    #self.newKeys.append(query_string)
+            else:
+                response = [[-1, "Please be relevant..I work soulfully for Nineteen68", -1]]
+        else:
+            response = [-1, "Invalid Input...Please try again", -1]
+        return response, self.newQuesInfo, self.savedQueries
+
 #Basic Setup of ProfJ Done!
 ################################################
 #End of ProfJ assist components
@@ -2601,7 +3140,7 @@ if __name__ == '__main__':
 
     #http implementations
     formatter = logging.Formatter("[%(asctime)s] {%(pathname)s:%(lineno)d} %(levelname)s - %(message)s")
-    inhandler = TimedRotatingFileHandler(parentdir+'/Portable_python/ndac/logs/ndac'+datetime.now().strftime("_%Y%m%d-%H%M%S")+'.log',when='d', encoding='utf-8', backupCount=1)
+    inhandler = TimedRotatingFileHandler(logspath+'/ndac/ndac'+datetime.now().strftime("_%Y%m%d-%H%M%S")+'.log',when='d', encoding='utf-8', backupCount=1)
     global handler
     handler=inhandler
     handler.setLevel(logging.ERROR)

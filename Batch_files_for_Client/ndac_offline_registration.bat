@@ -1,0 +1,1 @@
+ndac.exe -k offlineuser.key

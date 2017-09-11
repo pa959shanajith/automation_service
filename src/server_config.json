@@ -2,6 +2,7 @@
 	"ndac": {
 		"licenseserver":"licenseserverip",
 		"databaseip": "databaseip",
+		"dbport": "dbport",
 		"dbusername": "dbusername",
 		"dbpassword": "dbpassword"
 	}
