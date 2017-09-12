@@ -2227,7 +2227,7 @@ def gettestcases_inititated(bgnts,endts):
     return res
 
 def modelinfoprocessor(processingdata):
-    modelinfo={}
+    modelinfo=[]
     try:
         bgnyesday = getbgntime('prev',datetime.now())
         bgnoftday = getbgntime('curr',datetime.now())
@@ -2235,81 +2235,128 @@ def modelinfoprocessor(processingdata):
         if (processingdata['btchinfo']['btchstts'] == 'error' or
             processingdata['btchinfo']['btchstts'] == ''):
             daybforedate=getbgntime('daybefore',datetime.now())
-        suiteinfo=[]
-        cnarioinfo=[]
-        tcasesinfo=[]
+##        suiteinfo=[]
+##        cnarioinfo=[]
+##        tcasesinfo=[]
         if daybforedate != '':
             for days in range(0,2):
+                dailydata={}
+                allusers = []
                 bgnts=gettimestamp(daybforedate)
                 endts=gettimestamp(bgnyesday)
 ##                print bgnts
 ##                print endts
+                dailydata['day'] = str(bgnyesday)
                 resultset=getreports_in_day(bgnts,endts)
-                modelinfo['reports_in_day']=reportdataprocessor(resultset,daybforedate,bgnyesday)
-                suiteinfo.append(dataprocessor('testsuites',bgnts,endts,bgnyesday))
-                cnarioinfo.append(dataprocessor('testscenarios',bgnts,endts,bgnyesday))
-                tcasesinfo.append(dataprocessor('testcases',bgnts,endts,bgnyesday))
-                modelinfo['suites_init'] = suiteinfo
-                modelinfo['cnario_init'] = cnarioinfo
-                modelinfo['tcases_init'] = tcasesinfo
+##                modelinfo['reports_in_day']=reportdataprocessor(resultset,daybforedate,bgnyesday)
+                reportobj=reportdataprocessor(resultset,daybforedate,bgnyesday)
+                dailydata['r_exec_cnt'] = str(reportobj['reprt_cnt'])
+
+##                suiteinfo.append(dataprocessor('testsuites',bgnts,endts,bgnyesday))
+                suiteobj=dataprocessor('testsuites',bgnts,endts)
+                dailydata['su_exec_cnt'] = str(suiteobj['suite_cnt'])
+                allusers = allusers + suiteobj['active_usrs']
+
+##                cnarioinfo.append(dataprocessor('testscenarios',bgnts,endts))
+                scenariosobj=dataprocessor('testscenarios',bgnts,endts)
+                dailydata['s_exec_cnt'] = str(scenariosobj['cnario_cnt'])
+                allusers = allusers + scenariosobj['active_usrs']
+
+##                tcasesinfo.append(dataprocessor('testcases',bgnts,endts))
+                testcasesobj=dataprocessor('testcases',bgnts,endts)
+                dailydata['t_exec_cnt'] = str(testcasesobj['tcases_cnt'])
+                allusers = allusers + testcasesobj['active_usrs']
+                print allusers
+                licensesarray=[]
+                licensesarray.append(str(len(set(allusers))))
+                dailydata['license_usd'] = licensesarray
+##                modelinfo['suites_init'] = suiteinfo
+##                modelinfo['cnario_init'] = cnarioinfo
+##                modelinfo['tcases_init'] = tcasesinfo
+                modelinfo.append(dailydata)
                 daybforedate=bgnyesday
                 bgnyesday=bgnoftday
         else:
+            dailydata={}
+            allusers = []
+            dailydata['day'] = str(datetime.now())
+
             bgnts=gettimestamp(bgnyesday)
             endts=gettimestamp(bgnoftday)
 ##            print bgnts
 ##            print endts
             resultset=getreports_in_day(bgnts,endts)
-            modelinfo['reports_in_day']=reportdataprocessor(resultset,bgnyesday,bgnoftday)
-            suiteinfo.append(dataprocessor('testsuites',bgnts,endts,bgnoftday))
-            cnarioinfo.append(dataprocessor('testscenarios',bgnts,endts,bgnoftday))
-            tcasesinfo.append(dataprocessor('testcases',bgnts,endts,bgnoftday))
-            modelinfo['suites_init'] = suiteinfo
-            modelinfo['cnario_init'] = cnarioinfo
-            modelinfo['tcases_init'] = tcasesinfo
+##            modelinfo['reports_in_day']=reportdataprocessor(resultset,bgnyesday,bgnoftday)
+            reportobj=reportdataprocessor(resultset,bgnyesday,bgnoftday)
+            dailydata['r_exec_cnt'] = str(reportobj['reprt_cnt'])
+##            suiteinfo.append(dataprocessor('testsuites',bgnts,endts))
+            suiteobj = dataprocessor('testsuites',bgnts,endts)
+            dailydata['su_exec_cnt'] = str(suiteobj['suite_cnt'])
+            allusers = allusers + suiteobj['active_usrs']
+##            cnarioinfo.append(dataprocessor('testscenarios',bgnts,endts))
+            scenariosobj = dataprocessor('testscenarios',bgnts,endts)
+            dailydata['s_exec_cnt'] = str(scenariosobj['cnario_cnt'])
+            allusers = allusers + scenariosobj['active_usrs']
+##            tcasesinfo.append(dataprocessor('testcases',bgnts,endts))
+            testcasesobj = dataprocessor('testcases',bgnts,endts)
+            dailydata['t_exec_cnt'] = str(testcasesobj['tcases_cnt'])
+            allusers = allusers + testcasesobj['active_usrs']
+            print allusers
+            licensesarray=[]
+            licensesarray.append(str(len(set(allusers))))
+            dailydata['license_usd'] = licensesarray
+            modelinfo.append(dailydata)
+##            modelinfo['suites_init'] = suiteinfo
+##            modelinfo['cnario_init'] = cnarioinfo
+##            modelinfo['tcases_init'] = tcasesinfo
     except Exception as e:
 ##        import traceback
 ##        traceback.print_exc()
         app.logger.critical("Unable to contact storage areas 3")
     return modelinfo
 
-def dataprocessor(datatofetch,fromdate,todate,date):
+def dataprocessor(datatofetch,fromdate,todate):
     respobj={}
+    usr_list=[]
     total_cnt=0
     dataresp=''
     try:
         if datatofetch == 'testsuites':
             dataresp=getsuites_inititated(fromdate,todate)
-            usr_data=[]
+##            usr_data=0
             for eachrow in dataresp['rows']:
-                userin_data={}
-                userin_data['rns'] = str(eachrow['counter'])
+##                userin_data={}
+##                userin_data['rns'] = str(eachrow['counter'])
                 total_cnt = total_cnt + int(eachrow['counter'])
-                userin_data['id'] = str(eachrow['userid'])
-                usr_data.append(userin_data)
+                usr_list.append(str(eachrow['userid']))
+##                userin_data['id'] = str(eachrow['userid'])
+##                usr_data.append(userin_data)
             respobj['suite_cnt'] = str(total_cnt)
         elif datatofetch == 'testscenarios':
             dataresp=getscenario_inititated(fromdate,todate)
-            usr_data=[]
+##            usr_data=0
             for eachrow in dataresp['rows']:
-                userin_data={}
-                userin_data['rns'] = str(eachrow['counter'])
+##                userin_data={}
+##                userin_data['rns'] = str(eachrow['counter'])
                 total_cnt = total_cnt + int(eachrow['counter'])
-                userin_data['id'] = str(eachrow['userid'])
-                usr_data.append(userin_data)
+                usr_list.append(str(eachrow['userid']))
+##                userin_data['id'] = str(eachrow['userid'])
+##                usr_data.append(userin_data)
             respobj['cnario_cnt'] = str(total_cnt)
         elif datatofetch == 'testcases':
             dataresp=gettestcases_inititated(fromdate,todate)
-            usr_data=[]
+##            usr_data=0
             for eachrow in dataresp['rows']:
-                userin_data={}
-                userin_data['rns'] = str(eachrow['counter'])
+##                userin_data={}
+##                userin_data['rns'] = str(eachrow['counter'])
                 total_cnt = total_cnt + int(eachrow['counter'])
-                userin_data['id'] = str(eachrow['userid'])
-                usr_data.append(userin_data)
+                usr_list.append(str(eachrow['userid']))
+##                userin_data['id'] = str(eachrow['userid'])
+##                usr_data.append(userin_data)
             respobj['tcases_cnt'] = str(total_cnt)
-        respobj['day'] = str(date)
-        respobj['usr_data'] = usr_data
+##        respobj['day'] = str(date)
+##        respobj['active_usrs'] = usr_data
+        respobj['active_usrs'] = usr_list
     except Exception as dataprocessorexc:
 ##        import traceback
 ##        traceback.print_exc()
@@ -2583,7 +2630,7 @@ def cronograph():
     try:
         from threading import Timer
         x=datetime.today()
-        updatehr=01
+        updatehr=00
         updatemin=00
         updatesec=00
         updatemcrs=00
