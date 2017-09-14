@@ -20,6 +20,22 @@ docopt==0.6.2
 
 *Flask-Cassandra==0.14*
 
+*certifi==2017.4.17*
+
+*chardet==3.0.4*
+
+*idna==2.5*
+
+*Naked==0.1.31*
+
+*py==1.4.31*
+
+*PyYAML==3.12*
+
+*shellescape==3.4.1*
+
+*urllib3==1.21.1*
+
 futures==3.1.1
 
 idlex==1.13
