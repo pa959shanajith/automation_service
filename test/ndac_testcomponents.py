@@ -1,7 +1,8 @@
 #-------------------------------------------------------------------------------
-# Name:        testapi.py
-# Purpose:     replica of restapi
-#              for testing the restapi components without flask features
+# Name:        ndac_testcomponents.py
+# Purpose:     this file includes test componenets of ndac
+#              for testing the ndac components without flask features can be
+#              performed here
 #
 # Author:      vishvas.a
 #
@@ -29,7 +30,7 @@ from cassandra.auth import PlainTextAuthProvider
 ##pswd=rest_config['restapi']['dbpassword']
 ##auth = PlainTextAuthProvider(username=key, password=pswd)
 auth = PlainTextAuthProvider(username='nineteen68', password='TA@SLK2017')
-cluster = Cluster(['10.41.31.130'],auth_provider=auth)
+cluster = Cluster(['10.41.31.130'],port=int(9042),auth_provider=auth)
 
 icesession = cluster.connect()
 n68session = cluster.connect()
@@ -44,11 +45,11 @@ icesession.set_keyspace('icetestautomation')
 n68session.row_factory = dict_factory
 n68session.set_keyspace('nineteen68')
 
-icehistorysession.row_factory = dict_factory
-icehistorysession.set_keyspace('icetestautomationhistory')
-
-n68historysession.row_factory = dict_factory
-n68historysession.set_keyspace('nineteen68history')
+##icehistorysession.row_factory = dict_factory
+##icehistorysession.set_keyspace('icetestautomationhistory')
+##
+##n68historysession.row_factory = dict_factory
+##n68historysession.set_keyspace('nineteen68history')
 
 #server check
 ##@app.route('/')
