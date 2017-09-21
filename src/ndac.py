@@ -1377,7 +1377,8 @@ def getDetails_ICE():
         return jsonify(res)
 
 
-#service renders the names of all projects in domain/projects
+#service renders the names of all projects in domain/projects (or) projectname
+# releasenames (or) cycle names (or) screennames
 @app.route('/admin/getNames_ICE',methods=['POST'])
 def getNames_ICE():
     res={'rows':'fail'}
@@ -1386,20 +1387,24 @@ def getNames_ICE():
         if not isemptyrequest(requestdata):
             if(requestdata["query"] == 'domainsall'):
                 getnamesquery1=("select projectid,projectname from projects "
-                                        +"where domainid="+requestdata['id'])
+                    +"where domainid="+requestdata['id'])
                 queryresult = icesession.execute(getnamesquery1)
             elif(requestdata["query"] == 'projects'):
                 getnamesquery2=("select projectid,projectname from projects "
-                                    +"where projectid="+requestdata['id'])
+                    +"where projectid="+requestdata['id'])
                 queryresult = icesession.execute(getnamesquery2)
             elif(requestdata["query"] == 'releases'):
                 getnamesquery3=("select releaseid,releasename from releases "
-                                    +"where releaseid="+requestdata['id'])
+                    +"where releaseid="+requestdata['id'])
                 queryresult = icesession.execute(getnamesquery3)
             elif(requestdata["query"] == 'cycles'):
                 getnamesquery4=("select cycleid,cyclename from cycles "
-                                        +"where cycleid="+requestdata['id'])
+                    +"where cycleid="+requestdata['id'])
                 queryresult = icesession.execute(getnamesquery4)
+            elif(requestdata["query"] == 'screens'):
+                getnamesquery5=("select screenid,screenname from screens "
+                    +"where screenid="+requestdata['id'])
+                queryresult = icesession.execute(getnamesquery5)
             else:
                 return jsonify(res)
             res={'rows':queryresult.current_rows}
