@@ -10,6 +10,7 @@
 #-------------------------------------------------------------------------------
 import sys
 import os
+from os import access
 #sys.path.append('./packages/Lib/site-packages')
 import json
 import requests
@@ -1377,7 +1378,8 @@ def getDetails_ICE():
         return jsonify(res)
 
 
-#service renders the names of all projects in domain/projects
+#service renders the names of all projects in domain/projects (or) projectname
+# releasenames (or) cycle names (or) screennames
 @app.route('/admin/getNames_ICE',methods=['POST'])
 def getNames_ICE():
     res={'rows':'fail'}
@@ -1386,20 +1388,24 @@ def getNames_ICE():
         if not isemptyrequest(requestdata):
             if(requestdata["query"] == 'domainsall'):
                 getnamesquery1=("select projectid,projectname from projects "
-                                        +"where domainid="+requestdata['id'])
+                    +"where domainid="+requestdata['id'])
                 queryresult = icesession.execute(getnamesquery1)
             elif(requestdata["query"] == 'projects'):
                 getnamesquery2=("select projectid,projectname from projects "
-                                    +"where projectid="+requestdata['id'])
+                    +"where projectid="+requestdata['id'])
                 queryresult = icesession.execute(getnamesquery2)
             elif(requestdata["query"] == 'releases'):
                 getnamesquery3=("select releaseid,releasename from releases "
-                                    +"where releaseid="+requestdata['id'])
+                    +"where releaseid="+requestdata['id'])
                 queryresult = icesession.execute(getnamesquery3)
             elif(requestdata["query"] == 'cycles'):
                 getnamesquery4=("select cycleid,cyclename from cycles "
-                                        +"where cycleid="+requestdata['id'])
+                    +"where cycleid="+requestdata['id'])
                 queryresult = icesession.execute(getnamesquery4)
+            elif(requestdata["query"] == 'screens'):
+                getnamesquery5=("select screenid,screenname from screens "
+                    +"where screenid="+requestdata['id'])
+                queryresult = icesession.execute(getnamesquery5)
             else:
                 return jsonify(res)
             res={'rows':queryresult.current_rows}
@@ -2418,39 +2424,65 @@ def gettimestamp(date):
 
 def basecheckonls():
     basecheckstatus=False
-##    print mac
-##    data= {"action":"register","sysinfo":physical_trans,"visited":"no"}
-    baserequest= {"action": "register","sysinfo": {"mac": mac.strip(),"token": ""},
-                   "visited": "no"}
+    goahead = False
     try:
-        baserequest=wrap(str(baserequest),omgall)
-        connectresponse = connectingls(baserequest)
-##        print 'connectresponse:::',connectresponse
-        if connectresponse != False:
-            actresp = unwrap(str(connectresponse),omgall)
-##            print 'This is the value',actresp
-            actresp = ast.literal_eval(actresp)
-            if actresp['action'] == 'error':
-                    app.logger.error(actresp['lsinfotondac']['message'])
+        try:
+            #checks if the db is already existing,
+                #if exists, verifies the MAC address, if present allows further,
+                #else considers the Patch is replaced in another Machine
+            #else considers it to be 1st instance
+            if os.access(logspath+"/data.db",os.R_OK):
+                existingdata = dataholder('','select')
+                existingdata = unwrap(str(existingdata),mine)
+                existingdata =  ast.literal_eval(existingdata)
+                if str(existingdata['sysinfo']['mac']).strip() == str(getMacAddress()).strip():
+                    goahead = True
+                else:
+                    goahead = False
             else:
-                baseresponse = ndacinfo
-                baseresponse['sysinfo']['tkn']=actresp['lsinfotondac']['lstokentondac'];
-##                baseresponse['sysinfo']['tkn']='';
-                baseresponse['sysinfo']['mac']=mac.strip();
-                baseresponse['action']=actresp['action']
-##                print 'NDAC info:::\n\n',baseresponse
-                wrappedbaseresponse=wrap(str(baseresponse),mine)
-                dataholderresp=dataholder(wrappedbaseresponse,'new')
-                if dataholderresp != False:
-                    basecheckstatus = dataholderresp
-##                a=dataholder(mywrapeddata,'select')
-##                print '\n\n\n',a
-##                myunwrapeddata=unwrap(str(a),mine)
-##                print '\n\n',myunwrapeddata
-            global onlineuser
-            onlineuser = True
+                goahead = True
+        except Exception as fileexception:
+            goahead = False
+##            import traceback
+##            traceback.print_exc()
+            app.logger.critical("Exception on reading file.")
+        if goahead:
+
+        ##    print mac
+        ##    data= {"action":"register","sysinfo":physical_trans,"visited":"no"}
+            baserequest= {"action": "register",
+                        "sysinfo": {"mac": str(getMacAddress()).strip(),"token": ""},
+                       "visited": "no"}
+            baserequest=wrap(str(baserequest),omgall)
+            connectresponse = connectingls(baserequest)
+    ##        print 'connectresponse:::',connectresponse
+            if connectresponse != False:
+                actresp = unwrap(str(connectresponse),omgall)
+    ##            print 'This is the value',actresp
+                actresp = ast.literal_eval(actresp)
+                if actresp['action'] == 'error':
+                        app.logger.error(actresp['lsinfotondac']['message'])
+                else:
+                    baseresponse = ndacinfo
+                    baseresponse['sysinfo']['tkn']=actresp['lsinfotondac']['lstokentondac'];
+    ##                baseresponse['sysinfo']['tkn']='';
+                    baseresponse['sysinfo']['mac']=str(getMacAddress()).strip();
+                    baseresponse['action']=actresp['action']
+    ##                print 'NDAC info:::\n\n',baseresponse
+                    wrappedbaseresponse=wrap(str(baseresponse),mine)
+                    dataholderresp=dataholder(wrappedbaseresponse,'new')
+                    if dataholderresp != False:
+                        basecheckstatus = dataholderresp
+    ##                a=dataholder(mywrapeddata,'select')
+    ##                print '\n\n\n',a
+    ##                myunwrapeddata=unwrap(str(a),mine)
+    ##                print '\n\n',myunwrapeddata
+                global onlineuser
+                onlineuser = True
+            else:
+                app.logger.error("Unable to connect to Server")
         else:
-            app.logger.error("Unable to connect to Server")
+            app.logger.critical("Something Fishy...")
     except Exception as e:
 ##        import traceback
 ##        traceback.print_exc()
@@ -2592,7 +2624,7 @@ def offlineuserenabler(startdate,enddate,usermac):
     # this is provided as there was a request to create a key
     # without mac address
     if usermac != 'nomacaddress':
-        mac = getMacAddress()
+        mac = getMacAddress().strip()
     else:
         mac = usermac
     if usermac in mac.strip():
@@ -3248,3 +3280,5 @@ if __name__ == '__main__':
         ##        app.run(host='127.0.0.1',port=1990,debug=False)
 
             beginserver()
+        else:
+            app.logger.critical("Please contact Team - Nineteen68. Critical Error.")
