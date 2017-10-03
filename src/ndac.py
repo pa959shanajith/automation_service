@@ -1733,26 +1733,43 @@ def getAllSuites_ICE():
     try:
         requestdata=json.loads(request.data)
         if not isemptyrequest(requestdata):
+        #the code below is commented as per the new requirement
+		#ALM #460 - Reports - HTML report takes very
+        #long time to open/ hangs when report size is 5MB above
+		#author - vishvas.a modified date:27-Sep-2017
             if(requestdata["query"] == 'domainid'):
                 getallsuitesquery1 = ("select domainid from icepermissions "
                                     +"where userid="+requestdata['userid']+";")
                 queryresult = icesession.execute(getallsuitesquery1)
-            elif(requestdata["query"] == 'projectsUnderDomain'):
-                getallsuitesquery2 =("select projectid from projects "
-                                +"where domainid="+requestdata['domainid']+";")
-                queryresult = icesession.execute(getallsuitesquery2)
-            elif(requestdata["query"] == 'releasesUnderProject'):
-                getallsuitesquery3 = ("select releaseid from releases "
-                                +"where projectid="+requestdata['projectid'])
-                queryresult = icesession.execute(getallsuitesquery3)
-            elif(requestdata["query"] == 'cycleidUnderRelease'):
-                getallsuitesquery4 =("select cycleid from cycles "
+            elif(requestdata["query"] == 'suites'):
+                    if(requestdata["subquery"] == 'releases'):
+                        getallsuitesquery6 = ("select releaseid from releases "
+                                        +"where projectid="+requestdata['projectid'])
+                        queryresult = icesession.execute(getallsuitesquery6)
+                    elif(requestdata["subquery"] == 'cycles'):
+                        getallsuitesquery7 =("select cycleid from cycles "
                             +"where releaseid="+requestdata['releaseid'])
-                queryresult = icesession.execute(getallsuitesquery4)
-            elif(requestdata["query"] == 'suitesUnderCycle'):
-                getallsuitesquery5 = ("select testsuiteid,testsuitename "
-                    +"from testsuites where cycleid="+requestdata['cycleid'])
-                queryresult = icesession.execute(getallsuitesquery5)
+                        queryresult = icesession.execute(getallsuitesquery7)
+            elif(requestdata["query"] == 'projects'):
+                getallsuitesquery8 = ("select projectids from icepermissions "
+                                    +"where userid="+requestdata['userid']+";")
+                queryresult = icesession.execute(getallsuitesquery8)
+##            elif(requestdata["query"] == 'projectsUnderDomain'):
+##                getallsuitesquery2 =("select projectid from projects "
+##                                +"where domainid="+requestdata['domainid']+";")
+##                queryresult = icesession.execute(getallsuitesquery2)
+##            elif(requestdata["query"] == 'releasesUnderProject'):
+##                getallsuitesquery3 = ("select releaseid from releases "
+##                                +"where projectid="+requestdata['projectid'])
+##                queryresult = icesession.execute(getallsuitesquery3)
+##            elif(requestdata["query"] == 'cycleidUnderRelease'):
+##                getallsuitesquery4 =("select cycleid from cycles "
+##                            +"where releaseid="+requestdata['releaseid'])
+##                queryresult = icesession.execute(getallsuitesquery4)
+##            elif(requestdata["query"] == 'suitesUnderCycle'):
+##                getallsuitesquery5 = ("select testsuiteid,testsuitename "
+##                    +"from testsuites where cycleid="+requestdata['cycleid'])
+##                queryresult = icesession.execute(getallsuitesquery5)
             else:
                 return jsonify(res)
             res= {"rows":queryresult.current_rows}
