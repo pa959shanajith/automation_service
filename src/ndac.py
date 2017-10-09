@@ -1053,7 +1053,9 @@ def readTestSuite_ICE():
                 + " and cycleid="+requestdata['cycleid'])
                 queryresult = icesession.execute(readtestsuitequery1)
             elif(requestdata["query"] == 'selectmodule'):
-                readtestsuitequery2 = ("select * FROM modules where "
+                readtestsuitequery2 = ("select projectid,modulename,moduleid,versionnumber,"
+                +"createdby,createdon,createdthrough,deleted,modifiedby,modifiedbyrole,"
+                +"modifiedon,skucodemodule,tags,testscenarioids FROM modules where "
                 +"moduleid=" + requestdata["moduleid"]
                 + " and modulename='" + requestdata["modulename"]
                 + "' allow filtering")
@@ -1082,8 +1084,11 @@ def readTestSuite_ICE():
                 +requestdata["tags"]+"'],["+requestdata["testscenarioids"]+"])")
                 queryresult = icesession.execute(readtestsuitequery3)
             elif(requestdata["query"] == 'fetchdata'):
-                readtestsuitequery4 = ("select * from testsuites "+
-                "where testsuiteid = " + requestdata["testsuiteid"]
+                readtestsuitequery4 = ("select cycleid,testsuitename,testsuiteid,"
+                +"versionnumber,conditioncheck,createdby,createdon,createdthrough,"
+                +"deleted,donotexecute,getparampaths,modifiedby,modifiedbyrole,modifiedon,"
+                +"skucodetestsuite,tags,testscenarioids from testsuites "
+                +"where testsuiteid = " + requestdata["testsuiteid"]
                 + " and cycleid=" + requestdata["cycleid"] + " allow filtering")
                 queryresult = icesession.execute(readtestsuitequery4)
             elif(requestdata["query"] == 'delete'):
@@ -1816,7 +1821,9 @@ def reportStatusScenarios_ICE():
         requestdata=json.loads(request.data)
         if not isemptyrequest(requestdata):
             if(requestdata["query"] == 'executiondetails'):
-                getreportstatusquery1 = ("select * from reports "
+                getreportstatusquery1 = ("select reportid,executionid,browser,comments,"
+                +"executedtime,modifiedby,modifiedbyrole,modifiedon,report,status,"
+                +"testscenarioid,testsuiteid from reports "
                 +"where executionid="+requestdata['executionid']+" ALLOW FILTERING")
                 queryresult = icesession.execute(getreportstatusquery1)
             elif(requestdata["query"] == 'scenarioname'):
