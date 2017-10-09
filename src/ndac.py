@@ -284,7 +284,7 @@ def getReleaseIDs_Ninteen68():
        if not isemptyrequest(requestdata):
             projectid=requestdata['projectid']
             getReleaseDetails = ("select releasename,releaseid from icetestautomation.releases "+
-            "where projectid"+'='+ projectid)
+            "where projectid"+'='+ projectid+query['delete_flag'])
             queryresult = icesession.execute(getReleaseDetails)
             res={'rows':queryresult.current_rows}
        else:
@@ -302,7 +302,7 @@ def getCycleIDs_Ninteen68():
        if not isemptyrequest(requestdata):
             releaseid=requestdata['releaseid']
             getCycleDetails = ("select cyclename,cycleid from icetestautomation.cycles "+
-            "where releaseid"+'='+ releaseid)
+            "where releaseid"+'='+ releaseid+query['delete_flag'])
             queryresult = icesession.execute(getCycleDetails)
             res={'rows':queryresult.current_rows}
        else:
@@ -319,7 +319,7 @@ def getProjectType_Nineteen68():
        if not isemptyrequest(requestdata):
             projectid=requestdata['projectid']
             getProjectType = ("select projecttypeid FROM icetestautomation.projects "+
-            "where projectid"+'='+ projectid)
+            "where projectid"+'='+ projectid+query['delete_flag'])
             queryresult = icesession.execute(getProjectType)
             res={'rows':queryresult.current_rows}
        else:
@@ -344,7 +344,7 @@ def getProjectIDs_Nineteen68():
             elif (requestdata['query'] == 'getprojectname'):
                 projectid=requestdata['projectid']
                 getprojectname = ("select projectname,projecttypeid FROM icetestautomation.projects "+
-                "where projectid="+projectid)
+                "where projectid="+projectid+query['delete_flag'])
                 queryresult = icesession.execute(getprojectname)
                 res={'rows':queryresult.current_rows}
        else:
@@ -355,14 +355,14 @@ def getProjectIDs_Nineteen68():
 
 #getting names of module/scenario/screen/testcase name of given id
 @app.route('/create_ice/getNames_Ninteen68',methods=['POST'])
-def getNames_Nineteen68():
+def getAllNames_ICE():
     res={'rows':'fail'}
     try:
        requestdata=json.loads(request.data)
        if not isemptyrequest(requestdata):
             name=requestdata['name']
             nodeid=requestdata['id']
-            getname_query=(query[name]+nodeid)
+            getname_query=(query[name]+nodeid+query['delete_flag'])
             queryresult = icesession.execute(getname_query)
             res={'rows':queryresult.current_rows}
        else:
@@ -871,13 +871,13 @@ def getScrapeDataScreenLevel_ICE():
             if (requestdata['query'] == 'getscrapedata'):
                 getscrapedataquery1=("select screenid,screenname,screendata from "
                 +"screens where screenid="+requestdata['screenid']
-                +" and projectid="+requestdata['projectid']+" allow filtering ;")
+                +" and projectid="+requestdata['projectid']+query['delete_flag'])
                 queryresult = icesession.execute(getscrapedataquery1)
                 res = {"rows":queryresult.current_rows}
             elif(requestdata['query'] == 'debugtestcase'):
                 getscrapedataquery2=("select screenid,screenname,screendata from "
                 +"screens where screenid="+requestdata['screenid']
-                +" allow filtering ;")
+                +query['delete_flag'])
                 queryresult = icesession.execute(getscrapedataquery2)
                 res = {"rows":queryresult.current_rows}
         else:
@@ -978,19 +978,21 @@ def getTestcaseDetailsForScenario_ICE():
         if not isemptyrequest(requestdata):
             if(requestdata["query"] == 'testscenariotable'):
                 gettestscenarioquery1=("select testcaseids from testscenarios where "
-                +"testscenarioid="+requestdata["testscenarioid"])
+                +"testscenarioid="+requestdata["testscenarioid"]+query['delete_flag'])
                 queryresult = icesession.execute(gettestscenarioquery1)
             elif(requestdata["query"] == 'testcasetable'):
                 gettestscenarioquery2=("select testcasename,screenid from "
-                +"testcases where testcaseid="+requestdata["testcaseid"])
+                +"testcases where testcaseid="+requestdata["testcaseid"]
+                +query['delete_flag'])
                 queryresult = icesession.execute(gettestscenarioquery2)
             elif(requestdata["query"] == 'screentable'):
                 gettestscenarioquery3=("select screenname,projectid from "
-                +"screens where screenid="+requestdata["screenid"])
+                +"screens where screenid="+requestdata["screenid"]
+                +query['delete_flag'])
                 queryresult = icesession.execute(gettestscenarioquery3)
             elif(requestdata["query"] == 'projecttable'):
                 gettestscenarioquery4=("select projectname from projects "
-                +"where projectid="+requestdata["projectid"])
+                +"where projectid="+requestdata["projectid"]+query['delete_flag'])
                 queryresult = icesession.execute(gettestscenarioquery4)
             res = {'rows':queryresult.current_rows}
             res =  jsonify(res)
@@ -1020,11 +1022,11 @@ def getTestcasesByScenarioId_ICE():
         if not isemptyrequest(requestdata):
             if(requestdata["query"] == 'gettestcaseids'):
                 gettestcaseidquery1  = ("select testcaseids from testscenarios "
-                +"where testscenarioid = "+requestdata["testscenarioid"]+" allow filtering")
+                +"where testscenarioid = "+requestdata["testscenarioid"]+query['delete_flag'])
                 queryresult = icesession.execute(gettestcaseidquery1)
             elif(requestdata["query"] == 'gettestcasedetails'):
                 gettestcaseidquery2 = ("select testcasename from testcases where"
-                +" testcaseid = "+requestdata["eachtestcaseid"]+" allow filtering")
+                +" testcaseid = "+requestdata["eachtestcaseid"]+query['delete_flag'])
                 queryresult = icesession.execute(gettestcaseidquery2)
             else:
                 res={'rows':'fail'}
@@ -1346,25 +1348,30 @@ def getDetails_ICE():
         if not isemptyrequest(requestdata):
             if(requestdata["query"] == 'domaindetails'):
                 getdetailsquery1=("select projectid,projectname from projects "
-                                    +"where domainid=" + requestdata['id'])
+                                    +"where domainid=" + requestdata['id']
+                                    +query['delete_flag'])
                 queryresult = icesession.execute(getdetailsquery1)
             elif(requestdata["query"] == 'projectsdetails'):
                 if(requestdata["subquery"] == 'projecttypeid'):
                     getdetailsquery2=("select projecttypeid,projectname "
-                            +"from projects where projectid="+ requestdata['id'])
+                            +"from projects where projectid="+ requestdata['id']
+                            +query['delete_flag'])
                 elif(requestdata["subquery"] == 'projecttypename'):
                     getdetailsquery2=("select projecttypename from projecttype"
                                 +" where projecttypeid=" + requestdata['id'])
                 elif(requestdata["subquery"] == 'releasedetails'):
                     getdetailsquery2=("select releaseid,releasename from "
-                            +"releases where projectid=" + requestdata['id'])
+                            +"releases where projectid=" + requestdata['id']
+                            +query['delete_flag'])
                 elif(requestdata["subquery"] == 'cycledetails'):
                     getdetailsquery2=("select cycleid,cyclename from cycles "
-                                        +"where releaseid=" + requestdata['id'])
+                                        +"where releaseid=" + requestdata['id']
+                                        +query['delete_flag'])
                 queryresult = icesession.execute(getdetailsquery2)
             elif(requestdata["query"] == 'cycledetails'):
                 getdetailsquery3=("select testsuiteid,testsuitename "
-                        +"from testsuites where cycleid=" + requestdata['id'])
+                        +"from testsuites where cycleid=" + requestdata['id']
+                        +query['delete_flag'])
                 queryresult = icesession.execute(getdetailsquery3)
             else:
                 return jsonify(res)
@@ -1388,23 +1395,23 @@ def getNames_ICE():
         if not isemptyrequest(requestdata):
             if(requestdata["query"] == 'domainsall'):
                 getnamesquery1=("select projectid,projectname from projects "
-                    +"where domainid="+requestdata['id'])
+                    +"where domainid="+requestdata['id']+query['delete_flag'])
                 queryresult = icesession.execute(getnamesquery1)
             elif(requestdata["query"] == 'projects'):
                 getnamesquery2=("select projectid,projectname from projects "
-                    +"where projectid="+requestdata['id'])
+                    +"where projectid="+requestdata['id']+query['delete_flag'])
                 queryresult = icesession.execute(getnamesquery2)
             elif(requestdata["query"] == 'releases'):
                 getnamesquery3=("select releaseid,releasename from releases "
-                    +"where releaseid="+requestdata['id'])
+                    +"where releaseid="+requestdata['id']+query['delete_flag'])
                 queryresult = icesession.execute(getnamesquery3)
             elif(requestdata["query"] == 'cycles'):
                 getnamesquery4=("select cycleid,cyclename from cycles "
-                    +"where cycleid="+requestdata['id'])
+                    +"where cycleid="+requestdata['id']+query['delete_flag'])
                 queryresult = icesession.execute(getnamesquery4)
             elif(requestdata["query"] == 'screens'):
                 getnamesquery5=("select screenid,screenname from screens "
-                    +"where screenid="+requestdata['id'])
+                    +"where screenid="+requestdata['id']+query['delete_flag'])
                 queryresult = icesession.execute(getnamesquery5)
             else:
                 return jsonify(res)
@@ -1444,7 +1451,7 @@ def getAssignedProjects_ICE():
                 queryresult = icesession.execute(getassingedprojectsquery1)
             elif(requestdata['query'] == 'projectname'):
                 getassingedprojectsquery2=("select projectname from projects "
-                            +"where projectid = "+requestdata['projectid'])
+                            +"where projectid = "+requestdata['projectid']+query['delete_flag'])
                 queryresult = icesession.execute(getassingedprojectsquery2)
             else:
                 return jsonify(res)
@@ -1744,11 +1751,11 @@ def getAllSuites_ICE():
             elif(requestdata["query"] == 'suites'):
                     if(requestdata["subquery"] == 'releases'):
                         getallsuitesquery6 = ("select releaseid from releases "
-                                        +"where projectid="+requestdata['projectid'])
+                                        +"where projectid="+requestdata['projectid']+query['delete_flag'])
                         queryresult = icesession.execute(getallsuitesquery6)
                     elif(requestdata["subquery"] == 'cycles'):
                         getallsuitesquery7 =("select cycleid from cycles "
-                            +"where releaseid="+requestdata['releaseid'])
+                            +"where releaseid="+requestdata['releaseid']+query['delete_flag'])
                         queryresult = icesession.execute(getallsuitesquery7)
             elif(requestdata["query"] == 'projects'):
                 getallsuitesquery8 = ("select projectids from icepermissions "
@@ -1844,25 +1851,25 @@ def getReport_Nineteen68():
             elif(requestdata["query"] == 'scenariodetails'):
                 getreportquery2 =("select testscenarioname,projectid "
                 +"from testscenarios where testscenarioid="
-                + requestdata['scenarioid'] + " ALLOW FILTERING")
+                + requestdata['scenarioid'] + query['delete_flag'])
                 queryresult = icesession.execute(getreportquery2)
             elif(requestdata["query"] == 'cycleid'):
                 getreportquery3 =("select cycleid from testsuites where "
                 +"testsuiteid=" + requestdata['suiteid']
-                + " and testsuitename = '" + requestdata['suitename']
-                + "' ALLOW FILTERING")
+                + " and testsuitename = '" + requestdata['suitename']+"'"
+                + query['delete_flag'])
                 queryresult = icesession.execute(getreportquery3)
             elif(requestdata["query"] == 'cycledetails'):
                 getreportquery4 =("select cyclename,releaseid from cycles "
-                +"where cycleid=" + requestdata['cycleid']  + "ALLOW FILTERING")
+                +"where cycleid=" + requestdata['cycleid']  + query['delete_flag'])
                 queryresult = icesession.execute(getreportquery4)
             elif(requestdata["query"] == 'releasedetails'):
                 getreportquery5 =("select releasename,projectid from releases "
-                +"where releaseid=" + requestdata['releaseid'] + " ALLOW FILTERING")
+                +"where releaseid=" + requestdata['releaseid'] + query['delete_flag'])
                 queryresult = icesession.execute(getreportquery5)
             elif(requestdata["query"] == 'projectdetails'):
                 getreportquery6 =("select projectname,domainid from projects "
-                +"where projectid=" + requestdata['projectid']  + " ALLOW FILTERING")
+                +"where projectid=" + requestdata['projectid']  + query['delete_flag'])
                 queryresult = icesession.execute(getreportquery6)
             elif(requestdata["query"] == 'domaindetails'):
                 getreportquery7 =("select domainname from domains where "
@@ -1876,6 +1883,7 @@ def getReport_Nineteen68():
             app.logger.error('Empty data received. report.')
             return jsonify(res)
     except Exception as getreportexc:
+        app.logger.error(getreportexc)
         app.logger.error('Error in getReport_Nineteen68.')
         return jsonify(res)
 
@@ -2058,6 +2066,7 @@ offreg='\x69\x41\x6d\x4e\x6f\x74\x4f\x6e\x6c\x69\x6e\x65\x55\x73\x65\x72\x49\x4e
 query['testscenario_details']='select * from testscenarios where testscenarioid='
 query['screen_details']='select * from screens where screenid='
 query['testcase_details']='select * from testcases where testcaseid='
+query['delete_flag'] = ' and deleted=false allow filtering'
 numberofdays=1
 omgall="\x4e\x69\x6e\x65\x74\x65\x65\x6e\x36\x38\x6e\x64\x61\x74\x63\x6c\x69\x63\x65\x6e\x73\x69\x6e\x67"
 ndacinfo = {
