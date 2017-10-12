@@ -652,7 +652,7 @@ def updateTestScenario_ICE():
     try:
        requestdata=json.loads(request.data)
        if not isemptyrequest(requestdata):
-##            requestdata['testcaseid']=','.join(str(idval) for idval in requestdata['testcaseid'])
+            ##requestdata['testcaseid']=','.join(str(idval) for idval in requestdata['testcaseid'])
             if(requestdata['modifiedflag']):
                 updateicescenario_query =("update testscenarios set "
                 +"testcaseids=testcaseids+["+requestdata['testcaseid']
@@ -685,12 +685,21 @@ def updateModule_ICE():
        requestdata=json.loads(request.data)
        if not isemptyrequest(requestdata):
             requestdata['testscenarioids']=','.join(str(idval) for idval in requestdata['testscenarioids'])
-            updateicemodules_query = ("update modules set "
-            +"testscenarioids = ["+requestdata['testscenarioids']+"] where "
-            +"moduleid="+requestdata['moduleid']+" and "
-            +"projectid="+requestdata['projectid']+" and "
-            +"modulename='"+requestdata['modulename']+"' and "
-            +"versionnumber="+str(requestdata['versionnumber']))
+            if(requestdata['modifiedflag']):
+                updateicemodules_query = ("update modules set testscenarioids ="
+                +"["+requestdata['testscenarioids']+"],modifiedby='"+requestdata['modifiedby']
+                +"',modifiedbyrole='"+requestdata['modifiedbyrole']
+                +"',modifiedon="+str(getcurrentdate())+" where moduleid="
+                +requestdata['moduleid']+" and projectid="+requestdata['projectid']
+                +" and modulename='"+requestdata['modulename']+"' and "
+                +"versionnumber="+str(requestdata['versionnumber'])+" IF EXISTS")
+            else:
+                updateicemodules_query = ("update modules set "
+                +"testscenarioids = ["+requestdata['testscenarioids']+"] where "
+                +"moduleid="+requestdata['moduleid']+" and "
+                +"projectid="+requestdata['projectid']+" and "
+                +"modulename='"+requestdata['modulename']+"' and "
+                +"versionnumber="+str(requestdata['versionnumber'])+" IF EXISTS")
             queryresult = icesession.execute(updateicemodules_query)
             res={'rows':'Success'}
        else:
