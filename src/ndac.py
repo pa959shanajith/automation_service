@@ -874,7 +874,8 @@ def readTestCase_ICE():
                 counterupdator('testcases',userid,count)
             elif(requestdata['query'] == "screenid"):
                 readtestcasequery3 = ("select testcaseid,testcasename,testcasesteps "
-                +"from testcases where screenid=" + requestdata['screenid'] + query['delete_flag'])
+                +"from testcases where screenid=" + requestdata['screenid']
+                + " and versionnumber="+str(requestdata['versionnumber'])+query['delete_flag'])
                 queryresult = icesession.execute(readtestcasequery3)
         else:
             app.logger.error('Empty data received. reading Testcase')
@@ -904,7 +905,6 @@ def getScrapeDataScreenLevel_ICE():
                 +"screens where screenid="+requestdata['screenid']
                 + query['delete_flag'])
                 queryresult = icesession.execute(getscrapedataquery2)
-                print "queryresult",queryresult
                 res = {"rows":queryresult.current_rows}
         else:
             app.logger.error('Empty data received. reading Testcase')
@@ -949,7 +949,7 @@ def updateScreen_ICE():
 			+" and projectid = "+requestdata['projectid']
 			+" and screenname ='" + requestdata['screenname']
 			+"' and versionnumber = "+str(requestdata['versionnumber'])
-            +" IF EXISTS; ")
+            +" IF EXISTS")
             queryresult = icesession.execute(updatescreenquery)
             res = {"rows":"Success"}
 
@@ -971,7 +971,8 @@ def updateTestCase_ICE():
         if not isemptyrequest(requestdata):
             if(requestdata["query"] == 'checktestcaseexist'):
                 updatetestcasequery1 = ("select testcaseid from testcases where "
-                +"screenid=" + requestdata['screenid']  +query['delete_flag'])
+                +"screenid=" + requestdata['screenid']+" and versionnumber="
+                +str(requestdata['versionnumber'])+query['delete_flag'])
                 queryresult = icesession.execute(updatetestcasequery1)
                 res= {"rows": queryresult.current_rows}
                 res =  jsonify(res)
@@ -984,7 +985,7 @@ def updateTestCase_ICE():
         		+"' where versionnumber = "+str(requestdata["versionnumber"])
                 +" and screenid=" + str(requestdata["screenid"])
                 + " and testcaseid=" + str(requestdata["testcaseid"])
-                + " and testcasename='" + requestdata["testcasename"] + "' if exists;")
+                + " and testcasename='" + requestdata["testcasename"] + "' if exists")
                 queryresult = icesession.execute(updatetestcasequery2)
                 res= {"rows": queryresult.current_rows}
                 res =  jsonify(res)
