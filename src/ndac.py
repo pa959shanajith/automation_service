@@ -1775,6 +1775,18 @@ def assignProjects_ICE():
         app.logger.error('Error in assignProjects_ICE')
         return jsonify(res)
 
+# service fetches all users
+@app.route('/admin/getAllUsers_Nineteen68',methods=['POST'])
+def getAllUsers_Nineteen68():
+    res={'rows':'fail'}
+    try:
+        queryforallusers=("select userid, username, defaultrole from users")
+        queryresult = n68session.execute(queryforallusers)
+        res={'rows':queryresult.current_rows}
+        return jsonify(res)
+    except Exception as getallusersexc:
+        app.logger.error('Error in getAllUsers_Nineteen68')
+        return jsonify(res)
 ################################################################################
 # END OF ADMIN SCREEN
 ################################################################################
