@@ -1527,6 +1527,42 @@ def createUser_Nineteen68():
         app.logger.error('Error in createUser_Nineteen68.')
         return jsonify(res)
 
+#service fetch user data from Nineteen68
+@app.route('/admin/getUserData_Nineteen68',methods=['POST'])
+def getUserData_Nineteen68():
+    res={'rows':'fail'}
+    try:
+        requestdata=json.loads(request.data)
+        if not isemptyrequest(requestdata):
+            getuserdataquery=("select username,firstname,lastname,emailid,ldapuser,"
+               +"defaultrole,additionalroles from users where userid="+str(requestdata['userid']))
+            queryresult = n68session.execute(getuserdataquery)
+            rows=[]
+            for eachkey in queryresult.current_rows:
+                additionalroles=[]
+                emailid = eachkey['emailid']
+                firstname = eachkey['firstname']
+                lastname = eachkey['lastname']
+                ldapuser = eachkey['ldapuser']
+                username = eachkey['username']
+                defaultrole = eachkey['defaultrole']
+                if eachkey['additionalroles'] != None:
+                    for eachrole in eachkey['additionalroles']:
+                        additionalroles.append(eachrole)
+                eachobject={'userid':requestdata['userid'],'emailid':emailid,
+                'firstname':firstname,'lastname':lastname,'ldapuser':ldapuser,
+                'username':username,'additionalroles':additionalroles,'defaultrole':defaultrole}
+                rows.append(eachobject)
+            res={'rows':rows}
+            return jsonify(res)
+        else:
+            app.logger.error('Empty data received. Get user data.')
+            return jsonify(res)
+    except Exception as updateUserexc:
+        app.logger.error('Error in getUserData_Nineteen68')
+        res={'rows':'fail'}
+        return jsonify(res)
+
 #service update user data into Nineteen68
 @app.route('/admin/updateUser_Nineteen68',methods=['POST'])
 def updateUser_Nineteen68():
@@ -1534,58 +1570,34 @@ def updateUser_Nineteen68():
     try:
         requestdata=json.loads(request.data)
         if not isemptyrequest(requestdata):
-            if(requestdata['query'] == 'userdetails'):
-                updateuserquery1=("select username,firstname,lastname,"
-                    +" emailid,ldapuser,additionalroles from users where"
-                    +" userid=" + str(requestdata['userid']))
-                queryresult = n68session.execute(updateuserquery1)
-                rows=[]
-                for eachkey in queryresult.current_rows:
-                    additionalroles=[]
-                    emailid = eachkey['emailid']
-                    firstname = eachkey['firstname']
-                    lastname = eachkey['lastname']
-                    ldapuser = eachkey['ldapuser']
-                    username = eachkey['username']
-                    if eachkey['additionalroles'] != None:
-                        for eachrole in eachkey['additionalroles']:
-                            additionalroles.append(eachrole)
-                    eachobject={'userid':requestdata['userid'],'emailid':emailid,'firstname':firstname,
-                'lastname':lastname,'ldapuser':ldapuser,
-                'username':username,'additionalroles':additionalroles}
-                    rows.append(eachobject)
-                res={'rows':rows}
-            elif(requestdata['query'] == 'updateuser'):
-                requestdata['additionalroles'] = ','.join(str(roleid) for roleid in requestdata['additionalroles'])
-                if requestdata['password'] == 'existing':
-                    updateuserquery2=("UPDATE users set "
-                    +"username='" + requestdata['username']
-                    + "', firstname='" + requestdata['firstname']
-                    + "', lastname='" + requestdata['lastname']
-                    + "', modifiedby='" + requestdata['modifiedby']
-                    + "', modifiedon=" + str(getcurrentdate())
-                    + ", emailid='" + requestdata['emailid']
-                    + "', ldapuser= " + str(requestdata['ldapuser'])
-                    + ", modifiedbyrole= '" + str(requestdata['modifiedbyrole'])
-                    + "', additionalroles= {" + str(requestdata['additionalroles'])
-                    + "} where userid=" + str(requestdata['userid']))
-                else:
-                    updateuserquery2=("UPDATE users set "
-                    +"username='" + requestdata['username']
-                    + "', password='" + requestdata['password']
-                    + "', firstname='" + requestdata['firstname']
-                    + "', lastname='" + requestdata['lastname']
-                    + "', modifiedby='" + requestdata['modifiedby']
-                    + "', modifiedon=" + str(getcurrentdate())
-                    + ", emailid='" + requestdata['emailid']
-                    + "', ldapuser= " + str(requestdata['ldapuser'])
-                    + ", modifiedbyrole= '" + str(requestdata['modifiedbyrole'])
-                    + "', additionalroles= {" + str(requestdata['additionalroles'])
-                    + "} where userid=" + str(requestdata['userid']))
-                queryresult = n68session.execute(updateuserquery2)
-                res={'rows':'Success'}
+            requestdata['additionalroles'] = ','.join(str(roleid) for roleid in requestdata['additionalroles'])
+            if requestdata['password'] == 'existing':
+                updateuserquery2=("UPDATE users set "
+                +"username='" + requestdata['username']
+                + "', firstname='" + requestdata['firstname']
+                + "', lastname='" + requestdata['lastname']
+                + "', modifiedby='" + requestdata['modifiedby']
+                + "', modifiedon=" + str(getcurrentdate())
+                + ", emailid='" + requestdata['emailid']
+                + "', ldapuser= " + str(requestdata['ldapuser'])
+                + ", modifiedbyrole= '" + str(requestdata['modifiedbyrole'])
+                + "', additionalroles= {" + str(requestdata['additionalroles'])
+                + "} where userid=" + str(requestdata['userid']))
             else:
-                return jsonify(res)
+                updateuserquery2=("UPDATE users set "
+                +"username='" + requestdata['username']
+                + "', password='" + requestdata['password']
+                + "', firstname='" + requestdata['firstname']
+                + "', lastname='" + requestdata['lastname']
+                + "', modifiedby='" + requestdata['modifiedby']
+                + "', modifiedon=" + str(getcurrentdate())
+                + ", emailid='" + requestdata['emailid']
+                + "', ldapuser= " + str(requestdata['ldapuser'])
+                + ", modifiedbyrole= '" + str(requestdata['modifiedbyrole'])
+                + "', additionalroles= {" + str(requestdata['additionalroles'])
+                + "} where userid=" + str(requestdata['userid']))
+            queryresult = n68session.execute(updateuserquery2)
+            res={'rows':'Success'}
             return jsonify(res)
         else:
             app.logger.error('Empty data received. update user.')
@@ -1614,58 +1626,41 @@ def createProject_ICE():
                 +"skucodeproject,tags)values ( "+str(requestdata['domainid'])
                 +", '"+requestdata['projectname']+"' , "+str(projectid)
                 +", '"+requestdata['createdby']+"',"+str(getcurrentdate())
-                +", flase, "+requestdata['projecttypeid']
+                +", false, "+requestdata['projecttypeid']
                 +",'"+requestdata['skucodeproject']+"' , ['"+requestdata['tags']+"']);")
                 projectid = {'projectid':projectid}
                 queryresult = icesession.execute(createprojectquery1)
                 res={'rows':[projectid]}
             elif(requestdata['query'] == 'createrelease'):
-                if requestdata['releaseid'] in requestdata:
-                    deletedonrelease = False
-                    createprojectquery1=("insert into releases (projectid,releasename,"
-                    +"releaseid,createdby,createdon,deleted,skucoderelease,tags) values "
-                    +"("+str(requestdata['projectid'])+",'"+requestdata['releasename']
-                    +"' ,"+str(requestdata['releaseid'])+",'"+requestdata['createdby']
-                    +"' ,"+str(getcurrentdate())+","+str(deletedonrelease)
-                    +",'"+requestdata['skucoderelease']+"' ,['"+requestdata['tags']+"']);")
-##                    releaseid = {'releaseid':releaseid}
-                    queryresult = icesession.execute(createprojectquery1)
-                    res={'rows':'Success'}
+                releaseid=''
+                if requestdata.has_key('releaseid'):
+                    releaseid=requestdata['releaseid']
                 else:
-                    releaseid =uuid.uuid4()
-                    deletedonrelease = False
-                    createprojectquery2=("insert into releases (projectid,releasename,"
-                    +"releaseid,createdby,createdon,deleted,skucoderelease,tags) values "
-                    +"("+str(requestdata['projectid'])+", '"+requestdata['releasename']
-                    +"' ,"+str(releaseid)+",'"+requestdata['createdby']
-                    +"' ,"+str(getcurrentdate())+","+str(deletedonrelease)
-                    +",'"+requestdata['skucoderelease']+"' ,['"+requestdata['tags']+"']);")
-                    releaseid = {'releaseid':releaseid}
-                    queryresult = icesession.execute(createprojectquery2)
-                    res={'rows':[releaseid]}
+                    releaseid=uuid.uuid4()
+                createreleasequery1=("insert into releases (projectid,releasename,"
+                +"releaseid,createdby,createdon,deleted,skucoderelease,tags) values "
+                +"("+str(requestdata['projectid'])+", '"+requestdata['releasename']
+                +"',"+str(releaseid)+",'"+requestdata['createdby']
+                +"',"+str(getcurrentdate())+",false,'"+requestdata['skucoderelease']
+                +"',['"+requestdata['tags']+"'])")
+                releaseid = {'releaseid':releaseid}
+                queryresult = icesession.execute(createreleasequery1)
+                res={'rows':[releaseid]}
             elif(requestdata['query'] == 'createcycle'):
-                if requestdata['cycleid'] in requestdata:
-                    deletedoncycle = False
-                    createprojectquery3=("insert into cycles (releaseid,cyclename, "
-                    +"cycleid,createdby,createdon,deleted,skucodecycle,tags) values "
-                    +" ("+str(requestdata['releaseid'])+", '"+requestdata['cyclename']
-                    +"',"+str(requestdata['cycleid'])+",'"+requestdata['createdby']
-                    +"',"+str(getcurrentdate())+","+str(deletedoncycle)
-                    +",'"+requestdata['skucodecycle']+"' ,['"+requestdata['tags']+"']);")
-                    queryresult = icesession.execute(createprojectquery3)
-                    res={'rows':'Success'}
+                cycleid=''
+                if requestdata.has_key('cycleid'):
+                    cycleid=requestdata['cycleid']
                 else:
-                    cycleid =uuid.uuid4()
-                    deletedoncycle = False
-                    createprojectquery3=("insert into cycles (releaseid,cyclename, "
-                    +"cycleid,createdby,createdon,deleted,skucodecycle,tags) values "
-                    +" ("+str(requestdata['releaseid'])+", '"+requestdata['cyclename']
-                    +"',"+str(cycleid)+",'"+requestdata['createdby']
-                    +"',"+str(getcurrentdate())+","+str(deletedoncycle)
-                    +",'"+requestdata['skucodecycle']+"' ,['"+requestdata['tags']+"']);")
-                    queryresult = icesession.execute(createprojectquery3)
-                    res={'rows':'Success'}
-
+                    cycleid=uuid.uuid4()
+                createcyclequery1=("insert into cycles (releaseid,cyclename, "
+                +"cycleid,createdby,createdon,deleted,skucodecycle,tags) values "
+                +" ("+str(requestdata['releaseid'])+", '"+requestdata['cyclename']
+                +"',"+str(cycleid)+",'"+requestdata['createdby']
+                +"',"+str(getcurrentdate())+",false,'"+requestdata['skucodecycle']
+                +"' ,['"+requestdata['tags']+"'])")
+                cycleid = {'cycleid':cycleid}
+                queryresult = icesession.execute(createcyclequery1)
+                res={'rows':[cycleid]}
             else:
                 return jsonify(res)
             return jsonify(res)
@@ -1787,6 +1782,7 @@ def getAllUsers_Nineteen68():
     except Exception as getallusersexc:
         app.logger.error('Error in getAllUsers_Nineteen68')
         return jsonify(res)
+
 ################################################################################
 # END OF ADMIN SCREEN
 ################################################################################
