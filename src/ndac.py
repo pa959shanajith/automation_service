@@ -1165,7 +1165,6 @@ def readTestSuite_ICE():
             return jsonify(res)
         res= {"rows":queryresult.current_rows}
         return jsonify(res)
-
     except Exception as exporttojsonexc:
         app.logger.error('Error in readTestSuite_ICE.')
         res={'rows':'fail'}
@@ -1255,9 +1254,9 @@ def ExecuteTestSuite_ICE() :
                 queryresult = icesession.execute(executetestsuitequery5)
             elif(requestdata['query'] == 'inserintotexecutionquery'):
                executetestsuitequery6= ("insert into execution (testsuiteid,"
-                +"executionid,starttime,endtime) values (" + requestdata['testsuiteid']
+                +"executionid,starttime,endtime,executionstatus) values (" + requestdata['testsuiteid']
                 + "," + requestdata['executionid']+ "," + requestdata['starttime']
-                + "," + str(getcurrentdate()) + ")")
+                + "," + str(getcurrentdate()) + ",'" + requestdata['status'] + ")")
                queryresult = icesession.execute(executetestsuitequery6)
             else:
                 return jsonify(res)
@@ -1272,6 +1271,67 @@ def ExecuteTestSuite_ICE() :
 
 ################################################################################
 # END OF EXECUTION
+################################################################################
+
+################################################################################
+# START OF SCHEDULING
+################################################################################
+@app.route('/suite/ScheduleTestSuite_ICE',methods=['POST'])
+def ScheduleTestSuite_ICE():
+    res={'rows':'fail'}
+    try:
+        requestdata=json.loads(request.data)
+        if not isemptyrequest(requestdata):
+            if(requestdata['query'] == 'insertscheduledata'):
+                requestdata['testsuiteids']=','.join(str(idval) for idval in requestdata['testsuiteids'])
+                requestdata['browserlist'] = ','.join(str(idval) for idval in requestdata['browserlist'])
+                scheduletestsuitequery1=("insert into scheduledexecution(cycleid,scheduledatetime,"
+                +"scheduleid,browserlist,clientipaddress,clientport,scenariodetails,schedulestatus,"
+                +"testsuiteids,testsuitename) values (" + requestdata['cycleid'] + ","
+                + str(requestdata['scheduledatetime']) + "," + requestdata['scheduleid'] + ",'["
+                + requestdata['browserlist'] + "]','" + requestdata['clientipaddress'] + "',"
+                + requestdata['clientport'] + ",'" + requestdata['scenariodetails'] + "','"
+                + requestdata['schedulestatus'] + "',[" + requestdata['testsuiteids'] + "],'"
+                + requestdata['testsuitename'] + "')")
+                queryresult = icesession.execute(scheduletestsuitequery1)
+            elif(requestdata['query'] == 'getscheduledata'):
+                scheduletestsuitequery2=("select * from scheduledexecution where "
+                +"cycleid="+ requestdata['cycleid'] + " and scheduledatetime='"
+                + requestdata['scheduledatetime'] + "' and scheduleid="
+                + requestdata['scheduleid'] + " ALLOW FILTERING")
+                queryresult = icesession.execute(scheduletestsuitequery2)
+            elif(requestdata['query'] == 'updatescheduledstatus'):
+                scheduletestsuitequery3=("update scheduledexecution set schedulestatus='"
+                + requestdata['schedulestatus'] + "' where cycleid="
+                + requestdata['cycleid'] + " and scheduledatetime='"
+                + str(requestdata['scheduledatetime']) + "' and scheduleid="
+                + requestdata['scheduleid'])
+                queryresult = icesession.execute(scheduletestsuitequery3)
+            elif(requestdata['query'] == 'getallscheduledetails'):
+                if(requestdata['scheduledetails'] == 'getallscheduledata'):
+                    scheduletestsuitequery4=("select * from scheduledexecution")
+                elif(requestdata['scheduledetails'] == 'getallscheduleddetails'):
+                    scheduletestsuitequery4=("select * from scheduledexecution"
+                    +" where schedulestatus='scheduled' allow filtering;")
+                queryresult = icesession.execute(scheduletestsuitequery4)
+            elif(requestdata['query'] == 'getscheduledstatus'):
+                scheduletestsuitequery5=("select schedulestatus from scheduledexecution"
+                +" where cycleid="+ requestdata['cycleid'] + " and scheduledatetime='"
+                + str(requestdata['scheduledatetime']) + "' and scheduleid=" + requestdata['scheduleid'])
+                queryresult = icesession.execute(scheduletestsuitequery5)
+            else:
+                return jsonify(res)
+        else:
+            app.logger.error('Empty data received. schedule testsuite.')
+            return jsonify(res)
+        res={'rows':queryresult.current_rows}
+        return jsonify(res)
+    except Exception as scheduletestsuiteexc:
+        app.logger.error('Error in ScheduleTestSuite_ICE')
+        return jsonify(res)
+
+################################################################################
+# END OF SCHEDULING
 ################################################################################
 
 ################################################################################
