@@ -1256,7 +1256,7 @@ def ExecuteTestSuite_ICE() :
                executetestsuitequery6= ("insert into execution (testsuiteid,"
                 +"executionid,starttime,endtime,executionstatus) values (" + requestdata['testsuiteid']
                 + "," + requestdata['executionid']+ "," + requestdata['starttime']
-                + "," + str(getcurrentdate()) + ",'" + requestdata['status'] + ")")
+                + "," + str(getcurrentdate()) + ",'" + requestdata['status'] + "')")
                queryresult = icesession.execute(executetestsuitequery6)
             else:
                 return jsonify(res)
