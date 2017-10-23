@@ -501,7 +501,7 @@ def get_node_details_ICE():
             get_node_data=query[query_name]+requestdata['id']+query['delete_flag']
             queryresult = icesession.execute(get_node_data)
             res={'rows':queryresult.current_rows}
-            if(res['rows'][0]['history'] != None):
+            if(len(queryresult.current_rows)!=0 and res['rows'][0]['history'] != None):
                 res['rows'][0]['history']=dict(res['rows'][0]['history'])
        else:
             app.logger.error("Empty data received. testcase_exists")
@@ -509,7 +509,6 @@ def get_node_details_ICE():
 ##        print e
 ##        import traceback
 ##        traceback.print_exc()
-        app.logger.error(e)
         app.logger.error('Error in testcase_exists.')
     return jsonify(res)
 
@@ -725,10 +724,7 @@ def updateModulename_ICE():
     try:
        requestdata=json.loads(request.data)
        if not isemptyrequest(requestdata):
-             history={}
-             req_history=requestdata['history']
-             for keys in req_history:
-                history[keys.encode('utf-8')]=req_history[keys].encode('utf-8')
+             history=createHistory("rename","modules",requestdata)
              requestdata['testscenarioids']=','.join(str(idval) for idval in requestdata['testscenarioids'])
              update_modulename_query =("insert into modules "
              +"(projectid,modulename,moduleid,versionnumber,modifiedby,modifiedbyrole,modifiedon,createdby,createdon,"
@@ -740,12 +736,6 @@ def updateModulename_ICE():
              + ",'"+requestdata['createdthrough']+"',"+str(requestdata['deleted'])+","+str(history)
              +", '"+requestdata['skucodemodule']+"',['"+requestdata['tags']+"'],["+requestdata['testscenarioids']+"])")
              queryresult = icesession.execute(update_modulename_query)
-
-             new_history=createHistory("rename","modules",requestdata)
-             updatehistoryquery=("update modules set history=history+"+str(new_history)+" where moduleid="
-             +str(requestdata['moduleid'])+" and modulename='"+str(requestdata['modulename'])+"' and projectid="
-             +str(requestdata['projectid'])+" and versionnumber="+str(requestdata['versionnumber']))
-             queryresult1 = icesession.execute(updatehistoryquery)
              res={'rows':'Success'}
        else:
             app.logger.error("Empty data received. updateModulename_ICE")
@@ -759,10 +749,7 @@ def updateTestscenarioname_ICE():
     try:
        requestdata=json.loads(request.data)
        if not isemptyrequest(requestdata):
-            history={}
-            req_history=requestdata['history']
-            for keys in req_history:
-                history[keys.encode('utf-8')]=req_history[keys].encode('utf-8')
+            history=createHistory("rename","testscenarios",requestdata)
             requestdata['testcaseids'] = ','.join(str(idval) for idval in requestdata['testcaseids'])
             update_testscenario_name_query =("insert into testscenarios "
             +"(projectid,testscenarioname,testscenarioid,versionnumber,history,modifiedby,modifiedbyrole,modifiedon,createdby,createdon,"
@@ -774,12 +761,6 @@ def updateTestscenarioname_ICE():
             + ","+str(requestdata['deleted'])+",'"+requestdata['skucodetestscenario']+"',['"
             +requestdata['tags']+"'],["+requestdata['testcaseids']+"])")
             queryresult = icesession.execute(update_testscenario_name_query)
-
-            new_history=createHistory("rename","testscenarios",requestdata)
-            updatehistoryquery=("update testscenarios set history=history+"+str(new_history)+" where testscenarioid="
-            +str(requestdata['testscenarioid'])+" and testscenarioname='"+str(requestdata['testscenarioname'])+"' and projectid="
-            +str(requestdata['projectid'])+" and versionnumber="+str(requestdata['versionnumber']))
-            queryresult1 = icesession.execute(updatehistoryquery)
             res={'rows':'Success'}
        else:
             app.logger.error("Empty data received. updateTestscenarioname_ICE")
@@ -797,10 +778,7 @@ def updateScreenname_ICE():
         if(requestdata['screendata'] == ''):
             requestdata['screendata'] = ' '
         if not isemptyrequest(requestdata):
-            history={}
-            req_history=requestdata['history']
-            for keys in req_history:
-                history[keys.encode('utf-8')]=req_history[keys].encode('utf-8')
+            history=createHistory("rename","screens",requestdata)
             update_screenname_query =("insert into screens (projectid,screenname,"
             +"screenid,versionnumber,createdby,createdon,createdthrough,deleted,history,"
             +"modifiedby,modifiedbyrole,modifiedon,screendata,skucodescreen,tags"
@@ -812,12 +790,6 @@ def updateScreenname_ICE():
             +"',"+str(getcurrentdate())+",'"+requestdata['screendata']
             +"','"+requestdata['skucodescreen']+"',['"+requestdata['tags']+"'])")
             queryresult = icesession.execute(update_screenname_query)
-
-            new_history=createHistory("rename","screens",requestdata)
-            updatehistoryquery=("update screens set history=history+"+str(new_history)+" where screenid="
-            +str(requestdata['screenid'])+" and screenname='"+str(requestdata['screenname'])+"' and projectid="
-            +str(requestdata['projectid'])+" and versionnumber="+str(requestdata['versionnumber']))
-            queryresult1 = icesession.execute(updatehistoryquery)
             res={'rows':'Success'}
         else:
             app.logger.error("Empty data received. updateScreenname_ICE")
@@ -834,10 +806,7 @@ def updateTestcasename_ICE():
        if(requestdata['testcasesteps'] == ''):
             requestdata['testcasesteps'] = ' '
        if not isemptyrequest(requestdata):
-            history={}
-            req_history=requestdata['history']
-            for keys in req_history:
-                history[keys.encode('utf-8')]=req_history[keys].encode('utf-8')
+            history=createHistory("rename","testcases",requestdata)
             update_testcasename_query =("insert into testcases (screenid,testcasename,"
             "testcaseid,versionnumber,createdby,createdon,createdthrough,deleted,"
             +"modifiedby,modifiedbyrole,modifiedon,history,skucodetestcase,tags,"
@@ -850,12 +819,6 @@ def updateTestcasename_ICE():
             +",'"+requestdata['skucodetestcase']+"',['"+requestdata['tags']
             +"'],'"+requestdata['testcasesteps']+"')")
             queryresult = icesession.execute(update_testcasename_query)
-
-            new_history=createHistory("rename","testcases",requestdata)
-            updatehistoryquery=("update testcases set history=history+"+str(new_history)+" where testcaseid="
-            +str(requestdata['testcaseid'])+" and testcasename='"+str(requestdata['testcasename'])+"' and screenid="
-            +str(requestdata['screenid'])+" and versionnumber="+str(requestdata['versionnumber']))
-            queryresult1 = icesession.execute(updatehistoryquery)
             res={'rows':'Success'}
        else:
             app.logger.error("Empty data received. updateTestcasename_ICE")
@@ -1185,12 +1148,7 @@ def readTestSuite_ICE():
                 requestdata['donotexecute'] = ','.join(str(idval) for idval in requestdata['donotexecute'])
                 requestdata['getparampaths'] = ','.join(str(idval) for idval in requestdata['getparampaths'])
                 requestdata['testscenarioids'] = ','.join(str(idval) for idval in requestdata['testscenarioids'])
-                new_history=createHistory("update","testsuites",requestdata)
-                history={}
-                req_history=requestdata['history']
-                req_history[new_history.keys()[0]]=new_history.values()[0]
-                for keys in req_history:
-                    history[keys.encode('utf-8')]=req_history[keys].encode('utf-8')
+                history=createHistory("update","testsuites",requestdata)
                 readtestsuitequery6 = ("insert into testsuites (cycleid,testsuitename,"
                 +"testsuiteid,versionnumber,conditioncheck,createdby,createdon,"
                 +"createdthrough,history,deleted,donotexecute,getparampaths,modifiedby,"
@@ -2134,6 +2092,10 @@ def exportToJson_ICE():
 def createHistory(query, table, requestdata):
     try:
         history={}
+        if(requestdata.has_key('history')):
+            req_history=requestdata['history']
+            for keys in req_history:
+                history[keys.encode('utf-8')]=req_history[keys].encode('utf-8')
         primary_keys={'users':['userid'],
                     'projects':['projectid','domainid','projectname'],
                     'cycles':['cycleid','releaseid','cyclename'],
@@ -2150,96 +2112,101 @@ def createHistory(query, table, requestdata):
             queryresult=n68session.execute(versionquery)
         else:
             queryresult=icesession.execute(versionquery)
-        latest_version=getLatestVersion(queryresult.current_rows,table)
+        version=getHistoryLatestVersion(queryresult.current_rows,table,history)
         if(query=='create'):
-            version=str(latest_version)
             value={
             'description':'Created '+table[:-1]+' with values'+str(requestdata),
             'timestamp':str(getcurrentdate()),
             'user':str(requestdata['createdby'])
             }
             value=str(value).replace("'",'\"')
-            history={version:value}
+            history[version]=value
         elif(query=='update'):
-            version=str(latest_version)
             data={}
             for keys in requestdata:
                 if (keys not in primary_keys[table] and keys != 'modifiedby'
                 and keys != 'modifiedon' and keys != 'modifiedbyrole'):
                     data[keys]=requestdata[keys]
+            user_str=''
             if(table=='projects'):
-                value={
-                'description':'Updated properties:'+str(data),
-                'timestamp':str(getcurrentdate()),
-                'user':str(requestdata['createdby'])
-                }
+                user_str=requestdata['createdby']
             else:
-                value={
-                'description':'Updated properties:'+str(data),
-                'timestamp':str(getcurrentdate()),
-                'user':str(requestdata['modifiedby'])
-                }
+                user_str=requestdata['modifiedby']
+            value={
+            'description':'Updated properties:'+str(data),
+            'timestamp':str(getcurrentdate()),
+            'user':str(user_str)
+            }
             value=str(value).replace("'",'\"')
-            history={version:value}
+            history[version]=value
         elif(query=='assign'):
-            version=str(latest_version)
+            user_str=''
             if(requestdata['alreadyassigned']!=True):
-                value={
-                'description':'Assigned project '+str(requestdata['projectids'])+'with domain '+str(requestdata['domainid'])+' to user '+str(requestdata['userid']),
-                'timestamp':str(getcurrentdate()),
-                'user':str(requestdata['createdby'])
-                }
+                user_str=requestdata['createdby']
             else:
-                value={
-                'description':'Assigned project '+str(requestdata['projectids'])+'with domain '+str(requestdata['domainid'])+' to user '+str(requestdata['userid']),
-                'timestamp':str(getcurrentdate()),
-                'user':str(requestdata['modifiedby'])
-                }
+                user_str=requestdata['modifiedby']
+            value={
+            'description':'Assigned project '+str(requestdata['projectids'])+'with domain '+str(requestdata['domainid'])+' to user '+str(requestdata['userid']),
+            'timestamp':str(getcurrentdate()),
+            'user':str(user_str)
+            }
             value=str(value).replace("'",'\"')
-            history={version:value}
+            history[version]=value
         elif(query=='rename'):
-            version=str(latest_version)
-            value={}
+            desc_str=''
             if(table=='modules'):
-                value['description']='Renamed module to '+requestdata['modulename']
+                desc_str='Renamed module to '+requestdata['modulename']
             elif(table=='testscenarios'):
-                value['description']='Renamed scenario to '+requestdata['testscenarioname']
+                desc_str='Renamed scenario to '+requestdata['testscenarioname']
             elif(table=='screens'):
-                value['description']='Renamed screen to '+requestdata['screenname']
+                desc_str='Renamed screen to '+requestdata['screenname']
             elif(table=='testcases'):
-                value['description']='Renamed testcase to '+requestdata['testcasename']
-            value['timestamp']=str(getcurrentdate())
-            value['user']=str(requestdata['modifiedby'])
+                desc_str='Renamed testcase to '+requestdata['testcasename']
+            value={
+            'description':desc_str.encode('utf-8'),
+            'timestamp':str(getcurrentdate()),
+            'user':str(requestdata['modifiedby'])
+            }
             value=str(value).replace("'",'\"')
-            history={version:value}
+            history[version]=value
         return history
     except Exception as e:
         app.logger.error('Error in createHistory.')
 
 
-def getLatestVersion(res,table):
+def getHistoryLatestVersion(res,table,hist):
     try:
-        oldverslist=''
+        oldverslist=[]
+        histFlag=False
         versions=''
-        if (len(res)==0):
+        if (hist is not None and len(hist)!=0):
+            oldverslist=hist.keys()
+            histFlag=True
+        if (len(res)!=0):
+            if(table=='users'):
+                versions=res[0]['nineteen68.getversions(history)']
+            else:
+                versions=res[0]['icetestautomation.getversions(history)']
+            if(versions==''):
+                return '000.001'
+            elif(len(oldverslist)==0):
+                oldverslist=versions.split(',')
+        elif (not histFlag):
             return '000.000'
-        if(table=='users'):
-            versions=res[0]['nineteen68.getversions(history)']
-        else:
-            versions=res[0]['icetestautomation.getversions(history)']
-        if(versions==''):
-            return '000.001'
-        else:
-            oldverslist=versions.split(',')
         oldver=max(oldverslist)
-        newver=str(float(oldver)+0.001)
-        if(len(newver)==5):
-            newver="00"+newver
-        elif(len(newver)==6):
-            newver="0"+newver
+        newver=str(float(oldver)+0.001).split('.')
+        if(len(newver[0])==1):
+            newver[0]="00"+newver[0]
+        elif(len(newver[0])==2):
+            newver[0]="0"+newver[0]
+        if(len(newver[1])==1):
+            newver[1]=newver[1]+"00"
+        elif(len(newver[1])==2):
+            newver[1]=newver[1]+"0"
+        newver= '.'.join(newver)
         return newver
     except Exception as e:
-        app.logger.error(e)
+        app.logger.error("Error in getHistoryLatestVersion")
 
 ################################################################################
 # END OF HISTORY
