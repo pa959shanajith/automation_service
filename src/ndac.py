@@ -538,9 +538,6 @@ def get_node_details_ICE():
        else:
             app.logger.error("Empty data received. testcase_exists")
     except Exception as e:
-##        print e
-##        import traceback
-##        traceback.print_exc()
         app.logger.error('Error in testcase_exists.')
     return jsonify(res)
 
@@ -568,6 +565,14 @@ def insertInSuite_ICE():
        requestdata=json.loads(request.data)
        if not isemptyrequest(requestdata):
            if(requestdata["query"] == 'notflagsuite'):
+                tags="['"+requestdata['tags']+"']"
+                if(requestdata.has_key('subquery') and requestdata["query"]=="clonenode"):
+                    fetchOldData="select tags from modules where "
+                    +"moduleid="+requestdata['oldmoduleid']+" and versionnumber="
+                    +str(requestdata['oldversionnumber'])+query['delete_flag']
+                    #fetchqueryresult = icesession.execute(fetchOldData)
+                    #fetchqueryresult = fetchqueryresult.current_rows[0]
+                    #tags=fetchqueryresult['tags']
                 history=createHistory("create","modules",requestdata)
                 create_suite_query1 = ("insert into modules "
                 +"(projectid,modulename,moduleid,versionnumber,createdby,createdon,"
@@ -576,7 +581,7 @@ def insertInSuite_ICE():
                 +"'," + requestdata['moduleid'] + ","+str(requestdata['versionnumber'])
                 +",'"+requestdata['createdby']+"'," + str(getcurrentdate())
                 + ",'"+requestdata['createdthrough']+"',"+str(requestdata['deleted'])
-                +","+str(history)+", '"+requestdata['skucodemodule']+"',['"+requestdata['tags']+"'],[])")
+                +","+str(history)+", '"+requestdata['skucodemodule']+"',"+tags+",[])")
                 queryresult = icesession.execute(create_suite_query1)
                 res={'rows':'Success'}
            elif(requestdata["query"] == 'selectsuite'):
@@ -598,14 +603,22 @@ def insertInScenarios_ICE():
        requestdata=json.loads(request.data)
        if not isemptyrequest(requestdata):
            if(requestdata["query"] == 'notflagscenarios'):
+                tags="['"+requestdata['tags']+"']"
+                if(requestdata.has_key('subquery') and requestdata["query"]=="clonenode"):
+                    fetchOldData="select tags from testscenarios where "
+                    +"testscenarioid="+requestdata['oldscenarioid']+" and versionnumber="
+                    +str(requestdata['oldversionnumber'])+query['delete_flag']
+                    #fetchqueryresult = icesession.execute(fetchOldData)
+                    #fetchqueryresult = fetchqueryresult.current_rows[0]
+                    #tags=fetchqueryresult['tags']
                 history=createHistory("create","testscenarios",requestdata)
                 create_scenario_query1 = ("insert into testscenarios(projectid,"
-                +"testscenarioname,testscenarioid,versionnumber,history,createdby,createdon,skucodetestscenario,"
-                +"tags,testcaseids,deleted) values ("+requestdata['projectid'] + ",'"
-                +requestdata['testscenarioname']+"',"+requestdata['testscenarioid']
-                +","+str(requestdata['versionnumber'])+", "+str(history)
-                +",'"+requestdata['createdby']+"'," + str(getcurrentdate())
-                +", '"+requestdata['skucodetestscenario']+"',['"+requestdata['tags']+"'],[],"+str(requestdata['deleted'])+")")
+                +"testscenarioname,testscenarioid,versionnumber,history,createdby"
+                +",createdon,skucodetestscenario,tags,testcaseids,deleted) values ("
+                +requestdata['projectid'] + ",'"+requestdata['testscenarioname']
+                +"',"+requestdata['testscenarioid']+","+str(requestdata['versionnumber'])
+                +", "+str(history)+",'"+requestdata['createdby']+"'," + str(getcurrentdate())
+                +", '"+requestdata['skucodetestscenario']+"',"+tags+",[],"+str(requestdata['deleted'])+")")
                 queryresult = icesession.execute(create_scenario_query1)
                 res={'rows':'success'}
            elif(requestdata["query"] == 'deletescenarios'):
@@ -629,18 +642,27 @@ def insertInScreen_ICE():
        requestdata=json.loads(request.data)
        if not isemptyrequest(requestdata):
             if(requestdata["query"] == 'notflagscreen'):
+                tags="['"+requestdata['tags']+"']"
+                screendata="''"
+                if(requestdata.has_key('subquery') and requestdata["query"]=="clonenode"):
+                    fetchOldData="select tags,screendata from screens where "
+                    +"screenid="+requestdata['oldscreenid']+" and versionnumber="
+                    +str(requestdata['oldversionnumber'])+query['delete_flag']
+                    fetchqueryresult = icesession.execute(fetchOldData)
+                    fetchqueryresult = fetchqueryresult.current_rows[0]
+                    #tags=fetchqueryresult['tags']
+                    screendata=fetchqueryresult['screendata']
                 history=createHistory("create","screens",requestdata)
                 create_screen_query1 = ("insert into screens (projectid,screenname,"
                 +" screenid,versionnumber,history,createdby,createdon,createdthrough,"
-                +" deleted,skucodescreen,tags) values ("+requestdata['projectid']
+                +" deleted,screendata,skucodescreen,tags) values ("+requestdata['projectid']
                 +", '"+requestdata['screenname']+"'," + requestdata['screenid']
                 +" , "+str(requestdata['versionnumber'])+", "+str(history)
                 +" ,'"+requestdata['createdby']+"'," + str(getcurrentdate())
                 +", '"+requestdata['createdthrough']+"' , "+str(requestdata['deleted'])
-                +",'"+requestdata['skucodescreen']+"',['"+requestdata['tags']+"'] )")
+                +","+screendata+",'"+requestdata['skucodescreen']+"',"+tags+")")
                 queryresult = icesession.execute(create_screen_query1)
                 res={'rows':'Success'}
-
             elif(requestdata["query"] == 'selectscreen'):
                 select_screen_query = ("select screenid from screens where "
                 +"screenname='"+requestdata['screenname']+"' and versionnumber="
@@ -660,6 +682,16 @@ def insertInTestcase_ICE():
        requestdata=json.loads(request.data)
        if not isemptyrequest(requestdata):
             if(requestdata["query"] == 'notflagtestcase'):
+                tags="['"+requestdata['tags']+"']"
+                testcasesteps="''"
+                if(requestdata.has_key('subquery') and requestdata["query"]=="clonenode"):
+                    fetchOldData="select tags,testcasesteps from testcases where "
+                    +"testcaseid="+requestdata['oldtestcaseid']+" and versionnumber="
+                    +str(requestdata['oldversionnumber'])+query['delete_flag']
+                    fetchqueryresult = icesession.execute(fetchOldData)
+                    fetchqueryresult = fetchqueryresult.current_rows[0]
+                    #tags=fetchqueryresult['tags']
+                    testcasesteps=fetchqueryresult['testcasesteps']
                 history=createHistory("create","testcases",requestdata)
                 create_testcase_query1 = ("insert into testcases (screenid,"
                 +"testcasename,testcaseid,versionnumber,history,createdby,createdon,"
@@ -668,10 +700,9 @@ def insertInTestcase_ICE():
                 +"'," + requestdata['testcaseid'] + ","+str(requestdata['versionnumber'])
                 +", "+str(history)+",'"+ requestdata['createdby']+"'," + str(getcurrentdate())+", '"
                 +requestdata['createdthrough'] +"',"+str(requestdata['deleted'])+",'"
-                +requestdata['skucodetestcase']+"',['"+requestdata['tags']+"'], '')")
+                +requestdata['skucodetestcase']+"',"+tags+","+testcasesteps+")")
                 queryresult = icesession.execute(create_testcase_query1)
                 res={'rows':'Success'}
-
             elif(requestdata["query"] == 'selecttestcase'):
                 select_testcase_query = ("select testcaseid from testcases "
                 +"where testcasename='"+requestdata['tags']+"'  and versionnumber="
@@ -2162,13 +2193,22 @@ def exportToJson_ICE():
 # BEGIN OF HISTORY
 ################################################################################
 
-def createHistory(query, table, requestdata):
+def createHistory(query, table, request_data):
     try:
         history={}
+        createclone=False
+        requestdata=dict(request_data)
         if(requestdata.has_key('history') and requestdata['history'] != None):
             req_history=requestdata['history']
             for keys in req_history:
                 history[keys.encode('utf-8')]=req_history[keys].encode('utf-8')
+        if(requestdata.has_key("query")):
+            del requestdata["query"]
+        if(requestdata.has_key("subquery")):
+            createclone=True
+            del requestdata["subquery"]
+        if(requestdata.has_key("modifiedflag")):
+            del requestdata["modifiedflag"]
         primary_keys={'users':['userid'],
                     'projects':['projectid','domainid','projectname'],
                     'cycles':['cycleid','releaseid','cyclename'],
@@ -2200,15 +2240,18 @@ def createHistory(query, table, requestdata):
             version=getHistoryLatestVersion(queryresult.current_rows,table,history,query)
         else:
             version=getHistoryLatestVersion(queryresult.current_rows,table,history)
+        value=""
         if(query=='create'):
             data=str(requestdata)#.replace("'","\'").replace('"',"'")
+            if(createclone):
+                desc_str='Replicated '
+            else:
+                desc_str='Created '
             value={
-            'description':'Created '+table[:-1]+' with values '+data,
+            'description':desc_str+table[:-1]+' with values '+data,
             'timestamp':str(getcurrentdate()),
             'user':str(requestdata['createdby'])
             }
-            value=str(value).replace("'",'\"')
-            history[version]=value
         elif(query=='update'):
             data={}
             for keys in requestdata:
@@ -2226,8 +2269,6 @@ def createHistory(query, table, requestdata):
             'timestamp':str(getcurrentdate()),
             'user':str(user_str)
             }
-            value=str(value).replace("'",'\"')
-            history[version]=value
         elif(query=='assign'):
             user_str=''
             if(requestdata['alreadyassigned']!=True):
@@ -2239,8 +2280,6 @@ def createHistory(query, table, requestdata):
             'timestamp':str(getcurrentdate()),
             'user':str(user_str)
             }
-            value=str(value).replace("'",'\"')
-            history[version]=value
         elif(query=='rename'):
             desc_str=''
             if(table=='modules'):
@@ -2252,12 +2291,10 @@ def createHistory(query, table, requestdata):
             elif(table=='testcases'):
                 desc_str='Renamed testcase to '+requestdata['testcasename']
             value={
-            'description':desc_str.encode('utf-8'),
+            'description':desc_str,
             'timestamp':str(getcurrentdate()),
             'user':str(requestdata['modifiedby'])
             }
-            value=str(value).replace("'",'\"')
-            history[version]=value
         elif(query=='submit'):
             desc_str=''
             if(requestdata['status']=='review'):
@@ -2288,12 +2325,13 @@ def createHistory(query, table, requestdata):
                 elif(table=='testcases'):
                     desc_str='Reassigned testcase '+requestdata['details']['testCaseName']+' for review'
             value={
-            'description':desc_str.encode('utf-8'),
+            'description':desc_str,
             'timestamp':str(getcurrentdate()),
             'user':str(requestdata['username'])
             }
-            value=str(value).replace("'",'\"')
-            history[version]=value
+        value=str(value).replace("'",'\"')
+        history[version]=value
+        del requestdata
         return history
     except Exception as e:
         app.logger.error('Error in createHistory.')
