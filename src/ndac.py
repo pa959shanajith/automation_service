@@ -366,9 +366,41 @@ def getAllNames_ICE():
             queryresult = icesession.execute(getname_query)
             res={'rows':queryresult.current_rows}
        else:
-            app.logger.error("Empty data received. getProjectIDs_Nineteen68")
+            app.logger.error("Empty data received. getAllNames_ICE")
     except Exception as e:
-        app.logger.error('Error in getNames_Ninteen68.')
+        app.logger.error('Error in getAllNames_ICE.')
+    return jsonify(res)
+
+#getting names of empty projects for project replication
+@app.route('/create_ice/getEmptyProjects_ICE',methods=['POST'])
+def getEmptyProjects_ICE():
+    res={'rows':'fail'}
+    try:
+       requestdata=json.loads(request.data)
+       if not isemptyrequest(requestdata):
+            modulequery="select distinct projectid from modules"
+            modulequeryresult = icesession.execute(modulequery)
+            modpids=[]
+            for row in modulequeryresult.current_rows:
+                modpids.append(str(row['projectid']))
+            emptyProjects={
+                'projectId':[],
+                'projectName':[]
+            }
+            for pid in requestdata['projectids']:
+                if pid not in modpids:
+                    getemptyprojectsquery="select projectid,projectname from projects where projectid="+pid
+                    queryresult = icesession.execute(getemptyprojectsquery)
+                    prjDetail=queryresult.current_rows
+                    if(len(prjDetail)!=0):
+                        emptyProjects['projectId'].append(str(prjDetail[0]['projectid']))
+                        emptyProjects['projectName'].append(prjDetail[0]['projectname'])
+            res={'rows':emptyProjects}
+       else:
+            app.logger.error("Empty data received. getEmptyProjects_ICE")
+    except Exception as e:
+        app.logger.error(e)
+        app.logger.error('Error in getEmptyProjects_ICE.')
     return jsonify(res)
 
 #getting names of module/scenario/screen/testcase name of given id
