@@ -13,47 +13,47 @@ import os
 from os import access
 #sys.path.append('./packages/Lib/site-packages')
 import json
-import requests
-import subprocess
-import sqlite3
-
-import logging
-handler=''
+##import requests
+##import subprocess
+##import sqlite3
+##
+##import logging
+##handler=''
 
 from datetime import datetime
 import uuid
 
-import ast
-
-from flask import Flask, request , jsonify
-from waitress import serve
-from logging.handlers import TimedRotatingFileHandler
-app = Flask(__name__)
-
-import argparse
-parser = argparse.ArgumentParser()
-parser.add_argument("-k","--verbosity", type=str, help="home user"
-                    +"registration. Provide the offline registration filename")
-args = parser.parse_args()
-
+##import ast
+##
+##from flask import Flask, request , jsonify
+##from waitress import serve
+##from logging.handlers import TimedRotatingFileHandler
+##app = Flask(__name__)
+##
+##import argparse
+##parser = argparse.ArgumentParser()
+##parser.add_argument("-k","--verbosity", type=str, help="home user"
+##                    +"registration. Provide the offline registration filename")
+##args = parser.parse_args()
+##
 
 ##os.chdir("..")
 #nineteen68 folder location is parent directory
-currdir=os.getcwd()
-config_path = currdir+'/server_config.json'
-assistpath = currdir + "/ndac_internals/assist"
-logspath= currdir + "/ndac_internals/logs"
-
-ndac_conf = json.loads(open(config_path).read())
-
-lsip = ndac_conf['ndac']['licenseserver']
+##currdir=os.getcwd()
+##config_path = currdir+'/server_config.json'
+##assistpath = currdir + "/ndac_internals/assist"
+##logspath= currdir + "/ndac_internals/logs"
+##
+##ndac_conf = json.loads(open(config_path).read())
+##
+##lsip = ndac_conf['ndac']['licenseserver']
 from cassandra.cluster import Cluster
-from flask_cassandra import CassandraCluster
+#from flask_cassandra import CassandraCluster
 from cassandra.auth import PlainTextAuthProvider
 dbup = False
 try:
-    auth = PlainTextAuthProvider(username=ndac_conf['ndac']['dbusername'], password=ndac_conf['ndac']['dbpassword'])
-    cluster = Cluster([ndac_conf['ndac']['databaseip']],port=int(ndac_conf['ndac']['dbport']),auth_provider=auth)
+    auth = PlainTextAuthProvider(username='nineteen68', password='TA@SLK2017')
+    cluster = Cluster(['10.41.31.42'],port=9042,auth_provider=auth)
 
     icesession = cluster.connect()
     n68session = cluster.connect()
@@ -68,25 +68,25 @@ try:
     n68session.set_keyspace('nineteen68')
     dbup = True
 except Exception as dbexception:
-    app.logger.critical('Error in Database connectivity...');
+    print ('Error in Database connectivity...');
 
 #default values for offline user
-offlinestarttime=''
-offlineendtime=''
-offlineuser = False
-onlineuser = False
-usersession = False
-lsondayone = ""
-lsondaytwo = ""
+##offlinestarttime=''
+##offlineendtime=''
+##offlineuser = False
+##onlineuser = False
+##usersession = False
+##lsondayone = ""
+##lsondaytwo = ""
 
 #counters for License
-debugcounter = 0
-scenarioscounter = 0
-gtestsuiteid = []
-suitescounter = 0
+##debugcounter = 0
+##scenarioscounter = 0
+##gtestsuiteid = []
+##suitescounter = 0
 
 #server check
-@app.route('/')
+##@app.route('/')
 def server_ready():
     return 'Data Server Ready!!!'
 
@@ -97,91 +97,91 @@ def server_ready():
 ################################################################################
 
 #service for login to Nineteen68
-@app.route('/login/authenticateUser_Nineteen68',methods=['POST'])
+#@app.route('/login/authenticateUser_Nineteen68',methods=['POST'])
 def authenticateUser_Nineteen68():
     res={'rows':'fail'}
     try:
-        requestdata=json.loads(request.data)
-        if not isemptyrequest(requestdata):
+        #requestdata=json.loads(request.data)
+        #if not isemptyrequest(requestdata):
             authenticateuser = ("select password from users where username = '"
                                 +requestdata["username"]+"' "
                                 +" ALLOW FILTERING;")
             queryresult = n68session.execute(authenticateuser)
             res= {"rows":queryresult.current_rows}
             res=closehonor(res)
-            if 'dayone' in res:
-                app.logger.critical('Licenses will expire tomorrow.')
-            elif 'daytwo' in res:
-                app.logger.critical('Licenses expired.')
-            return jsonify(res)
-        else:
-            app.logger.error('Empty data received. authentication')
-            res=closehonor(res)
-            if 'dayone' in res:
-                app.logger.critical('Licenses will expire tomorrow.')
-            elif 'daytwo' in res:
-                app.logger.critical('Licenses expired.')
-            return jsonify(res)
+##            if 'dayone' in res:
+##                app.logger.critical('Licenses will expire tomorrow.')
+##            elif 'daytwo' in res:
+##                app.logger.critical('Licenses expired.')
+            return res
+##        else:
+##            print ('Empty data received. authentication')
+##            res=closehonor(res)
+##            if 'dayone' in res:
+##                app.logger.critical('Licenses will expire tomorrow.')
+##            elif 'daytwo' in res:
+##                app.logger.critical('Licenses expired.')
+##            return jsonify(res)
     except Exception as authenticateuserexc:
-        app.logger.error('Error in authenticateUser.')
+        print ('Error in authenticateUser.')
         res=closehonor(res)
-        if 'dayone' in res:
-            app.logger.critical('Licenses will expire tomorrow.')
-        elif 'daytwo' in res:
-            app.logger.critical('Licenses expired.')
-        return jsonify(res)
+##        if 'dayone' in res:
+##            app.logger.critical('Licenses will expire tomorrow.')
+##        elif 'daytwo' in res:
+##            app.logger.critical('Licenses expired.')
+        return res
 
 #service for user ldap validation
-@app.route('/login/authenticateUser_Nineteen68/ldap',methods=['POST'])
+#@app.route('/login/authenticateUser_Nineteen68/ldap',methods=['POST'])
 def authenticateUser_Nineteen68_ldap():
     res={'rows':'fail'}
     try:
-        requestdata=json.loads(request.data)
-        if not isemptyrequest(requestdata):
+##        requestdata=json.loads(request.data)
+##        if not isemptyrequest(requestdata):
             authenticateuserldap = ("select ldapuser from users where "
                                     +"username = '"+requestdata["username"]+"'"
                                     +"allow filtering;")
             queryresult = n68session.execute(authenticateuserldap)
             res= {"rows":queryresult.current_rows}
             res=closehonor(res)
-            return jsonify(res)
-        else:
-            app.logger.error('Empty data received. authentication')
-            res=closehonor(res)
-            return jsonify(res)
+            return res
+##        else:
+##            print ('Empty data received. authentication')
+##            res=closehonor(res)
+##            return jsonify(res)
     except Exception as authenticateuserldapexc:
-        app.logger.error('Error in authenticateUser_ldap.')
+        print ('Error in authenticateUser_ldap.')
         res=closehonor(res)
-        return jsonify(res)
+        return res
 
 #service for getting rolename by roleid
-@app.route('/login/getRoleNameByRoleId_Nineteen68',methods=['POST'])
+#@app.route('/login/getRoleNameByRoleId_Nineteen68',methods=['POST'])
 def getRoleNameByRoleId_Nineteen68():
     res={'rows':'fail'}
     try:
-        requestdata=json.loads(request.data)
-        if not isemptyrequest(requestdata):
+##        requestdata=json.loads(request.data)
+##        if not isemptyrequest(requestdata):
             rolename = ("select rolename from roles where "
                         +"roleid = "+requestdata["roleid"]
                         +" allow filtering;")
             queryresult = n68session.execute(rolename)
             res = {"rows":queryresult.current_rows}
-            return jsonify(res)
-        else:
-            app.logger.error('Empty data received. authentication')
-
-            return jsonify(res)
+            return res
+##        else:
+##            print ('Empty data received. authentication')
+##
+##            return jsonify(res)
     except Exception as rolenameexc:
-        app.logger.error('Error in getRoleNameByRoleId_Nineteen68.')
-        return jsonify(res)
+        print ('Error in getRoleNameByRoleId_Nineteen68.')
+        return res
 
 #utility checks whether user is having projects assigned
-@app.route('/login/authenticateUser_Nineteen68/projassigned',methods=['POST'])
+#@app.route('/login/authenticateUser_Nineteen68/projassigned',methods=['POST'])
 def authenticateUser_Nineteen68_projassigned():
     res={'rows':'fail'}
     try:
-        requestdata=json.loads(request.data)
-        if not isemptyrequest(requestdata):
+##        requestdata=json.loads(request.data)
+##        if not isemptyrequest(requestdata):
             if(requestdata["query"] == 'getUserId'):
                 authenticateuserprojassigned1= ("select userid,defaultrole "
                                                 +"from users where "
@@ -202,23 +202,23 @@ def authenticateUser_Nineteen68_projassigned():
                                             +" allow filtering;")
                 queryresult = icesession.execute(authenticateuserprojassigned3)
             else:
-                return jsonify(res)
+                return res
             res= {"rows":queryresult.current_rows}
-            return jsonify(res)
-        else:
-            app.logger.error('Empty data received. authentication')
-            return jsonify(res)
+            return res
+##        else:
+##            print ('Empty data received. authentication')
+##            return jsonify(res)
     except Exception as authenticateuserprojassignedexc:
-        app.logger.error('Error in authenticateUser_projassigned.')
-        return jsonify(res)
+        print 'Error in authenticateUser_projassigned.'
+        return res
 
 #service for loading user information
-@app.route('/login/loadUserInfo_Nineteen68',methods=['POST'])
+#@app.route('/login/loadUserInfo_Nineteen68',methods=['POST'])
 def loadUserInfo_Nineteen68():
     res={'rows':'fail'}
     try:
-        requestdata=json.loads(request.data)
-        if not isemptyrequest(requestdata):
+##        requestdata=json.loads(request.data)
+##        if not isemptyrequest(requestdata):
             if(requestdata["query"] == 'userInfo'):
                 loaduserinfo1 = ("select userid, emailid, firstname, lastname, "
                                 +"defaultrole, ldapuser, additionalroles, username "
@@ -243,7 +243,7 @@ def loadUserInfo_Nineteen68():
                 'username':username,'additionalroles':additionalroles}
                     rows.append(eachobject)
                 res={'rows':rows}
-                return jsonify(res)
+                return res
             elif(requestdata["query"] == 'loggedinRole'):
                 loaduserinfo2 = ("select rolename from roles where "
                                     +"roleid = "+requestdata["roleid"]
@@ -255,15 +255,15 @@ def loadUserInfo_Nineteen68():
                                 +requestdata["roleid"]+" allow filtering")
                 queryresult = n68session.execute(loaduserinfo3)
             else:
-                return jsonify(res)
+                return res
             res= {"rows":queryresult.current_rows}
-            return jsonify(res)
-        else:
-            app.logger.error('Empty data received. loadUserInfo')
-            return jsonify(res)
+            return res
+##        else:
+##            print ('Empty data received. loadUserInfo')
+##            return jsonify(res)
     except Exception as loaduserinfoexc:
-        app.logger.error('Error in loadUserInfo_Nineteen68.')
-        return jsonify(res)
+        print ('Error in loadUserInfo_Nineteen68.')
+        return res
 
 ################################################################################
 # END OF LOGIN SCREEN
@@ -276,65 +276,65 @@ def loadUserInfo_Nineteen68():
 ################################################################################
 
 #getting Release_iDs of Project
-@app.route('/create_ice/getReleaseIDs_Ninteen68',methods=['POST'])
+#@app.route('/create_ice/getReleaseIDs_Ninteen68',methods=['POST'])
 def getReleaseIDs_Ninteen68():
     res={'rows':'fail'}
     try:
-       requestdata=json.loads(request.data)
-       if not isemptyrequest(requestdata):
+##       requestdata=json.loads(request.data)
+##       if not isemptyrequest(requestdata):
             projectid=requestdata['projectid']
             getReleaseDetails = ("select releasename,releaseid from icetestautomation.releases "+
             "where projectid"+'='+ projectid+query['delete_flag'])
             queryresult = icesession.execute(getReleaseDetails)
             res={'rows':queryresult.current_rows}
-       else:
-            app.logger.error("Empty data received. getReleaseIDs_Ninteen68")
+##       else:
+##            print ("Empty data received. getReleaseIDs_Ninteen68")
     except Exception as e:
-        app.logger.error('Error in getReleaseIDs_Ninteen68.')
-    return jsonify(res)
+        print ('Error in getReleaseIDs_Ninteen68.')
+    return res
 
 
-@app.route('/create_ice/getCycleIDs_Ninteen68',methods=['POST'])
+#@app.route('/create_ice/getCycleIDs_Ninteen68',methods=['POST'])
 def getCycleIDs_Ninteen68():
     res={'rows':'fail'}
     try:
-       requestdata=json.loads(request.data)
-       if not isemptyrequest(requestdata):
+##       requestdata=json.loads(request.data)
+##       if not isemptyrequest(requestdata):
             releaseid=requestdata['releaseid']
             getCycleDetails = ("select cyclename,cycleid from icetestautomation.cycles "+
             "where releaseid"+'='+ releaseid+query['delete_flag'])
             queryresult = icesession.execute(getCycleDetails)
             res={'rows':queryresult.current_rows}
-       else:
-            app.logger.error("Empty data received. getCycleIDs_Ninteen68")
+##       else:
+##            print ("Empty data received. getCycleIDs_Ninteen68")
     except Exception as e:
-        app.logger.error('Error in getCycleIDs_Ninteen68.')
-    return jsonify(res)
+        print ('Error in getCycleIDs_Ninteen68.')
+    return res
 
-@app.route('/create_ice/getProjectType_Nineteen68',methods=['POST'])
+#@app.route('/create_ice/getProjectType_Nineteen68',methods=['POST'])
 def getProjectType_Nineteen68():
     res={'rows':'fail'}
     try:
-       requestdata=json.loads(request.data)
-       if not isemptyrequest(requestdata):
+##       requestdata=json.loads(request.data)
+##       if not isemptyrequest(requestdata):
             projectid=requestdata['projectid']
             getProjectType = ("select projecttypeid FROM icetestautomation.projects "+
             "where projectid"+'='+ projectid+query['delete_flag'])
             queryresult = icesession.execute(getProjectType)
             res={'rows':queryresult.current_rows}
-       else:
-            app.logger.error("Empty data received. getProjectType_Nineteen68")
+##       else:
+##            print ("Empty data received. getProjectType_Nineteen68")
     except Exception as e:
-        app.logger.error('Error in getProjectType_Nineteen68.')
-    return jsonify(res)
+        print ('Error in getProjectType_Nineteen68.')
+    return res
 
 #getting ProjectID and names of project sassigned to particular user
-@app.route('/create_ice/getProjectIDs_Nineteen68',methods=['POST'])
+#@app.route('/create_ice/getProjectIDs_Nineteen68',methods=['POST'])
 def getProjectIDs_Nineteen68():
     res={'rows':'fail'}
     try:
-       requestdata=json.loads(request.data)
-       if not isemptyrequest(requestdata):
+##       requestdata=json.loads(request.data)
+##       if not isemptyrequest(requestdata):
             if(requestdata['query'] == 'getprojids'):
                 userid=requestdata['userid']
                 getProjIds = ("select projectids FROM icetestautomation.icepermissions "+
@@ -347,37 +347,37 @@ def getProjectIDs_Nineteen68():
                 "where projectid="+projectid+query['delete_flag'])
                 queryresult = icesession.execute(getprojectname)
                 res={'rows':queryresult.current_rows}
-       else:
-            app.logger.error("Empty data received. getProjectIDs_Nineteen68")
+##       else:
+##            print ("Empty data received. getProjectIDs_Nineteen68")
     except Exception as e:
-        app.logger.error('Error in getProjectIDs_Nineteen68.')
-    return jsonify(res)
+        print ('Error in getProjectIDs_Nineteen68.')
+    return res
 
 #getting names of module/scenario/screen/testcase name of given id
-@app.route('/create_ice/getNames_Ninteen68',methods=['POST'])
+#@app.route('/create_ice/getNames_Ninteen68',methods=['POST'])
 def getAllNames_ICE():
     res={'rows':'fail'}
     try:
-       requestdata=json.loads(request.data)
-       if not isemptyrequest(requestdata):
+##       requestdata=json.loads(request.data)
+##       if not isemptyrequest(requestdata):
             name=requestdata['name']
             nodeid=requestdata['id']
             getname_query=(query[name]+nodeid+query['delete_flag'])
             queryresult = icesession.execute(getname_query)
             res={'rows':queryresult.current_rows}
-       else:
-            app.logger.error("Empty data received. getAllNames_ICE")
+##       else:
+##            print ("Empty data received. getAllNames_ICE")
     except Exception as e:
-        app.logger.error('Error in getAllNames_ICE.')
-    return jsonify(res)
+        print ('Error in getAllNames_ICE.')
+    return res
 
 #getting names of empty projects for project replication
-@app.route('/create_ice/getEmptyProjects_ICE',methods=['POST'])
-def getEmptyProjects_ICE():
+#@app.route('/create_ice/getEmptyProjects_ICE',methods=['POST'])
+def getEmptyProjects_ICE(requestdata):
     res={'rows':'fail'}
     try:
-       requestdata=json.loads(request.data)
-       if not isemptyrequest(requestdata):
+##       requestdata=json.loads(request.data)
+##       if not isemptyrequest(requestdata):
             modulequery="select distinct projectid from modules"
             modulequeryresult = icesession.execute(modulequery)
             modpids=[]
@@ -396,58 +396,58 @@ def getEmptyProjects_ICE():
                         emptyProjects['projectId'].append(str(prjDetail[0]['projectid']))
                         emptyProjects['projectName'].append(prjDetail[0]['projectname'])
             res={'rows':emptyProjects}
-       else:
-            app.logger.error("Empty data received. getEmptyProjects_ICE")
+##       else:
+##            print ("Empty data received. getEmptyProjects_ICE")
     except Exception as e:
-        app.logger.error(e)
-        app.logger.error('Error in getEmptyProjects_ICE.')
-    return jsonify(res)
+        print (e)
+        print ('Error in getEmptyProjects_ICE.')
+    return (res)
 
 #getting names of module/scenario/screen/testcase name of given id
-@app.route('/create_ice/testscreen_exists_ICE',methods=['POST'])
+#@app.route('/create_ice/testscreen_exists_ICE',methods=['POST'])
 def testscreen_exists_ICE():
     res={'rows':'fail'}
     try:
-       requestdata=json.loads(request.data)
-       if not isemptyrequest(requestdata):
+##       requestdata=json.loads(request.data)
+##       if not isemptyrequest(requestdata):
             screen_name=requestdata['screen_name']
             screen_check =("select screenid from screens where screenname='"+screen_name
             +"' ALLOW FILTERING")
             queryresult = icesession.execute(screen_check)
             res={'rows':queryresult.current_rows}
-       else:
-            app.logger.error("Empty data received. testscreen_exists")
+##       else:
+##            app.logger.error("Empty data received. testscreen_exists")
     except Exception as e:
-        app.logger.error('Error in testscreen_exists.')
-    return jsonify(res)
+        print ('Error in testscreen_exists.')
+    return (res)
 
 
 #getting names of module/scenario/screen/testcase name of given id
-@app.route('/create_ice/testcase_exists_ICE',methods=['POST'])
+#@app.route('/create_ice/testcase_exists_ICE',methods=['POST'])
 def testcase_exists_ICE():
     res={'rows':'fail'}
     try:
-       requestdata=json.loads(request.data)
-       if not isemptyrequest(requestdata):
+##       requestdata=json.loads(request.data)
+##       if not isemptyrequest(requestdata):
             testcase_name=requestdata['testcase_name']
             testcase_check =("select testcaseid from testcases where testcasename='"+testcase_name
             +"' ALLOW FILTERING")
             queryresult = icesession.execute(testcase_check)
             res={'rows':queryresult.current_rows}
-       else:
-            app.logger.error("Empty data received. testcase_exists")
+##       else:
+##            app.logger.error("Empty data received. testcase_exists")
     except Exception as e:
-        app.logger.error('Error in testcase_exists.')
-    return jsonify(res)
+        print ('Error in testcase_exists.')
+    return (res)
 
 
 #getting names of module/scenario/screen/testcase name of given id
-@app.route('/create_ice/testsuiteid_exists_ICE',methods=['POST'])
+#@app.route('/create_ice/testsuiteid_exists_ICE',methods=['POST'])
 def testsuiteid_exists_ICE():
     res={'rows':'fail'}
     try:
-       requestdata=json.loads(request.data)
-       if not isemptyrequest(requestdata):
+##       requestdata=json.loads(request.data)
+##       if not isemptyrequest(requestdata):
             query_name=requestdata['name']
             if query_name=='suite_check':
                 testsuite_exists(requestdata['project_id'],requestdata['module_name'],requestdata['versionnumber'])
@@ -456,18 +456,18 @@ def testsuiteid_exists_ICE():
             testsuite_check=query[query_name]
             queryresult = icesession.execute(testsuite_check)
             res={'rows':queryresult.current_rows}
-       else:
-            app.logger.error("Empty data received. testsuiteid_exists_ICE")
+##       else:
+##            app.logger.error("Empty data received. testsuiteid_exists_ICE")
     except Exception as e:
-        app.logger.error('Error in testsuiteid_exists_ICE.')
-    return jsonify(res)
+        print ('Error in testsuiteid_exists_ICE.')
+    return (res)
 
-@app.route('/create_ice/testscenariosid_exists_ICE',methods=['POST'])
+#@app.route('/create_ice/testscenariosid_exists_ICE',methods=['POST'])
 def testscenariosid_exists_ICE():
     res={'rows':'fail'}
     try:
-       requestdata=json.loads(request.data)
-       if not isemptyrequest(requestdata):
+##       requestdata=json.loads(request.data)
+##       if not isemptyrequest(requestdata):
             query_name=requestdata['name']
             if query_name=='scenario_check':
                 testscenario_exists(requestdata['project_id'],requestdata['scenario_name'],requestdata['versionnumber'])
@@ -476,19 +476,19 @@ def testscenariosid_exists_ICE():
             testscenario_check=query[query_name]
             queryresult = icesession.execute(testscenario_check)
             res={'rows':queryresult.current_rows}
-       else:
-            app.logger.error("Empty data received. testscenariosid_exists")
+##       else:
+##            app.logger.error("Empty data received. testscenariosid_exists")
     except Exception as e:
-        app.logger.error('Error in testscenariosid_exists.')
-    return jsonify(res)
+        print ('Error in testscenariosid_exists.')
+    return (res)
 
 
-@app.route('/create_ice/testscreenid_exists_ICE',methods=['POST'])
+#@app.route('/create_ice/testscreenid_exists_ICE',methods=['POST'])
 def testscreenid_exists_ICE():
     res={'rows':'fail'}
     try:
-       requestdata=json.loads(request.data)
-       if not isemptyrequest(requestdata):
+##       requestdata=json.loads(request.data)
+##       if not isemptyrequest(requestdata):
             query_name=requestdata['name']
             if query_name=='screen_check':
                 testscreen_exists(requestdata['project_id'],requestdata['screen_name'],requestdata['versionnumber'])
@@ -497,18 +497,18 @@ def testscreenid_exists_ICE():
             testscreen_check=query[query_name]
             queryresult = icesession.execute(testscreen_check)
             res={'rows':queryresult.current_rows}
-       else:
-            app.logger.error("Empty data received. testscreenid_exists_ICE")
+##       else:
+##            print ("Empty data received. testscreenid_exists_ICE")
     except Exception as e:
-        app.logger.error('Error in testscreenid_exists_ICE.')
-    return jsonify(res)
+        print ('Error in testscreenid_exists_ICE.')
+    return (res)
 
-@app.route('/create_ice/testcaseid_exists_ICE',methods=['POST'])
+#@app.route('/create_ice/testcaseid_exists_ICE',methods=['POST'])
 def testcaseid_exists_ICE():
     res={'rows':'fail'}
     try:
-       requestdata=json.loads(request.data)
-       if not isemptyrequest(requestdata):
+##       requestdata=json.loads(request.data)
+##       if not isemptyrequest(requestdata):
             query_name=requestdata['name']
             if query_name=='testcase_check':
                 testcase_exists(requestdata['screen_id'],requestdata['testcase_name'],requestdata['versionnumber'])
@@ -517,64 +517,57 @@ def testcaseid_exists_ICE():
             testcase_check=query[query_name]
             queryresult = icesession.execute(testcase_check)
             res={'rows':queryresult.current_rows}
-       else:
-            app.logger.error("Empty data received. testcaseid_exists_ICE")
+##       else:
+##            print ("Empty data received. testcaseid_exists_ICE")
     except Exception as e:
-        app.logger.error('Error in testcaseid_exists_ICE.')
-    return jsonify(res)
+        print ('Error in testcaseid_exists_ICE.')
+    return (res)
 
-@app.route('/create_ice/get_node_details_ICE',methods=['POST'])
-def get_node_details_ICE():
+#@app.route('/create_ice/get_node_details_ICE',methods=['POST'])
+def get_node_details_ICE(requestdata):
     res={'rows':'fail'}
     try:
-       requestdata=json.loads(request.data)
-       if not isemptyrequest(requestdata):
+##       requestdata=json.loads(request.data)
+##       if not isemptyrequest(requestdata):
             query_name=requestdata['name']
             get_node_data=query[query_name]+requestdata['id']+query['delete_flag']
             queryresult = icesession.execute(get_node_data)
             res={'rows':queryresult.current_rows}
             if(len(queryresult.current_rows)!=0 and res['rows'][0]['history'] != None):
                 res['rows'][0]['history']=dict(res['rows'][0]['history'])
-       else:
-            app.logger.error("Empty data received. testcase_exists")
+##       else:
+##            print ("Empty data received. testcase_exists")
     except Exception as e:
-        app.logger.error('Error in testcase_exists.')
-    return jsonify(res)
+##        print e
+##        import traceback
+##        traceback.print_exc()
+        print ('Error in testcase_exists.')
+    return (res)
 
-@app.route('/create_ice/delete_node_ICE',methods=['POST'])
+#@app.route('/create_ice/delete_node_ICE',methods=['POST'])
 def delete_node_ICE():
     res={'rows':'fail'}
     try:
-       requestdata=json.loads(request.data)
-       if not isemptyrequest(requestdata):
+##       requestdata=json.loads(request.data)
+##       if not isemptyrequest(requestdata):
             query_name=requestdata['name']
             get_delete_query(requestdata['id'],requestdata['node_name'],requestdata['version_number'],requestdata['parent_node_id'])
             delete_query=query[query_name]
             queryresult = icesession.execute(delete_query)
             res={'rows':'Success'}
-       else:
-            app.logger.error("Empty data received. testscenario_exists")
+##       else:
+##            print ("Empty data received. testscenario_exists")
     except Exception as e:
-        app.logger.error('Error in testcase_exists.')
-    return jsonify(res)
+        print ('Error in testcase_exists.')
+    return (res)
 
-@app.route('/create_ice/insertInSuite_ICE',methods=['POST'])
-def insertInSuite_ICE():
+#@app.route('/create_ice/insertInSuite_ICE',methods=['POST'])
+def insertInSuite_ICE(requestdata):
     res={'rows':'fail'}
     try:
-       requestdata=json.loads(request.data)
-       if not isemptyrequest(requestdata):
+##       requestdata=json.loads(request.data)
+##       if not isemptyrequest(requestdata):
            if(requestdata["query"] == 'notflagsuite'):
-                tags="['"+requestdata['tags']+"']"
-                if(requestdata.has_key('subquery') and requestdata["query"]=="clonenode"):
-                    fetchOldData="select tags from modules where "
-                    +"modulename="+requestdata['modulename']+" and versionnumber="
-                    +str(requestdata['oldversionnumber'])+" and projectid="
-                    +requestdata['projectid']+query['delete_flag']
-                    fetchqueryresult = icesession.execute(fetchOldData)
-                    if (len(fetchqueryresult.current_rows)!=0):
-                        fetchqueryresult = fetchqueryresult.current_rows[0]
-                        tags=fetchqueryresult['tags']
                 history=createHistory("create","modules",requestdata)
                 create_suite_query1 = ("insert into modules "
                 +"(projectid,modulename,moduleid,versionnumber,createdby,createdon,"
@@ -583,7 +576,7 @@ def insertInSuite_ICE():
                 +"'," + requestdata['moduleid'] + ","+str(requestdata['versionnumber'])
                 +",'"+requestdata['createdby']+"'," + str(getcurrentdate())
                 + ",'"+requestdata['createdthrough']+"',"+str(requestdata['deleted'])
-                +","+str(history)+", '"+requestdata['skucodemodule']+"',"+tags+",[])")
+                +","+str(history)+", '"+requestdata['skucodemodule']+"',['"+requestdata['tags']+"'],[])")
                 queryresult = icesession.execute(create_suite_query1)
                 res={'rows':'Success'}
            elif(requestdata["query"] == 'selectsuite'):
@@ -592,37 +585,27 @@ def insertInSuite_ICE():
                 +str(requestdata['versionnumber'])+query['delete_flag'])
                 queryresult = icesession.execute(create_suite_query2)
                 res={'rows':'Success'}
-       else:
-            app.logger.error("Empty data received. insertInSuite_ICE")
+##       else:
+##            print ("Empty data received. insertInSuite_ICE")
     except Exception as e:
-        app.logger.error('Error in insertInSuite_ICE.')
-    return jsonify(res)
+        print ('Error in insertInSuite_ICE.')
+    return (res)
 
-@app.route('/create_ice/insertInScenarios_ICE',methods=['POST'])
-def insertInScenarios_ICE():
+#@app.route('/create_ice/insertInScenarios_ICE',methods=['POST'])
+def insertInScenarios_ICE(requestdata):
     res={'rows':'fail'}
     try:
-       requestdata=json.loads(request.data)
-       if not isemptyrequest(requestdata):
+##       requestdata=json.loads(request.data)
+##       if not isemptyrequest(requestdata):
            if(requestdata["query"] == 'notflagscenarios'):
-                tags="['"+requestdata['tags']+"']"
-                if(requestdata.has_key('subquery') and requestdata["query"]=="clonenode"):
-                    fetchOldData="select tags from testscenarios where "
-                    +"testscenarioname="+requestdata['testscenarioname']+" and versionnumber="
-                    +str(requestdata['oldversionnumber'])+" and projectid="
-                    +requestdata['projectid']+query['delete_flag']
-                    fetchqueryresult = icesession.execute(fetchOldData)
-                    if (len(fetchqueryresult.current_rows)!=0):
-                        fetchqueryresult = fetchqueryresult.current_rows[0]
-                        tags=fetchqueryresult['tags']
                 history=createHistory("create","testscenarios",requestdata)
                 create_scenario_query1 = ("insert into testscenarios(projectid,"
-                +"testscenarioname,testscenarioid,versionnumber,history,createdby"
-                +",createdon,skucodetestscenario,tags,testcaseids,deleted) values ("
-                +requestdata['projectid'] + ",'"+requestdata['testscenarioname']
-                +"',"+requestdata['testscenarioid']+","+str(requestdata['versionnumber'])
-                +", "+str(history)+",'"+requestdata['createdby']+"'," + str(getcurrentdate())
-                +", '"+requestdata['skucodetestscenario']+"',"+tags+",[],"+str(requestdata['deleted'])+")")
+                +"testscenarioname,testscenarioid,versionnumber,history,createdby,createdon,skucodetestscenario,"
+                +"tags,testcaseids,deleted) values ("+requestdata['projectid'] + ",'"
+                +requestdata['testscenarioname']+"',"+requestdata['testscenarioid']
+                +","+str(requestdata['versionnumber'])+", "+str(history)
+                +",'"+requestdata['createdby']+"'," + str(getcurrentdate())
+                +", '"+requestdata['skucodetestscenario']+"',['"+requestdata['tags']+"'],[],"+str(requestdata['deleted'])+")")
                 queryresult = icesession.execute(create_scenario_query1)
                 res={'rows':'success'}
            elif(requestdata["query"] == 'deletescenarios'):
@@ -633,73 +616,50 @@ def insertInScenarios_ICE():
                 +str(requestdata['versionnumber']))
                 queryresult = icesession.execute(delete_scenario_query)
                 res={'rows':'Success'}
-       else:
-            app.logger.error("Empty data received. insertInScenarios_ICE")
+##       else:
+##            print ("Empty data received. insertInScenarios_ICE")
     except Exception as e:
-         app.logger.error('Error in insertInScenarios_ICE.')
-    return jsonify(res)
+         print ('Error in insertInScenarios_ICE.')
+    return (res)
 
-@app.route('/create_ice/insertInScreen_ICE',methods=['POST'])
-def insertInScreen_ICE():
+#@app.route('/create_ice/insertInScreen_ICE',methods=['POST'])
+def insertInScreen_ICE(requestdata):
     res={'rows':'fail'}
     try:
-       requestdata=json.loads(request.data)
-       if not isemptyrequest(requestdata):
+##       requestdata=json.loads(request.data)
+##       if not isemptyrequest(requestdata):
             if(requestdata["query"] == 'notflagscreen'):
-                tags="['"+requestdata['tags']+"']"
-                screendata=""
-                if(requestdata.has_key('subquery') and requestdata["query"]=="clonenode"):
-                    fetchOldData="select tags,screendata from screens where "
-                    +"screenname="+requestdata['screenname']+" and versionnumber="
-                    +str(requestdata['oldversionnumber'])+" and projectid="
-                    +requestdata['projectid']+query['delete_flag']
-                    fetchqueryresult = icesession.execute(fetchOldData)
-                    if (len(fetchqueryresult.current_rows)!=0):
-                        fetchqueryresult = fetchqueryresult.current_rows[0]
-                        tags=fetchqueryresult['tags']
-                        screendata=fetchqueryresult['screendata']
                 history=createHistory("create","screens",requestdata)
                 create_screen_query1 = ("insert into screens (projectid,screenname,"
                 +" screenid,versionnumber,history,createdby,createdon,createdthrough,"
-                +" deleted,screendata,skucodescreen,tags) values ("+requestdata['projectid']
+                +" deleted,skucodescreen,tags) values ("+requestdata['projectid']
                 +", '"+requestdata['screenname']+"'," + requestdata['screenid']
                 +" , "+str(requestdata['versionnumber'])+", "+str(history)
                 +" ,'"+requestdata['createdby']+"'," + str(getcurrentdate())
                 +", '"+requestdata['createdthrough']+"' , "+str(requestdata['deleted'])
-                +",'"+screendata+"','"+requestdata['skucodescreen']+"',"+tags+")")
+                +",'"+requestdata['skucodescreen']+"',['"+requestdata['tags']+"'] )")
                 queryresult = icesession.execute(create_screen_query1)
                 res={'rows':'Success'}
+
             elif(requestdata["query"] == 'selectscreen'):
                 select_screen_query = ("select screenid from screens where "
                 +"screenname='"+requestdata['screenname']+"' and versionnumber="
                 +str(requestdata['versionnumber'])+query['delete_flag'])
                 queryresult = icesession.execute(select_screen_query)
                 res={'rows':'Success'}
-       else:
-            app.logger.error("Empty data received. insertInScreen_ICE")
+##       else:
+##            print ("Empty data received. insertInScreen_ICE")
     except Exception as e:
-        app.logger.error('Error in insertInScreen_ICE.')
-    return jsonify(res)
+        print ('Error in insertInScreen_ICE.')
+    return (res)
 
-@app.route('/create_ice/insertInTestcase_ICE',methods=['POST'])
-def insertInTestcase_ICE():
+#@app.route('/create_ice/insertInTestcase_ICE',methods=['POST'])
+def insertInTestcase_ICE(requestdata):
     res={'rows':'fail'}
     try:
-       requestdata=json.loads(request.data)
-       if not isemptyrequest(requestdata):
+##       requestdata=json.loads(request.data)
+##       if not isemptyrequest(requestdata):
             if(requestdata["query"] == 'notflagtestcase'):
-                tags="['"+requestdata['tags']+"']"
-                testcasesteps=""
-                if(requestdata.has_key('subquery') and requestdata["query"]=="clonenode"):
-                    fetchOldData="select tags,testcasesteps from testcases where "
-                    +"testcasename="+requestdata['testcasename']+" and versionnumber="
-                    +str(requestdata['oldversionnumber'])+" and screenid="
-                    +requestdata['oldscreenid']+query['delete_flag']
-                    fetchqueryresult = icesession.execute(fetchOldData)
-                    if (len(fetchqueryresult.current_rows)!=0):
-                        fetchqueryresult = fetchqueryresult.current_rows[0]
-                        tags=fetchqueryresult['tags']
-                        testcasesteps=fetchqueryresult['testcasesteps']
                 history=createHistory("create","testcases",requestdata)
                 create_testcase_query1 = ("insert into testcases (screenid,"
                 +"testcasename,testcaseid,versionnumber,history,createdby,createdon,"
@@ -708,27 +668,28 @@ def insertInTestcase_ICE():
                 +"'," + requestdata['testcaseid'] + ","+str(requestdata['versionnumber'])
                 +", "+str(history)+",'"+ requestdata['createdby']+"'," + str(getcurrentdate())+", '"
                 +requestdata['createdthrough'] +"',"+str(requestdata['deleted'])+",'"
-                +requestdata['skucodetestcase']+"',"+tags+",'"+testcasesteps+"')")
+                +requestdata['skucodetestcase']+"',['"+requestdata['tags']+"'], '')")
                 queryresult = icesession.execute(create_testcase_query1)
                 res={'rows':'Success'}
+
             elif(requestdata["query"] == 'selecttestcase'):
                 select_testcase_query = ("select testcaseid from testcases "
                 +"where testcasename='"+requestdata['tags']+"'  and versionnumber="
                 +str(requestdata['versionnumber'])+query['delete_flag'])
                 queryresult = icesession.execute(select_testcase_query)
                 res={'rows':'Success'}
-       else:
-            app.logger.error("Empty data received. insertInTestcase_ICE")
+##       else:
+##            print ("Empty data received. insertInTestcase_ICE")
     except Exception as e:
-        app.logger.error('Error in insertInTestcase_ICE.')
-    return jsonify(res)
+        print ('Error in insertInTestcase_ICE.')
+    return (res)
 
-@app.route('/create_ice/updateTestScenario_ICE',methods=['POST'])
-def updateTestScenario_ICE():
+#@app.route('/create_ice/updateTestScenario_ICE',methods=['POST'])
+def updateTestScenario_ICE(requestdata):
     res={'rows':'fail'}
     try:
-       requestdata=json.loads(request.data)
-       if not isemptyrequest(requestdata):
+##       requestdata=json.loads(request.data)
+##       if not isemptyrequest(requestdata):
             ##requestdata['testcaseid']=','.join(str(idval) for idval in requestdata['testcaseid'])
             history=createHistory("update","testscenarios",requestdata)
             if(requestdata['modifiedflag']):
@@ -752,18 +713,18 @@ def updateTestScenario_ICE():
                 +"' and versionnumber="+str(requestdata['versionnumber'])+" IF EXISTS")
             queryresult = icesession.execute(updateicescenario_query)
             res={'rows':'Success'}
-       else:
-            app.logger.error("Empty data received. updateTestScenario_ICE")
+##       else:
+##            print ("Empty data received. updateTestScenario_ICE")
     except Exception as e:
-        app.logger.error('Error in updateTestScenario_ICE.')
-    return jsonify(res)
+        print ('Error in updateTestScenario_ICE.')
+    return (res)
 
-@app.route('/create_ice/updateModule_ICE',methods=['POST'])
-def updateModule_ICE():
+#@app.route('/create_ice/updateModule_ICE',methods=['POST'])
+def updateModule_ICE(requestdata):
     res={'rows':'fail'}
     try:
-       requestdata=json.loads(request.data)
-       if not isemptyrequest(requestdata):
+##       requestdata=json.loads(request.data)
+##       if not isemptyrequest(requestdata):
             requestdata['testscenarioids']=','.join(str(idval) for idval in requestdata['testscenarioids'])
             history=createHistory("update","modules",requestdata)
             if(requestdata['modifiedflag']):
@@ -783,18 +744,18 @@ def updateModule_ICE():
                 +"versionnumber="+str(requestdata['versionnumber'])+" IF EXISTS")
             queryresult = icesession.execute(updateicemodules_query)
             res={'rows':'Success'}
-       else:
-            app.logger.error("Empty data received. updateModule_ICE")
+##       else:
+##            print ("Empty data received. updateModule_ICE")
     except Exception as e:
-        app.logger.error('Error in updateModule_ICE.')
-    return jsonify(res)
+        print ('Error in updateModule_ICE.')
+    return (res)
 
-@app.route('/create_ice/updateModulename_ICE',methods=['POST'])
-def updateModulename_ICE():
+#@app.route('/create_ice/updateModulename_ICE',methods=['POST'])
+def updateModulename_ICE(requestdata):
     res={'rows':'fail'}
     try:
-       requestdata=json.loads(request.data)
-       if not isemptyrequest(requestdata):
+##       requestdata=json.loads(request.data)
+##       if not isemptyrequest(requestdata):
              history=createHistory("rename","modules",requestdata)
              requestdata['testscenarioids']=','.join(str(idval) for idval in requestdata['testscenarioids'])
              update_modulename_query =("insert into modules "
@@ -808,18 +769,18 @@ def updateModulename_ICE():
              +", '"+requestdata['skucodemodule']+"',['"+requestdata['tags']+"'],["+requestdata['testscenarioids']+"])")
              queryresult = icesession.execute(update_modulename_query)
              res={'rows':'Success'}
-       else:
-            app.logger.error("Empty data received. updateModulename_ICE")
+##       else:
+##            print ("Empty data received. updateModulename_ICE")
     except Exception as e:
-        app.logger.error('Error in updateModulename_ICE.')
-    return jsonify(res)
+        print ('Error in updateModulename_ICE.')
+    return (res)
 
-@app.route('/create_ice/updateTestscenarioname_ICE',methods=['POST'])
-def updateTestscenarioname_ICE():
+#@app.route('/create_ice/updateTestscenarioname_ICE',methods=['POST'])
+def updateTestscenarioname_ICE(requestdata):
     res={'rows':'fail'}
     try:
-       requestdata=json.loads(request.data)
-       if not isemptyrequest(requestdata):
+##       requestdata=json.loads(request.data)
+##       if not isemptyrequest(requestdata):
             history=createHistory("rename","testscenarios",requestdata)
             requestdata['testcaseids'] = ','.join(str(idval) for idval in requestdata['testcaseids'])
             update_testscenario_name_query =("insert into testscenarios "
@@ -833,22 +794,22 @@ def updateTestscenarioname_ICE():
             +requestdata['tags']+"'],["+requestdata['testcaseids']+"])")
             queryresult = icesession.execute(update_testscenario_name_query)
             res={'rows':'Success'}
-       else:
-            app.logger.error("Empty data received. updateTestscenarioname_ICE")
+##       else:
+##            print ("Empty data received. updateTestscenarioname_ICE")
     except Exception as e:
-        app.logger.error('Error in updateTestscenarioname_ICE.')
-    return jsonify(res)
+        print ('Error in updateTestscenarioname_ICE.')
+    return (res)
 
 
-@app.route('/create_ice/updateScreenname_ICE',methods=['POST'])
-def updateScreenname_ICE():
+#@app.route('/create_ice/updateScreenname_ICE',methods=['POST'])
+def updateScreenname_ICE(requestdata):
     res={'rows':'fail'}
     try:
 
-        requestdata=json.loads(request.data)
-        if(requestdata['screendata'] == ''):
-            requestdata['screendata'] = ' '
-        if not isemptyrequest(requestdata):
+##        requestdata=json.loads(request.data)
+            if(requestdata['screendata'] == ''):
+                requestdata['screendata'] = ' '
+##        if not isemptyrequest(requestdata):
             history=createHistory("rename","screens",requestdata)
             update_screenname_query =("insert into screens (projectid,screenname,"
             +"screenid,versionnumber,createdby,createdon,createdthrough,deleted,history,"
@@ -862,21 +823,21 @@ def updateScreenname_ICE():
             +"','"+requestdata['skucodescreen']+"',['"+requestdata['tags']+"'])")
             queryresult = icesession.execute(update_screenname_query)
             res={'rows':'Success'}
-        else:
-            app.logger.error("Empty data received. updateScreenname_ICE")
+##        else:
+##            print ("Empty data received. updateScreenname_ICE")
     except Exception as e:
-        app.logger.error('Error in updateScreenname_ICE.')
-    return jsonify(res)
+        print ('Error in updateScreenname_ICE.')
+    return (res)
 
 
-@app.route('/create_ice/updateTestcasename_ICE',methods=['POST'])
-def updateTestcasename_ICE():
+#@app.route('/create_ice/updateTestcasename_ICE',methods=['POST'])
+def updateTestcasename_ICE(requestdata):
     res={'rows':'fail'}
     try:
-       requestdata=json.loads(request.data)
-       if(requestdata['testcasesteps'] == ''):
-            requestdata['testcasesteps'] = ' '
-       if not isemptyrequest(requestdata):
+##       requestdata=json.loads(request.data)
+            if(requestdata['testcasesteps'] == ''):
+                requestdata['testcasesteps'] = ' '
+##       if not isemptyrequest(requestdata):
             history=createHistory("rename","testcases",requestdata)
             update_testcasename_query =("insert into testcases (screenid,testcasename,"
             "testcaseid,versionnumber,createdby,createdon,createdthrough,deleted,"
@@ -891,19 +852,19 @@ def updateTestcasename_ICE():
             +"'],'"+requestdata['testcasesteps']+"')")
             queryresult = icesession.execute(update_testcasename_query)
             res={'rows':'Success'}
-       else:
-            app.logger.error("Empty data received. updateTestcasename_ICE")
+##       else:
+##            print ("Empty data received. updateTestcasename_ICE")
     except Exception as e:
-        app.logger.error('Error in updateTestcasename_ICE.')
-    return jsonify(res)
+        print ('Error in updateTestcasename_ICE.')
+    return (res)
 
 
-@app.route('/create_ice/submitTask',methods=['POST'])
-def submitTask():
+#@app.route('/create_ice/submitTask',methods=['POST'])
+def submitTask(requestdata):
     res={'rows':'fail'}
     try:
-       requestdata=json.loads(request.data)
-       if not isemptyrequest(requestdata):
+##       requestdata=json.loads(request.data)
+##       if not isemptyrequest(requestdata):
             history=createHistory("submit",requestdata['table'].lower(),requestdata)
             if(requestdata['table'].lower()=='screens'):
                 query1=("update screens set history=history + "+str(history)+" where screenid="
@@ -933,11 +894,11 @@ def submitTask():
                 +str(requestdata['versionnumber']))
                 queryresult = icesession.execute(query4)
                 res={'rows':'Success'}
-       else:
-            app.logger.error("Empty data received. submitTask")
+##       else:
+##            print ("Empty data received. submitTask")
     except Exception as e:
-        app.logger.error('Error in submitTask.')
-    return jsonify(res)
+        print ('Error in submitTask.')
+    return (res)
 ################################################################################
 # END OF MIND MAPS
 ################################################################################
@@ -949,7 +910,7 @@ def submitTask():
 ################################################################################
 
 #keywords loader for design screen
-@app.route('/design/getKeywordDetails_ICE',methods=['POST'])
+#@app.route('/design/getKeywordDetails_ICE',methods=['POST'])
 def getKeywordDetails():
     res={'rows':'fail'}
     try:
@@ -967,21 +928,21 @@ def getKeywordDetails():
                 eachobject={'objecttype':objecttype,'keywords':keywords}
                 resultset.append(eachobject)
             res={'rows':resultset}
-            return jsonify(res)
+            return (res)
         else:
-            app.logger.error('Empty data received. getKeywordDetails')
-            return jsonify(res)
+            print ('Empty data received. getKeywordDetails')
+            return (res)
     except Exception as keywordsexc:
-        app.logger.error('Error in getKeywordDetails.')
-        return jsonify(res)
+        print ('Error in getKeywordDetails.')
+        return (res)
 
 #test case reading service
-@app.route('/design/readTestCase_ICE',methods=['POST'])
+#@app.route('/design/readTestCase_ICE',methods=['POST'])
 def readTestCase_ICE():
     res={'rows':'fail'}
     try:
-        requestdata=json.loads(request.data)
-        if not isemptyrequest(requestdata):
+##        requestdata=json.loads(request.data)
+##        if not isemptyrequest(requestdata):
             if(requestdata['query'] == "readtestcase"):
                 readtestcasequery1 = ("select testcasesteps,testcasename "
                                 +"from testcases where "
@@ -1003,23 +964,23 @@ def readTestCase_ICE():
                 +"from testcases where screenid=" + requestdata['screenid']
                 + " and versionnumber="+str(requestdata['versionnumber'])+query['delete_flag'])
                 queryresult = icesession.execute(readtestcasequery3)
-        else:
-            app.logger.error('Empty data received. reading Testcase')
-            return jsonify(res)
-        res= {"rows": queryresult.current_rows}
-        return jsonify(res)
+##        else:
+##            print ('Empty data received. reading Testcase')
+##            return (res)
+            res= {"rows": queryresult.current_rows}
+            return (res)
     except Exception as readtestcaseexc:
-        app.logger.error('Error in readTestCase_ICE.')
-        return jsonify(res)
+        print ('Error in readTestCase_ICE.')
+        return (res)
 
 
 # fetches the screen data
-@app.route('/design/getScrapeDataScreenLevel_ICE',methods=['POST'])
+#@app.route('/design/getScrapeDataScreenLevel_ICE',methods=['POST'])
 def getScrapeDataScreenLevel_ICE():
     res={'rows':'fail'}
     try:
-        requestdata=json.loads(request.data)
-        if not isemptyrequest(requestdata):
+##        requestdata=json.loads(request.data)
+##        if not isemptyrequest(requestdata):
             if (requestdata['query'] == 'getscrapedata'):
                 getscrapedataquery1=("select screenid,screenname,screendata from "
                 +"screens where screenid="+requestdata['screenid']
@@ -1032,40 +993,40 @@ def getScrapeDataScreenLevel_ICE():
                 + query['delete_flag'])
                 queryresult = icesession.execute(getscrapedataquery2)
                 res = {"rows":queryresult.current_rows}
-        else:
-            app.logger.error('Empty data received. reading Testcase')
-            return jsonify(res)
-        return jsonify(res)
+##        else:
+##            print ('Empty data received. reading Testcase')
+##            return (res)
+            return (res)
     except Exception as getscrapedataexc:
-        app.logger.error('Error in getScrapeDataScreenLevel_ICE.')
-        return jsonify(res)
+        print ('Error in getScrapeDataScreenLevel_ICE.')
+        return (res)
 
 # fetches data for debug the testcase
-@app.route('/design/debugTestCase_ICE',methods=['POST'])
+#@app.route('/design/debugTestCase_ICE',methods=['POST'])
 def debugTestCase_ICE():
     res={'rows':'fail'}
     try:
-        requestdata=json.loads(request.data)
-        if not isemptyrequest(requestdata):
+##        requestdata=json.loads(request.data)
+##        if not isemptyrequest(requestdata):
             gettestcasedataquery=("select screenid,testcasename,testcasesteps "
             +"from testcases where testcaseid=" + requestdata['testcaseid']+query['delete_flag'])
             queryresult = icesession.execute(gettestcasedataquery)
             res = {"rows":queryresult.current_rows}
-        else:
-            app.logger.error('Empty data received. reading Testcase')
-            return jsonify(res)
-        return jsonify(res)
+##        else:
+##            print ('Empty data received. reading Testcase')
+##            return (res)
+            return (res)
     except Exception as debugtestcaseexc:
-        app.logger.error('Error in debugTestCase_ICE.')
-        return jsonify(res)
+        print ('Error in debugTestCase_ICE.')
+        return (res)
 
 # updates the screen data
-@app.route('/design/updateScreen_ICE',methods=['POST'])
-def updateScreen_ICE():
+#@app.route('/design/updateScreen_ICE',methods=['POST'])
+def updateScreen_ICE(requestdata):
     res={'rows':'fail'}
     try:
-        requestdata=json.loads(request.data)
-        if not isemptyrequest(requestdata):
+##        requestdata=json.loads(request.data)
+##        if not isemptyrequest(requestdata):
             history=createHistory("update","screens",requestdata)
             updatescreenquery=("update icetestautomation.screens set"
 			+" screendata ='"+ requestdata['scrapedata'] +"',"
@@ -1081,29 +1042,29 @@ def updateScreen_ICE():
             queryresult = icesession.execute(updatescreenquery)
             res = {"rows":"Success"}
 
-        else:
-            app.logger.error('Empty data received. updating screen')
-            return jsonify(res)
-        return jsonify(res)
+##        else:
+##            print ('Empty data received. updating screen')
+##            return (res)
+            return (res)
     except Exception as updatescreenexc:
-        app.logger.error('Error in updateScreen_ICE.')
-        return jsonify(res)
+        print ('Error in updateScreen_ICE.')
+        return (res)
 
 #test case updating service
-@app.route('/design/updateTestCase_ICE',methods=['POST'])
-def updateTestCase_ICE():
+#@app.route('/design/updateTestCase_ICE',methods=['POST'])
+def updateTestCase_ICE(requestdata):
 ##    requestdata=json.loads(request.data)
     res={'rows':'fail'}
     try:
-        requestdata=json.loads(request.data)
-        if not isemptyrequest(requestdata):
+##        requestdata=json.loads(request.data)
+##        if not isemptyrequest(requestdata):
             if(requestdata["query"] == 'checktestcaseexist'):
                 updatetestcasequery1 = ("select testcaseid from testcases where "
                 +"screenid=" + requestdata['screenid']+" and versionnumber="
                 +str(requestdata['versionnumber'])+query['delete_flag'])
                 queryresult = icesession.execute(updatetestcasequery1)
                 res= {"rows": queryresult.current_rows}
-                res =  jsonify(res)
+                res =  (res)
             elif(requestdata["query"] == 'updatetestcasedata'):
                 history=createHistory("update","testcases",requestdata)
                 updatetestcasequery2 = ("update testcases set "
@@ -1118,21 +1079,21 @@ def updateTestCase_ICE():
                 + " and testcasename='" + requestdata["testcasename"] + "' if exists")
                 queryresult = icesession.execute(updatetestcasequery2)
                 res= {"rows": queryresult.current_rows}
-                res =  jsonify(res)
-        else:
-            app.logger.error('Empty data received. updating testcases')
-            res =  jsonify(res)
+                res =  (res)
+##        else:
+##            print ('Empty data received. updating testcases')
+##            res =  (res)
     except Exception as updatetestcaseexception:
-        app.logger.error('Error in updateTestCase_ICE.')
+        print ('Error in updateTestCase_ICE.')
     return res
 
 #fetches all the testcases under a test scenario
-@app.route('/suite/getTestcaseDetailsForScenario_ICE',methods=['POST'])
+#@app.route('/suite/getTestcaseDetailsForScenario_ICE',methods=['POST'])
 def getTestcaseDetailsForScenario_ICE():
     res={'rows':'fail'}
     try:
-        requestdata=json.loads(request.data)
-        if not isemptyrequest(requestdata):
+##        requestdata=json.loads(request.data)
+##        if not isemptyrequest(requestdata):
             if(requestdata["query"] == 'testscenariotable'):
                 gettestscenarioquery1=("select testcaseids from testscenarios where "
                 +"testscenarioid="+requestdata["testscenarioid"]+query['delete_flag'])
@@ -1152,12 +1113,12 @@ def getTestcaseDetailsForScenario_ICE():
                 +"where projectid="+requestdata["projectid"]+query['delete_flag'])
                 queryresult = icesession.execute(gettestscenarioquery4)
             res = {'rows':queryresult.current_rows}
-            res =  jsonify(res)
-        else:
-            app.logger.error('Empty data received. getting testcases from scenarios.')
-            res =  jsonify(res)
+            res =  (res)
+##        else:
+##            print ('Empty data received. getting testcases from scenarios.')
+##            res =  (res)
     except Exception as userrolesexc:
-        app.logger.error('Error in getTestcaseDetailsForScenario_ICE.')
+        print ('Error in getTestcaseDetailsForScenario_ICE.')
     return res
 
 ################################################################################
@@ -1171,12 +1132,12 @@ def getTestcaseDetailsForScenario_ICE():
 ################################################################################
 
 #get dependant testcases by scenario ids for add dependent testcases
-@app.route('/design/getTestcasesByScenarioId_ICE',methods=['POST'])
+#@app.route('/design/getTestcasesByScenarioId_ICE',methods=['POST'])
 def getTestcasesByScenarioId_ICE():
     res={'rows':'fail'}
     try:
-        requestdata=json.loads(request.data)
-        if not isemptyrequest(requestdata):
+##        requestdata=json.loads(request.data)
+##        if not isemptyrequest(requestdata):
             if(requestdata["query"] == 'gettestcaseids'):
                 gettestcaseidquery1  = ("select testcaseids from testscenarios "
                 +"where testscenarioid = "+requestdata["testscenarioid"]+query['delete_flag'])
@@ -1188,21 +1149,21 @@ def getTestcasesByScenarioId_ICE():
             else:
                 res={'rows':'fail'}
             res= {"rows":queryresult.current_rows}
-            res =  jsonify(res)
-        else:
-            app.logger.error('Empty data received. getting testcases.')
-            res =  jsonify(res)
+            res =  (res)
+##        else:
+##            print ('Empty data received. getting testcases.')
+##            res =  (res)
     except Exception as gettestcasesbyscenarioidexception:
-        app.logger.error('Error in getTestcasesByScenarioId_ICE.')
+        print ('Error in getTestcasesByScenarioId_ICE.')
     return res
 
 #read test suite nineteen68
-@app.route('/suite/readTestSuite_ICE',methods=['POST'])
-def readTestSuite_ICE():
+#@app.route('/suite/readTestSuite_ICE',methods=['POST'])
+def readTestSuite_ICE(requestdata):
     res={'rows':'fail'}
     try:
-        requestdata=json.loads(request.data)
-        if not isemptyrequest(requestdata):
+##        requestdata=json.loads(request.data)
+##        if not isemptyrequest(requestdata):
             if(requestdata["query"] == 'testsuitecheck'):
                 readtestsuitequery1 = ("select donotexecute,conditioncheck, "
                 +"getparampaths,testscenarioids from testsuites "
@@ -1292,27 +1253,27 @@ def readTestSuite_ICE():
                 +"' and versionnumber="+str(requestdata["versionnumber"])+query['delete_flag'])
                 queryresult = icesession.execute(readtestsuitequery9)
             else:
-                return jsonify(res)
-        else:
-            app.logger.error('Empty data received. assign projects.')
-            return jsonify(res)
-        res= {"rows":queryresult.current_rows}
-        return jsonify(res)
+                return (res)
+##        else:
+##            print ('Empty data received. assign projects.')
+##            return (res)
+            res= {"rows":queryresult.current_rows}
+            return (res)
     except Exception as exporttojsonexc:
-        app.logger.error('Error in readTestSuite_ICE.')
+        print ('Error in readTestSuite_ICE.')
         res={'rows':'fail'}
-        return jsonify(res)
+        return (res)
 
 #-------------------------------------------------
 #author : pavan.nayak
 #date:31/07/2017
 #-------------------------------------------------
-@app.route('/suite/updateTestSuite_ICE',methods=['POST'])
-def updateTestSuite_ICE():
+#@app.route('/suite/updateTestSuite_ICE',methods=['POST'])
+def updateTestSuite_ICE(requestdata):
     res={'rows':'fail'}
     try:
-        requestdata=json.loads(request.data)
-        if not isemptyrequest(requestdata):
+##        requestdata=json.loads(request.data)
+##        if not isemptyrequest(requestdata):
             if(requestdata['query'] == 'deletetestsuitequery'):
                 deletetestsuitequery=("delete conditioncheck,donotexecute,"
                 +"getparampaths,testscenarioids from testsuites where cycleid="
@@ -1340,22 +1301,22 @@ def updateTestSuite_ICE():
                 +"';")
                 queryresult = icesession.execute(updatetestsuitedataquery)
             else:
-                return jsonify(res)
-        else:
-            app.logger.error('Empty data received. assign projects.')
-            return jsonify(res)
-        res={'rows':'Success'}
-        return jsonify(res)
+                return (res)
+##        else:
+##            print ('Empty data received. assign projects.')
+##            return (res)
+            res={'rows':'Success'}
+            return (res)
     except Exception as updatetestsuiteexc:
-        app.logger.error('Error in updateTestSuite_ICE')
-        return jsonify(res)
+        print ('Error in updateTestSuite_ICE')
+        return (res)
 
-@app.route('/suite/ExecuteTestSuite_ICE',methods=['POST'])
-def ExecuteTestSuite_ICE() :
+#@app.route('/suite/ExecuteTestSuite_ICE',methods=['POST'])
+def ExecuteTestSuite_ICE(requestdata) :
     res={'rows':'fail'}
     try:
-        requestdata=json.loads(request.data)
-        if not isemptyrequest(requestdata):
+##        requestdata=json.loads(request.data)
+##        if not isemptyrequest(requestdata):
             if(requestdata['query'] == 'testcaseid'):
                 executetestsuitequery1=("select testcaseids from testscenarios where"
                 +" testscenarioid=" + requestdata['testscenarioid']+query['delete_flag'])
@@ -1393,15 +1354,15 @@ def ExecuteTestSuite_ICE() :
                 + "," + str(getcurrentdate()) + ",'" + requestdata['status'] + "')")
                queryresult = icesession.execute(executetestsuitequery6)
             else:
-                return jsonify(res)
-        else:
-            app.logger.error('Empty data received. assign projects.')
-            return jsonify(res)
-        res={'rows':queryresult.current_rows}
-        return jsonify(res)
+                return (res)
+##        else:
+##            print ('Empty data received. assign projects.')
+##            return (res)
+            res={'rows':queryresult.current_rows}
+            return (res)
     except Exception as execuitetestsuiteexc:
-        app.logger.error('Error in execuiteTestSuite_ICE')
-        return jsonify(res)
+        print ('Error in execuiteTestSuite_ICE')
+        return (res)
 
 ################################################################################
 # END OF EXECUTION
@@ -1410,12 +1371,12 @@ def ExecuteTestSuite_ICE() :
 ################################################################################
 # START OF SCHEDULING
 ################################################################################
-@app.route('/suite/ScheduleTestSuite_ICE',methods=['POST'])
-def ScheduleTestSuite_ICE():
+#@app.route('/suite/ScheduleTestSuite_ICE',methods=['POST'])
+def ScheduleTestSuite_ICE(requestdata):
     res={'rows':'fail'}
     try:
-        requestdata=json.loads(request.data)
-        if not isemptyrequest(requestdata):
+##        requestdata=json.loads(request.data)
+##        if not isemptyrequest(requestdata):
             if(requestdata['query'] == 'insertscheduledata'):
                 requestdata['testsuiteids']=','.join(str(idval) for idval in requestdata['testsuiteids'])
                 requestdata['browserlist'] = ','.join(str(idval) for idval in requestdata['browserlist'])
@@ -1454,15 +1415,15 @@ def ScheduleTestSuite_ICE():
                 + str(requestdata['scheduledatetime']) + "' and scheduleid=" + requestdata['scheduleid'])
                 queryresult = icesession.execute(scheduletestsuitequery5)
             else:
-                return jsonify(res)
-        else:
-            app.logger.error('Empty data received. schedule testsuite.')
-            return jsonify(res)
-        res={'rows':queryresult.current_rows}
-        return jsonify(res)
+                return (res)
+##        else:
+##            print ('Empty data received. schedule testsuite.')
+##            return (res)
+            res={'rows':queryresult.current_rows}
+            return (res)
     except Exception as scheduletestsuiteexc:
-        app.logger.error('Error in ScheduleTestSuite_ICE')
-        return jsonify(res)
+        print ('Error in ScheduleTestSuite_ICE')
+        return (res)
 
 ################################################################################
 # END OF SCHEDULING
@@ -1473,12 +1434,12 @@ def ScheduleTestSuite_ICE():
 # INCLUDES : all qc related actions
 ################################################################################
 #fetches the user roles for assigning during creation/updation user
-@app.route('/qualityCenter/qcProjectDetails_ICE',methods=['POST'])
+#@app.route('/qualityCenter/qcProjectDetails_ICE',methods=['POST'])
 def qcProjectDetails_ICE():
     res={'rows':'fail'}
     try:
-        requestdata=json.loads(request.data)
-        if not isemptyrequest(requestdata):
+##        requestdata=json.loads(request.data)
+##        if not isemptyrequest(requestdata):
             if(requestdata["query"] == 'getprojectDetails'):
                 qcprojectdetailsquery1  = ("select projectids from icepermissions where userid="+requestdata["userid"])
                 queryresult = icesession.execute(qcprojectdetailsquery1)
@@ -1491,20 +1452,20 @@ def qcProjectDetails_ICE():
             else:
                 res={'rows':'fail'}
             res= {"rows":queryresult.current_rows}
-            res =  jsonify(res)
-        else:
-            app.logger.error('Empty data received. getting qcProjectDetails.')
-            res =  jsonify(res)
+            res =  (res)
+##        else:
+##            print ('Empty data received. getting qcProjectDetails.')
+##            res =  (res)
     except Exception as gettestcasesbyscenarioidexception:
-        app.logger.error('Error in qcProjectDetails_ICE.')
+        print ('Error in qcProjectDetails_ICE.')
     return res
 
-@app.route('/qualityCenter/saveQcDetails_ICE',methods=['POST'])
+#@app.route('/qualityCenter/saveQcDetails_ICE',methods=['POST'])
 def saveQcDetails_ICE():
     res={'rows':'fail'}
     try:
-        requestdata=json.loads(request.data)
-        if not isemptyrequest(requestdata):
+##        requestdata=json.loads(request.data)
+##        if not isemptyrequest(requestdata):
             if(requestdata["query"] == 'saveQcDetails_ICE'):
                 gettestcaseidquery1  = ("INSERT INTO qualitycenterdetails (testscenarioid,qcdetailsid,qcdomain,qcfolderpath,qcproject,qctestcase,qctestset) VALUES ("+requestdata["testscenarioid"]
                 +","+requestdata["testscenarioid"]+",'"+requestdata["qcdomain"]+"','"+requestdata["qcfolderpath"]+"','"+requestdata["qcproject"]
@@ -1513,32 +1474,32 @@ def saveQcDetails_ICE():
             else:
                 res={'rows':'fail'}
             res= {"rows":queryresult.current_rows}
-            res =  jsonify(res)
-        else:
-            app.logger.error('Empty data received. getting saveQcDetails.')
-            res =  jsonify(res)
+            res =  (res)
+##        else:
+##            print ('Empty data received. getting saveQcDetails.')
+##            res =  (res)
     except Exception as gettestcasesbyscenarioidexception:
-        app.logger.error('Error in saveQcDetails_ICE.')
+        print ('Error in saveQcDetails_ICE.')
     return res
 
-@app.route('/qualityCenter/viewQcMappedList_ICE',methods=['POST'])
+#@app.route('/qualityCenter/viewQcMappedList_ICE',methods=['POST'])
 def viewQcMappedList_ICE():
     res={'rows':'fail'}
     try:
-        requestdata=json.loads(request.data)
-        if not isemptyrequest(requestdata):
+##        requestdata=json.loads(request.data)
+##        if not isemptyrequest(requestdata):
             if(requestdata["query"] == 'qcdetails'):
                 viewqcmappedquery1  = ("SELECT * FROM qualitycenterdetails where testscenarioid="+requestdata["testscenarioid"])
                 queryresult = icesession.execute(viewqcmappedquery1)
             else:
                 res={'rows':'fail'}
             res= {"rows":queryresult.current_rows}
-            res =  jsonify(res)
-        else:
-            app.logger.error('Empty data received. getting QcMappedList.')
-            res =  jsonify(res)
+            res =  (res)
+##        else:
+##            print ('Empty data received. getting QcMappedList.')
+##            res =  (res)
     except Exception as gettestcasesbyscenarioidexception:
-        app.logger.error('Error in viewQcMappedList_ICE.')
+        print ('Error in viewQcMappedList_ICE.')
     return res
 ################################################################################
 # END OF QUALITYCENTRE
@@ -1550,29 +1511,29 @@ def viewQcMappedList_ICE():
 ################################################################################
 
 #fetches the user roles for assigning during creation/updation user
-@app.route('/admin/getUserRoles_Nineteen68',methods=['POST'])
+#@app.route('/admin/getUserRoles_Nineteen68',methods=['POST'])
 def getUserRoles():
     res={'rows':'fail'}
     try:
         userrolesquery="select roleid, rolename from roles"
         queryresult = n68session.execute(userrolesquery)
         res={'rows':queryresult.current_rows}
-        return jsonify(res)
+        return (res)
     except Exception as userrolesexc:
-        app.logger.error('Error in getUserRoles_Nineteen68.')
-        return jsonify(res)
+        print ('Error in getUserRoles_Nineteen68.')
+        return (res)
 
 
 #service renders all the details of the child type
 #if domainid is provided all projects in domain is returned
 #if projectid is provided all release and cycle details is returned
 #if cycleid is provided, testsuite details is returned
-@app.route('/admin/getDetails_ICE',methods=['POST'])
+#@app.route('/admin/getDetails_ICE',methods=['POST'])
 def getDetails_ICE():
     res={'rows':'fail'}
     try:
-        requestdata=json.loads(request.data)
-        if not isemptyrequest(requestdata):
+##        requestdata=json.loads(request.data)
+##        if not isemptyrequest(requestdata):
             if(requestdata["query"] == 'domaindetails'):
                 getdetailsquery1=("select projectid,projectname from projects "
                     +"where domainid=" + requestdata['id']+query['delete_flag'])
@@ -1597,25 +1558,25 @@ def getDetails_ICE():
                     +query['delete_flag'])
                 queryresult = icesession.execute(getdetailsquery3)
             else:
-                return jsonify(res)
+                return (res)
             res={'rows':queryresult.current_rows}
-            return jsonify(res)
-        else:
-            app.logger.error('Empty data received. generic details.')
-            return jsonify(res)
+            return (res)
+##        else:
+##            print ('Empty data received. generic details.')
+##            return (res)
     except Exception as getdetailsexc:
-        app.logger.error('Error in getDetails_ICE.')
-        return jsonify(res)
+        print ('Error in getDetails_ICE.')
+        return (res)
 
 
 #service renders the names of all projects in domain/projects (or) projectname
 # releasenames (or) cycle names (or) screennames
-@app.route('/admin/getNames_ICE',methods=['POST'])
+#@app.route('/admin/getNames_ICE',methods=['POST'])
 def getNames_ICE():
     res={'rows':'fail'}
     try:
-        requestdata=json.loads(request.data)
-        if not isemptyrequest(requestdata):
+##        requestdata=json.loads(request.data)
+##        if not isemptyrequest(requestdata):
             if(requestdata["query"] == 'domainsall'):
                 getnamesquery1=("select projectid,projectname from projects "
                     +"where domainid="+requestdata['id']+query['delete_flag'])
@@ -1637,36 +1598,36 @@ def getNames_ICE():
                     +"where screenid="+requestdata['id']+query['delete_flag'])
                 queryresult = icesession.execute(getnamesquery5)
             else:
-                return jsonify(res)
+                return (res)
             res={'rows':queryresult.current_rows}
-            return jsonify(res)
-        else:
-            app.logger.error('Empty data received. generic name details.')
-            return jsonify(res)
+            return (res)
+##        else:
+##            print ('Empty data received. generic name details.')
+##            return (res)
     except Exception as getnamesexc:
-        app.logger.error('Error in getNames_ICE.')
-        return jsonify(res)
+        print ('Error in getNames_ICE.')
+        return (res)
 
 #service renders all the domains in DB
-@app.route('/admin/getDomains_ICE',methods=['POST'])
+#@app.route('/admin/getDomains_ICE',methods=['POST'])
 def getDomains_ICE():
     res={'rows':'fail'}
     try:
         getdomainsquery="select domainid,domainname from domains"
         queryresult = icesession.execute(getdomainsquery)
         res={'rows':queryresult.current_rows}
-        return jsonify(res)
+        return (res)
     except Exception as getdomainsexc:
-        app.logger.error('Error in getDomains_ICE.')
-        return jsonify(res)
+        print ('Error in getDomains_ICE.')
+        return (res)
 
 #service fetches projects assigned to user.
-@app.route('/admin/getAssignedProjects_ICE',methods=['POST'])
+#@app.route('/admin/getAssignedProjects_ICE',methods=['POST'])
 def getAssignedProjects_ICE():
     res={'rows':'fail'}
     try:
-        requestdata=json.loads(request.data)
-        if not isemptyrequest(requestdata):
+##        requestdata=json.loads(request.data)
+##        if not isemptyrequest(requestdata):
             if(requestdata['query'] == 'projectid'):
                 getassingedprojectsquery1=("select projectids from "
                         +"icepermissions where userid = "+requestdata['userid']
@@ -1677,23 +1638,23 @@ def getAssignedProjects_ICE():
                             +"where projectid = "+requestdata['projectid']+query['delete_flag'])
                 queryresult = icesession.execute(getassingedprojectsquery2)
             else:
-                return jsonify(res)
+                return (res)
             res={'rows':queryresult.current_rows}
-            return jsonify(res)
-        else:
-            app.logger.error('Empty data received. assigned projects.')
-            return jsonify(res)
+            return (res)
+##        else:
+##            print ('Empty data received. assigned projects.')
+##            return (res)
     except Exception as getassingedprojectsexc:
-        app.logger.error('Error in getAssignedProjects_ICE.')
-        return jsonify(res)
+        print ('Error in getAssignedProjects_ICE.')
+        return (res)
 
 #service creates new users into Nineteen68
-@app.route('/admin/createUser_Nineteen68',methods=['POST'])
-def createUser_Nineteen68():
+#@app.route('/admin/createUser_Nineteen68',methods=['POST'])
+def createUser_Nineteen68(requestdata):
     res={'rows':'fail'}
     try:
-        requestdata=json.loads(request.data)
-        if not isemptyrequest(requestdata):
+##        requestdata=json.loads(request.data)
+##        if not isemptyrequest(requestdata):
             if(requestdata['query'] == 'allusernames'):
                 createuserquery1=("select username from users")
                 queryresult = n68session.execute(createuserquery1)
@@ -1714,22 +1675,22 @@ def createUser_Nineteen68():
                 queryresult = n68session.execute(createuserquery2)
                 res={'rows':'Success'}
             else:
-                return jsonify(res)
-            return jsonify(res)
-        else:
-            app.logger.error('Empty data received. create user.')
-            return jsonify(res)
+                return (res)
+            return (res)
+##        else:
+##            print ('Empty data received. create user.')
+##            return (res)
     except Exception as createusersexc:
-        app.logger.error('Error in createUser_Nineteen68.')
-        return jsonify(res)
+        print ('Error in createUser_Nineteen68.')
+        return (res)
 
 #service fetch user data from Nineteen68
-@app.route('/admin/getUserData_Nineteen68',methods=['POST'])
+#@app.route('/admin/getUserData_Nineteen68',methods=['POST'])
 def getUserData_Nineteen68():
     res={'rows':'fail'}
     try:
-        requestdata=json.loads(request.data)
-        if not isemptyrequest(requestdata):
+##        requestdata=json.loads(request.data)
+##        if not isemptyrequest(requestdata):
             getuserdataquery=("select username,firstname,lastname,emailid,ldapuser,"
                +"defaultrole,additionalroles from users where userid="+str(requestdata['userid']))
             queryresult = n68session.execute(getuserdataquery)
@@ -1750,22 +1711,22 @@ def getUserData_Nineteen68():
                 'username':username,'additionalroles':additionalroles,'defaultrole':defaultrole}
                 rows.append(eachobject)
             res={'rows':rows}
-            return jsonify(res)
-        else:
-            app.logger.error('Empty data received. Get user data.')
-            return jsonify(res)
+            return (res)
+##        else:
+##            print ('Empty data received. Get user data.')
+##            return (res)
     except Exception as updateUserexc:
-        app.logger.error('Error in getUserData_Nineteen68')
+        print ('Error in getUserData_Nineteen68')
         res={'rows':'fail'}
-        return jsonify(res)
+        return (res)
 
 #service update user data into Nineteen68
-@app.route('/admin/updateUser_Nineteen68',methods=['POST'])
-def updateUser_Nineteen68():
+#@app.route('/admin/updateUser_Nineteen68',methods=['POST'])
+def updateUser_Nineteen68(requestdata):
     res={'rows':'fail'}
     try:
-        requestdata=json.loads(request.data)
-        if not isemptyrequest(requestdata):
+##        requestdata=json.loads(request.data)
+##        if not isemptyrequest(requestdata):
             requestdata['additionalroles'] = ','.join(str(roleid) for roleid in requestdata['additionalroles'])
             history = createHistory("update","users",requestdata)
             if requestdata['password'] == 'existing':
@@ -1797,22 +1758,22 @@ def updateUser_Nineteen68():
                 + "} where userid=" + str(requestdata['userid']))
             queryresult = n68session.execute(updateuserquery2)
             res={'rows':'Success'}
-            return jsonify(res)
-        else:
-            app.logger.error('Empty data received. update user.')
-            return jsonify(res)
+            return (res)
+##        else:
+##            print ('Empty data received. update user.')
+##            return (res)
     except Exception as updateUserexc:
-        app.logger.error('Error in updateUser_nineteen68')
+        print ('Error in updateUser_nineteen68')
         res={'rows':'fail'}
-        return jsonify(res)
+        return (res)
 
 #service creates a complete project structure into ICE keyspace
-@app.route('/admin/createProject_ICE',methods=['POST'])
-def createProject_ICE():
+#@app.route('/admin/createProject_ICE',methods=['POST'])
+def createProject_ICE(requestdata):
     res={'rows':'fail'}
     try:
-        requestdata=json.loads(request.data)
-        if not isemptyrequest(requestdata):
+##        requestdata=json.loads(request.data)
+##        if not isemptyrequest(requestdata):
             if(requestdata['query'] == 'projecttype'):
                 projecttypequery=("select projecttypeid from projecttype where"
                 +" projecttypename = '"+requestdata['projecttype']+"' allow filtering")
@@ -1869,22 +1830,22 @@ def createProject_ICE():
                 queryresult = icesession.execute(createcyclequery1)
                 res={'rows':[cycleid]}
             else:
-                return jsonify(res)
-            return jsonify(res)
-        else:
-            app.logger.error('Empty data received. create project.')
-            return jsonify(res)
+                return (res)
+            return (res)
+##        else:
+##            print ('Empty data received. create project.')
+##            return (res)
     except Exception as createprojectexc:
-        app.logger.error('Error in createProject_ICE')
-        return jsonify(res)
+        print ('Error in createProject_ICE')
+        return (res)
 
 #service updates the specified project structure into ICE keyspace
-@app.route('/admin/updateProject_ICE',methods=['POST'])
+#@app.route('/admin/updateProject_ICE',methods=['POST'])
 def updateProject_ICE():
     res={'rows':'fail'}
     try:
-        requestdata=json.loads(request.data)
-        if not isemptyrequest(requestdata):
+##        requestdata=json.loads(request.data)
+##        if not isemptyrequest(requestdata):
             if(requestdata['query'] == 'deleterelease'):
                 updateprojectquery1=("delete from releases where releasename='"
                 +requestdata['releasename']+"' and projectid="+requestdata['projectid']
@@ -1897,21 +1858,21 @@ def updateProject_ICE():
                 +" and cycleid="+requestdata['cycleid'])
                 queryresult = icesession.execute(updateprojectquery2)
                 res={'rows':'Success'}
-        else:
-            app.logger.error('Empty data received. update project.')
-            return jsonify(res)
-        return jsonify(res)
+##        else:
+##            print ('Empty data received. update project.')
+##            return (res)
+            return (res)
     except Exception as updateprojectexc:
-            app.logger.error('Error in updateProject_ICE')
-            return jsonify(res)
+            print ('Error in updateProject_ICE')
+            return (res)
 
 #fetches user data into Nineteen68
-@app.route('/admin/getUsers_Nineteen68',methods=['POST'])
+#@app.route('/admin/getUsers_Nineteen68',methods=['POST'])
 def getUsers_Nineteen68():
     res={'rows':'fail'}
     try:
-        requestdata=json.loads(request.data)
-        if not isemptyrequest(requestdata):
+##        requestdata=json.loads(request.data)
+##        if not isemptyrequest(requestdata):
             userroles = requestdata['userroles']
             userrolesarr=[]
             for eachroleobj in userroles:
@@ -1933,21 +1894,21 @@ def getUsers_Nineteen68():
                         userroles.append(queryresultusername.current_rows[0]['username'])
                         res["userRoles"]=userroles
                         res["r_ids"]=rids
-        else:
-            app.logger.error('Empty data received. get users - Mind Maps.')
-            return jsonify(res)
-        return jsonify(res)
+##        else:
+##            print ('Empty data received. get users - Mind Maps.')
+##            return (res)
+            return (res)
     except Exception as getUsersexc:
-        app.logger.error('Error in getUsers_Nineteen68')
-        return jsonify(res)
+        print ('Error in getUsers_Nineteen68')
+        return (res)
 
 #service assigns projects to a specific user
-@app.route('/admin/assignProjects_ICE',methods=['POST'])
-def assignProjects_ICE():
+#@app.route('/admin/assignProjects_ICE',methods=['POST'])
+def assignProjects_ICE(requestdata):
     res={'rows':'fail'}
     try:
-        requestdata=json.loads(request.data)
-        if not isemptyrequest(requestdata):
+##        requestdata=json.loads(request.data)
+##        if not isemptyrequest(requestdata):
             if (requestdata['alreadyassigned'] != True):
                 requestdata['projectids'] = ','.join(str(idval) for idval in requestdata['projectids'])
                 history=createHistory("assign","icepermissions",requestdata)
@@ -1971,28 +1932,29 @@ def assignProjects_ICE():
                 +" and domainid = "+str(requestdata['domainid'])+";")
                 queryresult = icesession.execute(assignprojectsquery2)
             else:
-                return jsonify(res)
-        else:
-            app.logger.error('Empty data received. assign projects.')
-            return jsonify(res)
-        res={'rows':'Success'}
-        return jsonify(res)
+                return (res)
+##        else:
+##            print ('Empty data received. assign projects.')
+##            return (res)
+            res={'rows':'Success'}
+            return (res)
     except Exception as assignprojectsexc:
-        app.logger.error('Error in assignProjects_ICE')
-        return jsonify(res)
+        print assignprojectsexc
+        print ('Error in assignProjects_ICE')
+        return (res)
 
 # service fetches all users
-@app.route('/admin/getAllUsers_Nineteen68',methods=['POST'])
+#@app.route('/admin/getAllUsers_Nineteen68',methods=['POST'])
 def getAllUsers_Nineteen68():
     res={'rows':'fail'}
     try:
         queryforallusers=("select userid, username, defaultrole from users")
         queryresult = n68session.execute(queryforallusers)
         res={'rows':queryresult.current_rows}
-        return jsonify(res)
+        return (res)
     except Exception as getallusersexc:
-        app.logger.error('Error in getAllUsers_Nineteen68')
-        return jsonify(res)
+        print ('Error in getAllUsers_Nineteen68')
+        return (res)
 
 ################################################################################
 # END OF ADMIN SCREEN
@@ -2005,12 +1967,12 @@ def getAllUsers_Nineteen68():
 ################################################################################
 
 #fetching all the suite details
-@app.route('/reports/getAllSuites_ICE',methods=['POST'])
+#@app.route('/reports/getAllSuites_ICE',methods=['POST'])
 def getAllSuites_ICE():
     res={'rows':'fail'}
     try:
-        requestdata=json.loads(request.data)
-        if not isemptyrequest(requestdata):
+##        requestdata=json.loads(request.data)
+##        if not isemptyrequest(requestdata):
         #the code below is commented as per the new requirement
 		#ALM #460 - Reports - HTML report takes very
         #long time to open/ hangs when report size is 5MB above
@@ -2049,43 +2011,43 @@ def getAllSuites_ICE():
 ##                    +"from testsuites where cycleid="+requestdata['cycleid'])
 ##                queryresult = icesession.execute(getallsuitesquery5)
             else:
-                return jsonify(res)
+                return (res)
             res= {"rows":queryresult.current_rows}
-            return jsonify(res)
-        else:
-            app.logger.error('Empty data received. report suites details.')
-            return jsonify(res)
+            return (res)
+##        else:
+##            print ('Empty data received. report suites details.')
+##            return (res)
     except Exception as getAllSuitesexc:
-        app.logger.error('Error in getAllSuites_ICE.')
+        print ('Error in getAllSuites_ICE.')
         res={'rows':'fail'}
-        return jsonify(res)
+        return (res)
 
 #fetching all the suite after execution
-@app.route('/reports/getSuiteDetailsInExecution_ICE',methods=['POST'])
+#@app.route('/reports/getSuiteDetailsInExecution_ICE',methods=['POST'])
 def getSuiteDetailsInExecution_ICE():
     res={'rows':'fail'}
     try:
-        requestdata=json.loads(request.data)
-        if not isemptyrequest(requestdata):
+##        requestdata=json.loads(request.data)
+##        if not isemptyrequest(requestdata):
             getsuitedetailsquery = ("select executionid,starttime,endtime "
                     +"from execution where testsuiteid="+requestdata['suiteid'])
             queryresult = icesession.execute(getsuitedetailsquery)
             res= {"rows":queryresult.current_rows}
-            return jsonify(res)
-        else:
-            app.logger.error('Empty data received. report suites details execution.')
-            return jsonify(res)
+            return (res)
+##        else:
+##            print ('Empty data received. report suites details execution.')
+##            return (res)
     except Exception as getsuitedetailsexc:
-        app.logger.error('Error in getAllSuites_ICE.')
-        return jsonify(res)
+        print ('Error in getAllSuites_ICE.')
+        return (res)
 
 #fetching all the reports status
-@app.route('/reports/reportStatusScenarios_ICE',methods=['POST'])
+#@app.route('/reports/reportStatusScenarios_ICE',methods=['POST'])
 def reportStatusScenarios_ICE():
     res={'rows':'fail'}
     try:
-        requestdata=json.loads(request.data)
-        if not isemptyrequest(requestdata):
+##        requestdata=json.loads(request.data)
+##        if not isemptyrequest(requestdata):
             if(requestdata["query"] == 'executiondetails'):
                 getreportstatusquery1 = ("select reportid,executionid,browser,comments,"
                 +"executedtime,modifiedby,modifiedbyrole,modifiedon,report,status,"
@@ -2098,24 +2060,24 @@ def reportStatusScenarios_ICE():
                 +" ALLOW FILTERING")
                 queryresult = icesession.execute(getreportstatusquery2)
             else:
-                return jsonify(res)
+                return (res)
             res= {"rows":queryresult.current_rows}
-            return jsonify(res)
-        else:
-            app.logger.error('Empty data received. report status of scenarios.')
-            return jsonify(res)
+            return (res)
+##        else:
+##            print ('Empty data received. report status of scenarios.')
+##            return (res)
     except Exception as getreportstatusexc:
-        app.logger.error('Error in reportStatusScenarios_ICE.')
+        print ('Error in reportStatusScenarios_ICE.')
         res={'rows':'fail'}
-        return jsonify(res)
+        return (res)
 
 #fetching the reports
-@app.route('/reports/getReport_Nineteen68',methods=['POST'])
+#@app.route('/reports/getReport_Nineteen68',methods=['POST'])
 def getReport_Nineteen68():
     res={'rows':'fail'}
     try:
-        requestdata=json.loads(request.data)
-        if not isemptyrequest(requestdata):
+##        requestdata=json.loads(request.data)
+##        if not isemptyrequest(requestdata):
             if(requestdata["query"] == 'projectsUnderDomain'):
                 getreportquery1 =("select report,executedtime,testscenarioid "
                 +"from reports where reportid=" +requestdata['reportid']
@@ -2149,24 +2111,24 @@ def getReport_Nineteen68():
                 +"domainid=" + requestdata['domainid'] + " ALLOW FILTERING")
                 queryresult = icesession.execute(getreportquery7)
             else:
-                return jsonify(res)
+                return (res)
             res= {"rows":queryresult.current_rows}
-            return jsonify(res)
-        else:
-            app.logger.error('Empty data received. report.')
-            return jsonify(res)
+            return (res)
+##        else:
+##            print ('Empty data received. report.')
+##            return (res)
     except Exception as getreportexc:
-        app.logger.error(getreportexc)
-        app.logger.error('Error in getReport_Nineteen68.')
-        return jsonify(res)
+        print (getreportexc)
+        print ('Error in getReport_Nineteen68.')
+        return (res)
 
 #export json feature on reports
-@app.route('/reports/exportToJson_ICE',methods=['POST'])
+#@app.route('/reports/exportToJson_ICE',methods=['POST'])
 def exportToJson_ICE():
     res={'rows':'fail'}
     try:
-        requestdata=json.loads(request.data)
-        if not isemptyrequest(requestdata):
+##        requestdata=json.loads(request.data)
+##        if not isemptyrequest(requestdata):
             if(requestdata["query"] == 'reportdata'):
                 exporttojsonquery1 = ("select report from reports "
                 +"where reportid ="+ requestdata['reportid'] + " ALLOW FILTERING ")
@@ -2181,16 +2143,16 @@ def exportToJson_ICE():
                 +query['delete_flag'])
                 queryresult = icesession.execute(exporttojsonquery3)
             else:
-                return jsonify(res)
+                return (res)
             res= {"rows":queryresult.current_rows}
-            return jsonify(res)
-        else:
-            app.logger.error('Empty data received. JSON Exporting.')
-            return jsonify(res)
+            return (res)
+##        else:
+##            print ('Empty data received. JSON Exporting.')
+##            return (res)
     except Exception as exporttojsonexc:
-        app.logger.error('Error in exportToJson_ICE.')
+        print ('Error in exportToJson_ICE.')
         res={'rows':'fail'}
-        return jsonify(res)
+        return (res)
 
 ################################################################################
 # END OF REPORTS
@@ -2201,22 +2163,13 @@ def exportToJson_ICE():
 # BEGIN OF HISTORY
 ################################################################################
 
-def createHistory(query, table, request_data):
+def createHistory(query, table, requestdata):
     try:
         history={}
-        createclone=False
-        requestdata=dict(request_data)
         if(requestdata.has_key('history') and requestdata['history'] != None):
             req_history=requestdata['history']
             for keys in req_history:
                 history[keys.encode('utf-8')]=req_history[keys].encode('utf-8')
-        if(requestdata.has_key("query")):
-            del requestdata["query"]
-        if(requestdata.has_key("subquery")):
-            createclone=True
-            del requestdata["subquery"]
-        if(requestdata.has_key("modifiedflag")):
-            del requestdata["modifiedflag"]
         primary_keys={'users':['userid'],
                     'projects':['projectid','domainid','projectname'],
                     'cycles':['cycleid','releaseid','cyclename'],
@@ -2248,18 +2201,15 @@ def createHistory(query, table, request_data):
             version=getHistoryLatestVersion(queryresult.current_rows,table,history,query)
         else:
             version=getHistoryLatestVersion(queryresult.current_rows,table,history)
-        value=""
         if(query=='create'):
             data=str(requestdata)#.replace("'","\'").replace('"',"'")
-            if(createclone):
-                desc_str='Replicated '
-            else:
-                desc_str='Created '
             value={
-            'description':desc_str+table[:-1]+' with values '+data,
+            'description':'Created '+table[:-1]+' with values '+data,
             'timestamp':str(getcurrentdate()),
             'user':str(requestdata['createdby'])
             }
+            value=str(value).replace("'",'\"')
+            history[version]=value
         elif(query=='update'):
             data={}
             for keys in requestdata:
@@ -2277,6 +2227,8 @@ def createHistory(query, table, request_data):
             'timestamp':str(getcurrentdate()),
             'user':str(user_str)
             }
+            value=str(value).replace("'",'\"')
+            history[version]=value
         elif(query=='assign'):
             user_str=''
             if(requestdata['alreadyassigned']!=True):
@@ -2288,6 +2240,8 @@ def createHistory(query, table, request_data):
             'timestamp':str(getcurrentdate()),
             'user':str(user_str)
             }
+            value=str(value).replace("'",'\"')
+            history[version]=value
         elif(query=='rename'):
             desc_str=''
             if(table=='modules'):
@@ -2299,10 +2253,12 @@ def createHistory(query, table, request_data):
             elif(table=='testcases'):
                 desc_str='Renamed testcase to '+requestdata['testcasename']
             value={
-            'description':desc_str,
+            'description':desc_str.encode('utf-8'),
             'timestamp':str(getcurrentdate()),
             'user':str(requestdata['modifiedby'])
             }
+            value=str(value).replace("'",'\"')
+            history[version]=value
         elif(query=='submit'):
             desc_str=''
             if(requestdata['status']=='review'):
@@ -2333,16 +2289,15 @@ def createHistory(query, table, request_data):
                 elif(table=='testcases'):
                     desc_str='Reassigned testcase '+requestdata['details']['testCaseName']+' for review'
             value={
-            'description':desc_str,
+            'description':desc_str.encode('utf-8'),
             'timestamp':str(getcurrentdate()),
             'user':str(requestdata['username'])
             }
-        value=str(value).replace("'",'\"')
-        history[version]=value
-        del requestdata
+            value=str(value).replace("'",'\"')
+            history[version]=value
         return history
     except Exception as e:
-        app.logger.error('Error in createHistory.')
+        print ('Error in createHistory.')
 
 
 def getHistoryLatestVersion(res,table,hist,*args):
@@ -2383,138 +2338,12 @@ def getHistoryLatestVersion(res,table,hist,*args):
         newver= '.'.join(newver)
         return newver
     except Exception as e:
-        app.logger.error("Error in getHistoryLatestVersion")
+        print ("Error in getHistoryLatestVersion")
 
 ################################################################################
 # END OF HISTORY
 ################################################################################
 
-
-################################################################################
-# BEGIN OF UTILITIES
-# INCLUDES : all admin related actions
-################################################################################
-
-#encrpytion utility AES
-@app.route('/utility/encrypt_ICE/aes',methods=['POST'])
-def encrypt_ICE():
-    res = "fail"
-    try:
-        import base64
-        from Crypto.Cipher import AES
-        BS = 16
-        pad = lambda s: s + (BS - len(s) % BS) * chr(BS - len(s) % BS)
-        key = b'\x74\x68\x69\x73\x49\x73\x41\x53\x65\x63\x72\x65\x74\x4b\x65\x79'
-        raw=request.data
-##        raw= inputval
-        if not (raw is None and raw is ''):
-            raw = pad(raw)
-            cipher = AES.new( key, AES.MODE_ECB)
-            res={'rows':base64.b64encode(cipher.encrypt( raw ))}
-            return jsonify(res)
-        else:
-            app.logger.error("Invalid input")
-            return str(res)
-    except Exception as e:
-        app.logger.error('Error in encrypt_ICE.')
-        return str(res)
-
-#directly updates license data
-@app.route('/utility/dataUpdator_ICE',methods=['POST'])
-def dataUpdator_ICE():
-    res={'rows':'fail'}
-    try:
-        requestdata=json.loads(request.data)
-        if not isemptyrequest(requestdata):
-            if requestdata['query'] == 'testsuites':
-                count = requestdata['count']
-                userid = requestdata['userid']
-                response = counterupdator('testsuites',userid,count)
-                if response != True:
-                    res={'rows':'fail'}
-                else:
-                    res={'rows':'success'}
-            else:
-                res = {'rows':'fail'}
-        else:
-            app.logger.error('Empty data received. Data Updator.')
-    except Exception as exporttojsonexc:
-        app.logger.error('Error in dataUpdator_ICE.')
-    return jsonify(res)
-
-################################################################################
-# END OF UTILITIES
-################################################################################
-
-##################################################
-# BEGIN OF CHATBOT
-##################################################
-
-#Prof J First Service: Getting Best Matches
-@app.route('/chatbot/getTopMatches_ProfJ',methods=['POST'])
-def getTopMatches_ProfJ():
-    try:
-##        print "getting top matches for ya.."
-##        print request.data
-        query = str(request.data)
-        global newQuesInfo
-        global savedQueries
-
-        #Importing Modules for Prof J
-
-    ##    import xlrd
-##        from collections import OrderedDict
-##        import simplejson as json
-
-##        from nltk.stem import PorterStemmer
-
-
-        #Step 2 Matching query with Data
-        profj = ProfJ(pages,questions,answers,keywords,weights,pquestions,newQuesInfo,savedQueries)
-        response,newQuesInfo,savedQueries = profj.start(query)
-        #if response[0][1] == "Please be relevant..I work soulfully for Nineteen68":
-            #response[0][1] = str(chatbot.get_response(query))
-##        print "---------------The status of global variable---------------"
-##        print "newQuesInfo after this query: ",newQuesInfo
-##        print "State of saved query after this query: ",savedQueries
-##        print"------------------------------------------------------------"
-        res={'rows':response}
-        return jsonify(res)
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        res={'rows':'fail'}
-
-#Prof J Second Service: Updating the Question's Frequency
-@app.route('/chatbot/updateFrequency_ProfJ',methods=['POST'])
-def updateFrequency_ProfJ():
-    try:
-##        print "updating the frequency.."
-##        print request.data
-        qid = request.data
-        weights[int(qid)] += 1
-##        print weights[int(qid)]
-        temp = []
-        temp.append(qid)
-        temp.append(weights[int(qid)])
-##        print(weights[int(qid)])
-        response = True
-        res={'rows': response}
-        return jsonify(res)
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        res={'rows':'fail'}
-
-##################################################
-# END OF CHATBOT
-##################################################
-
-
-
-################################################################################
-# BEGIN OF INTERNAL COMPONENTS
-################################################################################
 
 ###########################
 # BEGIN OF GLOBAL VARIABLES
@@ -2569,7 +2398,7 @@ def isemptyrequest(requestdata):
             if (key != 'additionalroles'
                 and key != 'getparampaths' and key != 'testcasesteps' and key != 'history'):
                 if value == 'undefined' or value == '' or value == 'null' or value == None:
-                    app.logger.error(key)
+                    print (key)
                     flag = True
     else:
         global offlinestarttime
@@ -2582,7 +2411,7 @@ def isemptyrequest(requestdata):
                     if (key != 'additionalroles' and key != 'getparampaths'
                      and key != 'testcasesteps' and key != 'history'):
                         if value == 'undefined' or value == '' or value == 'null' or value == None:
-                            app.logger.error(key)
+                            print (key)
                             flag = True
             else:
                 global handler
@@ -2648,1132 +2477,362 @@ def get_delete_query(node_id,node_name,node_version_number,node_parentid,project
 ############################
 # END OF GENERIC FUNCTIONS
 ############################
-################################################################################
-# BEGIN OF COUNTERS
-################################################################################
-def counterupdator(updatortype,userid,count):
-    status=False
-    try:
-        beginingoftime = datetime.utcfromtimestamp(0)
-        currentdateindays = getbgntime('curr',datetime.now()) - beginingoftime
-        currentdate = long(currentdateindays.total_seconds() * 1000.0)
-        updatorarray = ["update counters set counter=counter + ",
-                    " where counterdate= "," and userid = "," and countertype= ",";"]
-        updatequery=(updatorarray[0]+str(count)+updatorarray[1]
-                    +str(currentdate)+updatorarray[2]+userid+updatorarray[3]+"'"
-                    +updatortype+"'"+updatorarray[4])
-        icesession.execute(updatequery)
-        status = True
-    except Exception as counterupdatorexc:
-##        import traceback
-##        traceback.print_exc()
-        app.logger.error('Error in counterupdatorexc.')
-    return status
-
-def getreports_in_day(bgnts,endts):
-    res = {"rows":"fail"}
-    try:
-        query=("select * from reports where executedtime  >= "
-            +str(bgnts)+" and executedtime <= "+str(endts)+" allow filtering;")
-        queryresult = icesession.execute(query)
-    ##    print queryresult.current_rows
-        res= {"rows":queryresult.current_rows}
-    except Exception as getreports_in_dayexc:
-##        import traceback
-##        traceback.print_exc()
-        app.logger.critical("Unable to contact storage areas 2 reports")
-    return res
-
-def getsuites_inititated(bgnts,endts):
-    res = {"rows":"fail"}
-    try:
-        suitequery=("select * from counters where counterdate >= "+str(bgnts)
-        +" and counterdate < "+str(endts)
-        +" and countertype='testsuites' ALLOW FILTERING;")
-        queryresult = icesession.execute(suitequery)
-        res= {"rows":queryresult.current_rows}
-
-    except Exception as getsuites_inititatedexc:
-##        import traceback
-##        traceback.print_exc()
-        app.logger.critical("Unable to contact storage areas 2 suites")
-    return res
-
-def getscenario_inititated(bgnts,endts):
-    res = {"rows":"fail"}
-    try:
-        scenarioquery=("select * from counters where counterdate >= "+str(bgnts)
-        +" and counterdate < "+str(endts)
-        +" and countertype='testscenarios' ALLOW FILTERING;")
-        queryresult = icesession.execute(scenarioquery)
-        res= {"rows":queryresult.current_rows}
-    except Exception as getscenario_inititatedexc:
-##        import traceback
-##        traceback.print_exc()
-        app.logger.critical("Unable to contact storage areas 2 scenarios")
-    return res
-
-def gettestcases_inititated(bgnts,endts):
-    res = {"rows":"fail"}
-    try:
-        testcasesquery=("select * from counters where counterdate >= "+str(bgnts)
-        +" and counterdate < "+str(endts)
-        +" and countertype='testcases' ALLOW FILTERING;")
-        queryresult = icesession.execute(testcasesquery)
-        res = {"rows":queryresult.current_rows}
-
-    except Exception as gettestcases_inititatedexc:
-##        import traceback
-##        traceback.print_exc()
-        app.logger.critical("Unable to contact storage areas 2 cases")
-    return res
-
-def modelinfoprocessor(processingdata):
-    modelinfo=[]
-    try:
-        bgnyesday = getbgntime('prev',datetime.now())
-        bgnoftday = getbgntime('curr',datetime.now())
-        daybforedate=''
-        if (processingdata['btchinfo']['btchstts'] == 'error' or
-            processingdata['btchinfo']['btchstts'] == ''):
-            daybforedate=getbgntime('daybefore',datetime.now())
-##        suiteinfo=[]
-##        cnarioinfo=[]
-##        tcasesinfo=[]
-        if daybforedate != '':
-            for days in range(0,2):
-                dailydata={}
-                allusers = []
-                bgnts=gettimestamp(daybforedate)
-                endts=gettimestamp(bgnyesday)
-##                print bgnts
-##                print endts
-                dailydata['day'] = str(bgnyesday)
-                resultset=getreports_in_day(bgnts,endts)
-##                modelinfo['reports_in_day']=reportdataprocessor(resultset,daybforedate,bgnyesday)
-                reportobj=reportdataprocessor(resultset,daybforedate,bgnyesday)
-                dailydata['r_exec_cnt'] = str(reportobj['reprt_cnt'])
-
-##                suiteinfo.append(dataprocessor('testsuites',bgnts,endts,bgnyesday))
-                suiteobj=dataprocessor('testsuites',bgnts,endts)
-                dailydata['su_exec_cnt'] = str(suiteobj['suite_cnt'])
-                allusers = allusers + suiteobj['active_usrs']
-
-##                cnarioinfo.append(dataprocessor('testscenarios',bgnts,endts))
-                scenariosobj=dataprocessor('testscenarios',bgnts,endts)
-                dailydata['s_exec_cnt'] = str(scenariosobj['cnario_cnt'])
-                allusers = allusers + scenariosobj['active_usrs']
-
-##                tcasesinfo.append(dataprocessor('testcases',bgnts,endts))
-                testcasesobj=dataprocessor('testcases',bgnts,endts)
-                dailydata['t_exec_cnt'] = str(testcasesobj['tcases_cnt'])
-                allusers = allusers + testcasesobj['active_usrs']
-                print allusers
-                licensesarray=[]
-                licensesarray.append(str(len(set(allusers))))
-                dailydata['license_usd'] = licensesarray
-##                modelinfo['suites_init'] = suiteinfo
-##                modelinfo['cnario_init'] = cnarioinfo
-##                modelinfo['tcases_init'] = tcasesinfo
-                modelinfo.append(dailydata)
-                daybforedate=bgnyesday
-                bgnyesday=bgnoftday
-        else:
-            dailydata={}
-            allusers = []
-            dailydata['day'] = str(datetime.now())
-
-            bgnts=gettimestamp(bgnyesday)
-            endts=gettimestamp(bgnoftday)
-##            print bgnts
-##            print endts
-            resultset=getreports_in_day(bgnts,endts)
-##            modelinfo['reports_in_day']=reportdataprocessor(resultset,bgnyesday,bgnoftday)
-            reportobj=reportdataprocessor(resultset,bgnyesday,bgnoftday)
-            dailydata['r_exec_cnt'] = str(reportobj['reprt_cnt'])
-##            suiteinfo.append(dataprocessor('testsuites',bgnts,endts))
-            suiteobj = dataprocessor('testsuites',bgnts,endts)
-            dailydata['su_exec_cnt'] = str(suiteobj['suite_cnt'])
-            allusers = allusers + suiteobj['active_usrs']
-##            cnarioinfo.append(dataprocessor('testscenarios',bgnts,endts))
-            scenariosobj = dataprocessor('testscenarios',bgnts,endts)
-            dailydata['s_exec_cnt'] = str(scenariosobj['cnario_cnt'])
-            allusers = allusers + scenariosobj['active_usrs']
-##            tcasesinfo.append(dataprocessor('testcases',bgnts,endts))
-            testcasesobj = dataprocessor('testcases',bgnts,endts)
-            dailydata['t_exec_cnt'] = str(testcasesobj['tcases_cnt'])
-            allusers = allusers + testcasesobj['active_usrs']
-            print allusers
-            licensesarray=[]
-            licensesarray.append(str(len(set(allusers))))
-            dailydata['license_usd'] = licensesarray
-            modelinfo.append(dailydata)
-##            modelinfo['suites_init'] = suiteinfo
-##            modelinfo['cnario_init'] = cnarioinfo
-##            modelinfo['tcases_init'] = tcasesinfo
-    except Exception as e:
-##        import traceback
-##        traceback.print_exc()
-        app.logger.critical("Unable to contact storage areas 3")
-    return modelinfo
-
-def dataprocessor(datatofetch,fromdate,todate):
-    respobj={}
-    usr_list=[]
-    total_cnt=0
-    dataresp=''
-    try:
-        if datatofetch == 'testsuites':
-            dataresp=getsuites_inititated(fromdate,todate)
-##            usr_data=0
-            for eachrow in dataresp['rows']:
-##                userin_data={}
-##                userin_data['rns'] = str(eachrow['counter'])
-                total_cnt = total_cnt + int(eachrow['counter'])
-                usr_list.append(str(eachrow['userid']))
-##                userin_data['id'] = str(eachrow['userid'])
-##                usr_data.append(userin_data)
-            respobj['suite_cnt'] = str(total_cnt)
-        elif datatofetch == 'testscenarios':
-            dataresp=getscenario_inititated(fromdate,todate)
-##            usr_data=0
-            for eachrow in dataresp['rows']:
-##                userin_data={}
-##                userin_data['rns'] = str(eachrow['counter'])
-                total_cnt = total_cnt + int(eachrow['counter'])
-                usr_list.append(str(eachrow['userid']))
-##                userin_data['id'] = str(eachrow['userid'])
-##                usr_data.append(userin_data)
-            respobj['cnario_cnt'] = str(total_cnt)
-        elif datatofetch == 'testcases':
-            dataresp=gettestcases_inititated(fromdate,todate)
-##            usr_data=0
-            for eachrow in dataresp['rows']:
-##                userin_data={}
-##                userin_data['rns'] = str(eachrow['counter'])
-                total_cnt = total_cnt + int(eachrow['counter'])
-                usr_list.append(str(eachrow['userid']))
-##                userin_data['id'] = str(eachrow['userid'])
-##                usr_data.append(userin_data)
-            respobj['tcases_cnt'] = str(total_cnt)
-##        respobj['day'] = str(date)
-##        respobj['active_usrs'] = usr_data
-        respobj['active_usrs'] = usr_list
-    except Exception as dataprocessorexc:
-##        import traceback
-##        traceback.print_exc()
-        app.logger.critical("Unable to contact storage areas 4")
-    return respobj
-
-def reportdataprocessor(resultset,fromdate,todate):
-    processorres = False
-    count = 0
-    try:
-        eachreports_in_day={"reprt_cnt":"","day":""}
-        curr=datetime.now()
-        if resultset['rows'] != 'fail':
-            for eachrow in resultset['rows']:
-                exectime=eachrow['executedtime']
-                if exectime != None:
-                    if (exectime >= fromdate and exectime < todate):
-                        count = count + 1
-        eachreports_in_day['day'] = str(todate)
-        eachreports_in_day['reprt_cnt'] = str(count)
-    except Exception as reportdataprocessorexc:
-##        import traceback
-##        traceback.print_exc()
-        app.logger.critical("Unable to perform internal actions")
-    return eachreports_in_day
-
-################################################################################
-# END OF COUNTERS
-################################################################################
-################################################################################
-# START LICENSING COMPONENTS
-################################################################################
-def getMacAddress():
-    mac=''
-    if sys.platform == 'win32':
-        for line in os.popen("ipconfig /all"):
-            if line.lstrip().startswith('Physical Address'):
-##                mac = line.split(':')[1].strip().replace('-',':')
-                mac = line.split(':')[1].strip()
-                mac = mac+'    '
-                break
-    else:
-        for line in os.popen("/sbin/ifconfig"):
-            if line.find('Ether') > -1:
-                mac = line.split()[4]
-                mac = mac+'    '
-                break
-    return mac
-
-def gettimestamp(date):
-    timestampdata=''
-    import time
-    import calendar
-##    print time.strftime(str(date))
-    date= datetime.strptime(str(date),"%Y-%m-%d %H:%M:%S")
-    timestampdata = calendar.timegm(date.utctimetuple()) * 1000
-    return timestampdata
-
-
-def basecheckonls():
-    basecheckstatus=False
-    goahead = False
-    try:
-        try:
-            #checks if the db is already existing,
-                #if exists, verifies the MAC address, if present allows further,
-                #else considers the Patch is replaced in another Machine
-            #else considers it to be 1st instance
-            if os.access(logspath+"/data.db",os.R_OK):
-                existingdata = dataholder('','select')
-                existingdata = unwrap(str(existingdata),mine)
-                existingdata =  ast.literal_eval(existingdata)
-                if str(existingdata['sysinfo']['mac']).strip() == str(getMacAddress()).strip():
-                    goahead = True
-                else:
-                    goahead = False
-            else:
-                goahead = True
-        except Exception as fileexception:
-            goahead = False
-##            import traceback
-##            traceback.print_exc()
-            app.logger.critical("Exception on reading file.")
-        if goahead:
-
-        ##    print mac
-        ##    data= {"action":"register","sysinfo":physical_trans,"visited":"no"}
-            baserequest= {"action": "register",
-                        "sysinfo": {"mac": str(getMacAddress()).strip(),"token": ""},
-                       "visited": "no"}
-            baserequest=wrap(str(baserequest),omgall)
-            connectresponse = connectingls(baserequest)
-    ##        print 'connectresponse:::',connectresponse
-            if connectresponse != False:
-                actresp = unwrap(str(connectresponse),omgall)
-    ##            print 'This is the value',actresp
-                actresp = ast.literal_eval(actresp)
-                if actresp['action'] == 'error':
-                        app.logger.error(actresp['lsinfotondac']['message'])
-                else:
-                    baseresponse = ndacinfo
-                    baseresponse['sysinfo']['tkn']=actresp['lsinfotondac']['lstokentondac'];
-    ##                baseresponse['sysinfo']['tkn']='';
-                    baseresponse['sysinfo']['mac']=str(getMacAddress()).strip();
-                    baseresponse['action']=actresp['action']
-    ##                print 'NDAC info:::\n\n',baseresponse
-                    wrappedbaseresponse=wrap(str(baseresponse),mine)
-                    dataholderresp=dataholder(wrappedbaseresponse,'new')
-                    if dataholderresp != False:
-                        basecheckstatus = dataholderresp
-    ##                a=dataholder(mywrapeddata,'select')
-    ##                print '\n\n\n',a
-    ##                myunwrapeddata=unwrap(str(a),mine)
-    ##                print '\n\n',myunwrapeddata
-                global onlineuser
-                onlineuser = True
-            else:
-                app.logger.error("Unable to connect to Server")
-        else:
-            app.logger.critical("Something Fishy...")
-    except Exception as e:
-##        import traceback
-##        traceback.print_exc()
-        app.logger.critical("Unable to contact storage areas")
-    return basecheckstatus
-
-def updateonls():
-    global lsondayone
-    global lsondaytwo
-    try:
-        selected=dataholder('','select')
-        myunwrapeddata=unwrap(str(selected),mine)
-        processingdata = ast.literal_eval(myunwrapeddata)
-        updaterequest={}
-        modelinfo={}
-        updaterequest['sysinfo'] = processingdata['sysinfo']
-        updaterequest['modelinfo']=modelinfo
-##        modelinfores = modelinfoprocessor(processingdata)
-##        updaterequest['modelinfo']['execs_in_day']=modelinfores
-        modelinfores = modelinfoprocessor(processingdata)
-        updaterequest['modelinfo'] = modelinfores
-        updaterequest['action'] = 'update'
-        wrappedupdaterequest=wrap(str(updaterequest),omgall)
-        updateresponse = connectingls(wrappedupdaterequest)
-        if updateresponse != False:
-            cronograph()
-            updateresponse=unwrap(str(updateresponse),omgall)
-            updateresponse = ast.literal_eval(updateresponse)
-            if updateresponse['action'] == 'error':
-                app.logger.error(updateresponse['lsinfotondac']['message'])
-                errorstorage=dataholder('','select')
-                errorunwrap=unwrap(str(errorstorage),mine)
-                errorprocessed = ast.literal_eval(errorunwrap)
-                failtime=datetime.now()
-                errorprocessed['btchinfo']['prevbtch']['prevbtchtym'] =str(failtime)
-                errorprocessed['btchinfo']['prevbtch']['prevbtchmsg'] = updateresponse['lsinfotondac']['message']
-                nxtbatch = getbgntime('nxt',failtime)
-                errorprocessed['btchinfo']['nxtbtch'] = str(nxtbatch)
-                errorprocessed['btchinfo']['btchstts'] = updateresponse['action']
-                errorprocessed['action'] = 'update'
-                errorprocessed=wrap(str(errorstorage),mine)
-                updatestatus = dataholder(errorprocessed,'update')
-                if lsondayone != True and lsondaytwo != True:
-                    lsondayone = True
-                    app.logger.error("Could not connect to Server")
-                elif lsondayone == True and lsondaytwo !=True:
-                    lsondaytwo = True
-                    global onlineuser
-                    onlineuser = False
-                    app.logger.error("License Expired.")
-            else:
-                completemsg=updateresponse['lsinfotondac']['message']
-                token=processingdata['sysinfo']['tkn']
-                tokenreturned=completemsg.split('success')[1]
-                if (token == tokenreturned):
-                    lsondayone = False
-                    lsondaytwo = False
-                    successstorage=dataholder('','select')
-                    successunwrap=unwrap(str(successstorage),mine)
-                    successstorage = ast.literal_eval(successunwrap)
-                    successstorage['action'] = 'update'
-                    successstorage['btchinfo']['btchstts'] = 'success'
-                    successstorage['btchinfo']['nxtbtch'] = str(getbgntime('nxt',datetime.now()))
-                    successstorage=wrap(str(successstorage),mine)
-                    updatestatus = dataholder(str(successstorage),'update')
-                else:
-                    app.logger.error('Server Authentication Failed.Invalid Server Authentication.')
-                    errorstorage=dataholder('','select')
-                    errorunwrap=unwrap(str(errorstorage),mine)
-                    errorprocessed = ast.literal_eval(errorunwrap)
-                    failtime=datetime.now()
-                    errorprocessed['btchinfo']['prevbtch']['prevbtchtym'] =str(failtime)
-                    errorprocessed['btchinfo']['prevbtch']['prevbtchmsg'] = updateresponse['lsinfotondac']['message']
-                    nxtbatch = getbgntime('nxt',failtime)
-                    errorprocessed['btchinfo']['nxtbtch'] = str(nxtbatch)
-                    errorprocessed['btchinfo']['btchstts'] = updateresponse['action']
-                    errorprocessed['action'] = 'update'
-                    errorprocessed=wrap(str(errorstorage),mine)
-                    updatestatus = dataholder(errorprocessed,'update')
-                    if lsondayone != True and lsondaytwo != True:
-                        lsondayone = True
-                        app.logger.error("Could not connect to Server")
-                    elif lsondayone == True and lsondaytwo !=True:
-                        lsondaytwo = True
-                        global onlineuser
-                        onlineuser = False
-                        app.logger.error("License Expired.")
-        else:
-            if lsondayone != True and lsondaytwo != True:
-                cronograph()
-                lsondayone = True
-                app.logger.error("Could not connect to Server")
-            elif lsondayone == True and lsondaytwo != True:
-                lsondaytwo = True
-                global onlineuser
-                onlineuser = False
-                app.logger.error("Licenses Expired.")
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        app.logger.critical("Unable to contact storage areas")
-
-def getbgntime(requiredday,currentday):
-    import datetime
-    day = ''
-    if requiredday == 'prev':
-        yesterday=currentday - datetime.timedelta(1)
-        day=datetime.datetime(yesterday.year, yesterday.month, yesterday.day,0,0,0,0)
-    elif requiredday == 'nxt':
-        tomorrow=currentday + datetime.timedelta(1)
-        day=datetime.datetime(tomorrow.year, tomorrow.month, tomorrow.day,0,0,0,0)
-    elif requiredday == 'daybefore':
-        daybefore=currentday - datetime.timedelta(2)
-        day=datetime.datetime(daybefore.year, daybefore.month, daybefore.day,0,0,0,0)
-    elif requiredday == 'curr':
-        day=datetime.datetime(currentday.year, currentday.month, currentday.day,0,0,0,0)
-    elif requiredday == 'indate':
-        day=datetime.datetime(currentday.year, currentday.month, currentday.day,0,0,0,0)
-    return day
-
-def connectingls(data):
-    try:
-        connectionstatus=False
-        lsresponse = requests.post('http://'+lsip+":5000/ndacrequest",data=data)
-##        lsresponse = requests.post("http://127.0.0.1:5000/ndacrequest",data=data)
-        if lsresponse.status_code == 200:
-            connectionstatus = lsresponse.content
-##        else:
-##            app.logger.error("Status Code:",lsresponse.content)
-    except Exception as e:
-##        import traceback
-##        traceback.print_exc()
-        app.logger.critical("Liscense server must be running")
-        connectionstatus = False
-    return connectionstatus
-
-def offlineuserenabler(startdate,enddate,usermac):
-    enabled = False
-    # this is provided as there was a request to create a key
-    # without mac address
-    if usermac != 'nomacaddress':
-        mac = getMacAddress().strip()
-    else:
-        mac = usermac
-    if usermac in mac.strip():
-        hastimebegin=timerbegins(startdate,enddate)
-        enabled = hastimebegin
-    return enabled
-
-def timerbegins(startdate,enddate):
-    global offlinestarttime
-    offlinestarttime=startdate
-    global offlineendtime
-    offlineendtime=enddate
-    if ((offlinestarttime < offlineendtime) and
-        (offlineendtime > datetime.now()) and (datetime.now() >= offlinestarttime)):
-        global offlineuser
-        global usersession
-        usersession=True
-        offlineuser = True
-    return usersession
-
-def scheduleenabler(starttime):
-    try:
-        import threading
-        runningtime = starttime - datetime.now()
-        delay = (runningtime).total_seconds()
-        threading.Timer(delay, beginserver).start()
-        global offlineuser
-        offlineuser = True
-    except Exception as scheduleenablerexeption:
-##        import traceback
-##        traceback.print_exc()
-        app.logger.critical("<<<<Issue with the Server>>>>")
-
-def cronograph():
-    try:
-        from threading import Timer
-        x=datetime.today()
-        updatehr=00
-        updatemin=00
-        updatesec=00
-        updatemcrs=00
-        y=x.replace(day=x.day+1, hour=updatehr, minute=updatemin, second=updatesec, microsecond=updatemcrs)
-        #for development purposes only
-##        y=x.replace(day=x.day, hour=x.hour, minute=x.minute+1, second=updatesec, microsecond=updatemcrs)
-
-        delta_t=y-x
-        secs=delta_t.seconds+1
-        t = Timer(secs, updateonls)
-        t.start()
-    except Exception as cronoexeption:
-##        import traceback
-##        traceback.print_exc()
-        app.logger.critical("<<<<Issue with the Server>>>>")
-
-def dataholder(data,querytype):
-    try:
-        dataholderresp=False
-        #connect to a database(creates if doesnt exist)
-        conn = sqlite3.connect(logspath+"/data.db")
-        #create cursor
-        cursor = conn.cursor()
-        if querytype == 'update':
-            conn.execute("UPDATE clndls SET intrtkndt = ? WHERE sysid = 'ndackey'",[data])
-            dataholderresp = True
-        elif querytype == 'new':
-            cursor.execute("CREATE TABLE IF NOT EXISTS clndls (sysid TEXT PRIMARY KEY, intrtkndt TEXT);")
-            try:
-                cursor.execute("INSERT INTO clndls(sysid,intrtkndt) VALUES ('ndackey','"+data+"')")
-            except Exception as e:
-                dataholderresp = False
-##                app.logger.error("<<<<Running on existing DB>>>>")
-            dataholderresp = True
-        elif querytype == 'select':
-            cursor1=conn.execute("SELECT intrtkndt FROM clndls WHERE sysid='ndackey'")
-            for a in cursor1:
-                dataholderresp = a[0]
-        conn.commit()
-        conn.close()
-    except Exception as dataholderexeption:
-##        import traceback
-##        traceback.print_exc()
-        app.logger.critical("<<<<Issue with the Storing>>>>")
-
-    return dataholderresp
-
-
-def beginserver():
-    if dbup:
-        serve(app,host='127.0.0.1',port=1990)
-    else:
-        app.logger.critical("<<<<Database needs to be Started>>>>")
-
-def closehonor(result):
-    res={}
-    global lsondayone
-    global lsondaytwo
-    if lsondayone == True:
-        result["dayone"]="True"
-        res=result
-    elif lsondaytwo == True:
-        res["daytwo"]="True"
-    else:
-        res=result
-    return res
-
-from Crypto import Random
-from Crypto.Cipher import AES
-BS = 16
-def pad(data):
-    padding = BS - len(data) % BS
-    return data + padding * chr(padding)
-
-def unpad(data):
-    return data[0:-ord(data[-1])]
-
-def unwrap(hex_data, key, iv='0'*16):
-    data = ''.join(map(chr, bytearray.fromhex(hex_data)))
-    aes = AES.new(key, AES.MODE_CBC, iv)
-    return unpad(aes.decrypt(data))
-
-def wrap(data, key, iv='0'*16):
-    aes = AES.new(key, AES.MODE_CBC, iv)
-    return aes.encrypt(pad(data)).encode('hex')
-
-##################################
-# END LICENSING SERVER COMPONENTS
-##################################
-
-
-####################################
-#Begining of ProfJ assist Components
-####################################
-
-#Saving assist data in global variables
-#Step 1 Loading Data from JSON
-##try:
-##    import sys
-##    base = os.getcwd()
-##    #path = base + "\\Portable_python\\ndac\\src\\assist"
-##    #sys.path.append(path)
-
-##    import sqlite3
-##except:
-##    app.logger.error('Error in accessing assist files..')
-
-
-#Setting up Data
-##try:
-    # File to read the Data from SQLite File into an array.
-##    import sqlite3
-##except:
-##    print "Error Imprting module sqlite."
-
-
-class SQLite_DataSetup():
-    try:
-        def __init__(self):
-            self.questions=[] # to store the questions
-            self.pages=[] # to store the pages
-            self.keywords=[] # to store the keywords
-            self.weightages=[] # to store the weightages
-            self.answers=[] # to store the answers
-            self.pquestions=[] #preprocessed questions
-            self.newQuesInfo=[] #list to store relevant info about new questions
-    except:
-        app.logger.error("Error in __init__ function.")
-
-
-
-        # Function to Load Data using JSON file.
-    def loadData(self):
-       # print "wfsdvaqusgwnqbwh"
-##        import os
-        #print "OS.cwd()------------",os.getcwd()
-##        base = os.getcwd()
-##        print 'base',base
-        path = assistpath + "/ProfJ.db"
-        conn = sqlite3.connect(path)
-        c = conn.cursor()
-           # print data
-
-        # Preparing the lists
-        for row in c.execute('SELECT * FROM mainDB'):
-
-            self.weightages.append(int(row[1]))
-            self.questions.append(row[2])
-            self.answers.append(row[3])
-
-            self.keywords.append(row[4])
-            self.pages.append(row[5])
-
-            self.pquestions.append(row[6])
-
-
-        for col in c.execute('SELECT * FROM NewQuestions'):
-            info =[]
-            info.append(col[1])
-            info.append(col[2])
-            info.append(col[3])
-
-            self.newQuesInfo.append(info)
-        conn.close()
-
-
-
-
-    try:
-        # Function to get the Pages.
-        def getPages(self):
-            return self.pages
-    except:
-
-        app.logger.error("Error in getPages()")
-
-    try:
-        # Function to return the Questions.
-        def getQuestions(self):
-            return self.questions
-    except:
-        app.logger.error("Error in getQuestions()")
-
-    try:
-        # Function to return the Answers.
-        def getAnswers(self):
-            return self.answers
-    except:
-        app.logger.error("Error in getAnswers()")
-
-    try:
-        # Function to retun the Weights.
-        def getWeightages(self):
-            return self.weightages
-    except:
-        app.logger.error("Error in getWeightages()")
-
-    try:
-        # Function to return Keywords.
-        def getKeywords(self):
-            return self.keywords
-    except:
-        app.logger.error("Error in getKeywords()")
-
-    try:
-        # Function to get the Processed Questions.
-        def getPQuestions(self):
-            return self.pquestions
-    except:
-        app.logger.error("Error in getPQuestions()")
-
-    try:
-        # Function to get the New Questions.
-        def getNewQuesInfo(self):
-            return self.newQuesInfo
-    except:
-        app.logger.error("Error in getNewQuesInfo()")
-
-    try:
-        # Function to update the captured Queries.
-        def updateCaptureTable(self,savedQueries):
-            t = []
-            for list in savedQueries:
-                temp = []
-                temp.append(list[0])
-                temp.append(list[1])
-                temp1 = tuple(temp)
-                t.append(temp1)
-            #print t
-            #inserting values in table:
-            conn = sqlite3.connect('ProfJ.db')
-            c = conn.cursor()
-            c.executemany('INSERT INTO CapturedQueries VALUES (?,?)', t)
-            conn.commit()
-##            for row in c.execute('SELECT * FROM CapturedQueries'):
-##                print row
-            conn.close()
-            return savedQueries
-    except:
-        app.logger.error("Error in updateCaptureTable()")
-##
-##    try:
-##            # Function to update the weightages in Database[Used periodically by thread].
-##            def updateWeightages(self,weightages):
-##                print "inside update weightages..."
-##                conn = sqlite3.connect('ProfJ.db')
-##                c = conn.cursor()
-##                for i in range(len(weightages)):
-##                    c.execute('UPDATE mainDB SET Weightage= ? WHERE qid = ?',(weightage[i],i))
-##                conn.commit()
-##                conn.close()
-##                return True
-##    except:
-##            print "Error in updateCaptureTable()"
-
-    try:
-        # Function to update the new questions in the database.
-        def updateCaptureTable(self):
-            return True
-    except:
-        app.logger.error("Error in updateCaptureTable()")
-
-
-try:
-    ds = SQLite_DataSetup()
-    ds.loadData()
-    questions = ds.getQuestions()
-    pquestions = ds.getPQuestions()
-    pages = ds.getPages()
-    weights = ds.getWeightages()
-    answers = ds.getAnswers()
-    keywords = ds.getKeywords()
-    #2 D array: Ques, processed Ques & Frequency
-    newQuesInfo = ds.getNewQuesInfo()
-    #A list to save every single relevant query asked by user
-    savedQueries = [[]]
-    updateW = [[]]
-except:
-    import traceback
-    traceback.print_exc()
-    app.logger.error('Unable to use assist module SQLite_DataSetups..')
-
-
-#Training the Bot
-
-#try:
-    #chatbot = 0
-    #import threading
-    #def trainProfJ():
-
-        #try:
-            #from chatterbot import ChatBot
-        #except:
-            #app.logger.error('Portable python used doesnot have chatterbot module..please ask for latest portable python')
-        #global chatbot
-        #print "starting training parallely"
-        #chatbot = ChatBot(
-
-            #'Prof J',
-            #trainer='chatterbot.trainers.ChatterBotCorpusTrainer'
-
-        #)
-        #Train based on the english corpus
-        #chatbot.train("chatterbot.corpus.english")
-       # print "chatbot training successfully completed.."
-
-    #Starting chatbot training Parallely
-    #threading.Thread(target = trainProfJ).start()
-#except:
-    #app.logger.error('Unable to train chatbot..Ensure that you have chatterbot modules in Portable Python')
-
-
-#Updating the sqlite database
-updateTime = 60
-def updateWeightages():
-    try:
-        global weights
-##        print "inside update weightages..."
-        base = os.getcwd()
-
-        path = assistpath+"/ProfJ.db"
-        conn = sqlite3.connect(path)
-        c = conn.cursor()
-##        print "thread called the function...in every : ",updateTime, " seconds"
-        for i in range(len(weights)):
-            c.execute('UPDATE mainDB SET Weightage= ? WHERE qid = ?',(weights[i],i))
-        conn.commit()
-        conn.close()
-        return True
-    except:
-        import traceback
-        traceback.print_exc()
-        app.logger.error('Cannot update weightages in ProfJ database')
-#Invoking parallel thread which will update the weightages of the questions in the DB
-try:
-
-    from threading import Timer,Thread,Event
-    class repeatedTimer():
-
-       def __init__(self,t,hFunction):
-          self.t=t
-          self.hFunction = hFunction
-          self.thread = Timer(self.t,self.handle_function)
-
-       def handle_function(self):
-          self.hFunction()
-          self.thread = Timer(self.t,self.handle_function)
-          self.thread.start()
-
-       def start(self):
-          self.thread.start()
-
-       def cancel(self):
-          self.thread.cancel()
-
-    updaterThread = repeatedTimer(updateTime,updateWeightages)
-    updaterThread.start()
-except:
-    import traceback
-    traceback.print_exc()
-    app.logger.error('Cannot access repeatedTimer Module..or it can not call periodic function to update the weightage.')
-
-
-try:
-    import logging
-    import logging.config
-    from nltk.stem import PorterStemmer
-    import simplejson
-except:
-    import traceback
-    traceback.print_exc()
-    app.logger.error("Error in importing core modules ProfJ")
-
-class ProfJ():
-
-    def Preprocess(self,query_string):
-        #creating configuration for logging
-##        import os
-        #print "OS.cwd()------------",os.getcwd()
-##        base = os.getcwd()
-##        print 'BASE in profJ',base
-        path = assistpath + "/logging_config.conf"
-        logging.config.fileConfig(path,disable_existing_loggers=False)
-
-        # Create logger object. This will be used for logging.
-        logger = logging.getLogger("ProfJ")
-
-        logger.info("Qustion asked is "+query_string)
-
-        #Step 1: Punctuations Removal
-        query1_str = "".join(c for c in query_string if c not in ('@','!','.',':','>','<','"','\'','?','*','/','&','(',')','-'))
-##        print "Query after Step 1 of processing:[punctuations removed] ",query1_str
-
-        #Step 2: Converting string into lowercase
-        query2 = [w.lower() for w in query1_str.split()]
-        query2_str = " ".join(query2)
-##        print "Query after Step 2 of processing:[lower Case] ",query2_str
-
-
-        #Step 3: Correcting appostropes.. Need this dictionary to be quite large
-        APPOSTOPHES = {"s" : "is", "'re" : "are","m":"am"}
-        words = (' '.join(query2_str.split("'"))).split()
-        query5 = [ APPOSTOPHES[word] if word in APPOSTOPHES else word for word in words]
-##        print "Query after Step 3 of processing:[appostophes]: ",query5
-
-        import simplejson
-        #Step 4: Normalizing words
-        path = assistpath + "/SYNONYMS.json"
-        with open(path,"r") as data_file:
-                SYNONYMS = simplejson.load(data_file)
-        query6 = [ SYNONYMS[word] if word in SYNONYMS else word for word in query5]
-##        print "Query after Step 6 of processing:[synonyms]: ",query6
-
-
-        #Step 5: Stemming
-        ps = PorterStemmer()
-        query_final=set([ps.stem(i) for i in query6])
-##        print "Query after Step 7 of processing:[stemming] ",query_final
-        return query_final
-
-
-    def matcher(self,query_final):
-        intersection = []
-        for q in self.pquestions:
-            q1 = set (q.split(" "))
-           # print "Supposedly Questions", q1
-            intersection.append (len(query_final & q1))
-           # print len(query_final & q1)
-        return intersection
-
-    def getTopX(self,intersection):
-        relevance=[]
-        cnt = 0
-        for i in intersection:
-            relevance.append(10**(i+2) + self.weights[cnt])
-            cnt+=1
-
-        max_index = [i[0] for i in sorted(enumerate(relevance), key=lambda x:x[1],reverse=True)]
-        #max_value = [i[1] for i in sorted(enumerate(relevance), key=lambda x:x[1],reverse=True)]
-
-        #print max_value
-        # print max_index
-        ans = []
-        #print "-------------------------------------------------"
-        for i in range(self.topX):
-            #print questions_original[max_index[i]]
-            if(intersection[max_index[i]]==0):
-                break
-            ans.append(self.questions[max_index[i]])
-            #print (self.questions[max_index[i]]+ "( Intersection: "+str(intersection[max_index[i]])+ " Weightage: "+str(self.weights[max_index[i]])+")")
-        #print "-------------------------------------------------"
-        return ans
-
-    def calculateRel(self,query_final):
-            try:
-                #Check whether query contains n68 domain or not
-##                import sys
-##                import os
-##                base = os.getcwd()
-##                path = base + "\\keywords_db.txt"
-                path = assistpath+"/keywords_db.txt"
-                f = open(path,"r")
-                key = f.read()
-                keywords = set(key.split())
-
-                if (len(query_final)==0):
-                    match=0
-                else:
-                    match=len(query_final & keywords)/float(len(query_final))
-                #print "Percentage Match [In my domain]", match*100,"%"
-                return match
-            except:
-                app.logger.error("keywords_db.txt not found.")
-##                print "keywords_db.txt not foud."
-
-    def __init__(self,pages,questions,answers,keywords,weights,pquestions, newQuesInfo, savedQueries):
-        self.questions = questions
-        self.pages = pages
-        self.weights = weights
-        self.answers = answers
-        self.keywords = keywords
-        self.pquestions = pquestions
-        self.newQuesInfo = newQuesInfo
-        self.topX = 5
-        self.userQuery=""
-        self.savedQueries = savedQueries # Captures all the "Relevant" queries asked by User, It is list of list[[query1,page1],[query2,page2]]
-
-    def setState(self,state):
-        self.state = state
-
-    def start(self,userQuery):
-        response = []
-##        print "I am the right one"
-        query_string = userQuery
-        self.userQuery = userQuery
-        if query_string is not None:
-            #when all the plugins will be activeted
-            currPage = "mindmaps"
-            query_final = self.Preprocess(query_string)
-            rel = self.calculateRel(query_final)
-            if (rel > 0):
-                temp = []
-                temp.append(query_string)
-                temp.append(currPage)
-                self.savedQueries.append(temp)
-                #getting intersection
-                intersection = self.matcher(query_final)
-                #displaying most common and most frequent
-                ques = self.getTopX(intersection)
-                if ques:
-                    for i in range(len(ques)):
-                        temp = []
-                        temp.append(self.questions.index(ques[i]))
-                        temp.append(self.questions[self.questions.index(ques[i])])
-                        temp.append(self.answers[self.questions.index(ques[i])])
-                        response.append(temp)
-##                    print response
-                else:
-                    response = [[-1,"Sometimes, I may not have the information you need...We recorded your query..will get back to you soon",-1]]
-                    flag = True
-                    for nques in self.newQuesInfo:
-                        if(str(query_final) is nques[1]):
-                            nques[2] = nques[2] + 1
-                            flag = False
-                    if (flag):
-                        temp =[]
-                        temp.append(str(query_string))
-                        temp.append(str(query_final))
-                        temp.append(0)
-                        self.newQuesInfo.append(temp)
-
-                    #self.newKeys.append(query_string)
-            else:
-                response = [[-1, "Please be relevant..I work soulfully for Nineteen68", -1]]
-        else:
-            response = [-1, "Invalid Input...Please try again", -1]
-        return response, self.newQuesInfo, self.savedQueries
-
-#Basic Setup of ProfJ Done!
-################################################
-#End of ProfJ assist components
-################################################
-################################################################################
-# END OF INTERNAL COMPONENTS
-################################################################################
 
 if __name__ == '__main__':
+    #getEmptyProjects_ICE
+##    data = {
+##        "userid": 'e1e86675-c82c-44bb-b8ba-59ca251b5a49',
+##		"query": "getprojids"
+##    }
+##    response = getEmptyProjects_ICE(data)
+##
+    #get_node_details_ICE
+##    data = {
+##        'name': 'Testcase_del20',
+##        'id': '07c8ee58-79d1-430d-9bab-d47d29565c82'
+##    }
+##    response = get_node_details_ICE(data)
+##
+    #insertInSuite_ICE
+##    data = {
+##        "query":'notflagsuite',
+##		'projectid': 'c713e52f-d2d7-4e1d-8208-4007a287f22c',
+##		'modulename': 'Module_batch',
+##		'moduleid': 'da9b196d-8021-4a68-be2b-753ec267305e',
+##		'versionnumber': '0',
+##		'createdby': 'sakshi.goyal',
+##		'createdthrough': 'Mindmaps Creation',
+##		'deleted': False,
+##		'skucodemodule': 'skucodemodule',
+##		'tags': 'tags'
+##    }
+##    response = insertInSuite_ICE(data)
+##
+    #insertInScenarios_ICE
+##    data = {
+##        "query": 'notflagscenarios',
+##		'projectid': '803f2330-4a4a-4611-99ad-6c319f4811fb',
+##		'testscenarioname': 'Scenario_sap',
+##		'testscenarioid': 'f94e6ae8-77a0-442f-b699-bb47ba17ef52',
+##		'versionnumber': '0',
+##		'createdby': 'sakshi.goyal',
+##		'createdthrough': 'Mindmaps Creation',
+##		'deleted': False,
+##		'skucodetestscenario': 'skucodetestscenario',
+##		'tags': 'tags'
+##    }
+##    response = insertInScenarios_ICE(data)
+##
+    #insertInScreen_ICE
+##    data = {
+##        "query": 'notflagscreen',
+##		'projectid': 'c713e52f-d2d7-4e1d-8208-4007a287f22c',
+##		'screenname': 'Screen_batch',
+##		'screenid': '3cff8b89-ce90-4df5-a411-0f6463fbf894',
+##		'versionnumber': '0',
+##		'createdby': 'sakshi.goyal',
+##		'createdthrough': 'Mindmaps Creation',
+##		'deleted': False,
+##		'skucodescreen': 'skucodescreen',
+##		'tags': 'tags'
+##    }
+##    response = insertInScreen_ICE(data)
+##
+    #insertInTestcase_ICE
+##    data = {
+##        "query": 'notflagtestcase',
+##		'screenid': '3cff8b89-ce90-4df5-a411-0f6463fbf894',
+##		'testcasename': 'Testcase_batch1',
+##		'testcaseid': 'bbdc3479-bf09-4e17-b4fc-98e97ca1cb62',
+##		'versionnumber': '0',
+##		'createdby': 'sakshi.goyal',
+##		'createdthrough': 'Mindmaps Creation',
+##		'deleted': False,
+##		'skucodetestcase': 'skucodetestcase',
+##		'tags': 'tags'
+##    }
+##    response = insertInTestcase_ICE(data)
+##
+    #updateTestScenario_ICE
+##    data = {
+##        'testcaseid': ['2a3f8555-cc85-47c6-85de-c6c69facce2b'],
+##		'modifiedby': 'sakshi.goyal',
+##		'modifiedbyrole': 'Nineteen68_Admin',
+##		'projectid': '803f2330-4a4a-4611-99ad-6c319f4811fb',
+##		'testscenarioid': 'f94e6ae8-77a0-442f-b699-bb47ba17ef52',
+##		'modifiedflag': True,
+##		'testscenarioname': 'Scenario_sap',
+##		'versionnumber': '0'
+##    }
+##    response = updateTestScenario_ICE(data)
+##
+    #updateModule_ICE
+##    data = {
+##        'testscenarioids': ['23f78264-e13e-4d91-93e5-1c3563fe26d4', 'daf650d4-9c22-4fd0-9d5e-4f4f42f0ffaa'],
+##    	'moduleid': 'da9b196d-8021-4a68-be2b-753ec267305e',
+##    	'projectid': 'c713e52f-d2d7-4e1d-8208-4007a287f22c',
+##    	'modulename': 'Module_batch',
+##    	'modifiedflag': True,
+##    	'modifiedby': 'sakshi.goyal',
+##    	'modifiedbyrole':'Nineteen68_Admin',
+##    	'versionnumber': '0'
+##    }
+##    response = updateModule_ICE(data)
+##
+    #updateModulename_ICE
+##    data = {
+##        'projectid': 'c713e52f-d2d7-4e1d-8208-4007a287f22c',
+##		'modulename': 'Module_batch_new',
+##		'moduleid': 'da9b196d-8021-4a68-be2b-753ec267305e',
+##		'versionnumber': '0',
+##		'modifiedby': 'sakshi.goyal',
+##		'modifiedbyrole': 'Nineteen68_Admin',
+##		'modifiedon': str(getcurrentdate()),
+##		'history':{'000.001': '{\"timestamp\": \"1508862935184\", \"description\": \"Updated properties: {u\"testscenarioids\": \"23f78264-e13e-4d91-93e5-1c3563fe26d4,daf650d4-9c22-4fd0-9d5e-4f4f42f0ffaa\", u\"modifiedflag\": True}\", \"user\": \"sakshi.goyal\"}'},
+##		'createdby': 'sakshi.goyal',
+##		'createdthrough': 'Mindmaps Creation',
+##		'deleted': False,
+##		'skucodemodule': 'skucodemodule',
+##		'tags': 'tags',
+##		'testscenarioids': ['23f78264-e13e-4d91-93e5-1c3563fe26d4', 'daf650d4-9c22-4fd0-9d5e-4f4f42f0ffaa'],
+##		'createdon': '2017-09-11 18:26:20+0000'
+##    }
+##    response = updateModulename_ICE(data)
+##
+    #updateTestscenarioname_ICE
+##    data = {
+##        'projectid': '803f2330-4a4a-4611-99ad-6c319f4811fb',
+##		'testscenarioname': 'Scenario_sap_new',
+##		'testscenarioid': 'f94e6ae8-77a0-442f-b699-bb47ba17ef52',
+##		'versionnumber': '0',
+##		'modifiedby': 'sakshi.goyal',
+##		'modifiedbyrole': 'Nineteen68_Admin',
+##		'modifiedon': str(getcurrentdate()),
+##		'history':{'000.001': '{\"timestamp\": \"1508862935184\", \"description\": \"Updated properties: {u\"testscenarioids\": \"23f78264-e13e-4d91-93e5-1c3563fe26d4,daf650d4-9c22-4fd0-9d5e-4f4f42f0ffaa\", u\"modifiedflag\": True}\", \"user\": \"sakshi.goyal\"}'},
+##		'createdon': '2017-09-04 12:07:47+0000',
+##		'createdby': 'sakshi.goyal',
+##		'deleted': False,
+##		'skucodetestscenario': 'skucodetestscenario',
+##		'tags': 'tags',
+##		'testcaseids': ['2a3f8555-cc85-47c6-85de-c6c69facce2b']
+##    }
+##    response = updateTestscenarioname_ICE(data)
+##
+    #updateScreenname_ICE
+##    data = {
+##        'projectid': 'c713e52f-d2d7-4e1d-8208-4007a287f22c',
+##		'screenname': 'Screen_batch_new',
+##		'screenid': '3cff8b89-ce90-4df5-a411-0f6463fbf894',
+##		'modifiedby': 'sakshi.goyal',
+##		'modifiedbyrole': 'Nineteen68_Admin',
+##		'modifiedon': str(getcurrentdate()),
+##		'history':{'000.001': '{\"timestamp\": \"1508862935184\", \"description\": \"Updated properties: {u\"testscenarioids\": \"23f78264-e13e-4d91-93e5-1c3563fe26d4,daf650d4-9c22-4fd0-9d5e-4f4f42f0ffaa\", u\"modifiedflag\": True}\", \"user\": \"sakshi.goyal\"}'},
+##		'createdon': '2017-09-11 18:26:20+0000',
+##		'createdby': 'sakshi.goyal',
+##		'createdthrough': 'Mindmaps Creation',
+##		'deleted': False,
+##		'skucodescreen': 'skucodescreen',
+##		'tags': 'tags',
+##		'screendata': 'null',
+##		'versionnumber': '0'
+##    }
+##    response = updateScreenname_ICE(data)
+##
+    #updateTestcasename_ICE
+##    data = {
+##        'screenid': '3cff8b89-ce90-4df5-a411-0f6463fbf894',
+##		'testcasename': 'Testcase_batch1_new',
+##		'testcaseid': 'bbdc3479-bf09-4e17-b4fc-98e97ca1cb62',
+##		'modifiedby': 'sakshi.goyal',
+##		'modifiedbyrole': 'Nineteen68_Admin',
+##		'modifiedon': str(getcurrentdate()),
+##		'history':{'000.001': '{\"timestamp\": \"1508862935184\", \"description\": \"Updated properties: {u\"testscenarioids\": \"23f78264-e13e-4d91-93e5-1c3563fe26d4,daf650d4-9c22-4fd0-9d5e-4f4f42f0ffaa\", u\"modifiedflag\": True}\", \"user\": \"sakshi.goyal\"}'},
+##		'createdon': '2017-09-11 18:26:20+0000',
+##		'createdby': 'sakshi.goyal',
+##		'createdthrough': 'Mindmaps Creation',
+##		'deleted': False,
+##		'skucodescreen': 'skucodescreen',
+##		'tags': 'tags',
+##		'testcasesteps': 'null',
+##		"versionnumber": '0'
+##    }
+##    response = updateTestcasename_ICE(data)
+##
+    #submitTask
+##    data = {
+##        'status':'review',
+##		'table':'SCREENS',
+##		'details':{
+##            "screenID": "1ce878b8-a17e-493c-9333-794395af6daf",
+##            "screenID_c": "aca3418e-3ca8-4ab0-a688-5a3a05d639b8",
+##            "createdBy": "sakshi.goyal",
+##            "testScenarioID": "34572435-dac8-4153-96d7-b725eab19e43",
+##            "screenName": "Screen_web",
+##            "childIndex": "1",
+##            "projectID": "c713e52f-d2d7-4e1d-8208-4007a287f22c",
+##            "createdOn": "null"
+##        },
+##		'username':'sakshi.goyal',
+##		'versionnumber':'0'
+##    }
+##    response = submitTask(data)
+##
+    #updateScreen_ICE
+##    data = {
+##        "scrapedata": 'null',
+##		"modifiedby": 'sakshi.goyal',
+##		"skucodescreen": 'skucodescreen',
+##		"screenid": '3cff8b89-ce90-4df5-a411-0f6463fbf894',
+##		"projectid": 'c713e52f-d2d7-4e1d-8208-4007a287f22c',
+##		"screenname": 'Screen_batch',
+##		"versionnumber": '0'
+##    }
+##    response = updateScreen_ICE(data)
+##
+    #updateTestCase_ICE
+##    data = {
+##        "screenid": '3cff8b89-ce90-4df5-a411-0f6463fbf894',
+##		"query": "updatetestcasedata",
+##		"modifiedby": 'sakshi.goyal',
+##		"skucodetestcase": 'skucodescreen',
+##		"testcasesteps": 'null',
+##		"versionnumber": '0',
+##		"testcaseid": 'bbdc3479-bf09-4e17-b4fc-98e97ca1cb62',
+##		"testcasename": 'Testcase_batch1'
+##    }
+##    response = updateTestCase_ICE(data)
+##
+    #readTestSuite_ICE
+##    data1 = {
+##        "cycleid": '434211f4-0089-4662-ae6b-492b47504ca5',
+##		"testsuitename": 'Module_sap',
+##		"testsuiteid": 'a07bad1c-e467-4ff3-8158-83180cf95981',
+##		"versionnumber": '0',
+##		"conditioncheck": [0],
+##		"createdby": "Ninteen68_admin",
+##		"createdthrough": "createdthrough",
+##		"deleted": False,
+##		"donotexecute": [1],
+##		"getparampaths": [''],
+##		"skucodetestsuite": "skucodetestsuite",
+##		"tags": "tags",
+##		"testscenarioids": ['f94e6ae8-77a0-442f-b699-bb47ba17ef52'],
+##		"query": "testcasesteps"
+##    }
+##    data2 = {
+##        "cycleid": '434211f4-0089-4662-ae6b-492b47504ca5',
+##		"testsuitename": 'Module_sap',
+##		"testsuiteid": 'a07bad1c-e467-4ff3-8158-83180cf95981',
+##		"versionnumber": 0,
+##		"conditioncheck": [0],
+##		"createdby": 'Ninteen68_admin',
+##		"createdon": '2017-10-24 15:16:23+0000',
+##		"createdthrough": "createdthrough",
+##		"deleted": False,
+##		"history":{},
+##		"donotexecute": [1],
+##		"getparampaths": [''],
+##		"modifiedby": "sakshi.goyal",
+##		"skucodetestsuite": "skucodetestsuite",
+##		"tags": "tags",
+##		"testscenarioids": "[f94e6ae8-77a0-442f-b699-bb47ba17ef52]",
+##		"query": "updatescenarioinnsuite"
+##    }
+##    response = readTestSuite_ICE(data1)
+##    response = readTestSuite_ICE(data2)
+##
+    #updateTestSuite_ICE
+##    data = {
+##        "query": "updatetestsuitedataquery",
+##		"conditioncheck": [0],
+##		"donotexecute": [1],
+##		"getparampaths": [''],
+##		"testscenarioids": ['f94e6ae8-77a0-442f-b699-bb47ba17ef52'],
+##		"modifiedby": 'sakshi.goyal',
+##		"modifiedbyrole": 'Ninteen68_admin',
+##		"cycleid": '434211f4-0089-4662-ae6b-492b47504ca5',
+##		"testsuiteid": 'a07bad1c-e467-4ff3-8158-83180cf95981',
+##		"testsuitename": 'Module_sap',
+##		"versionnumber": '0',
+##		"skucodetestsuite": "skucodetestsuite",
+##		"tags": "tags"
+##    }
+##    response = updateTestSuite_ICE(data)
+##
+    #ExecuteTestSuite_ICE
+##    data = {
+##        "testsuiteid": '17d2a8d8-f5eb-4544-bd9e-94f5c9382d5b',
+##		"executionid": '02ef0b05-4f8d-4f09-85ac-643b59428a24',
+##		"starttime": '2017-03-09 07:50:30+0000',
+##		"status": 'Pass',
+##		"query": "inserintotexecutionquery"
+##    }
+##    response = ExecuteTestSuite_ICE(data)
+##
+    #ScheduleTestSuite_ICE
+##    data = {
+##        "cycleid": '9c2584e3-32b3-428b-9c0a-2a9a63984558',
+##		"scheduledatetime": '1508340780000',
+##		"scheduleid": 'd0bddd3e-b96f-48d0-b0cd-eb04c9e3cbed',
+##		"browserlist": ["1"],
+##		"clientipaddress": 'sakshi.goyal',
+##		"clientport": "9494",
+##		"scenariodetails": [{"condition":0,"dataparam":[" "],"executestatus":1,"scenarioids":"dfa020fd-aeee-4c0d-991b-c83e1b46c07e","scenarioname":"Scenario_023"},{"condition":0,"dataparam":[" "],"executestatus":1,"scenarioids":"46508acc-9586-4870-b76c-c06ecae80188","scenarioname":"Scenario_0xx"}],
+##		"schedulestatus": 'success',
+##		"testsuiteids": ['2565ac0d-fcc8-4cb9-b470-e2fe8cfcae99'],
+##		"testsuitename": 'Module_test',
+##		"query": "insertscheduledata"
+##    }
+##    response = ScheduleTestSuite_ICE(data)
+##
+    #createUser_Nineteen68
+##    data = {
+##        "query": "createuser",
+##		"createdby": 'admin',
+##		"defaultrole": '566702ae-8caf-42e9-9b20-fc2381c4cc0f',
+##		"emailid": 'test@ndac.com',
+##		"firstname": 'test',
+##		"lastname": 'ndac',
+##		"ldapuser": False,
+##		"password": '$2a$10$YoK5z0QdFn3yijy0WuyB/.i6XhaLbwE3pdkd3/MlWtIA.13XcQJO2',
+##		"username": 'test_ndac'
+##    }
+##    response = createUser_Nineteen68(data)
+##
+    #updateUser_Nineteen68
+##    data = {
+##        "userid": 'b89440ff-2b93-4311-a0a9-b53475a7eb2d',
+##		"additionalroles": 'null',
+##		"deactivated": False,
+##		"emailid": 'test@ndac.com',
+##		"firstname": 'test',
+##		"lastname": 'ndac',
+##		"ldapuser": False,
+##		"modifiedby": 'admin',
+##		"modifiedbyrole": 'b5e9cb4a-5299-4806-b7d7-544c30593a6e',
+##		"password": '$2a$10$YoK5z0QdFn3yijy0WuyB/.i6XhaLbwE3pdkd3/MlWtIA.13XcQJO2',
+##		"username": 'test_ndac'
+##    }
+##    response = updateUser_Nineteen68(data)
+##
+    #createProject_ICE
+##    data = {
+##        "query": "createproject",
+##		"domainid": 'a144b468-e84f-4e7c-9a8a-0a658330212e',
+##		"projectname": 'test_project',
+##		"createdby": 'admin_user',
+##		"projecttypeid": 'c957b36d-00f9-4445-8827-a864b317e74c',
+##		"skucodeproject": "skucodeproject",
+##		"tags": "tags"
+##    }
+##    response = createProject_ICE(data)
 
-##    context = ('cert.pem', 'key.pem')#certificate and key files
-##    #https implementation
-##    app.run(host='127.0.0.1',port=1990,debug=True,ssl_context=context)
-##    app.run(host='127.0.0.1',port=1990,debug=True,ssl_context='adhoc')
-
-    #http implementations
-    formatter = logging.Formatter("[%(asctime)s] {%(pathname)s:%(lineno)d} %(levelname)s - %(message)s")
-    inhandler = TimedRotatingFileHandler(logspath+'/ndac/ndac'+datetime.now().strftime("_%Y%m%d-%H%M%S")+'.log',when='d', encoding='utf-8', backupCount=1)
-    global handler
-    handler=inhandler
-    handler.setLevel(logging.ERROR)
-    handler.setFormatter(formatter)
-    app.logger.addHandler(handler)
-    app.logger.propagate = False
-    mac = getMacAddress()
-    ndacinfo['sysinfo']['mac']=mac
-    if args.verbosity:
-        try:
-            f = open(sys.argv[-1],"r")
-            contents = f.read()
-            f.close()
-            userinformation=unwrap(str(contents),offreg)
-            userinfo=ast.literal_eval(userinformation)
-
-            startdate = userinfo['offlinereginfo']['startdate']
-            if not ('-' in startdate):
-                startdate = datetime.strptime(startdate, '%m/%d/%Y')
-                startdate = getbgntime('indate',startdate)
-##                print startdate
-##                startdate = datetime.strptime(startdate,'%m/%d/%Y %H%M%S')
-            else:
-                startdate = datetime.strptime(startdate, '%m/%d/%Y-%H%M%S')
-
-            enddate = userinfo['offlinereginfo']['enddate']
-            if not ('-' in enddate):
-                enddate = datetime.strptime(enddate, '%m/%d/%Y')
-                enddate = getbgntime('indate',enddate)
-##                print enddate
-##                enddate = datetime.strptime(enddate,'%m/%d/%Y %H%M%S')
-            else:
-                enddate = datetime.strptime(enddate, '%m/%d/%Y-%H%M%S')
-            # this is provided as there was a request to create a key
-            # without mac address
-            if 'mac' in userinfo['offlinereginfo']:
-                if userinfo['offlinereginfo']['mac'] != 'NO':
-                    mac = userinfo['offlinereginfo']['mac']
-                else:
-                    mac = 'nomacaddress'
-            enabled = offlineuserenabler(startdate,enddate,mac)
-            if enabled == True:
-                beginserver()
-            else:
-                if (startdate > datetime.now()):
-                    scheduleenabler(offlinestarttime)
-                    app.logger.error("Server starts only after : "+str(offlinestarttime))
-                else:
-                    app.logger.error("Please contact Team - Nineteen68. Issue: offlineuser.key");
-        except Exception as e:
-##            import traceback
-##            traceback.print_exc()
-            app.logger.critical("Please contact Team - Nineteen68. Issue: Offline user")
-
-    else:
-        if (basecheckonls()):
-            cronograph()
-        ##        app.run(host='127.0.0.1',port=1990,debug=False)
-
-            beginserver()
-        else:
-            app.logger.critical("Please contact Team - Nineteen68. Critical Error.")
+    #assignProjects_ICE
+##    data = {
+##        "alreadyassigned": False,
+##		"userid": 'e2ed3832-9abf-4c2d-a4b2-fe7755cf7f71',
+##		"domainid": 'a144b468-e84f-4e7c-9a8a-0a658330212e',
+##		"createdby": 'admin_user',
+##		"projectids": ['8c41d97a-9b8a-472b-a654-554162792c12']
+##    }
+##    response = assignProjects_ICE(data)
