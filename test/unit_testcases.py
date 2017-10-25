@@ -2555,7 +2555,7 @@ if __name__ == '__main__':
 ##
     #updateTestScenario_ICE
 ##    data = {
-##        'testcaseid': "[2a3f8555-cc85-47c6-85de-c6c69facce2b]",
+##        'testcaseid': ['2a3f8555-cc85-47c6-85de-c6c69facce2b'],
 ##		'modifiedby': 'sakshi.goyal',
 ##		'modifiedbyrole': 'Nineteen68_Admin',
 ##		'projectid': '803f2330-4a4a-4611-99ad-6c319f4811fb',
@@ -2568,7 +2568,7 @@ if __name__ == '__main__':
 ##
     #updateModule_ICE
 ##    data = {
-##        'testscenarioids': "[23f78264-e13e-4d91-93e5-1c3563fe26d4, daf650d4-9c22-4fd0-9d5e-4f4f42f0ffaa]",
+##        'testscenarioids': ['23f78264-e13e-4d91-93e5-1c3563fe26d4', 'daf650d4-9c22-4fd0-9d5e-4f4f42f0ffaa'],
 ##    	'moduleid': 'da9b196d-8021-4a68-be2b-753ec267305e',
 ##    	'projectid': 'c713e52f-d2d7-4e1d-8208-4007a287f22c',
 ##    	'modulename': 'Module_batch',
@@ -2588,13 +2588,13 @@ if __name__ == '__main__':
 ##		'modifiedby': 'sakshi.goyal',
 ##		'modifiedbyrole': 'Nineteen68_Admin',
 ##		'modifiedon': str(getcurrentdate()),
-##		'history':"{'000.001': '{\"timestamp\": \"1508862935184\", \"description\": \"Updated properties: {u\"testscenarioids\": \"23f78264-e13e-4d91-93e5-1c3563fe26d4,daf650d4-9c22-4fd0-9d5e-4f4f42f0ffaa\", u\"modifiedflag\": True}\", \"user\": \"sakshi.goyal\"}'}",
+##		'history':{'000.001': '{\"timestamp\": \"1508862935184\", \"description\": \"Updated properties: {u\"testscenarioids\": \"23f78264-e13e-4d91-93e5-1c3563fe26d4,daf650d4-9c22-4fd0-9d5e-4f4f42f0ffaa\", u\"modifiedflag\": True}\", \"user\": \"sakshi.goyal\"}'},
 ##		'createdby': 'sakshi.goyal',
 ##		'createdthrough': 'Mindmaps Creation',
 ##		'deleted': False,
 ##		'skucodemodule': 'skucodemodule',
 ##		'tags': 'tags',
-##		'testscenarioids': "[23f78264-e13e-4d91-93e5-1c3563fe26d4, daf650d4-9c22-4fd0-9d5e-4f4f42f0ffaa]",
+##		'testscenarioids': ['23f78264-e13e-4d91-93e5-1c3563fe26d4', 'daf650d4-9c22-4fd0-9d5e-4f4f42f0ffaa'],
 ##		'createdon': '2017-09-11 18:26:20+0000'
 ##    }
 ##    response = updateModulename_ICE(data)
@@ -2608,13 +2608,13 @@ if __name__ == '__main__':
 ##		'modifiedby': 'sakshi.goyal',
 ##		'modifiedbyrole': 'Nineteen68_Admin',
 ##		'modifiedon': str(getcurrentdate()),
-##		'history':"{'000.001': '{\"timestamp\": \"1508862935184\", \"description\": \"Updated properties: {u\"testscenarioids\": \"23f78264-e13e-4d91-93e5-1c3563fe26d4,daf650d4-9c22-4fd0-9d5e-4f4f42f0ffaa\", u\"modifiedflag\": True}\", \"user\": \"sakshi.goyal\"}'}",
+##		'history':{'000.001': '{\"timestamp\": \"1508862935184\", \"description\": \"Updated properties: {u\"testscenarioids\": \"23f78264-e13e-4d91-93e5-1c3563fe26d4,daf650d4-9c22-4fd0-9d5e-4f4f42f0ffaa\", u\"modifiedflag\": True}\", \"user\": \"sakshi.goyal\"}'},
 ##		'createdon': '2017-09-04 12:07:47+0000',
 ##		'createdby': 'sakshi.goyal',
 ##		'deleted': False,
 ##		'skucodetestscenario': 'skucodetestscenario',
 ##		'tags': 'tags',
-##		'testcaseids': "[2a3f8555-cc85-47c6-85de-c6c69facce2b]"
+##		'testcaseids': ['2a3f8555-cc85-47c6-85de-c6c69facce2b']
 ##    }
 ##    response = updateTestscenarioname_ICE(data)
 ##
@@ -2626,7 +2626,7 @@ if __name__ == '__main__':
 ##		'modifiedby': 'sakshi.goyal',
 ##		'modifiedbyrole': 'Nineteen68_Admin',
 ##		'modifiedon': str(getcurrentdate()),
-##		'history':"{'000.001': '{\"timestamp\": \"1508862935184\", \"description\": \"Updated properties: {u\"testscenarioids\": \"23f78264-e13e-4d91-93e5-1c3563fe26d4,daf650d4-9c22-4fd0-9d5e-4f4f42f0ffaa\", u\"modifiedflag\": True}\", \"user\": \"sakshi.goyal\"}'}",,
+##		'history':{'000.001': '{\"timestamp\": \"1508862935184\", \"description\": \"Updated properties: {u\"testscenarioids\": \"23f78264-e13e-4d91-93e5-1c3563fe26d4,daf650d4-9c22-4fd0-9d5e-4f4f42f0ffaa\", u\"modifiedflag\": True}\", \"user\": \"sakshi.goyal\"}'},
 ##		'createdon': '2017-09-11 18:26:20+0000',
 ##		'createdby': 'sakshi.goyal',
 ##		'createdthrough': 'Mindmaps Creation',
@@ -2646,7 +2646,7 @@ if __name__ == '__main__':
 ##		'modifiedby': 'sakshi.goyal',
 ##		'modifiedbyrole': 'Nineteen68_Admin',
 ##		'modifiedon': str(getcurrentdate()),
-##		'history':"{'000.001': '{\"timestamp\": \"1508862935184\", \"description\": \"Updated properties: {u\"testscenarioids\": \"23f78264-e13e-4d91-93e5-1c3563fe26d4,daf650d4-9c22-4fd0-9d5e-4f4f42f0ffaa\", u\"modifiedflag\": True}\", \"user\": \"sakshi.goyal\"}'}",,
+##		'history':{'000.001': '{\"timestamp\": \"1508862935184\", \"description\": \"Updated properties: {u\"testscenarioids\": \"23f78264-e13e-4d91-93e5-1c3563fe26d4,daf650d4-9c22-4fd0-9d5e-4f4f42f0ffaa\", u\"modifiedflag\": True}\", \"user\": \"sakshi.goyal\"}'},
 ##		'createdon': '2017-09-11 18:26:20+0000',
 ##		'createdby': 'sakshi.goyal',
 ##		'createdthrough': 'Mindmaps Creation',
@@ -2708,30 +2708,30 @@ if __name__ == '__main__':
 ##		"testsuitename": 'Module_sap',
 ##		"testsuiteid": 'a07bad1c-e467-4ff3-8158-83180cf95981',
 ##		"versionnumber": '0',
-##		"conditioncheck": "[0]",
+##		"conditioncheck": [0],
 ##		"createdby": "Ninteen68_admin",
 ##		"createdthrough": "createdthrough",
 ##		"deleted": False,
-##		"donotexecute": "[1]",
-##		"getparampaths": "['']",
+##		"donotexecute": [1],
+##		"getparampaths": [''],
 ##		"skucodetestsuite": "skucodetestsuite",
 ##		"tags": "tags",
-##		"testscenarioids": "[f94e6ae8-77a0-442f-b699-bb47ba17ef52]",
+##		"testscenarioids": ['f94e6ae8-77a0-442f-b699-bb47ba17ef52'],
 ##		"query": "testcasesteps"
 ##    }
 ##    data2 = {
 ##        "cycleid": '434211f4-0089-4662-ae6b-492b47504ca5',
 ##		"testsuitename": 'Module_sap',
 ##		"testsuiteid": 'a07bad1c-e467-4ff3-8158-83180cf95981',
-##		"versionnumber": '0',
-##		"conditioncheck": "[0]",
+##		"versionnumber": 0,
+##		"conditioncheck": [0],
 ##		"createdby": 'Ninteen68_admin',
 ##		"createdon": '2017-10-24 15:16:23+0000',
 ##		"createdthrough": "createdthrough",
 ##		"deleted": False,
-##		"history":'{}',
-##		"donotexecute": "[1]",
-##		"getparampaths": "['']",
+##		"history":{},
+##		"donotexecute": [1],
+##		"getparampaths": [''],
 ##		"modifiedby": "sakshi.goyal",
 ##		"skucodetestsuite": "skucodetestsuite",
 ##		"tags": "tags",
@@ -2744,10 +2744,10 @@ if __name__ == '__main__':
     #updateTestSuite_ICE
 ##    data = {
 ##        "query": "updatetestsuitedataquery",
-##		"conditioncheck": "[0]",
-##		"donotexecute": "[1]",
-##		"getparampaths": "['']",
-##		"testscenarioids": "[f94e6ae8-77a0-442f-b699-bb47ba17ef52]",
+##		"conditioncheck": [0],
+##		"donotexecute": [1],
+##		"getparampaths": [''],
+##		"testscenarioids": ['f94e6ae8-77a0-442f-b699-bb47ba17ef52'],
 ##		"modifiedby": 'sakshi.goyal',
 ##		"modifiedbyrole": 'Ninteen68_admin',
 ##		"cycleid": '434211f4-0089-4662-ae6b-492b47504ca5',
@@ -2774,12 +2774,12 @@ if __name__ == '__main__':
 ##        "cycleid": '9c2584e3-32b3-428b-9c0a-2a9a63984558',
 ##		"scheduledatetime": '1508340780000',
 ##		"scheduleid": 'd0bddd3e-b96f-48d0-b0cd-eb04c9e3cbed',
-##		"browserlist": '["1"]',
+##		"browserlist": ["1"],
 ##		"clientipaddress": 'sakshi.goyal',
 ##		"clientport": "9494",
-##		"scenariodetails": '[{"condition":0,"dataparam":[" "],"executestatus":1,"scenarioids":"dfa020fd-aeee-4c0d-991b-c83e1b46c07e","scenarioname":"Scenario_023"},{"condition":0,"dataparam":[" "],"executestatus":1,"scenarioids":"46508acc-9586-4870-b76c-c06ecae80188","scenarioname":"Scenario_0xx"}]',
+##		"scenariodetails": [{"condition":0,"dataparam":[" "],"executestatus":1,"scenarioids":"dfa020fd-aeee-4c0d-991b-c83e1b46c07e","scenarioname":"Scenario_023"},{"condition":0,"dataparam":[" "],"executestatus":1,"scenarioids":"46508acc-9586-4870-b76c-c06ecae80188","scenarioname":"Scenario_0xx"}],
 ##		"schedulestatus": 'success',
-##		"testsuiteids": '[2565ac0d-fcc8-4cb9-b470-e2fe8cfcae99]',
+##		"testsuiteids": ['2565ac0d-fcc8-4cb9-b470-e2fe8cfcae99'],
 ##		"testsuitename": 'Module_test',
 ##		"query": "insertscheduledata"
 ##    }
@@ -2833,6 +2833,6 @@ if __name__ == '__main__':
 ##		"userid": 'e2ed3832-9abf-4c2d-a4b2-fe7755cf7f71',
 ##		"domainid": 'a144b468-e84f-4e7c-9a8a-0a658330212e',
 ##		"createdby": 'admin_user',
-##		"projectids": "[8c41d97a-9b8a-472b-a654-554162792c12]"
+##		"projectids": ['8c41d97a-9b8a-472b-a654-554162792c12']
 ##    }
 ##    response = assignProjects_ICE(data)
