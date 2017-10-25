@@ -568,11 +568,13 @@ def insertInSuite_ICE():
                 tags="['"+requestdata['tags']+"']"
                 if(requestdata.has_key('subquery') and requestdata["query"]=="clonenode"):
                     fetchOldData="select tags from modules where "
-                    +"moduleid="+requestdata['oldmoduleid']+" and versionnumber="
-                    +str(requestdata['oldversionnumber'])+query['delete_flag']
-                    #fetchqueryresult = icesession.execute(fetchOldData)
-                    #fetchqueryresult = fetchqueryresult.current_rows[0]
-                    #tags=fetchqueryresult['tags']
+                    +"modulename="+requestdata['modulename']+" and versionnumber="
+                    +str(requestdata['oldversionnumber'])+" and projectid="
+                    +requestdata['projectid']+query['delete_flag']
+                    fetchqueryresult = icesession.execute(fetchOldData)
+                    if (len(fetchqueryresult.current_rows)!=0):
+                        fetchqueryresult = fetchqueryresult.current_rows[0]
+                        tags=fetchqueryresult['tags']
                 history=createHistory("create","modules",requestdata)
                 create_suite_query1 = ("insert into modules "
                 +"(projectid,modulename,moduleid,versionnumber,createdby,createdon,"
@@ -606,11 +608,13 @@ def insertInScenarios_ICE():
                 tags="['"+requestdata['tags']+"']"
                 if(requestdata.has_key('subquery') and requestdata["query"]=="clonenode"):
                     fetchOldData="select tags from testscenarios where "
-                    +"testscenarioid="+requestdata['oldscenarioid']+" and versionnumber="
-                    +str(requestdata['oldversionnumber'])+query['delete_flag']
-                    #fetchqueryresult = icesession.execute(fetchOldData)
-                    #fetchqueryresult = fetchqueryresult.current_rows[0]
-                    #tags=fetchqueryresult['tags']
+                    +"testscenarioname="+requestdata['testscenarioname']+" and versionnumber="
+                    +str(requestdata['oldversionnumber'])+" and projectid="
+                    +requestdata['projectid']+query['delete_flag']
+                    fetchqueryresult = icesession.execute(fetchOldData)
+                    if (len(fetchqueryresult.current_rows)!=0):
+                        fetchqueryresult = fetchqueryresult.current_rows[0]
+                        tags=fetchqueryresult['tags']
                 history=createHistory("create","testscenarios",requestdata)
                 create_scenario_query1 = ("insert into testscenarios(projectid,"
                 +"testscenarioname,testscenarioid,versionnumber,history,createdby"
@@ -643,15 +647,17 @@ def insertInScreen_ICE():
        if not isemptyrequest(requestdata):
             if(requestdata["query"] == 'notflagscreen'):
                 tags="['"+requestdata['tags']+"']"
-                screendata="''"
+                screendata=""
                 if(requestdata.has_key('subquery') and requestdata["query"]=="clonenode"):
                     fetchOldData="select tags,screendata from screens where "
-                    +"screenid="+requestdata['oldscreenid']+" and versionnumber="
-                    +str(requestdata['oldversionnumber'])+query['delete_flag']
+                    +"screenname="+requestdata['screenname']+" and versionnumber="
+                    +str(requestdata['oldversionnumber'])+" and projectid="
+                    +requestdata['projectid']+query['delete_flag']
                     fetchqueryresult = icesession.execute(fetchOldData)
-                    fetchqueryresult = fetchqueryresult.current_rows[0]
-                    #tags=fetchqueryresult['tags']
-                    screendata=fetchqueryresult['screendata']
+                    if (len(fetchqueryresult.current_rows)!=0):
+                        fetchqueryresult = fetchqueryresult.current_rows[0]
+                        tags=fetchqueryresult['tags']
+                        screendata=fetchqueryresult['screendata']
                 history=createHistory("create","screens",requestdata)
                 create_screen_query1 = ("insert into screens (projectid,screenname,"
                 +" screenid,versionnumber,history,createdby,createdon,createdthrough,"
@@ -660,7 +666,7 @@ def insertInScreen_ICE():
                 +" , "+str(requestdata['versionnumber'])+", "+str(history)
                 +" ,'"+requestdata['createdby']+"'," + str(getcurrentdate())
                 +", '"+requestdata['createdthrough']+"' , "+str(requestdata['deleted'])
-                +","+screendata+",'"+requestdata['skucodescreen']+"',"+tags+")")
+                +",'"+screendata+"','"+requestdata['skucodescreen']+"',"+tags+")")
                 queryresult = icesession.execute(create_screen_query1)
                 res={'rows':'Success'}
             elif(requestdata["query"] == 'selectscreen'):
@@ -683,15 +689,17 @@ def insertInTestcase_ICE():
        if not isemptyrequest(requestdata):
             if(requestdata["query"] == 'notflagtestcase'):
                 tags="['"+requestdata['tags']+"']"
-                testcasesteps="''"
+                testcasesteps=""
                 if(requestdata.has_key('subquery') and requestdata["query"]=="clonenode"):
                     fetchOldData="select tags,testcasesteps from testcases where "
-                    +"testcaseid="+requestdata['oldtestcaseid']+" and versionnumber="
-                    +str(requestdata['oldversionnumber'])+query['delete_flag']
+                    +"testcasename="+requestdata['testcasename']+" and versionnumber="
+                    +str(requestdata['oldversionnumber'])+" and screenid="
+                    +requestdata['oldscreenid']+query['delete_flag']
                     fetchqueryresult = icesession.execute(fetchOldData)
-                    fetchqueryresult = fetchqueryresult.current_rows[0]
-                    #tags=fetchqueryresult['tags']
-                    testcasesteps=fetchqueryresult['testcasesteps']
+                    if (len(fetchqueryresult.current_rows)!=0):
+                        fetchqueryresult = fetchqueryresult.current_rows[0]
+                        tags=fetchqueryresult['tags']
+                        testcasesteps=fetchqueryresult['testcasesteps']
                 history=createHistory("create","testcases",requestdata)
                 create_testcase_query1 = ("insert into testcases (screenid,"
                 +"testcasename,testcaseid,versionnumber,history,createdby,createdon,"
@@ -700,7 +708,7 @@ def insertInTestcase_ICE():
                 +"'," + requestdata['testcaseid'] + ","+str(requestdata['versionnumber'])
                 +", "+str(history)+",'"+ requestdata['createdby']+"'," + str(getcurrentdate())+", '"
                 +requestdata['createdthrough'] +"',"+str(requestdata['deleted'])+",'"
-                +requestdata['skucodetestcase']+"',"+tags+","+testcasesteps+")")
+                +requestdata['skucodetestcase']+"',"+tags+",'"+testcasesteps+"')")
                 queryresult = icesession.execute(create_testcase_query1)
                 res={'rows':'Success'}
             elif(requestdata["query"] == 'selecttestcase'):
