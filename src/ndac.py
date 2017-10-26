@@ -567,7 +567,7 @@ def insertInSuite_ICE():
        if not isemptyrequest(requestdata):
            if(requestdata["query"] == 'notflagsuite'):
                 tags="['"+requestdata['tags']+"']"
-                if(requestdata.has_key('subquery') and requestdata["query"]=="clonenode"):
+                if(requestdata.has_key('subquery') and requestdata["subquery"]=="clonenode"):
                     fetchOldData="select tags from modules where "
                     +"modulename="+requestdata['modulename']+" and versionnumber="
                     +str(requestdata['oldversionnumber'])+" and projectid="
@@ -607,7 +607,7 @@ def insertInScenarios_ICE():
        if not isemptyrequest(requestdata):
            if(requestdata["query"] == 'notflagscenarios'):
                 tags="['"+requestdata['tags']+"']"
-                if(requestdata.has_key('subquery') and requestdata["query"]=="clonenode"):
+                if(requestdata.has_key('subquery') and requestdata["subquery"]=="clonenode"):
                     fetchOldData="select tags from testscenarios where "
                     +"testscenarioname="+requestdata['testscenarioname']+" and versionnumber="
                     +str(requestdata['oldversionnumber'])+" and projectid="
@@ -649,7 +649,7 @@ def insertInScreen_ICE():
             if(requestdata["query"] == 'notflagscreen'):
                 tags="['"+requestdata['tags']+"']"
                 screendata=""
-                if(requestdata.has_key('subquery') and requestdata["query"]=="clonenode"):
+                if(requestdata.has_key('subquery') and requestdata["subquery"]=="clonenode"):
                     fetchOldData="select tags,screendata from screens where "
                     +"screenname="+requestdata['screenname']+" and versionnumber="
                     +str(requestdata['oldversionnumber'])+" and projectid="
@@ -691,7 +691,7 @@ def insertInTestcase_ICE():
             if(requestdata["query"] == 'notflagtestcase'):
                 tags="['"+requestdata['tags']+"']"
                 testcasesteps=""
-                if(requestdata.has_key('subquery') and requestdata["query"]=="clonenode"):
+                if(requestdata.has_key('subquery') and requestdata["subquery"]=="clonenode"):
                     fetchOldData="select tags,testcasesteps from testcases where "
                     +"testcasename="+requestdata['testcasename']+" and versionnumber="
                     +str(requestdata['oldversionnumber'])+" and screenid="
