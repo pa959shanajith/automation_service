@@ -250,7 +250,8 @@ def loadUserInfo_Nineteen68():
                                     +" allow filtering")
                 queryresult = n68session.execute(loaduserinfo2)
             elif(requestdata["query"] == 'userPlugins'):
-                loaduserinfo3 = ("select * from "
+                 loaduserinfo3 = ("select roleid,alm,autogenpath,dashboard,deadcode,"
+                                +"ice,mindmap,neuron2d,neuron3d,oxbowcode,reports,weboccular from "
                                 +"userpermissions where roleid = "
                                 +requestdata["roleid"]+" allow filtering")
                 queryresult = n68session.execute(loaduserinfo3)
@@ -2442,6 +2443,35 @@ def dataUpdator_ICE():
         app.logger.error('Error in dataUpdator_ICE.')
     return jsonify(res)
 
+#directly updates user access
+@app.route('/utility/userAccess_Nineteen68',methods=['POST'])
+def userAccess_Nineteen68():
+    res={'rows':'fail'}
+    try:
+        requestdata=json.loads(request.data)
+        if not isemptyrequest(requestdata):
+            roleid=requestdata['roleid']
+            servicename=requestdata['servicename']
+            roleaccessquery = ("select servicelist from userpermissions "
+                +"where roleid ="+ roleid + " ALLOW FILTERING ")
+            queryresult = n68session.execute(roleaccessquery)
+            statusflag = False
+            for each in queryresult.current_rows[0]['servicelist']:
+                if servicename == str(each):
+                    statusflag = True
+                    break
+            if statusflag:
+                res={'rows':'True'}
+            else:
+                res={'rows':'False'}
+        else:
+            app.logger.error('Empty data received. user Access Permission.')
+
+    except Exception as useraccessexc:
+        import traceback
+        traceback.print_exc()
+        app.logger.error('Error in userAccess_Nineteen68.')
+    return jsonify(res)
 ################################################################################
 # END OF UTILITIES
 ################################################################################
