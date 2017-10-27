@@ -250,7 +250,8 @@ def loadUserInfo_Nineteen68():
                                     +" allow filtering")
                 queryresult = n68session.execute(loaduserinfo2)
             elif(requestdata["query"] == 'userPlugins'):
-                loaduserinfo3 = ("select * from "
+                 loaduserinfo3 = ("select roleid,alm,autogenpath,dashboard,deadcode,"
+                                +"ice,mindmap,neuron2d,neuron3d,oxbowcode,reports,weboccular from "
                                 +"userpermissions where roleid = "
                                 +requestdata["roleid"]+" allow filtering")
                 queryresult = n68session.execute(loaduserinfo3)
@@ -566,15 +567,15 @@ def insertInSuite_ICE():
        if not isemptyrequest(requestdata):
            if(requestdata["query"] == 'notflagsuite'):
                 tags="['"+requestdata['tags']+"']"
-                if(requestdata.has_key('subquery') and requestdata["query"]=="clonenode"):
-                    fetchOldData="select tags from modules where "
-                    +"modulename="+requestdata['modulename']+" and versionnumber="
+                if(requestdata.has_key('subquery') and requestdata["subquery"]=="clonenode"):
+                    fetchOldData=("select tags from modules where "
+                    +"modulename='"+requestdata['modulename']+"' and versionnumber="
                     +str(requestdata['oldversionnumber'])+" and projectid="
-                    +requestdata['projectid']+query['delete_flag']
+                    +requestdata['projectid']+query['delete_flag'])
                     fetchqueryresult = icesession.execute(fetchOldData)
                     if (len(fetchqueryresult.current_rows)!=0):
                         fetchqueryresult = fetchqueryresult.current_rows[0]
-                        tags=fetchqueryresult['tags']
+                        tags="['"+"','".join(fetchqueryresult['tags'])+"']"
                 history=createHistory("create","modules",requestdata)
                 create_suite_query1 = ("insert into modules "
                 +"(projectid,modulename,moduleid,versionnumber,createdby,createdon,"
@@ -606,15 +607,15 @@ def insertInScenarios_ICE():
        if not isemptyrequest(requestdata):
            if(requestdata["query"] == 'notflagscenarios'):
                 tags="['"+requestdata['tags']+"']"
-                if(requestdata.has_key('subquery') and requestdata["query"]=="clonenode"):
-                    fetchOldData="select tags from testscenarios where "
-                    +"testscenarioname="+requestdata['testscenarioname']+" and versionnumber="
+                if(requestdata.has_key('subquery') and requestdata["subquery"]=="clonenode"):
+                    fetchOldData=("select tags from testscenarios where "
+                    +"testscenarioname='"+requestdata['testscenarioname']+"' and versionnumber="
                     +str(requestdata['oldversionnumber'])+" and projectid="
-                    +requestdata['projectid']+query['delete_flag']
+                    +requestdata['projectid']+query['delete_flag'])
                     fetchqueryresult = icesession.execute(fetchOldData)
                     if (len(fetchqueryresult.current_rows)!=0):
                         fetchqueryresult = fetchqueryresult.current_rows[0]
-                        tags=fetchqueryresult['tags']
+                        tags="['"+"','".join(fetchqueryresult['tags'])+"']"
                 history=createHistory("create","testscenarios",requestdata)
                 create_scenario_query1 = ("insert into testscenarios(projectid,"
                 +"testscenarioname,testscenarioid,versionnumber,history,createdby"
@@ -648,15 +649,15 @@ def insertInScreen_ICE():
             if(requestdata["query"] == 'notflagscreen'):
                 tags="['"+requestdata['tags']+"']"
                 screendata=""
-                if(requestdata.has_key('subquery') and requestdata["query"]=="clonenode"):
-                    fetchOldData="select tags,screendata from screens where "
-                    +"screenname="+requestdata['screenname']+" and versionnumber="
+                if(requestdata.has_key('subquery') and requestdata["subquery"]=="clonenode"):
+                    fetchOldData=("select tags,screendata from screens where "
+                    +"screenname='"+requestdata['screenname']+"' and versionnumber="
                     +str(requestdata['oldversionnumber'])+" and projectid="
-                    +requestdata['projectid']+query['delete_flag']
+                    +requestdata['projectid']+query['delete_flag'])
                     fetchqueryresult = icesession.execute(fetchOldData)
                     if (len(fetchqueryresult.current_rows)!=0):
                         fetchqueryresult = fetchqueryresult.current_rows[0]
-                        tags=fetchqueryresult['tags']
+                        tags="['"+"','".join(fetchqueryresult['tags'])+"']"
                         screendata=fetchqueryresult['screendata']
                 history=createHistory("create","screens",requestdata)
                 create_screen_query1 = ("insert into screens (projectid,screenname,"
@@ -690,15 +691,15 @@ def insertInTestcase_ICE():
             if(requestdata["query"] == 'notflagtestcase'):
                 tags="['"+requestdata['tags']+"']"
                 testcasesteps=""
-                if(requestdata.has_key('subquery') and requestdata["query"]=="clonenode"):
-                    fetchOldData="select tags,testcasesteps from testcases where "
-                    +"testcasename="+requestdata['testcasename']+" and versionnumber="
+                if(requestdata.has_key('subquery') and requestdata["subquery"]=="clonenode"):
+                    fetchOldData=("select tags,testcasesteps from testcases where "
+                    +"testcasename='"+requestdata['testcasename']+"' and versionnumber="
                     +str(requestdata['oldversionnumber'])+" and screenid="
-                    +requestdata['oldscreenid']+query['delete_flag']
+                    +requestdata['oldscreenid']+query['delete_flag'])
                     fetchqueryresult = icesession.execute(fetchOldData)
                     if (len(fetchqueryresult.current_rows)!=0):
                         fetchqueryresult = fetchqueryresult.current_rows[0]
-                        tags=fetchqueryresult['tags']
+                        tags="['"+"','".join(fetchqueryresult['tags'])+"']"
                         testcasesteps=fetchqueryresult['testcasesteps']
                 history=createHistory("create","testcases",requestdata)
                 create_testcase_query1 = ("insert into testcases (screenid,"
@@ -2442,6 +2443,35 @@ def dataUpdator_ICE():
         app.logger.error('Error in dataUpdator_ICE.')
     return jsonify(res)
 
+#directly updates user access
+@app.route('/utility/userAccess_Nineteen68',methods=['POST'])
+def userAccess_Nineteen68():
+    res={'rows':'fail'}
+    try:
+        requestdata=json.loads(request.data)
+        if not isemptyrequest(requestdata):
+            roleid=requestdata['roleid']
+            servicename=requestdata['servicename']
+            roleaccessquery = ("select servicelist from userpermissions "
+                +"where roleid ="+ roleid + " ALLOW FILTERING ")
+            queryresult = n68session.execute(roleaccessquery)
+            statusflag = False
+            for each in queryresult.current_rows[0]['servicelist']:
+                if servicename == str(each):
+                    statusflag = True
+                    break
+            if statusflag:
+                res={'rows':'True'}
+            else:
+                res={'rows':'False'}
+        else:
+            app.logger.error('Empty data received. user Access Permission.')
+
+    except Exception as useraccessexc:
+        import traceback
+        traceback.print_exc()
+        app.logger.error('Error in userAccess_Nineteen68.')
+    return jsonify(res)
 ################################################################################
 # END OF UTILITIES
 ################################################################################
