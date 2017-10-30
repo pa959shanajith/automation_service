@@ -250,7 +250,7 @@ def loadUserInfo_Nineteen68():
                                     +" allow filtering")
                 queryresult = n68session.execute(loaduserinfo2)
             elif(requestdata["query"] == 'userPlugins'):
-                 loaduserinfo3 = ("select roleid,alm,autogenpath,dashboard,deadcode,"
+                loaduserinfo3 = ("select roleid,alm,autogenpath,dashboard,deadcode,"
                                 +"ice,mindmap,neuron2d,neuron3d,oxbowcode,reports,weboccular from "
                                 +"userpermissions where roleid = "
                                 +requestdata["roleid"]+" allow filtering")
