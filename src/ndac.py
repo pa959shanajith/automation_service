@@ -571,7 +571,7 @@ def insertInSuite_ICE():
                     fetchOldData=("select tags from modules where "
                     +"modulename='"+requestdata['modulename']+"' and versionnumber="
                     +str(requestdata['oldversionnumber'])+" and projectid="
-                    +requestdata['projectid']+query['delete_flag'])
+                    +requestdata['oldprojectid']+query['delete_flag'])
                     fetchqueryresult = icesession.execute(fetchOldData)
                     if (len(fetchqueryresult.current_rows)!=0):
                         fetchqueryresult = fetchqueryresult.current_rows[0]
@@ -611,7 +611,7 @@ def insertInScenarios_ICE():
                     fetchOldData=("select tags from testscenarios where "
                     +"testscenarioname='"+requestdata['testscenarioname']+"' and versionnumber="
                     +str(requestdata['oldversionnumber'])+" and projectid="
-                    +requestdata['projectid']+query['delete_flag'])
+                    +requestdata['oldprojectid']+query['delete_flag'])
                     fetchqueryresult = icesession.execute(fetchOldData)
                     if (len(fetchqueryresult.current_rows)!=0):
                         fetchqueryresult = fetchqueryresult.current_rows[0]
@@ -653,7 +653,7 @@ def insertInScreen_ICE():
                     fetchOldData=("select tags,screendata from screens where "
                     +"screenname='"+requestdata['screenname']+"' and versionnumber="
                     +str(requestdata['oldversionnumber'])+" and projectid="
-                    +requestdata['projectid']+query['delete_flag'])
+                    +requestdata['oldprojectid']+query['delete_flag'])
                     fetchqueryresult = icesession.execute(fetchOldData)
                     if (len(fetchqueryresult.current_rows)!=0):
                         fetchqueryresult = fetchqueryresult.current_rows[0]
