@@ -250,7 +250,7 @@ def loadUserInfo_Nineteen68():
                                     +" allow filtering")
                 queryresult = n68session.execute(loaduserinfo2)
             elif(requestdata["query"] == 'userPlugins'):
-                 loaduserinfo3 = ("select roleid,alm,autogenpath,dashboard,deadcode,"
+                loaduserinfo3 = ("select roleid,alm,autogenpath,dashboard,deadcode,"
                                 +"ice,mindmap,neuron2d,neuron3d,oxbowcode,reports,weboccular from "
                                 +"userpermissions where roleid = "
                                 +requestdata["roleid"]+" allow filtering")
@@ -571,7 +571,7 @@ def insertInSuite_ICE():
                     fetchOldData=("select tags from modules where "
                     +"modulename='"+requestdata['modulename']+"' and versionnumber="
                     +str(requestdata['oldversionnumber'])+" and projectid="
-                    +requestdata['projectid']+query['delete_flag'])
+                    +requestdata['oldprojectid']+query['delete_flag'])
                     fetchqueryresult = icesession.execute(fetchOldData)
                     if (len(fetchqueryresult.current_rows)!=0):
                         fetchqueryresult = fetchqueryresult.current_rows[0]
@@ -611,7 +611,7 @@ def insertInScenarios_ICE():
                     fetchOldData=("select tags from testscenarios where "
                     +"testscenarioname='"+requestdata['testscenarioname']+"' and versionnumber="
                     +str(requestdata['oldversionnumber'])+" and projectid="
-                    +requestdata['projectid']+query['delete_flag'])
+                    +requestdata['oldprojectid']+query['delete_flag'])
                     fetchqueryresult = icesession.execute(fetchOldData)
                     if (len(fetchqueryresult.current_rows)!=0):
                         fetchqueryresult = fetchqueryresult.current_rows[0]
@@ -653,7 +653,7 @@ def insertInScreen_ICE():
                     fetchOldData=("select tags,screendata from screens where "
                     +"screenname='"+requestdata['screenname']+"' and versionnumber="
                     +str(requestdata['oldversionnumber'])+" and projectid="
-                    +requestdata['projectid']+query['delete_flag'])
+                    +requestdata['oldprojectid']+query['delete_flag'])
                     fetchqueryresult = icesession.execute(fetchOldData)
                     if (len(fetchqueryresult.current_rows)!=0):
                         fetchqueryresult = fetchqueryresult.current_rows[0]
