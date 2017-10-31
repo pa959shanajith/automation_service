@@ -3141,31 +3141,23 @@ def scheduleenabler(starttime):
 def cronograph():
     try:
         import datetime
-        print "cronograph - 1"
         from threading import Timer
         x= datetime.datetime.today()
         updatehr=00
         updatemin=00
         updatesec=00
         updatemcrs=00
-        print "cronograph - 2"
         y = x + datetime.timedelta(days =1)
         k=y.replace(hour=updatehr, minute=updatemin, second=updatesec, microsecond=updatemcrs)
 ##        y=x.replace(day=x.day+1, hour=updatehr, minute=updatemin, second=updatesec, microsecond=updatemcrs)
-        print "cronograph - 3"
         #for development purposes only
 ##        y=x.replace(day=x.day, hour=x.hour, minute=x.minute+1, second=updatesec, microsecond=updatemcrs)
 
         delta_t=k-x
-        print "cronograph - 4"
         secs=delta_t.seconds+1
         t = Timer(secs, updateonls)
-        print "cronograph - 5"
         t.start()
     except Exception as cronoexeption:
-        print "cronograph - 6"
-##        import traceback
-##        traceback.print_exc()
         app.logger.critical("<<<<Issue with the Server>>>>")
 
 
