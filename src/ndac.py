@@ -336,18 +336,42 @@ def getProjectIDs_Nineteen68():
     try:
        requestdata=json.loads(request.data)
        if not isemptyrequest(requestdata):
-            if(requestdata['query'] == 'getprojids'):
-                userid=requestdata['userid']
-                getProjIds = ("select projectids FROM icetestautomation.icepermissions "+
-                "where userid="+userid)
-                queryresult = icesession.execute(getProjIds)
-                res={'rows':queryresult.current_rows}
-            elif (requestdata['query'] == 'getprojectname'):
-                projectid=requestdata['projectid']
-                getprojectname = ("select projectname,projecttypeid FROM icetestautomation.projects "+
-                "where projectid="+projectid+query['delete_flag'])
-                queryresult = icesession.execute(getprojectname)
-                res={'rows':queryresult.current_rows}
+            prjDetails={
+                'projectId':[],
+                'projectName':[],
+                'appType':[]
+            }
+            userid=requestdata['userid']
+            getProjIds = "select projectids FROM icepermissions where userid="+userid
+            projidsresult = icesession.execute(getProjIds)
+            projidsresult = projidsresult.current_rows
+            if(len(projidsresult)!=0):
+                projidsresult=projidsresult[0]['projectids']
+                prjids=[]
+                for pid in projidsresult:
+                    prjids.append(str(pid))
+                if(requestdata['query'] == 'emptyflag'):
+                    modulequery="select distinct projectid from modules"
+                    modulequeryresult = icesession.execute(modulequery)
+                    modpids=[]
+                    emppid=[]
+                    for row in modulequeryresult.current_rows:
+                        modpids.append(str(row['projectid']))
+                    for pid in prjids:
+                        if pid not in modpids:
+                            emppid.append(pid)
+                    prjids=emppid
+
+                for pid in prjids:
+                    getprojectdetails = ("select projectid,projectname,projecttypeid FROM icetestautomation.projects "+
+                    "where projectid="+pid+query['delete_flag'])
+                    queryresult = icesession.execute(getprojectdetails)
+                    prjDetail=queryresult.current_rows
+                    if(len(prjDetail)!=0):
+                        prjDetails['projectId'].append(str(prjDetail[0]['projectid']))
+                        prjDetails['projectName'].append(prjDetail[0]['projectname'])
+                        prjDetails['appType'].append(str(prjDetail[0]['projecttypeid']))
+            res={'rows':prjDetails}
        else:
             app.logger.error("Empty data received. getProjectIDs_Nineteen68")
     except Exception as e:
@@ -371,76 +395,6 @@ def getAllNames_ICE():
     except Exception as e:
         app.logger.error('Error in getAllNames_ICE.')
     return jsonify(res)
-
-#getting names of empty projects for project replication
-@app.route('/create_ice/getEmptyProjects_ICE',methods=['POST'])
-def getEmptyProjects_ICE():
-    res={'rows':'fail'}
-    try:
-       requestdata=json.loads(request.data)
-       if not isemptyrequest(requestdata):
-            modulequery="select distinct projectid from modules"
-            modulequeryresult = icesession.execute(modulequery)
-            modpids=[]
-            for row in modulequeryresult.current_rows:
-                modpids.append(str(row['projectid']))
-            emptyProjects={
-                'projectId':[],
-                'projectName':[]
-            }
-            for pid in requestdata['projectids']:
-                if pid not in modpids:
-                    getemptyprojectsquery="select projectid,projectname from projects where projectid="+pid
-                    queryresult = icesession.execute(getemptyprojectsquery)
-                    prjDetail=queryresult.current_rows
-                    if(len(prjDetail)!=0):
-                        emptyProjects['projectId'].append(str(prjDetail[0]['projectid']))
-                        emptyProjects['projectName'].append(prjDetail[0]['projectname'])
-            res={'rows':emptyProjects}
-       else:
-            app.logger.error("Empty data received. getEmptyProjects_ICE")
-    except Exception as e:
-        app.logger.error(e)
-        app.logger.error('Error in getEmptyProjects_ICE.')
-    return jsonify(res)
-
-#getting names of module/scenario/screen/testcase name of given id
-@app.route('/create_ice/testscreen_exists_ICE',methods=['POST'])
-def testscreen_exists_ICE():
-    res={'rows':'fail'}
-    try:
-       requestdata=json.loads(request.data)
-       if not isemptyrequest(requestdata):
-            screen_name=requestdata['screen_name']
-            screen_check =("select screenid from screens where screenname='"+screen_name
-            +"' ALLOW FILTERING")
-            queryresult = icesession.execute(screen_check)
-            res={'rows':queryresult.current_rows}
-       else:
-            app.logger.error("Empty data received. testscreen_exists")
-    except Exception as e:
-        app.logger.error('Error in testscreen_exists.')
-    return jsonify(res)
-
-
-#getting names of module/scenario/screen/testcase name of given id
-@app.route('/create_ice/testcase_exists_ICE',methods=['POST'])
-def testcase_exists_ICE():
-    res={'rows':'fail'}
-    try:
-       requestdata=json.loads(request.data)
-       if not isemptyrequest(requestdata):
-            testcase_name=requestdata['testcase_name']
-            testcase_check =("select testcaseid from testcases where testcasename='"+testcase_name
-            +"' ALLOW FILTERING")
-            queryresult = icesession.execute(testcase_check)
-            res={'rows':queryresult.current_rows}
-       else:
-            app.logger.error("Empty data received. testcase_exists")
-    except Exception as e:
-        app.logger.error('Error in testcase_exists.')
-    return jsonify(res)
-
 
 #getting names of module/scenario/screen/testcase name of given id
 @app.route('/create_ice/testsuiteid_exists_ICE',methods=['POST'])
@@ -3186,24 +3140,26 @@ def scheduleenabler(starttime):
 
 def cronograph():
     try:
+        import datetime
         from threading import Timer
-        x=datetime.today()
+        x= datetime.datetime.today()
         updatehr=00
         updatemin=00
         updatesec=00
         updatemcrs=00
-        y=x.replace(day=x.day+1, hour=updatehr, minute=updatemin, second=updatesec, microsecond=updatemcrs)
+        y = x + datetime.timedelta(days =1)
+        k=y.replace(hour=updatehr, minute=updatemin, second=updatesec, microsecond=updatemcrs)
+##        y=x.replace(day=x.day+1, hour=updatehr, minute=updatemin, second=updatesec, microsecond=updatemcrs)
         #for development purposes only
 ##        y=x.replace(day=x.day, hour=x.hour, minute=x.minute+1, second=updatesec, microsecond=updatemcrs)
 
-        delta_t=y-x
+        delta_t=k-x
         secs=delta_t.seconds+1
         t = Timer(secs, updateonls)
         t.start()
     except Exception as cronoexeption:
-##        import traceback
-##        traceback.print_exc()
         app.logger.critical("<<<<Issue with the Server>>>>")
+
 
 def dataholder(data,querytype):
     try:
