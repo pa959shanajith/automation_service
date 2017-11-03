@@ -1865,6 +1865,7 @@ def updateProject_ICE():
 def getUsers_Nineteen68():
     res={'rows':'fail'}
     try:
+        userid_list = []
         requestdata=json.loads(request.data)
         if not isemptyrequest(requestdata):
             userroles = requestdata['userroles']
@@ -1872,19 +1873,27 @@ def getUsers_Nineteen68():
             for eachroleobj in userroles:
                 if eachroleobj['rolename'] == 'Admin' or eachroleobj['rolename'] == 'Test Manager' :
                     userrolesarr.append(eachroleobj['roleid'])
-            useridslistquery = ("select userid from icepermissions where "
-                +"projectids contains "+requestdata['projectid']+" allow filtering;")
-            queryresultuserids= icesession.execute(useridslistquery)
+            domainquery = ("select domainid from projects where projectid="+requestdata['projectid']+" allow filtering")
+            queryresultdomain= icesession.execute(domainquery)
+            domainid =queryresultdomain.current_rows
+
+            query = ("select userid,projectids from icepermissions where domainid="+str(domainid[0]['domainid'])+" allow filtering")
+            queryresult = icesession.execute(query)
+            result = queryresult.current_rows
+
+            for rows in result:
+                if(str(requestdata['projectid']) in str(rows['projectids'])):
+                    userid_list.append(rows['userid'])
             res={}
             userroles=[]
             rids=[]
-            for row in queryresultuserids.current_rows:
+            for userid in userid_list:
                 queryforuser=("select userid, username, defaultrole from users "
-                        +"where userid="+str(row['userid']))
+                        +"where userid="+str(userid))
                 queryresultusername=n68session.execute(queryforuser)
                 if not(len(queryresultusername.current_rows) == 0):
                     if not (str(queryresultusername.current_rows[0]['defaultrole']) in userrolesarr):
-                        rids.append(row['userid'])
+                        rids.append(userid)
                         userroles.append(queryresultusername.current_rows[0]['username'])
                         res["userRoles"]=userroles
                         res["r_ids"]=rids
@@ -2022,7 +2031,7 @@ def getSuiteDetailsInExecution_ICE():
     try:
         requestdata=json.loads(request.data)
         if not isemptyrequest(requestdata):
-            getsuitedetailsquery = ("select executionid,starttime,endtime "
+            getsuitedetailsquery = ("select executionid,starttime,endtime,executionstatus "
                     +"from execution where testsuiteid="+requestdata['suiteid'])
             queryresult = icesession.execute(getsuitedetailsquery)
             res= {"rows":queryresult.current_rows}
