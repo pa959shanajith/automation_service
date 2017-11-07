@@ -37,6 +37,11 @@ parser.add_argument("-k","--verbosity", type=str, help="home user"
                     +"registration. Provide the offline registration filename")
 args = parser.parse_args()
 
+ice_ndac_key = 'ajkdfiHFEow#DjgLIqocn^8sjp2hfY&d'
+activeicesessions={}
+latest_access_time=datetime(1990, 1, 1, 0, 0, 0, 0)
+time_changed = False
+timer = None
 
 ##os.chdir("..")
 #nineteen68 folder location is parent directory
@@ -209,6 +214,7 @@ def authenticateUser_Nineteen68_projassigned():
 def loadUserInfo_Nineteen68():
     res={'rows':'fail'}
     try:
+        ui_plugins_list = []
         requestdata=json.loads(request.data)
         if not isemptyrequest(requestdata):
             if(requestdata["query"] == 'userInfo'):
@@ -235,6 +241,8 @@ def loadUserInfo_Nineteen68():
                 'username':username,'additionalroles':additionalroles}
                     rows.append(eachobject)
                 res={'rows':rows}
+                if(res['rows'] != None):
+                    updateLatestAccessTime(datetime.now())
                 return jsonify(res)
             elif(requestdata["query"] == 'loggedinRole'):
                 loaduserinfo2 = ("select rolename from roles where "
@@ -247,6 +255,13 @@ def loadUserInfo_Nineteen68():
                                 +"userpermissions where roleid = "
                                 +requestdata["roleid"]+" allow filtering")
                 queryresult = n68session.execute(loaduserinfo3)
+                for keys in licensedata['plugins']:
+                    if(keys != 'ice'):
+                        if(licensedata['plugins'][keys] == True):
+                            ui_plugins_list.append(keys)
+                for keys in (queryresult.current_rows)[0]:
+                    if(keys not in ui_plugins_list):
+                        (queryresult.current_rows)[0][keys] = False
             else:
                 return jsonify(res)
             res= {"rows":queryresult.current_rows}
@@ -1950,6 +1965,20 @@ def getAllUsers_Nineteen68():
         app.logger.error('Error in getAllUsers_Nineteen68')
         return jsonify(res)
 
+@app.route('/admin/getAvailablePlugins',methods=['POST'])
+def getAvailablePlugins():
+    res={'rows':'fail'}
+    try:
+        ice_plugins_list = []
+        for keys in licensedata['plugins']['ice']:
+            if(licensedata['plugins']['ice'][keys] == True):
+                ice_plugins_list.append(keys)
+        res={'rows':ice_plugins_list}
+        return jsonify(res)
+    except Exception as getallusersexc:
+        app.logger.error('Error in getAvailablePlugins')
+        return jsonify(res)
+
 ################################################################################
 # END OF ADMIN SCREEN
 ################################################################################
@@ -2423,13 +2452,70 @@ def userAccess_Nineteen68():
             app.logger.error('Empty data received. user Access Permission.')
 
     except Exception as useraccessexc:
-        import traceback
-        traceback.print_exc()
         app.logger.error('Error in userAccess_Nineteen68.')
     return jsonify(res)
 ################################################################################
 # END OF UTILITIES
 ################################################################################
+
+@app.route('/server/updateActiveIceSessions',methods=['POST'])
+def updateActiveIceSessions():
+    ice_plugins_list = []
+    global activeicesessions
+    for keys in licensedata['plugins']['ice']:
+        if(licensedata['plugins']['ice'][keys] == True):
+            ice_plugins_list.append(keys)
+    res={"id":"da9b196d-8021-4a68-be2b-753ec267305e","res":"fail","ts_now":str(datetime.now()),"connect_time":str(datetime.now()),"plugins":str(ice_plugins_list)}
+    response = {"node_check":False,"ice_check":res}
+    ice_uuid=None
+    ice_ts=None
+    try:
+        requestdata=json.loads(request.data)
+        if not isemptyrequest(requestdata):
+            if(requestdata['query']=='disconnect'):
+                if(activeicesessions.has_key(requestdata['username'])):
+                    del activeicesessions[requestdata['username']]
+
+            elif(requestdata['query']=='connect'):
+                icesession = unwrap(requestdata['icesession'],ice_ndac_key)
+                icesession = ast.literal_eval(icesession)
+                ice_uuid=icesession['ice_id']
+                ice_ts=icesession['connect_time']
+                username=icesession['username']
+                updateLatestAccessTime(datetime.strptime(ice_ts, '%Y-%m-%d %H:%M:%S.%f'))
+                res['id']=ice_uuid
+                res['connect_time']=ice_ts
+
+                #To reject connection with same usernames
+                if(activeicesessions.has_key(username) and activeicesessions[username] != ice_uuid):
+                    response = {"node_check":False,"ice_check":wrap(str(res),ice_ndac_key)}
+                    return jsonify(response)
+                #To reject connections more than allowed number
+                elif(len(activeicesessions)>=licensedata['allowedIceSessions']):
+                    response = {"node_check":False,"ice_check":wrap(str(res),ice_ndac_key)}
+                    return jsonify(response)
+                #To add in active ice sessions
+                elif(ice_uuid!=None):
+                    activeicesessions[username] = ice_uuid
+            res['res']="success"
+            response = {"node_check":True,"ice_check":wrap(str(res),ice_ndac_key)}
+        else:
+            app.logger.error('Empty data received. updateActiveIceSessions.')
+    except Exception as exc:
+        app.logger.error('Error in updateActiveIceSessions.')
+    return jsonify(response)
+
+def updateLatestAccessTime(time):
+    try:
+        global time_changed
+        global latest_access_time
+        if((latest_access_time-time).days > 1):
+            time_changed = True
+        if(time > latest_access_time):
+            latest_access_time = time
+        return latest_access_time
+    except Exception as e:
+        app.logger.error("Update latest access time")
 
 ##################################################
 # BEGIN OF CHATBOT
@@ -2729,9 +2815,6 @@ def modelinfoprocessor():
         dailydata['license_usd'] = licensesarray
         modelinfo.append(dailydata)
     except Exception as e:
-        import traceback
-        app.logger.error(traceback.format_exc())
-        app.logger.error(e)
         app.logger.critical("Unable to contact storage areas 3")
     return modelinfo
 
@@ -2851,9 +2934,11 @@ def basecheckonls():
         baserequest= {
             "action": "register",
             "token": token,
-            "lCheck": str(int(time.time()*1000)),
+            "lCheck": latest_access_time,
             "ts": EXPECTING_RESPONSE
         }
+        if(time_changed):
+            baserequest['time_changed'] = time_changed
         baserequest=wrap(str(baserequest),omgall)
         connectresponse = connectingls(baserequest)
         if connectresponse != False:
@@ -2882,10 +2967,9 @@ def basecheckonls():
                 basecheckonls()
             else:
                 app.logger.critical(ERR_CODE['115'])
-                stopserver()
+                #stopserver()
+                startTwoDaysTimer()
     except Exception as e:
-        import traceback
-        traceback.print_exc()
         app.logger.critical("Unable to contact storage areas")
     return basecheckstatus
 
@@ -2899,9 +2983,11 @@ def updateonls():
             "token": dbdata['tkn'],
             "action": "update",
             "ts": EXPECTING_RESPONSE,
-            "lCheck": str(int(time.time()*1000)),
+            "lCheck": latest_access_time,
             "modelinfo": modelinfores
         }
+        if(time_changed):
+            datatols['time_changed'] = time_changed
         datatols=wrap(str(datatols),omgall)
         updateresponse = connectingls(datatols)
         if updateresponse != False:
@@ -2919,10 +3005,9 @@ def updateonls():
                 updateonls()
             else:
                 app.logger.critical(ERR_CODE['115'])
-                stopserver()
+                #stopserver()
+                startTwoDaysTimer()
     except Exception as e:
-        import traceback
-        traceback.print_exc()
         app.logger.critical("Unable to contact storage areas")
 
 def getbgntime(requiredday,*args):
@@ -2946,7 +3031,7 @@ def getbgntime(requiredday,*args):
     return day
 
 def connectingls(data):
-    global lsRetryCount
+    global lsRetryCount,timer
     lsRetryCount+=1
     connectionstatus=False
     try:
@@ -2954,6 +3039,9 @@ def connectingls(data):
         if lsresponse.status_code == 200:
             lsRetryCount=0
             connectionstatus = lsresponse.content
+            if( timer != None and timer.isAlive()):
+                timer.cancel()
+                timer=None
     except Exception as e:
         app.logger.critical("License server must be running")
     return connectionstatus
@@ -3087,7 +3175,22 @@ def beginserver():
 def stopserver():
     global onlineuser
     onlineuser = False
-    app.logger.error("License Expired.")
+    app.logger.error("License Server can't be reached.")
+
+def startTwoDaysTimer():
+    import datetime
+    from threading import Timer
+    x= datetime.datetime.today()
+    updatehr=00
+    updatemin=00
+    updatesec=00
+    updatemcrs=00
+    y = x + datetime.timedelta(days=2)
+    k=y.replace(hour=updatehr, minute=updatemin, second=updatesec, microsecond=updatemcrs)
+    delta_t=k-x
+    secs=delta_t.seconds+1
+    timer = Timer(secs, stopserver)
+    timer.start()
 
 from Crypto import Random
 from Crypto.Cipher import AES
