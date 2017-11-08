@@ -39,8 +39,7 @@ args = parser.parse_args()
 
 ice_ndac_key = 'ajkdfiHFEow#DjgLIqocn^8sjp2hfY&d'
 activeicesessions={}
-latest_access_time=datetime(1990, 1, 1, 0, 0, 0, 0)
-time_changed = False
+latest_access_time=datetime.now()
 timer = None
 
 ##os.chdir("..")
@@ -218,6 +217,8 @@ def loadUserInfo_Nineteen68():
         requestdata=json.loads(request.data)
         if not isemptyrequest(requestdata):
             if(requestdata["query"] == 'userInfo'):
+                global latest_access_time
+                latest_access_time=datetime.now()
                 loaduserinfo1 = ("select userid, emailid, firstname, lastname, "
                                 +"defaultrole, ldapuser, additionalroles, username "
                                 +"from users where username = "+
@@ -241,8 +242,6 @@ def loadUserInfo_Nineteen68():
                 'username':username,'additionalroles':additionalroles}
                     rows.append(eachobject)
                 res={'rows':rows}
-                if(res['rows'] != None):
-                    updateLatestAccessTime(datetime.now())
                 return jsonify(res)
             elif(requestdata["query"] == 'loggedinRole'):
                 loaduserinfo2 = ("select rolename from roles where "
@@ -2462,6 +2461,7 @@ def userAccess_Nineteen68():
 def updateActiveIceSessions():
     ice_plugins_list = []
     global activeicesessions
+    global latest_access_time
     for keys in licensedata['plugins']['ice']:
         if(licensedata['plugins']['ice'][keys] == True):
             ice_plugins_list.append(keys)
@@ -2482,7 +2482,7 @@ def updateActiveIceSessions():
                 ice_uuid=icesession['ice_id']
                 ice_ts=icesession['connect_time']
                 username=icesession['username']
-                updateLatestAccessTime(datetime.strptime(ice_ts, '%Y-%m-%d %H:%M:%S.%f'))
+                latest_access_time=datetime.strptime(ice_ts, '%Y-%m-%d %H:%M:%S.%f')
                 res['id']=ice_uuid
                 res['connect_time']=ice_ts
 
@@ -2504,18 +2504,6 @@ def updateActiveIceSessions():
     except Exception as exc:
         app.logger.error('Error in updateActiveIceSessions.')
     return jsonify(response)
-
-def updateLatestAccessTime(time):
-    try:
-        global time_changed
-        global latest_access_time
-        if((latest_access_time-time).days > 1):
-            time_changed = True
-        if(time > latest_access_time):
-            latest_access_time = time
-        return latest_access_time
-    except Exception as e:
-        app.logger.error("Update latest access time")
 
 ##################################################
 # BEGIN OF CHATBOT
@@ -2937,8 +2925,6 @@ def basecheckonls():
             "lCheck": latest_access_time,
             "ts": EXPECTING_RESPONSE
         }
-        if(time_changed):
-            baserequest['time_changed'] = time_changed
         baserequest=wrap(str(baserequest),omgall)
         connectresponse = connectingls(baserequest)
         if connectresponse != False:
@@ -2975,10 +2961,13 @@ def basecheckonls():
 
 def updateonls():
     try:
+        global licensedata
         info=dataholder('select')
         dbdata=ast.literal_eval(unwrap(info,mine))
         EXPECTING_RESPONSE=str(int(time.time()*24150))
         modelinfores = modelinfoprocessor()
+        if(dbdata.has_key('mdlinfo')):
+            modelinfores.append(dbdata['mdlinfo'])
         datatols={
             "token": dbdata['tkn'],
             "action": "update",
@@ -2986,8 +2975,6 @@ def updateonls():
             "lCheck": latest_access_time,
             "modelinfo": modelinfores
         }
-        if(time_changed):
-            datatols['time_changed'] = time_changed
         datatols=wrap(str(datatols),omgall)
         updateresponse = connectingls(datatols)
         if updateresponse != False:
@@ -2998,12 +2985,16 @@ def updateonls():
                 if (res['ecode'] in LS_CRITICAL_ERR_CODE):
                     stopserver()
             elif res['res'] == 'S':
-                pass
+                if(res.has_key('ldata')):
+                    licensedata = res['ldata']
         else:
             if lsRetryCount<3:
                 app.logger.error(ERR_CODE['112'])
                 updateonls()
             else:
+                list(dbdata['mdlinfo']).append(modelinfores)
+                datatodb=wrap(str(dbdata),mine)
+                status = dataholder('update',datatodb)
                 app.logger.critical(ERR_CODE['115'])
                 #stopserver()
                 startTwoDaysTimer()
@@ -3180,6 +3171,7 @@ def stopserver():
 def startTwoDaysTimer():
     import datetime
     from threading import Timer
+    global timer
     x= datetime.datetime.today()
     updatehr=00
     updatemin=00
