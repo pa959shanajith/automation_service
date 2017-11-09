@@ -3693,6 +3693,7 @@ if __name__ == '__main__':
     formatter = logging.Formatter("[%(asctime)s] {%(pathname)s:%(lineno)d} %(levelname)s - %(message)s")
     inhandler = TimedRotatingFileHandler(logspath+'/ndac/ndac'+datetime.now().strftime("_%Y%m%d-%H%M%S")+'.log',when='d', encoding='utf-8', backupCount=1)
     global handler
+    global licensedata
     handler=inhandler
     handler.setLevel(logging.ERROR)
     handler.setFormatter(formatter)
@@ -3736,6 +3737,7 @@ if __name__ == '__main__':
                     else:
                         mac = 'nomacaddress'
                 enabled = offlineuserenabler(startdate,enddate,mac)
+                licensedata=userinfo['licensedata']
                 if enabled == True:
                     beginserver()
                 else:

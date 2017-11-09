@@ -29,7 +29,32 @@ contents =   {
 		"mac": "",
 		"startdate": "",
 		"enddate": ""
-	}
+	},
+    "licensedata": {
+        "allowedIceSessions" : 5,
+        "plugins" : {
+            "alm" : True,
+            "deadcode" : True,
+            "weboccular" : True,
+            "mindmap" : True,
+            "ice" : {
+                "web" : True,
+                "mobileapp" : True,
+                "desktop" : True,
+                "mainframe" : True,
+                "webservice" : True,
+                "oebs" : True,
+                "sap" : True,
+                "mobileweb" : True
+            },
+            "neuron3d" : True,
+            "reports" : True,
+            "neuron2d" : True,
+            "dashboard" : True,
+            "autogenpath" : True,
+            "oxbowcode" : True
+        }
+    }
 }
 
 def pad(data):
@@ -62,6 +87,9 @@ def filegenerator(jsonifieddata):
     file = open('offlineuser.key','w')
     file.write(encry)
     file.close()
+    validity_file=open('validity.txt','w')
+    validity_file.write(startdate+" to "+enddate)
+    validity_file.close()
 
 if __name__ == '__main__':
     try:
