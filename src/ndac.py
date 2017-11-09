@@ -1535,9 +1535,28 @@ def getDetails_ICE():
         requestdata=json.loads(request.data)
         if not isemptyrequest(requestdata):
             if(requestdata["query"] == 'domaindetails'):
-                getdetailsquery1=("select projectid,projectname from projects "
+                ptype={}
+                getdetailsquery0 = ("select projecttypename,projecttypeid from projecttype")
+                queryresult0 = icesession.execute(getdetailsquery0)
+                for row in queryresult0.current_rows:
+                    if (row['projecttypename']=="DesktopJava"):
+                        ptype['oebs']=row['projecttypeid']
+                    else:
+                        ptype[(row['projecttypename']).lower()]=row['projecttypeid']
+                del ptype['generic']
+                icePlugins=licensedata['plugins']['ice']
+                for p in icePlugins:
+                    if not icePlugins[p]:
+                        del ptype[p]
+                ptype=ptype.values()
+                getdetailsquery1=("select projectid,projectname,projecttypeid from projects "
                     +"where domainid=" + requestdata['id']+query['delete_flag'])
                 queryresult = icesession.execute(getdetailsquery1)
+                projectList=[]
+                for prj in queryresult.current_rows:
+                    if prj['projecttypeid'] in ptype:
+                        projectList.append(prj)
+                res={'rows':projectList}
             elif(requestdata["query"] == 'projectsdetails'):
                 if(requestdata["subquery"] == 'projecttypeid'):
                     getdetailsquery2=("select projecttypeid,projectname from projects"
@@ -1552,14 +1571,13 @@ def getDetails_ICE():
                     getdetailsquery2=("select cycleid,cyclename from cycles "
                         +"where releaseid=" + requestdata['id']+query['delete_flag'])
                 queryresult = icesession.execute(getdetailsquery2)
+                res={'rows':queryresult.current_rows}
             elif(requestdata["query"] == 'cycledetails'):
                 getdetailsquery3=("select testsuiteid,testsuitename "
                     +"from testsuites where cycleid=" + requestdata['id']
                     +query['delete_flag'])
                 queryresult = icesession.execute(getdetailsquery3)
-            else:
-                return jsonify(res)
-            res={'rows':queryresult.current_rows}
+                res={'rows':queryresult.current_rows}
             return jsonify(res)
         else:
             app.logger.error('Empty data received. generic details.')
@@ -2488,6 +2506,7 @@ def updateActiveIceSessions():
 
                 #To reject connection with same usernames
                 if(activeicesessions.has_key(username) and activeicesessions[username] != ice_uuid):
+                    res['same_user'] = "True"
                     response = {"node_check":False,"ice_check":wrap(str(res),ice_ndac_key)}
                     return jsonify(response)
                 #To reject connections more than allowed number
@@ -2922,7 +2941,7 @@ def basecheckonls():
         baserequest= {
             "action": "register",
             "token": token,
-            "lCheck": latest_access_time,
+            "lCheck": str(latest_access_time),
             "ts": EXPECTING_RESPONSE
         }
         baserequest=wrap(str(baserequest),omgall)
@@ -2933,7 +2952,7 @@ def basecheckonls():
             if actresp['ots']==EXPECTING_RESPONSE:
                 EXPECTING_RESPONSE=''
                 if actresp['res'] == 'F':
-                    emsg="[ ERROR CODE: "res['ecode']+" ] "+res['message']
+                    emsg="[ ERROR CODE: "+actresp['ecode']+" ] "+actresp['message']
                     app.logger.critical(emsg)
                     if (actresp['ecode'] in LS_CRITICAL_ERR_CODE):
                         stopserver()
@@ -2954,7 +2973,6 @@ def basecheckonls():
                 basecheckonls()
             else:
                 app.logger.critical(ERR_CODE['115'])
-                #stopserver()
                 startTwoDaysTimer()
     except Exception as e:
         app.logger.critical("Unable to contact storage areas")
@@ -2973,7 +2991,7 @@ def updateonls():
             "token": dbdata['tkn'],
             "action": "update",
             "ts": EXPECTING_RESPONSE,
-            "lCheck": latest_access_time,
+            "lCheck": str(latest_access_time),
             "modelinfo": modelinfores
         }
         datatols=wrap(str(datatols),omgall)
@@ -2982,7 +3000,7 @@ def updateonls():
             cronograph()
             res = ast.literal_eval(unwrap(str(updateresponse),omgall))
             if res['res'] == 'F':
-                emsg="[ ERROR CODE: "res['ecode']+" ] "+res['message']
+                emsg="[ ERROR CODE: "+res['ecode']+" ] "+res['message']
                 app.logger.critical(emsg)
                 if (res['ecode'] in LS_CRITICAL_ERR_CODE):
                     stopserver()
@@ -3001,7 +3019,6 @@ def updateonls():
                 datatodb=wrap(str(dbdata),mine)
                 dataholder('update',datatodb)
                 app.logger.critical(ERR_CODE['115'])
-                #stopserver()
                 startTwoDaysTimer()
     except Exception as e:
         app.logger.critical("Unable to contact storage areas")
