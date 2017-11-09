@@ -2933,7 +2933,8 @@ def basecheckonls():
             if actresp['ots']==EXPECTING_RESPONSE:
                 EXPECTING_RESPONSE=''
                 if actresp['res'] == 'F':
-                    app.logger.critical(actresp['message'])
+                    emsg="[ ERROR CODE: "res['ecode']+" ] "+res['message']
+                    app.logger.critical(emsg)
                     if (actresp['ecode'] in LS_CRITICAL_ERR_CODE):
                         stopserver()
                 elif actresp['res'] == 'S':
@@ -2981,10 +2982,14 @@ def updateonls():
             cronograph()
             res = ast.literal_eval(unwrap(str(updateresponse),omgall))
             if res['res'] == 'F':
-                app.logger.critical(res['message'])
+                emsg="[ ERROR CODE: "res['ecode']+" ] "+res['message']
+                app.logger.critical(emsg)
                 if (res['ecode'] in LS_CRITICAL_ERR_CODE):
                     stopserver()
             elif res['res'] == 'S':
+                del dbdata['mdlinfo']
+                datatodb=wrap(str(dbdata),mine)
+                dataholder('update',datatodb)
                 if(res.has_key('ldata')):
                     licensedata = res['ldata']
         else:
@@ -2994,7 +2999,7 @@ def updateonls():
             else:
                 list(dbdata['mdlinfo']).append(modelinfores)
                 datatodb=wrap(str(dbdata),mine)
-                status = dataholder('update',datatodb)
+                dataholder('update',datatodb)
                 app.logger.critical(ERR_CODE['115'])
                 #stopserver()
                 startTwoDaysTimer()
