@@ -21,6 +21,7 @@ import logging
 handler=''
 
 from datetime import datetime
+import time
 import uuid
 
 import ast
@@ -36,6 +37,10 @@ parser.add_argument("-k","--verbosity", type=str, help="home user"
                     +"registration. Provide the offline registration filename")
 args = parser.parse_args()
 
+ice_ndac_key = 'ajkdfiHFEow#DjgLIqocn^8sjp2hfY&d'
+activeicesessions={}
+latest_access_time=datetime.now()
+timer = None
 
 ##os.chdir("..")
 #nineteen68 folder location is parent directory
@@ -76,8 +81,19 @@ offlineendtime=''
 offlineuser = False
 onlineuser = False
 usersession = False
-lsondayone = ""
-lsondaytwo = ""
+licensedata=""
+LS_CRITICAL_ERR_CODE=['199','120','121','123','124','125']
+lsRetryCount=0
+ERR_CODE={
+    "100":"<<<Another instance of NDAC is already registered with the License server>>>",
+    "101":"<<<Unable to contact storage areas>>>",
+    "105":"<<<NDAC is not registered with the Licensing Server>>>",
+    "108":"<<<Critical error in storage areas>>>",
+    "110":"<<<Critical error in NDAC>>>",
+    "112":"Error establishing connection to Licensing Server. Retrying to establish connection",
+    "115":"Connection to Licensing Server failed. Maximum retries exceeded. Hence, Shutting down server",
+    "199":"Something Fishy..."
+}
 
 #counters for License
 debugcounter = 0
@@ -104,31 +120,15 @@ def authenticateUser_Nineteen68():
         requestdata=json.loads(request.data)
         if not isemptyrequest(requestdata):
             authenticateuser = ("select password from users where username = '"
-                                +requestdata["username"]+"' "
-                                +" ALLOW FILTERING;")
+                +requestdata["username"]+"' "+" ALLOW FILTERING")
             queryresult = n68session.execute(authenticateuser)
             res= {"rows":queryresult.current_rows}
-            res=closehonor(res)
-            if 'dayone' in res:
-                app.logger.critical('Licenses will expire tomorrow.')
-            elif 'daytwo' in res:
-                app.logger.critical('Licenses expired.')
             return jsonify(res)
         else:
             app.logger.error('Empty data received. authentication')
-            res=closehonor(res)
-            if 'dayone' in res:
-                app.logger.critical('Licenses will expire tomorrow.')
-            elif 'daytwo' in res:
-                app.logger.critical('Licenses expired.')
             return jsonify(res)
     except Exception as authenticateuserexc:
         app.logger.error('Error in authenticateUser.')
-        res=closehonor(res)
-        if 'dayone' in res:
-            app.logger.critical('Licenses will expire tomorrow.')
-        elif 'daytwo' in res:
-            app.logger.critical('Licenses expired.')
         return jsonify(res)
 
 #service for user ldap validation
@@ -139,19 +139,15 @@ def authenticateUser_Nineteen68_ldap():
         requestdata=json.loads(request.data)
         if not isemptyrequest(requestdata):
             authenticateuserldap = ("select ldapuser from users where "
-                                    +"username = '"+requestdata["username"]+"'"
-                                    +"allow filtering;")
+                +"username = '"+requestdata["username"]+"'"+"allow filtering")
             queryresult = n68session.execute(authenticateuserldap)
             res= {"rows":queryresult.current_rows}
-            res=closehonor(res)
             return jsonify(res)
         else:
             app.logger.error('Empty data received. authentication')
-            res=closehonor(res)
             return jsonify(res)
     except Exception as authenticateuserldapexc:
         app.logger.error('Error in authenticateUser_ldap.')
-        res=closehonor(res)
         return jsonify(res)
 
 #service for getting rolename by roleid
@@ -217,9 +213,12 @@ def authenticateUser_Nineteen68_projassigned():
 def loadUserInfo_Nineteen68():
     res={'rows':'fail'}
     try:
+        ui_plugins_list = []
         requestdata=json.loads(request.data)
         if not isemptyrequest(requestdata):
             if(requestdata["query"] == 'userInfo'):
+                global latest_access_time
+                latest_access_time=datetime.now()
                 loaduserinfo1 = ("select userid, emailid, firstname, lastname, "
                                 +"defaultrole, ldapuser, additionalroles, username "
                                 +"from users where username = "+
@@ -255,6 +254,13 @@ def loadUserInfo_Nineteen68():
                                 +"userpermissions where roleid = "
                                 +requestdata["roleid"]+" allow filtering")
                 queryresult = n68session.execute(loaduserinfo3)
+                for keys in licensedata['plugins']:
+                    if(keys != 'ice'):
+                        if(licensedata['plugins'][keys] == True):
+                            ui_plugins_list.append(keys)
+                for keys in (queryresult.current_rows)[0]:
+                    if(keys not in ui_plugins_list):
+                        (queryresult.current_rows)[0][keys] = False
             else:
                 return jsonify(res)
             res= {"rows":queryresult.current_rows}
@@ -1529,9 +1535,28 @@ def getDetails_ICE():
         requestdata=json.loads(request.data)
         if not isemptyrequest(requestdata):
             if(requestdata["query"] == 'domaindetails'):
-                getdetailsquery1=("select projectid,projectname from projects "
+                ptype={}
+                getdetailsquery0 = ("select projecttypename,projecttypeid from projecttype")
+                queryresult0 = icesession.execute(getdetailsquery0)
+                for row in queryresult0.current_rows:
+                    if (row['projecttypename']=="DesktopJava"):
+                        ptype['oebs']=row['projecttypeid']
+                    else:
+                        ptype[(row['projecttypename']).lower()]=row['projecttypeid']
+                del ptype['generic']
+                icePlugins=licensedata['plugins']['ice']
+                for p in icePlugins:
+                    if not icePlugins[p]:
+                        del ptype[p]
+                ptype=ptype.values()
+                getdetailsquery1=("select projectid,projectname,projecttypeid from projects "
                     +"where domainid=" + requestdata['id']+query['delete_flag'])
                 queryresult = icesession.execute(getdetailsquery1)
+                projectList=[]
+                for prj in queryresult.current_rows:
+                    if prj['projecttypeid'] in ptype:
+                        projectList.append(prj)
+                res={'rows':projectList}
             elif(requestdata["query"] == 'projectsdetails'):
                 if(requestdata["subquery"] == 'projecttypeid'):
                     getdetailsquery2=("select projecttypeid,projectname from projects"
@@ -1546,14 +1571,13 @@ def getDetails_ICE():
                     getdetailsquery2=("select cycleid,cyclename from cycles "
                         +"where releaseid=" + requestdata['id']+query['delete_flag'])
                 queryresult = icesession.execute(getdetailsquery2)
+                res={'rows':queryresult.current_rows}
             elif(requestdata["query"] == 'cycledetails'):
                 getdetailsquery3=("select testsuiteid,testsuitename "
                     +"from testsuites where cycleid=" + requestdata['id']
                     +query['delete_flag'])
                 queryresult = icesession.execute(getdetailsquery3)
-            else:
-                return jsonify(res)
-            res={'rows':queryresult.current_rows}
+                res={'rows':queryresult.current_rows}
             return jsonify(res)
         else:
             app.logger.error('Empty data received. generic details.')
@@ -1956,6 +1980,20 @@ def getAllUsers_Nineteen68():
         return jsonify(res)
     except Exception as getallusersexc:
         app.logger.error('Error in getAllUsers_Nineteen68')
+        return jsonify(res)
+
+@app.route('/admin/getAvailablePlugins',methods=['POST'])
+def getAvailablePlugins():
+    res={'rows':'fail'}
+    try:
+        ice_plugins_list = []
+        for keys in licensedata['plugins']['ice']:
+            if(licensedata['plugins']['ice'][keys] == True):
+                ice_plugins_list.append(keys)
+        res={'rows':ice_plugins_list}
+        return jsonify(res)
+    except Exception as getallusersexc:
+        app.logger.error('Error in getAvailablePlugins')
         return jsonify(res)
 
 ################################################################################
@@ -2431,13 +2469,60 @@ def userAccess_Nineteen68():
             app.logger.error('Empty data received. user Access Permission.')
 
     except Exception as useraccessexc:
-        import traceback
-        traceback.print_exc()
         app.logger.error('Error in userAccess_Nineteen68.')
     return jsonify(res)
 ################################################################################
 # END OF UTILITIES
 ################################################################################
+
+@app.route('/server/updateActiveIceSessions',methods=['POST'])
+def updateActiveIceSessions():
+    ice_plugins_list = []
+    global activeicesessions
+    global latest_access_time
+    for keys in licensedata['plugins']['ice']:
+        if(licensedata['plugins']['ice'][keys] == True):
+            ice_plugins_list.append(keys)
+    res={"id":"da9b196d-8021-4a68-be2b-753ec267305e","res":"fail","ts_now":str(datetime.now()),"connect_time":str(datetime.now()),"plugins":str(ice_plugins_list)}
+    response = {"node_check":False,"ice_check":res}
+    ice_uuid=None
+    ice_ts=None
+    try:
+        requestdata=json.loads(request.data)
+        if not isemptyrequest(requestdata):
+            if(requestdata['query']=='disconnect'):
+                if(activeicesessions.has_key(requestdata['username'])):
+                    del activeicesessions[requestdata['username']]
+
+            elif(requestdata['query']=='connect'):
+                icesession = unwrap(requestdata['icesession'],ice_ndac_key)
+                icesession = ast.literal_eval(icesession)
+                ice_uuid=icesession['ice_id']
+                ice_ts=icesession['connect_time']
+                username=icesession['username']
+                latest_access_time=datetime.strptime(ice_ts, '%Y-%m-%d %H:%M:%S.%f')
+                res['id']=ice_uuid
+                res['connect_time']=ice_ts
+
+                #To reject connection with same usernames
+                if(activeicesessions.has_key(username) and activeicesessions[username] != ice_uuid):
+                    res['same_user'] = "True"
+                    response = {"node_check":False,"ice_check":wrap(str(res),ice_ndac_key)}
+                    return jsonify(response)
+                #To reject connections more than allowed number
+                elif(len(activeicesessions)>=licensedata['allowedIceSessions']):
+                    response = {"node_check":False,"ice_check":wrap(str(res),ice_ndac_key)}
+                    return jsonify(response)
+                #To add in active ice sessions
+                elif(ice_uuid!=None):
+                    activeicesessions[username] = ice_uuid
+            res['res']="success"
+            response = {"node_check":True,"ice_check":wrap(str(res),ice_ndac_key)}
+        else:
+            app.logger.error('Empty data received. updateActiveIceSessions.')
+    except Exception as exc:
+        app.logger.error('Error in updateActiveIceSessions.')
+    return jsonify(response)
 
 ##################################################
 # BEGIN OF CHATBOT
@@ -2529,19 +2614,8 @@ query['delete_flag'] = ' and deleted=false allow filtering'
 numberofdays=1
 omgall="\x4e\x69\x6e\x65\x74\x65\x65\x6e\x36\x38\x6e\x64\x61\x74\x63\x6c\x69\x63\x65\x6e\x73\x69\x6e\x67"
 ndacinfo = {
-    "action": "",
-    "sysinfo": {"mac": "","tkn": ""},
-    "btchinfo": {
-        "prevbtch": {"prevbtchtym": "","prevbtchmsg": ""},
-        "nxtbtch": "",
-        "btchstts": ""
-    },
-    "modelinfo": {
-        "reports_in_day": [{"day": "","reprt_cnt": ""}],
-        "suites_init":[{"day":"","suite_cnt":"","usr_data":[{"id":"","rns":""}]}],
-        "cnario_init":[{"day":"","cnario_cnt":"","usr_data":[{"id":"","rns":""}]}],
-        "tcases_init":[{"day":"","tcases_cnt":"","usr_data":[{"id":"","rns":""}]}]
-    }
+    "macid": "",
+    "tkn": "",
 }
 
 ###########################
@@ -2648,7 +2722,7 @@ def counterupdator(updatortype,userid,count):
     status=False
     try:
         beginingoftime = datetime.utcfromtimestamp(0)
-        currentdateindays = getbgntime('curr',datetime.now()) - beginingoftime
+        currentdateindays = getbgntime('curr') - beginingoftime
         currentdate = long(currentdateindays.total_seconds() * 1000.0)
         updatorarray = ["update counters set counter=counter + ",
                     " where counterdate= "," and userid = "," and countertype= ",";"]
@@ -2721,92 +2795,33 @@ def gettestcases_inititated(bgnts,endts):
         app.logger.critical("Unable to contact storage areas 2 cases")
     return res
 
-def modelinfoprocessor(processingdata):
+def modelinfoprocessor():
     modelinfo=[]
     try:
-        bgnyesday = getbgntime('prev',datetime.now())
-        bgnoftday = getbgntime('curr',datetime.now())
-        daybforedate=''
-        if (processingdata['btchinfo']['btchstts'] == 'error' or
-            processingdata['btchinfo']['btchstts'] == ''):
-            daybforedate=getbgntime('daybefore',datetime.now())
-##        suiteinfo=[]
-##        cnarioinfo=[]
-##        tcasesinfo=[]
-        if daybforedate != '':
-            for days in range(0,2):
-                dailydata={}
-                allusers = []
-                bgnts=gettimestamp(daybforedate)
-                endts=gettimestamp(bgnyesday)
-##                print bgnts
-##                print endts
-                dailydata['day'] = str(bgnyesday)
-                resultset=getreports_in_day(bgnts,endts)
-##                modelinfo['reports_in_day']=reportdataprocessor(resultset,daybforedate,bgnyesday)
-                reportobj=reportdataprocessor(resultset,daybforedate,bgnyesday)
-                dailydata['r_exec_cnt'] = str(reportobj['reprt_cnt'])
-
-##                suiteinfo.append(dataprocessor('testsuites',bgnts,endts,bgnyesday))
-                suiteobj=dataprocessor('testsuites',bgnts,endts)
-                dailydata['su_exec_cnt'] = str(suiteobj['suite_cnt'])
-                allusers = allusers + suiteobj['active_usrs']
-
-##                cnarioinfo.append(dataprocessor('testscenarios',bgnts,endts))
-                scenariosobj=dataprocessor('testscenarios',bgnts,endts)
-                dailydata['s_exec_cnt'] = str(scenariosobj['cnario_cnt'])
-                allusers = allusers + scenariosobj['active_usrs']
-
-##                tcasesinfo.append(dataprocessor('testcases',bgnts,endts))
-                testcasesobj=dataprocessor('testcases',bgnts,endts)
-                dailydata['t_exec_cnt'] = str(testcasesobj['tcases_cnt'])
-                allusers = allusers + testcasesobj['active_usrs']
-                print allusers
-                licensesarray=[]
-                licensesarray.append(str(len(set(allusers))))
-                dailydata['license_usd'] = licensesarray
-##                modelinfo['suites_init'] = suiteinfo
-##                modelinfo['cnario_init'] = cnarioinfo
-##                modelinfo['tcases_init'] = tcasesinfo
-                modelinfo.append(dailydata)
-                daybforedate=bgnyesday
-                bgnyesday=bgnoftday
-        else:
-            dailydata={}
-            allusers = []
-            dailydata['day'] = str(datetime.now())
-
-            bgnts=gettimestamp(bgnyesday)
-            endts=gettimestamp(bgnoftday)
-##            print bgnts
-##            print endts
-            resultset=getreports_in_day(bgnts,endts)
-##            modelinfo['reports_in_day']=reportdataprocessor(resultset,bgnyesday,bgnoftday)
-            reportobj=reportdataprocessor(resultset,bgnyesday,bgnoftday)
-            dailydata['r_exec_cnt'] = str(reportobj['reprt_cnt'])
-##            suiteinfo.append(dataprocessor('testsuites',bgnts,endts))
-            suiteobj = dataprocessor('testsuites',bgnts,endts)
-            dailydata['su_exec_cnt'] = str(suiteobj['suite_cnt'])
-            allusers = allusers + suiteobj['active_usrs']
-##            cnarioinfo.append(dataprocessor('testscenarios',bgnts,endts))
-            scenariosobj = dataprocessor('testscenarios',bgnts,endts)
-            dailydata['s_exec_cnt'] = str(scenariosobj['cnario_cnt'])
-            allusers = allusers + scenariosobj['active_usrs']
-##            tcasesinfo.append(dataprocessor('testcases',bgnts,endts))
-            testcasesobj = dataprocessor('testcases',bgnts,endts)
-            dailydata['t_exec_cnt'] = str(testcasesobj['tcases_cnt'])
-            allusers = allusers + testcasesobj['active_usrs']
-            print allusers
-            licensesarray=[]
-            licensesarray.append(str(len(set(allusers))))
-            dailydata['license_usd'] = licensesarray
-            modelinfo.append(dailydata)
-##            modelinfo['suites_init'] = suiteinfo
-##            modelinfo['cnario_init'] = cnarioinfo
-##            modelinfo['tcases_init'] = tcasesinfo
+        bgnyesday = getbgntime('prev')
+        bgnoftday = getbgntime('curr')
+        dailydata={}
+        allusers = []
+        dailydata['day'] = str(datetime.now())
+        bgnts=gettimestamp(bgnyesday)
+        endts=gettimestamp(bgnoftday)
+        resultset=getreports_in_day(bgnts,endts)
+        reportobj=reportdataprocessor(resultset,bgnyesday,bgnoftday)
+        dailydata['r_exec_cnt'] = str(reportobj['reprt_cnt'])
+        suiteobj = dataprocessor('testsuites',bgnts,endts)
+        dailydata['su_exec_cnt'] = str(suiteobj['suite_cnt'])
+        allusers = allusers + suiteobj['active_usrs']
+        scenariosobj = dataprocessor('testscenarios',bgnts,endts)
+        dailydata['s_exec_cnt'] = str(scenariosobj['cnario_cnt'])
+        allusers = allusers + scenariosobj['active_usrs']
+        testcasesobj = dataprocessor('testcases',bgnts,endts)
+        dailydata['t_exec_cnt'] = str(testcasesobj['tcases_cnt'])
+        allusers = allusers + testcasesobj['active_usrs']
+        licensesarray=[]
+        licensesarray.append(str(len(set(allusers))))
+        dailydata['license_usd'] = licensesarray
+        modelinfo.append(dailydata)
     except Exception as e:
-##        import traceback
-##        traceback.print_exc()
         app.logger.critical("Unable to contact storage areas 3")
     return modelinfo
 
@@ -2903,7 +2918,6 @@ def getMacAddress():
 
 def gettimestamp(date):
     timestampdata=''
-    import time
     import calendar
 ##    print time.strftime(str(date))
     date= datetime.strptime(str(date),"%Y-%m-%d %H:%M:%S")
@@ -2912,180 +2926,117 @@ def gettimestamp(date):
 
 
 def basecheckonls():
-    basecheckstatus=False
-    goahead = False
+    basecheckstatus = False
+    tokenExists = False
     try:
-        try:
-            #checks if the db is already existing,
-                #if exists, verifies the MAC address, if present allows further,
-                #else considers the Patch is replaced in another Machine
-            #else considers it to be 1st instance
-            if os.access(logspath+"/data.db",os.R_OK):
-                existingdata = dataholder('','select')
-                existingdata = unwrap(str(existingdata),mine)
-                existingdata =  ast.literal_eval(existingdata)
-                if str(existingdata['sysinfo']['mac']).strip() == str(getMacAddress()).strip():
-                    goahead = True
-                else:
-                    goahead = False
-            else:
-                goahead = True
-        except Exception as fileexception:
-            goahead = False
-##            import traceback
-##            traceback.print_exc()
-            app.logger.critical("Exception on reading file.")
-        if goahead:
-
-        ##    print mac
-        ##    data= {"action":"register","sysinfo":physical_trans,"visited":"no"}
-            baserequest= {"action": "register",
-                        "sysinfo": {"mac": str(getMacAddress()).strip(),"token": ""},
-                       "visited": "no"}
-            baserequest=wrap(str(baserequest),omgall)
-            connectresponse = connectingls(baserequest)
-    ##        print 'connectresponse:::',connectresponse
-            if connectresponse != False:
-                actresp = unwrap(str(connectresponse),omgall)
-    ##            print 'This is the value',actresp
-                actresp = ast.literal_eval(actresp)
-                if actresp['action'] == 'error':
-                        app.logger.error(actresp['lsinfotondac']['message'])
-                else:
-                    baseresponse = ndacinfo
-                    baseresponse['sysinfo']['tkn']=actresp['lsinfotondac']['lstokentondac'];
-    ##                baseresponse['sysinfo']['tkn']='';
-                    baseresponse['sysinfo']['mac']=str(getMacAddress()).strip();
-                    baseresponse['action']=actresp['action']
-    ##                print 'NDAC info:::\n\n',baseresponse
-                    wrappedbaseresponse=wrap(str(baseresponse),mine)
-                    dataholderresp=dataholder(wrappedbaseresponse,'new')
-                    if dataholderresp != False:
-                        basecheckstatus = dataholderresp
-    ##                a=dataholder(mywrapeddata,'select')
-    ##                print '\n\n\n',a
-    ##                myunwrapeddata=unwrap(str(a),mine)
-    ##                print '\n\n',myunwrapeddata
-                global onlineuser
-                onlineuser = True
-            else:
-                app.logger.error("Unable to connect to Server")
+        dbdata = dataholder('select')
+        dbdata = unwrap(str(dbdata),mine)
+        dbdata = ast.literal_eval(dbdata)
+        token=dbdata['tkn']
+        if token!='':
+            tokenExists=True
         else:
-            app.logger.critical("Something Fishy...")
+            tokenExists=False
+        EXPECTING_RESPONSE=str(int(time.time()*24150))
+        baserequest= {
+            "action": "register",
+            "token": token,
+            "lCheck": str(latest_access_time),
+            "ts": EXPECTING_RESPONSE
+        }
+        baserequest=wrap(str(baserequest),omgall)
+        connectresponse = connectingls(baserequest)
+        if connectresponse != False:
+            actresp = unwrap(str(connectresponse),omgall)
+            actresp = json.loads(actresp)
+            if actresp['ots']==EXPECTING_RESPONSE:
+                EXPECTING_RESPONSE=''
+                if actresp['res'] == 'F':
+                    emsg="[ ERROR CODE: "+actresp['ecode']+" ] "+actresp['message']
+                    app.logger.critical(emsg)
+                    if (actresp['ecode'] in LS_CRITICAL_ERR_CODE):
+                        stopserver()
+                elif actresp['res'] == 'S':
+                    global licensedata
+                    global onlineuser
+                    licensedata=actresp['ldata']
+                    if tokenExists:
+                        basecheckstatus = True
+                    else:
+                        dbdata['tkn']=actresp['token']
+                        datatodb=wrap(str(dbdata),mine)
+                        basecheckstatus=dataholder('update',datatodb)
+                    onlineuser = True
+        else:
+            if lsRetryCount<3:
+                app.logger.error(ERR_CODE['112'])
+                basecheckonls()
+            else:
+                app.logger.critical(ERR_CODE['115'])
+                startTwoDaysTimer()
     except Exception as e:
-##        import traceback
-##        traceback.print_exc()
         app.logger.critical("Unable to contact storage areas")
     return basecheckstatus
 
 def updateonls():
-    global lsondayone
-    global lsondaytwo
     try:
-        selected=dataholder('','select')
-        myunwrapeddata=unwrap(str(selected),mine)
-        processingdata = ast.literal_eval(myunwrapeddata)
-        updaterequest={}
-        modelinfo={}
-        updaterequest['sysinfo'] = processingdata['sysinfo']
-        updaterequest['modelinfo']=modelinfo
-##        modelinfores = modelinfoprocessor(processingdata)
-##        updaterequest['modelinfo']['execs_in_day']=modelinfores
-        modelinfores = modelinfoprocessor(processingdata)
-        updaterequest['modelinfo'] = modelinfores
-        updaterequest['action'] = 'update'
-        wrappedupdaterequest=wrap(str(updaterequest),omgall)
-        updateresponse = connectingls(wrappedupdaterequest)
+        global licensedata
+        info=dataholder('select')
+        dbdata=ast.literal_eval(unwrap(info,mine))
+        EXPECTING_RESPONSE=str(int(time.time()*24150))
+        modelinfores = modelinfoprocessor()
+        if(dbdata.has_key('mdlinfo')):
+            modelinfores.append(dbdata['mdlinfo'])
+        datatols={
+            "token": dbdata['tkn'],
+            "action": "update",
+            "ts": EXPECTING_RESPONSE,
+            "lCheck": str(latest_access_time),
+            "modelinfo": modelinfores
+        }
+        datatols=wrap(str(datatols),omgall)
+        updateresponse = connectingls(datatols)
         if updateresponse != False:
             cronograph()
-            updateresponse=unwrap(str(updateresponse),omgall)
-            updateresponse = ast.literal_eval(updateresponse)
-            if updateresponse['action'] == 'error':
-                app.logger.error(updateresponse['lsinfotondac']['message'])
-                errorstorage=dataholder('','select')
-                errorunwrap=unwrap(str(errorstorage),mine)
-                errorprocessed = ast.literal_eval(errorunwrap)
-                failtime=datetime.now()
-                errorprocessed['btchinfo']['prevbtch']['prevbtchtym'] =str(failtime)
-                errorprocessed['btchinfo']['prevbtch']['prevbtchmsg'] = updateresponse['lsinfotondac']['message']
-                nxtbatch = getbgntime('nxt',failtime)
-                errorprocessed['btchinfo']['nxtbtch'] = str(nxtbatch)
-                errorprocessed['btchinfo']['btchstts'] = updateresponse['action']
-                errorprocessed['action'] = 'update'
-                errorprocessed=wrap(str(errorstorage),mine)
-                updatestatus = dataholder(errorprocessed,'update')
-                if lsondayone != True and lsondaytwo != True:
-                    lsondayone = True
-                    app.logger.error("Could not connect to Server")
-                elif lsondayone == True and lsondaytwo !=True:
-                    lsondaytwo = True
-                    global onlineuser
-                    onlineuser = False
-                    app.logger.error("License Expired.")
-            else:
-                completemsg=updateresponse['lsinfotondac']['message']
-                token=processingdata['sysinfo']['tkn']
-                tokenreturned=completemsg.split('success')[1]
-                if (token == tokenreturned):
-                    lsondayone = False
-                    lsondaytwo = False
-                    successstorage=dataholder('','select')
-                    successunwrap=unwrap(str(successstorage),mine)
-                    successstorage = ast.literal_eval(successunwrap)
-                    successstorage['action'] = 'update'
-                    successstorage['btchinfo']['btchstts'] = 'success'
-                    successstorage['btchinfo']['nxtbtch'] = str(getbgntime('nxt',datetime.now()))
-                    successstorage=wrap(str(successstorage),mine)
-                    updatestatus = dataholder(str(successstorage),'update')
-                else:
-                    app.logger.error('Server Authentication Failed.Invalid Server Authentication.')
-                    errorstorage=dataholder('','select')
-                    errorunwrap=unwrap(str(errorstorage),mine)
-                    errorprocessed = ast.literal_eval(errorunwrap)
-                    failtime=datetime.now()
-                    errorprocessed['btchinfo']['prevbtch']['prevbtchtym'] =str(failtime)
-                    errorprocessed['btchinfo']['prevbtch']['prevbtchmsg'] = updateresponse['lsinfotondac']['message']
-                    nxtbatch = getbgntime('nxt',failtime)
-                    errorprocessed['btchinfo']['nxtbtch'] = str(nxtbatch)
-                    errorprocessed['btchinfo']['btchstts'] = updateresponse['action']
-                    errorprocessed['action'] = 'update'
-                    errorprocessed=wrap(str(errorstorage),mine)
-                    updatestatus = dataholder(errorprocessed,'update')
-                    if lsondayone != True and lsondaytwo != True:
-                        lsondayone = True
-                        app.logger.error("Could not connect to Server")
-                    elif lsondayone == True and lsondaytwo !=True:
-                        lsondaytwo = True
-                        global onlineuser
-                        onlineuser = False
-                        app.logger.error("License Expired.")
+            res = ast.literal_eval(unwrap(str(updateresponse),omgall))
+            if res['res'] == 'F':
+                emsg="[ ERROR CODE: "+res['ecode']+" ] "+res['message']
+                app.logger.critical(emsg)
+                if (res['ecode'] in LS_CRITICAL_ERR_CODE):
+                    stopserver()
+            elif res['res'] == 'S':
+                del dbdata['mdlinfo']
+                datatodb=wrap(str(dbdata),mine)
+                dataholder('update',datatodb)
+                if(res.has_key('ldata')):
+                    licensedata = res['ldata']
         else:
-            if lsondayone != True and lsondaytwo != True:
-                cronograph()
-                lsondayone = True
-                app.logger.error("Could not connect to Server")
-            elif lsondayone == True and lsondaytwo != True:
-                lsondaytwo = True
-                global onlineuser
-                onlineuser = False
-                app.logger.error("Licenses Expired.")
+            if lsRetryCount<3:
+                app.logger.error(ERR_CODE['112'])
+                updateonls()
+            else:
+                list(dbdata['mdlinfo']).append(modelinfores)
+                datatodb=wrap(str(dbdata),mine)
+                dataholder('update',datatodb)
+                app.logger.critical(ERR_CODE['115'])
+                startTwoDaysTimer()
     except Exception as e:
-        import traceback
-        traceback.print_exc()
         app.logger.critical("Unable to contact storage areas")
 
-def getbgntime(requiredday,currentday):
+def getbgntime(requiredday,*args):
     import datetime
+    currentday = ''
     day = ''
+    if len(args)==0:
+        currentday=datetime.datetime.now()
+    else:
+        currentday=args[0]
     if requiredday == 'prev':
         yesterday=currentday - datetime.timedelta(1)
         day=datetime.datetime(yesterday.year, yesterday.month, yesterday.day,0,0,0,0)
     elif requiredday == 'nxt':
         tomorrow=currentday + datetime.timedelta(1)
         day=datetime.datetime(tomorrow.year, tomorrow.month, tomorrow.day,0,0,0,0)
-    elif requiredday == 'daybefore':
-        daybefore=currentday - datetime.timedelta(2)
-        day=datetime.datetime(daybefore.year, daybefore.month, daybefore.day,0,0,0,0)
     elif requiredday == 'curr':
         day=datetime.datetime(currentday.year, currentday.month, currentday.day,0,0,0,0)
     elif requiredday == 'indate':
@@ -3093,19 +3044,19 @@ def getbgntime(requiredday,currentday):
     return day
 
 def connectingls(data):
+    global lsRetryCount,timer
+    lsRetryCount+=1
+    connectionstatus=False
     try:
-        connectionstatus=False
         lsresponse = requests.post('http://'+lsip+":5000/ndacrequest",data=data)
-##        lsresponse = requests.post("http://127.0.0.1:5000/ndacrequest",data=data)
         if lsresponse.status_code == 200:
+            lsRetryCount=0
             connectionstatus = lsresponse.content
-##        else:
-##            app.logger.error("Status Code:",lsresponse.content)
+            if( timer != None and timer.isAlive()):
+                timer.cancel()
+                timer=None
     except Exception as e:
-##        import traceback
-##        traceback.print_exc()
-        app.logger.critical("Liscense server must be running")
-        connectionstatus = False
+        app.logger.critical("License server must be running")
     return connectionstatus
 
 def offlineuserenabler(startdate,enddate,usermac):
@@ -3169,38 +3120,64 @@ def cronograph():
     except Exception as cronoexeption:
         app.logger.critical("<<<<Issue with the Server>>>>")
 
-
-def dataholder(data,querytype):
+def dataholder(ops,*args):
+    data = False
     try:
-        dataholderresp=False
-        #connect to a database(creates if doesnt exist)
-        conn = sqlite3.connect(logspath+"/data.db")
-        #create cursor
-        cursor = conn.cursor()
-        if querytype == 'update':
-            conn.execute("UPDATE clndls SET intrtkndt = ? WHERE sysid = 'ndackey'",[data])
-            dataholderresp = True
-        elif querytype == 'new':
-            cursor.execute("CREATE TABLE IF NOT EXISTS clndls (sysid TEXT PRIMARY KEY, intrtkndt TEXT);")
-            try:
-                cursor.execute("INSERT INTO clndls(sysid,intrtkndt) VALUES ('ndackey','"+data+"')")
-            except Exception as e:
-                dataholderresp = False
-##                app.logger.error("<<<<Running on existing DB>>>>")
-            dataholderresp = True
-        elif querytype == 'select':
-            cursor1=conn.execute("SELECT intrtkndt FROM clndls WHERE sysid='ndackey'")
-            for a in cursor1:
-                dataholderresp = a[0]
-        conn.commit()
-        conn.close()
-    except Exception as dataholderexeption:
-##        import traceback
-##        traceback.print_exc()
+        if ops=='check':
+            if os.access(logspath+"/data.db",os.R_OK):
+                data = True
+        else:
+            # CREATE DATABASE CONNECTION
+            conn = sqlite3.connect(logspath+"/data.db")
+            cursor = conn.cursor()
+            if ops=='select':
+                cursor1 = conn.execute("SELECT intrtkndt FROM clndls WHERE sysid='ndackey'")
+                for row in cursor1:
+                    data =  row[0]
+            elif ops=='update':
+                cursor1 = conn.execute("UPDATE clndls SET intrtkndt = ? WHERE sysid = 'ndackey'",args)
+                data=True
+            conn.commit()
+            conn.close()
+    except Exception as e:
         app.logger.critical("<<<<Issue with the Storing>>>>")
+    return data
 
-    return dataholderresp
+def checkSetup():
+    enndac=False
+    errmsg=''
+    #checks if the db is already existing,
+        #if exists, verifies the MAC address, if present allows further,
+        #else considers the Patch is replaced in another Machine
+    #else considers patch db is modified/deleted
+    dbexists=dataholder('check')
+    if dbexists:
+        info=dataholder('select')
+        if info !='':
+            #Retrieve the data from db and decrypt it
+            dbdata = ast.literal_eval(unwrap(info,mine))
+            dbmacid=dbdata['macid']
+            sysmacid=str(getMacAddress()).strip()
+            if len(dbmacid)==0:
+                enndac=True
+                dbdata['macid']=sysmacid
+                datatodb = wrap(str(dbdata),mine)
+                dataholder('update',datatodb)
+            elif dbmacid!=sysmacid:
+                enndac=False
+                errmsg=ERR_CODE['100']
+            else:
+                enndac=True
+        else:
+            enndac=False
+            errmsg=ERR_CODE['108']
+    else:
+        enndac=False
+        errmsg=ERR_CODE['101']
 
+    if len(errmsg)!=0:
+        app.logger.error(errmsg)
+    return enndac
 
 def beginserver():
     if dbup:
@@ -3208,18 +3185,26 @@ def beginserver():
     else:
         app.logger.critical("<<<<Database needs to be Started>>>>")
 
-def closehonor(result):
-    res={}
-    global lsondayone
-    global lsondaytwo
-    if lsondayone == True:
-        result["dayone"]="True"
-        res=result
-    elif lsondaytwo == True:
-        res["daytwo"]="True"
-    else:
-        res=result
-    return res
+def stopserver():
+    global onlineuser
+    onlineuser = False
+    app.logger.error("License Server can't be reached.")
+
+def startTwoDaysTimer():
+    import datetime
+    from threading import Timer
+    global timer
+    x= datetime.datetime.today()
+    updatehr=00
+    updatemin=00
+    updatesec=00
+    updatemcrs=00
+    y = x + datetime.timedelta(days=2)
+    k=y.replace(hour=updatehr, minute=updatemin, second=updatesec, microsecond=updatemcrs)
+    delta_t=k-x
+    secs=delta_t.seconds+1
+    timer = Timer(secs, stopserver)
+    timer.start()
 
 from Crypto import Random
 from Crypto.Cipher import AES
@@ -3318,9 +3303,6 @@ class SQLite_DataSetup():
 
             self.newQuesInfo.append(info)
         conn.close()
-
-
-
 
     try:
         # Function to get the Pages.
@@ -3711,64 +3693,64 @@ if __name__ == '__main__':
     formatter = logging.Formatter("[%(asctime)s] {%(pathname)s:%(lineno)d} %(levelname)s - %(message)s")
     inhandler = TimedRotatingFileHandler(logspath+'/ndac/ndac'+datetime.now().strftime("_%Y%m%d-%H%M%S")+'.log',when='d', encoding='utf-8', backupCount=1)
     global handler
+    global licensedata
     handler=inhandler
     handler.setLevel(logging.ERROR)
     handler.setFormatter(formatter)
     app.logger.addHandler(handler)
     app.logger.propagate = False
     mac = getMacAddress()
-    ndacinfo['sysinfo']['mac']=mac
-    if args.verbosity:
-        try:
-            f = open(sys.argv[-1],"r")
-            contents = f.read()
-            f.close()
-            userinformation=unwrap(str(contents),offreg)
-            userinfo=ast.literal_eval(userinformation)
+    cleanndac=checkSetup()
+    if not cleanndac:
+        app.logger.critical("Please contact Team - Nineteen68. Critical Error.")
+    else:
+        if args.verbosity:
+            try:
+                f = open(sys.argv[-1],"r")
+                contents = f.read()
+                f.close()
+                userinformation=unwrap(str(contents),offreg)
+                userinfo=ast.literal_eval(userinformation)
 
-            startdate = userinfo['offlinereginfo']['startdate']
-            if not ('-' in startdate):
-                startdate = datetime.strptime(startdate, '%m/%d/%Y')
-                startdate = getbgntime('indate',startdate)
-##                print startdate
-##                startdate = datetime.strptime(startdate,'%m/%d/%Y %H%M%S')
-            else:
-                startdate = datetime.strptime(startdate, '%m/%d/%Y-%H%M%S')
-
-            enddate = userinfo['offlinereginfo']['enddate']
-            if not ('-' in enddate):
-                enddate = datetime.strptime(enddate, '%m/%d/%Y')
-                enddate = getbgntime('indate',enddate)
-##                print enddate
-##                enddate = datetime.strptime(enddate,'%m/%d/%Y %H%M%S')
-            else:
-                enddate = datetime.strptime(enddate, '%m/%d/%Y-%H%M%S')
-            # this is provided as there was a request to create a key
-            # without mac address
-            if 'mac' in userinfo['offlinereginfo']:
-                if userinfo['offlinereginfo']['mac'] != 'NO':
-                    mac = userinfo['offlinereginfo']['mac']
+                startdate = userinfo['offlinereginfo']['startdate']
+                if not ('-' in startdate):
+                    startdate = datetime.strptime(startdate, '%m/%d/%Y')
+                    startdate = getbgntime('indate',startdate)
+                    ##print startdate
+                    ##startdate = datetime.strptime(startdate,'%m/%d/%Y %H%M%S')
                 else:
-                    mac = 'nomacaddress'
-            enabled = offlineuserenabler(startdate,enddate,mac)
-            if enabled == True:
+                    startdate = datetime.strptime(startdate, '%m/%d/%Y-%H%M%S')
+
+                enddate = userinfo['offlinereginfo']['enddate']
+                if not ('-' in enddate):
+                    enddate = datetime.strptime(enddate, '%m/%d/%Y')
+                    enddate = getbgntime('indate',enddate)
+                    ##print enddate
+                    ##enddate = datetime.strptime(enddate,'%m/%d/%Y %H%M%S')
+                else:
+                    enddate = datetime.strptime(enddate, '%m/%d/%Y-%H%M%S')
+                # this is provided as there was a request to create a key
+                # without mac address
+                if 'mac' in userinfo['offlinereginfo']:
+                    if userinfo['offlinereginfo']['mac'] != 'NO':
+                        mac = userinfo['offlinereginfo']['mac']
+                    else:
+                        mac = 'nomacaddress'
+                enabled = offlineuserenabler(startdate,enddate,mac)
+                licensedata=userinfo['licensedata']
+                if enabled == True:
+                    beginserver()
+                else:
+                    if (startdate > datetime.now()):
+                        scheduleenabler(offlinestarttime)
+                        app.logger.error("Server starts only after : "+str(offlinestarttime))
+                    else:
+                        app.logger.error("Please contact Team - Nineteen68. Issue: offlineuser.key");
+            except Exception as e:
+                app.logger.critical("Please contact Team - Nineteen68. Issue: Offline user")
+        else:
+            if (basecheckonls()):
+                cronograph()
                 beginserver()
             else:
-                if (startdate > datetime.now()):
-                    scheduleenabler(offlinestarttime)
-                    app.logger.error("Server starts only after : "+str(offlinestarttime))
-                else:
-                    app.logger.error("Please contact Team - Nineteen68. Issue: offlineuser.key");
-        except Exception as e:
-##            import traceback
-##            traceback.print_exc()
-            app.logger.critical("Please contact Team - Nineteen68. Issue: Offline user")
-
-    else:
-        if (basecheckonls()):
-            cronograph()
-        ##        app.run(host='127.0.0.1',port=1990,debug=False)
-
-            beginserver()
-        else:
-            app.logger.critical("Please contact Team - Nineteen68. Critical Error.")
+                app.logger.critical("Please contact Team - Nineteen68. Issue: License Server")
