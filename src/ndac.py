@@ -3003,6 +3003,9 @@ def updateonls():
                 emsg="[ ERROR CODE: "+res['ecode']+" ] "+res['message']
                 app.logger.critical(emsg)
                 if (res['ecode'] in LS_CRITICAL_ERR_CODE):
+                    dbdata['mdlinfo']=modelinfores
+                    datatodb=wrap(str(dbdata),mine)
+                    dataholder('update',datatodb)
                     stopserver()
             elif res['res'] == 'S':
                 del dbdata['mdlinfo']
@@ -3015,7 +3018,7 @@ def updateonls():
                 app.logger.error(ERR_CODE['112'])
                 updateonls()
             else:
-                list(dbdata['mdlinfo']).append(modelinfores)
+                dbdata['mdlinfo']=modelinfores
                 datatodb=wrap(str(dbdata),mine)
                 dataholder('update',datatodb)
                 app.logger.critical(ERR_CODE['115'])
