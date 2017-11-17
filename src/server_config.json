@@ -1,9 +1,7 @@
 {
-	"ndac": {
-		"licenseserver":"licenseserverip",
-		"databaseip": "databaseip",
-		"dbport": "dbport",
-		"dbusername": "dbusername",
-		"dbpassword": "dbpassword"
-	}
+    "licenseserver":"licenseserverip",
+    "databaseip": "databaseip",
+    "dbport": "9042",
+    "dbusername": "nineteen68",
+    "dbpassword": "dbpassword"
 }

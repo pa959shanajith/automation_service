@@ -51,19 +51,17 @@ logspath= currdir + "/ndac_internals/logs"
 
 ndac_conf = json.loads(open(config_path).read())
 
-lsip = ndac_conf['ndac']['licenseserver']
+lsip = ndac_conf['licenseserver']
 from cassandra.cluster import Cluster
 from flask_cassandra import CassandraCluster
 from cassandra.auth import PlainTextAuthProvider
 dbup = False
 try:
-    auth = PlainTextAuthProvider(username=ndac_conf['ndac']['dbusername'], password=ndac_conf['ndac']['dbpassword'])
-    cluster = Cluster([ndac_conf['ndac']['databaseip']],port=int(ndac_conf['ndac']['dbport']),auth_provider=auth)
+    auth = PlainTextAuthProvider(username=ndac_conf['dbusername'], password=ndac_conf['dbpassword'])
+    cluster = Cluster([ndac_conf['databaseip']],port=int(ndac_conf['dbport']),auth_provider=auth)
 
     icesession = cluster.connect()
     n68session = cluster.connect()
-    icehistorysession = cluster.connect()
-    n68historysession = cluster.connect()
 
     from cassandra.query import dict_factory
     icesession.row_factory = dict_factory
@@ -494,8 +492,8 @@ def get_node_details_ICE():
             get_node_data=query[query_name]+requestdata['id']+query['delete_flag']
             queryresult = icesession.execute(get_node_data)
             res={'rows':queryresult.current_rows}
-            if(len(queryresult.current_rows)!=0 and res['rows'][0]['history'] != None):
-                res['rows'][0]['history']=dict(res['rows'][0]['history'])
+##            if(len(queryresult.current_rows)!=0 and res['rows'][0]['history'] != None):
+##                res['rows'][0]['history']=dict(res['rows'][0]['history'])
        else:
             app.logger.error("Empty data received. testcase_exists")
     except Exception as e:
@@ -536,15 +534,15 @@ def insertInSuite_ICE():
                     if (len(fetchqueryresult.current_rows)!=0):
                         fetchqueryresult = fetchqueryresult.current_rows[0]
                         tags="['"+"','".join(fetchqueryresult['tags'])+"']"
-                history=createHistory("create","modules",requestdata)
+                #history=createHistory("create","modules",requestdata)
                 create_suite_query1 = ("insert into modules "
                 +"(projectid,modulename,moduleid,versionnumber,createdby,createdon,"
-                +" createdthrough,deleted,history,skucodemodule,tags,testscenarioids) values( "
+                +" createdthrough,deleted,skucodemodule,tags,testscenarioids) values( "
                 +requestdata['projectid']+",'" + requestdata['modulename']
                 +"'," + requestdata['moduleid'] + ","+str(requestdata['versionnumber'])
                 +",'"+requestdata['createdby']+"'," + str(getcurrentdate())
                 + ",'"+requestdata['createdthrough']+"',"+str(requestdata['deleted'])
-                +","+str(history)+", '"+requestdata['skucodemodule']+"',"+tags+",[])")
+                +", '"+requestdata['skucodemodule']+"',"+tags+",[])")
                 queryresult = icesession.execute(create_suite_query1)
                 res={'rows':'Success'}
            elif(requestdata["query"] == 'selectsuite'):
@@ -576,13 +574,13 @@ def insertInScenarios_ICE():
                     if (len(fetchqueryresult.current_rows)!=0):
                         fetchqueryresult = fetchqueryresult.current_rows[0]
                         tags="['"+"','".join(fetchqueryresult['tags'])+"']"
-                history=createHistory("create","testscenarios",requestdata)
+                #history=createHistory("create","testscenarios",requestdata)
                 create_scenario_query1 = ("insert into testscenarios(projectid,"
-                +"testscenarioname,testscenarioid,versionnumber,history,createdby"
+                +"testscenarioname,testscenarioid,versionnumber,createdby"
                 +",createdon,skucodetestscenario,tags,testcaseids,deleted) values ("
                 +requestdata['projectid'] + ",'"+requestdata['testscenarioname']
                 +"',"+requestdata['testscenarioid']+","+str(requestdata['versionnumber'])
-                +", "+str(history)+",'"+requestdata['createdby']+"'," + str(getcurrentdate())
+                +",'"+requestdata['createdby']+"'," + str(getcurrentdate())
                 +", '"+requestdata['skucodetestscenario']+"',"+tags+",[],"+str(requestdata['deleted'])+")")
                 queryresult = icesession.execute(create_scenario_query1)
                 res={'rows':'success'}
@@ -619,12 +617,12 @@ def insertInScreen_ICE():
                         fetchqueryresult = fetchqueryresult.current_rows[0]
                         tags="['"+"','".join(fetchqueryresult['tags'])+"']"
                         screendata=fetchqueryresult['screendata']
-                history=createHistory("create","screens",requestdata)
+                #history=createHistory("create","screens",requestdata)
                 create_screen_query1 = ("insert into screens (projectid,screenname,"
-                +" screenid,versionnumber,history,createdby,createdon,createdthrough,"
+                +" screenid,versionnumber,createdby,createdon,createdthrough,"
                 +" deleted,screendata,skucodescreen,tags) values ("+requestdata['projectid']
                 +", '"+requestdata['screenname']+"'," + requestdata['screenid']
-                +" , "+str(requestdata['versionnumber'])+", "+str(history)
+                +" , "+str(requestdata['versionnumber'])
                 +" ,'"+requestdata['createdby']+"'," + str(getcurrentdate())
                 +", '"+requestdata['createdthrough']+"' , "+str(requestdata['deleted'])
                 +",'"+screendata+"','"+requestdata['skucodescreen']+"',"+tags+")")
@@ -661,13 +659,13 @@ def insertInTestcase_ICE():
                         fetchqueryresult = fetchqueryresult.current_rows[0]
                         tags="['"+"','".join(fetchqueryresult['tags'])+"']"
                         testcasesteps=fetchqueryresult['testcasesteps']
-                history=createHistory("create","testcases",requestdata)
+                #history=createHistory("create","testcases",requestdata)
                 create_testcase_query1 = ("insert into testcases (screenid,"
-                +"testcasename,testcaseid,versionnumber,history,createdby,createdon,"
+                +"testcasename,testcaseid,versionnumber,createdby,createdon,"
                 +"createdthrough,deleted,skucodetestcase,tags,testcasesteps)values ("
                 +requestdata['screenid'] + ",'" + requestdata['testcasename']
                 +"'," + requestdata['testcaseid'] + ","+str(requestdata['versionnumber'])
-                +", "+str(history)+",'"+ requestdata['createdby']+"'," + str(getcurrentdate())+", '"
+                +",'"+ requestdata['createdby']+"'," + str(getcurrentdate())+", '"
                 +requestdata['createdthrough'] +"',"+str(requestdata['deleted'])+",'"
                 +requestdata['skucodetestcase']+"',"+tags+",'"+testcasesteps+"')")
                 queryresult = icesession.execute(create_testcase_query1)
@@ -691,14 +689,13 @@ def updateTestScenario_ICE():
        requestdata=json.loads(request.data)
        if not isemptyrequest(requestdata):
             ##requestdata['testcaseid']=','.join(str(idval) for idval in requestdata['testcaseid'])
-            history=createHistory("update","testscenarios",requestdata)
+            #history=createHistory("update","testscenarios",requestdata)
             if(requestdata['modifiedflag']):
                 updateicescenario_query =("update testscenarios set "
                 +"testcaseids=testcaseids+["+requestdata['testcaseid']
                 +"],modifiedby='"+requestdata['modifiedby']
                 +"',modifiedbyrole='"+requestdata['modifiedbyrole']
                 +"',modifiedon="+str(getcurrentdate())
-                +", history = history + "+str(history)
                 +" where projectid ="+requestdata['projectid']
                 +"and testscenarioid ="+requestdata['testscenarioid']
                 +" and testscenarioname = '"+requestdata['testscenarioname']
@@ -706,8 +703,7 @@ def updateTestScenario_ICE():
             else:
                 updateicescenario_query =("update testscenarios set "
                 +"testcaseids=testcaseids+["+requestdata['testcaseid']
-                +"], history = history + "+str(history)
-                +" where projectid ="+requestdata['projectid']
+                +"] where projectid ="+requestdata['projectid']
                 +"and testscenarioid ="+requestdata['testscenarioid']
                 +" and testscenarioname = '"+requestdata['testscenarioname']
                 +"' and versionnumber="+str(requestdata['versionnumber'])+" IF EXISTS")
@@ -726,18 +722,18 @@ def updateModule_ICE():
        requestdata=json.loads(request.data)
        if not isemptyrequest(requestdata):
             requestdata['testscenarioids']=','.join(str(idval) for idval in requestdata['testscenarioids'])
-            history=createHistory("update","modules",requestdata)
+            #history=createHistory("update","modules",requestdata)
             if(requestdata['modifiedflag']):
                 updateicemodules_query = ("update modules set testscenarioids ="
                 +"["+requestdata['testscenarioids']+"],modifiedby='"+requestdata['modifiedby']
                 +"',modifiedbyrole='"+requestdata['modifiedbyrole']
-                +"',modifiedon="+str(getcurrentdate())+", history = history+"+str(history)+" where moduleid="
+                +"',modifiedon="+str(getcurrentdate())+" where moduleid="
                 +requestdata['moduleid']+" and projectid="+requestdata['projectid']
                 +" and modulename='"+requestdata['modulename']+"' and "
                 +"versionnumber="+str(requestdata['versionnumber'])+" IF EXISTS")
             else:
                 updateicemodules_query = ("update modules set "
-                +"testscenarioids = ["+requestdata['testscenarioids']+"]"+", history=history+"+str(history)+" where "
+                +"testscenarioids = ["+requestdata['testscenarioids']+"] where "
                 +"moduleid="+requestdata['moduleid']+" and "
                 +"projectid="+requestdata['projectid']+" and "
                 +"modulename='"+requestdata['modulename']+"' and "
@@ -756,16 +752,16 @@ def updateModulename_ICE():
     try:
        requestdata=json.loads(request.data)
        if not isemptyrequest(requestdata):
-             history=createHistory("rename","modules",requestdata)
+             #history=createHistory("rename","modules",requestdata)
              requestdata['testscenarioids']=','.join(str(idval) for idval in requestdata['testscenarioids'])
              update_modulename_query =("insert into modules "
              +"(projectid,modulename,moduleid,versionnumber,modifiedby,modifiedbyrole,modifiedon,createdby,createdon,"
-             +" createdthrough,deleted,history,skucodemodule,tags,testscenarioids) values ("
+             +" createdthrough,deleted,skucodemodule,tags,testscenarioids) values ("
              +requestdata['projectid']+",'" + requestdata['modulename']
              +"'," + requestdata['moduleid'] + ","+str(requestdata['versionnumber'])
              +",'"+requestdata['modifiedby']+"','"+requestdata['modifiedbyrole']
              +"',"+ str(getcurrentdate())+",'"+requestdata['createdby'] +"'," + str(getcurrentdate())
-             + ",'"+requestdata['createdthrough']+"',"+str(requestdata['deleted'])+","+str(history)
+             + ",'"+requestdata['createdthrough']+"',"+str(requestdata['deleted'])
              +", '"+requestdata['skucodemodule']+"',['"+requestdata['tags']+"'],["+requestdata['testscenarioids']+"])")
              queryresult = icesession.execute(update_modulename_query)
              res={'rows':'Success'}
@@ -781,13 +777,13 @@ def updateTestscenarioname_ICE():
     try:
        requestdata=json.loads(request.data)
        if not isemptyrequest(requestdata):
-            history=createHistory("rename","testscenarios",requestdata)
+            #history=createHistory("rename","testscenarios",requestdata)
             requestdata['testcaseids'] = ','.join(str(idval) for idval in requestdata['testcaseids'])
             update_testscenario_name_query =("insert into testscenarios "
-            +"(projectid,testscenarioname,testscenarioid,versionnumber,history,modifiedby,modifiedbyrole,modifiedon,createdby,createdon,"
+            +"(projectid,testscenarioname,testscenarioid,versionnumber,modifiedby,modifiedbyrole,modifiedon,createdby,createdon,"
             +" deleted,skucodetestscenario,tags,testcaseids) values ("
             +requestdata['projectid']+",'"+ requestdata['testscenarioname']
-            +"',"+requestdata['testscenarioid']+","+str(requestdata['versionnumber'])+","+str(history)
+            +"',"+requestdata['testscenarioid']+","+str(requestdata['versionnumber'])
             +",'"+requestdata['modifiedby']+"','"+requestdata['modifiedbyrole']
             +"',"+ str(getcurrentdate())+",'"+requestdata['createdby'] +"'," + str(requestdata['createdon'])
             + ","+str(requestdata['deleted'])+",'"+requestdata['skucodetestscenario']+"',['"
@@ -810,14 +806,14 @@ def updateScreenname_ICE():
         if(requestdata['screendata'] == ''):
             requestdata['screendata'] = ' '
         if not isemptyrequest(requestdata):
-            history=createHistory("rename","screens",requestdata)
+            #history=createHistory("rename","screens",requestdata)
             update_screenname_query =("insert into screens (projectid,screenname,"
-            +"screenid,versionnumber,createdby,createdon,createdthrough,deleted,history,"
+            +"screenid,versionnumber,createdby,createdon,createdthrough,deleted,"
             +"modifiedby,modifiedbyrole,modifiedon,screendata,skucodescreen,tags"
             +") values ("+requestdata['projectid']+",'"+requestdata['screenname']
             +"',"+requestdata['screenid']+","+str(requestdata['versionnumber'])
             +",'"+requestdata['createdby']+"',"+requestdata['createdon']
-            +",'"+requestdata['createdthrough']+"',"+str(requestdata['deleted'])+","+str(history)
+            +",'"+requestdata['createdthrough']+"',"+str(requestdata['deleted'])
             +",'"+requestdata['modifiedby']+"','"+requestdata['modifiedbyrole']
             +"',"+str(getcurrentdate())+",'"+requestdata['screendata']
             +"','"+requestdata['skucodescreen']+"',['"+requestdata['tags']+"'])")
@@ -838,16 +834,16 @@ def updateTestcasename_ICE():
        if(requestdata['testcasesteps'] == ''):
             requestdata['testcasesteps'] = ' '
        if not isemptyrequest(requestdata):
-            history=createHistory("rename","testcases",requestdata)
+            #history=createHistory("rename","testcases",requestdata)
             update_testcasename_query =("insert into testcases (screenid,testcasename,"
             "testcaseid,versionnumber,createdby,createdon,createdthrough,deleted,"
-            +"modifiedby,modifiedbyrole,modifiedon,history,skucodetestcase,tags,"
+            +"modifiedby,modifiedbyrole,modifiedon,skucodetestcase,tags,"
             +"testcasesteps) values ("+requestdata['screenid']+",'"
             +requestdata['testcasename']+"',"+requestdata['testcaseid']+","
             +str(requestdata['versionnumber'])+",'"+requestdata['createdby']
             +"',"+str(requestdata['createdon'])+",'"+requestdata['createdthrough']
             +"',"+str(requestdata["deleted"])+",'"+requestdata['modifiedby']
-            +"','"+requestdata['modifiedbyrole']+"',"+str(getcurrentdate())+","+str(history)
+            +"','"+requestdata['modifiedbyrole']+"',"+str(getcurrentdate())
             +",'"+requestdata['skucodetestcase']+"',['"+requestdata['tags']
             +"'],'"+requestdata['testcasesteps']+"')")
             queryresult = icesession.execute(update_testcasename_query)
@@ -859,46 +855,46 @@ def updateTestcasename_ICE():
     return jsonify(res)
 
 
-@app.route('/create_ice/submitTask',methods=['POST'])
-def submitTask():
-    res={'rows':'fail'}
-    try:
-       requestdata=json.loads(request.data)
-       if not isemptyrequest(requestdata):
-            history=createHistory("submit",requestdata['table'].lower(),requestdata)
-            if(requestdata['table'].lower()=='screens'):
-                query1=("update screens set history=history + "+str(history)+" where screenid="
-                +str(requestdata['details']['screenID_c'])+" and screenname='"+requestdata['details']['screenName']
-                +"' and projectid="+str(requestdata['details']['projectID'])+" and versionnumber="
-                +str(requestdata['versionnumber']))
-                queryresult = icesession.execute(query1)
-                res={'rows':'Success'}
-            if(requestdata['table'].lower()=='testscenarios'):
-                query2=("update testscenarios set history=history + "+str(history)+" where testscenarioid="
-                +str(requestdata['details']['testScenarioID_c'])+" and testscenarioname='"+requestdata['details']['testScenarioName']
-                +"' and projectid="+str(requestdata['details']['projectID'])+" and versionnumber="
-                +str(requestdata['versionnumber']))
-                queryresult = icesession.execute(query2)
-                res={'rows':'Success'}
-            if(requestdata['table'].lower()=='modules'):
-                query3=("update modules set history=history + "+str(history)+" where moduleid="
-                +str(requestdata['details']['moduleID_c'])+" and modulename='"+requestdata['details']['moduleName']
-                +"' and projectid="+str(requestdata['details']['projectID'])+" and versionnumber="
-                +str(requestdata['versionnumber']))
-                queryresult = icesession.execute(query3)
-                res={'rows':'Success'}
-            if(requestdata['table'].lower()=='testcases'):
-                query4=("update testcases set history=history + "+str(history)+" where testcaseid="
-                +str(requestdata['details']['testCaseID_c'])+" and testcasename='"+requestdata['details']['testCaseName']
-                +"' and screenid="+str(requestdata['details']['screenID_c'])+" and versionnumber="
-                +str(requestdata['versionnumber']))
-                queryresult = icesession.execute(query4)
-                res={'rows':'Success'}
-       else:
-            app.logger.error("Empty data received. submitTask")
-    except Exception as e:
-        app.logger.error('Error in submitTask.')
-    return jsonify(res)
+##@app.route('/create_ice/submitTask',methods=['POST'])
+##def submitTask():
+##    res={'rows':'fail'}
+##    try:
+##       requestdata=json.loads(request.data)
+##       if not isemptyrequest(requestdata):
+##            #history=createHistory("submit",requestdata['table'].lower(),requestdata)
+##            if(requestdata['table'].lower()=='screens'):
+##                query1=("update screens set history=history + "+str(history)+" where screenid="
+##                +str(requestdata['details']['screenID_c'])+" and screenname='"+requestdata['details']['screenName']
+##                +"' and projectid="+str(requestdata['details']['projectID'])+" and versionnumber="
+##                +str(requestdata['versionnumber']))
+##                queryresult = icesession.execute(query1)
+##                res={'rows':'Success'}
+##            if(requestdata['table'].lower()=='testscenarios'):
+##                query2=("update testscenarios set history=history + "+str(history)+" where testscenarioid="
+##                +str(requestdata['details']['testScenarioID_c'])+" and testscenarioname='"+requestdata['details']['testScenarioName']
+##                +"' and projectid="+str(requestdata['details']['projectID'])+" and versionnumber="
+##                +str(requestdata['versionnumber']))
+##                queryresult = icesession.execute(query2)
+##                res={'rows':'Success'}
+##            if(requestdata['table'].lower()=='modules'):
+##                query3=("update modules set history=history + "+str(history)+" where moduleid="
+##                +str(requestdata['details']['moduleID_c'])+" and modulename='"+requestdata['details']['moduleName']
+##                +"' and projectid="+str(requestdata['details']['projectID'])+" and versionnumber="
+##                +str(requestdata['versionnumber']))
+##                queryresult = icesession.execute(query3)
+##                res={'rows':'Success'}
+##            if(requestdata['table'].lower()=='testcases'):
+##                query4=("update testcases set history=history + "+str(history)+" where testcaseid="
+##                +str(requestdata['details']['testCaseID_c'])+" and testcasename='"+requestdata['details']['testCaseName']
+##                +"' and screenid="+str(requestdata['details']['screenID_c'])+" and versionnumber="
+##                +str(requestdata['versionnumber']))
+##                queryresult = icesession.execute(query4)
+##                res={'rows':'Success'}
+##       else:
+##            app.logger.error("Empty data received. submitTask")
+##    except Exception as e:
+##        app.logger.error('Error in submitTask.')
+##    return jsonify(res)
 ################################################################################
 # END OF MIND MAPS
 ################################################################################
@@ -1027,14 +1023,13 @@ def updateScreen_ICE():
     try:
         requestdata=json.loads(request.data)
         if not isemptyrequest(requestdata):
-            history=createHistory("update","screens",requestdata)
+            #history=createHistory("update","screens",requestdata)
             updatescreenquery=("update icetestautomation.screens set"
 			+" screendata ='"+ requestdata['scrapedata'] +"',"
 			+" modifiedby ='" + requestdata['modifiedby'] + "',"
 			+" modifiedon = '" + str(getcurrentdate())
 			+"', skucodescreen ='" + requestdata['skucodescreen']
-            +"', history = history+"+str(history)
-			+" where screenid = "+requestdata['screenid']
+			+"' where screenid = "+requestdata['screenid']
 			+" and projectid = "+requestdata['projectid']
 			+" and screenname ='" + requestdata['screenname']
 			+"' and versionnumber = "+str(requestdata['versionnumber'])
@@ -1066,14 +1061,13 @@ def updateTestCase_ICE():
                 res= {"rows": queryresult.current_rows}
                 res =  jsonify(res)
             elif(requestdata["query"] == 'updatetestcasedata'):
-                history=createHistory("update","testcases",requestdata)
+                #history=createHistory("update","testcases",requestdata)
                 updatetestcasequery2 = ("update testcases set "
                 + "modifiedby = '" + requestdata['modifiedby']
                 + "', modifiedon='" + str(getcurrentdate())
         		+"',  skucodetestcase='" + requestdata["skucodetestcase"]
         		+"',  testcasesteps='" + requestdata["testcasesteps"]
-                +"', history=history+"+str(history)
-        		+" where versionnumber = "+str(requestdata["versionnumber"])
+        		+"' where versionnumber = "+str(requestdata["versionnumber"])
                 +" and screenid=" + str(requestdata["screenid"])
                 + " and testcaseid=" + str(requestdata["testcaseid"])
                 + " and testcasename='" + requestdata["testcasename"] + "' if exists")
@@ -1188,16 +1182,15 @@ def readTestSuite_ICE():
                     else:
                         getparampaths.append(eachgetparampath)
                 requestdata['testscenarioids'] = ','.join(str(idval) for idval in requestdata['testscenarioids'])
-                history=createHistory("create","testsuites",requestdata)
+                #history=createHistory("create","testsuites",requestdata)
                 readtestsuitequery3 = ("insert into testsuites "+
                 "(cycleid,testsuitename,testsuiteid,versionnumber,conditioncheck,"
-                +"createdby,createdon,createdthrough,history,deleted,donotexecute,getparampaths,"
+                +"createdby,createdon,createdthrough,deleted,donotexecute,getparampaths,"
                 +"skucodetestsuite,tags,testscenarioids) values ("
                 +requestdata["cycleid"]+",'"+requestdata["testsuitename"]+"',"
                 +requestdata["testsuiteid"]+","+str(requestdata["versionnumber"])+",["
                 +requestdata["conditioncheck"]+"],'"+requestdata["createdby"]+"',"
                 +str(getcurrentdate())+",'"+requestdata["createdthrough"]+"',"
-                +str(history)+","
                 +str(requestdata["deleted"])+",["+requestdata["donotexecute"]+"],["
                 +requestdata['getparampaths'] +"],'"+requestdata["skucodetestsuite"]+"',['"
                 +requestdata["tags"]+"'],["+requestdata["testscenarioids"]+"])")
@@ -1207,8 +1200,6 @@ def readTestSuite_ICE():
                 +"where testsuiteid = " + requestdata["testsuiteid"]
                 + " and cycleid=" + requestdata["cycleid"]+query['delete_flag'])
                 queryresult = icesession.execute(readtestsuitequery4)
-                if(len(queryresult.current_rows)!=0 and queryresult.current_rows[0]['history'] != None):
-                    queryresult.current_rows[0]['history'] = dict(queryresult.current_rows[0]['history'])
             elif(requestdata["query"] == 'delete'):
                 readtestsuitequery5 = ("delete from testsuites where "+
                 "testsuiteid=" + requestdata["testsuiteid"]
@@ -1221,16 +1212,15 @@ def readTestSuite_ICE():
                 requestdata['donotexecute'] = ','.join(str(idval) for idval in requestdata['donotexecute'])
                 requestdata['getparampaths'] = ','.join(str(idval) for idval in requestdata['getparampaths'])
                 requestdata['testscenarioids'] = ','.join(str(idval) for idval in requestdata['testscenarioids'])
-                history=createHistory("update","testsuites",requestdata)
+                #history=createHistory("update","testsuites",requestdata)
                 readtestsuitequery6 = ("insert into testsuites (cycleid,testsuitename,"
                 +"testsuiteid,versionnumber,conditioncheck,createdby,createdon,"
-                +"createdthrough,history,deleted,donotexecute,getparampaths,modifiedby,"
+                +"createdthrough,deleted,donotexecute,getparampaths,modifiedby,"
                 +"modifiedon,skucodetestsuite,tags,testscenarioids) values ("
                 +requestdata["cycleid"]+",'"+requestdata["testsuitename"]+"',"
                 +requestdata["testsuiteid"]+","+str(requestdata["versionnumber"])
                 +",["+requestdata["conditioncheck"]+"],'"+requestdata["createdby"]+"',"
                 +requestdata["createdon"]+",'"+requestdata["createdthrough"]+"',"
-                +str(history)+","
                 +str(requestdata["deleted"])+",["+requestdata["donotexecute"]+"],["+
                 requestdata["getparampaths"]+"],'"+requestdata["modifiedby"]+"',"
                 +str(getcurrentdate())+",'"+requestdata["skucodetestsuite"]+"',['"+
@@ -1283,7 +1273,7 @@ def updateTestSuite_ICE():
                 +" and versionnumber ="+str(requestdata['versionnumber'])+";")
                 queryresult = icesession.execute(deletetestsuitequery)
             elif(requestdata['query'] == 'updatetestsuitedataquery'):
-                history=createHistory("update","testsuites",requestdata)
+                #history=createHistory("update","testsuites",requestdata)
                 updatetestsuitedataquery=("update testsuites set"
                 +" conditioncheck= conditioncheck + [" + requestdata['conditioncheck']
                 +"], donotexecute=donotexecute + [" + str(requestdata['donotexecute'])
@@ -1293,7 +1283,7 @@ def updateTestSuite_ICE():
                 +"', modifiedbyrole='"+requestdata['modifiedbyrole']
                 +"',skucodetestsuite='"+requestdata['skucodetestsuite']
                 +"',tags=['"+requestdata['tags']
-                +"'], modifiedon="+str(getcurrentdate())+",history=history+"+str(history)
+                +"'], modifiedon="+str(getcurrentdate())
                 +" where cycleid="+ requestdata['cycleid']
                 +" and testsuiteid="+ requestdata['testsuiteid']
                 +" and versionnumber = "+ str(requestdata['versionnumber'])
@@ -1681,14 +1671,16 @@ def createUser_Nineteen68():
                 userid = str(uuid.uuid4())
                 deactivated = False
                 requestdata['userid']=userid
-                history = createHistory("create","users",requestdata)
+                if(requestdata['ldapuser'] == False):
+                    requestdata['password'] = "'"+requestdata['password']+"'"
+                #history = createHistory("create","users",requestdata)
                 createuserquery2=("insert into users (userid,createdby,createdon,"
-                +"defaultrole,deactivated,emailid,firstname,lastname,history,ldapuser,password,username) values"
+                +"defaultrole,deactivated,emailid,firstname,lastname,ldapuser,password,username) values"
                 +"( "+str(userid)+" , '"+requestdata['username']+"' , "
                 + str(getcurrentdate())+" , "+requestdata['defaultrole']+" , "
                 +str(deactivated)+" , '"+requestdata['emailid']+"' , '"
                 +requestdata['firstname']+"' , '"+requestdata['lastname']+"' , "
-                +str(history)+" , "+str(requestdata['ldapuser'])+" , '"+requestdata['password']+"' , '"
+                +str(requestdata['ldapuser'])+" , "+requestdata['password']+" , '"
                 +requestdata['username']+"')")
                 queryresult = n68session.execute(createuserquery2)
                 res={'rows':'Success'}
@@ -1746,7 +1738,7 @@ def updateUser_Nineteen68():
         requestdata=json.loads(request.data)
         if not isemptyrequest(requestdata):
             requestdata['additionalroles'] = ','.join(str(roleid) for roleid in requestdata['additionalroles'])
-            history = createHistory("update","users",requestdata)
+            #history = createHistory("update","users",requestdata)
             if requestdata['password'] == 'existing':
                 updateuserquery2=("UPDATE users set "
                 +"username='" + requestdata['username']
@@ -1756,7 +1748,6 @@ def updateUser_Nineteen68():
                 + "', modifiedon=" + str(getcurrentdate())
                 + ", emailid='" + requestdata['emailid']
                 + "', ldapuser= " + str(requestdata['ldapuser'])
-                + ", history=history+"+str(history)
                 + ", modifiedbyrole= '" + str(requestdata['modifiedbyrole'])
                 + "', additionalroles= {" + str(requestdata['additionalroles'])
                 + "} where userid=" + str(requestdata['userid']))
@@ -1770,7 +1761,6 @@ def updateUser_Nineteen68():
                 + "', modifiedon=" + str(getcurrentdate())
                 + ", emailid='" + requestdata['emailid']
                 + "', ldapuser= " + str(requestdata['ldapuser'])
-                + ", history=history+"+str(history)
                 + ", modifiedbyrole= '" + str(requestdata['modifiedbyrole'])
                 + "', additionalroles= {" + str(requestdata['additionalroles'])
                 + "} where userid=" + str(requestdata['userid']))
@@ -1800,13 +1790,13 @@ def createProject_ICE():
             elif(requestdata['query'] == 'createproject'):
                 projectid =uuid.uuid4()
                 requestdata['projectid']=projectid
-                history = createHistory("create","projects",requestdata)
+                #history = createHistory("create","projects",requestdata)
                 createprojectquery1 = ("insert into projects (domainid,projectname,"
-                +"projectid,createdby,createdon,deleted,history,projecttypeid,"
+                +"projectid,createdby,createdon,deleted,projecttypeid,"
                 +"skucodeproject,tags)values ( "+str(requestdata['domainid'])
                 +", '"+requestdata['projectname']+"' , "+str(projectid)
                 +", '"+requestdata['createdby']+"',"+str(getcurrentdate())
-                +", false, "+str(history)+", "+requestdata['projecttypeid']
+                +", false, "+requestdata['projecttypeid']
                 +",'"+requestdata['skucodeproject']+"' , ['"+requestdata['tags']+"']);")
                 projectid = {'projectid':projectid}
                 queryresult = icesession.execute(createprojectquery1)
@@ -1815,16 +1805,16 @@ def createProject_ICE():
                 releaseid=''
                 if requestdata.has_key('releaseid'):
                     releaseid=requestdata['releaseid']
-                    history=createHistory("update","releases",requestdata)
+                    #history=createHistory("update","releases",requestdata)
                 else:
                     releaseid=uuid.uuid4()
                     requestdata['releaseid']=releaseid
-                    history=createHistory("create","releases",requestdata)
+                    #history=createHistory("create","releases",requestdata)
                 createreleasequery1=("insert into releases (projectid,releasename,"
-                +"releaseid,createdby,createdon,deleted,history,skucoderelease,tags) values "
+                +"releaseid,createdby,createdon,deleted,skucoderelease,tags) values "
                 +"("+str(requestdata['projectid'])+", '"+requestdata['releasename']
                 +"',"+str(releaseid)+",'"+requestdata['createdby']
-                +"',"+str(getcurrentdate())+",false,"+str(history)+",'"+requestdata['skucoderelease']
+                +"',"+str(getcurrentdate())+",false,'"+requestdata['skucoderelease']
                 +"',['"+requestdata['tags']+"'])")
                 releaseid = {'releaseid':releaseid}
                 queryresult = icesession.execute(createreleasequery1)
@@ -1833,16 +1823,16 @@ def createProject_ICE():
                 cycleid=''
                 if requestdata.has_key('cycleid'):
                     cycleid=requestdata['cycleid']
-                    history=createHistory("update","cycles",requestdata)
+                    #history=createHistory("update","cycles",requestdata)
                 else:
                     cycleid=uuid.uuid4()
                     requestdata['cycleid']=cycleid
-                    history=createHistory("create","cycles",requestdata)
+                    #history=createHistory("create","cycles",requestdata)
                 createcyclequery1=("insert into cycles (releaseid,cyclename, "
-                +"cycleid,createdby,createdon,deleted,history,skucodecycle,tags) values "
+                +"cycleid,createdby,createdon,deleted,skucodecycle,tags) values "
                 +" ("+str(requestdata['releaseid'])+", '"+requestdata['cyclename']
                 +"',"+str(cycleid)+",'"+requestdata['createdby']
-                +"',"+str(getcurrentdate())+",false,"+str(history)+",'"+requestdata['skucodecycle']
+                +"',"+str(getcurrentdate())+",false,'"+requestdata['skucodecycle']
                 +"' ,['"+requestdata['tags']+"'])")
                 cycleid = {'cycleid':cycleid}
                 queryresult = icesession.execute(createcyclequery1)
@@ -1938,24 +1928,22 @@ def assignProjects_ICE():
         if not isemptyrequest(requestdata):
             if (requestdata['alreadyassigned'] != True):
                 requestdata['projectids'] = ','.join(str(idval) for idval in requestdata['projectids'])
-                history=createHistory("assign","icepermissions",requestdata)
+                #history=createHistory("assign","icepermissions",requestdata)
                 assignprojectsquery1 = ("insert into icepermissions (userid,"
-                +" domainid,createdby,createdon,history,projectids) values"
+                +" domainid,createdby,createdon,projectids) values"
                 +" ("+str(requestdata['userid'])+","+str(requestdata['domainid'])
                 +",'"+requestdata['createdby']+"',"+str(getcurrentdate())
-                +","+str(history)
                 +", ["+str(requestdata['projectids'])+"]);")
                 queryresult = icesession.execute(assignprojectsquery1)
             elif (requestdata['alreadyassigned'] == True):
                 requestdata['projectids'] = ','.join(str(idval) for idval in requestdata['projectids'])
-                history=createHistory("assign","icepermissions",requestdata)
+                #history=createHistory("assign","icepermissions",requestdata)
                 assignprojectsquery2 = ("update icepermissions set"
                 +" projectids = ["+requestdata['projectids']+"] "
                 +", modifiedby = '"+requestdata['modifiedby']
                 +"', modifiedon = "+str(getcurrentdate())
                 +", modifiedbyrole = '"+requestdata['modifiedbyrole']
-                +"', history = history+"+str(history)
-                +" WHERE userid = "+str(requestdata['userid'])
+                +"' WHERE userid = "+str(requestdata['userid'])
                 +" and domainid = "+str(requestdata['domainid'])+";")
                 queryresult = icesession.execute(assignprojectsquery2)
             else:
@@ -2203,190 +2191,190 @@ def exportToJson_ICE():
 # BEGIN OF HISTORY
 ################################################################################
 
-def createHistory(query, table, request_data):
-    try:
-        history={}
-        createclone=False
-        requestdata=dict(request_data)
-        if(requestdata.has_key('history') and requestdata['history'] != None):
-            req_history=requestdata['history']
-            for keys in req_history:
-                history[keys.encode('utf-8')]=req_history[keys].encode('utf-8')
-        if(requestdata.has_key("query")):
-            del requestdata["query"]
-        if(requestdata.has_key("subquery")):
-            createclone=True
-            del requestdata["subquery"]
-        if(requestdata.has_key("modifiedflag")):
-            del requestdata["modifiedflag"]
-        primary_keys={'users':['userid'],
-                    'projects':['projectid','domainid','projectname'],
-                    'cycles':['cycleid','releaseid','cyclename'],
-                    'releases':['releaseid','projectid','releasename'],
-                    'icepermissions':['userid','domainid'],
-                    'modules':['moduleid','projectid','modulename','versionnumber'],
-                    'testsuites':['testsuiteid','cycleid','testsuitename','versionnumber'],
-                    'testscenarios':['testscenarioid','projectid','testscenarioname','versionnumber'],
-                    'screens':['screenid','projectid','screenname','versionnumber'],
-                    'testcases':['testcaseid','screenid','testcasename','versionnumber']
-                    }
-        versionquery=''
-        if(query=='submit'):
-            if(table=='screens'):
-                versionquery="select getversions(history) from "+table+" where "+primary_keys[table][0]+"="+requestdata['details']['screenID_c']
-            elif(table=='testscenarios'):
-                versionquery="select getversions(history) from "+table+" where "+primary_keys[table][0]+"="+requestdata['details']['testScenarioID_c']
-            elif(table=='modules'):
-                versionquery="select getversions(history) from "+table+" where "+primary_keys[table][0]+"="+requestdata['details']['moduleID_c']
-            elif(table=='testcases'):
-                versionquery="select getversions(history) from "+table+" where "+primary_keys[table][0]+"="+requestdata['details']['testCaseID_c']
-        else:
-            versionquery="select getversions(history) from "+table+" where "+primary_keys[table][0]+"="+str(requestdata[primary_keys[table][0]])
-        if(table=='users'):
-            queryresult=n68session.execute(versionquery)
-        else:
-            queryresult=icesession.execute(versionquery)
-        if(query=='submit' and requestdata['status']=='complete'):
-            version=getHistoryLatestVersion(queryresult.current_rows,table,history,query)
-        else:
-            version=getHistoryLatestVersion(queryresult.current_rows,table,history)
-        value=""
-        if(query=='create'):
-            data=str(requestdata)#.replace("'","\'").replace('"',"'")
-            if(createclone):
-                desc_str='Replicated '
-            else:
-                desc_str='Created '
-            value={
-            'description':desc_str+table[:-1]+' with values '+data,
-            'timestamp':str(getcurrentdate()),
-            'user':str(requestdata['createdby'])
-            }
-        elif(query=='update'):
-            data={}
-            for keys in requestdata:
-                if (keys not in primary_keys[table] and keys != 'modifiedby'
-                and keys != 'modifiedon' and keys != 'modifiedbyrole'):
-                    data[keys]=requestdata[keys]
-            data=str(data).replace("'","\'").replace('"',"'")
-            user_str=''
-            if(table=='projects'):
-                user_str=requestdata['createdby']
-            else:
-                user_str=requestdata['modifiedby']
-            value={
-            'description':'Updated properties: '+str(data),
-            'timestamp':str(getcurrentdate()),
-            'user':str(user_str)
-            }
-        elif(query=='assign'):
-            user_str=''
-            if(requestdata['alreadyassigned']!=True):
-                user_str=requestdata['createdby']
-            else:
-                user_str=requestdata['modifiedby']
-            value={
-            'description':'Assigned project '+str(requestdata['projectids'])+'with domain '+str(requestdata['domainid'])+' to user '+str(requestdata['userid']),
-            'timestamp':str(getcurrentdate()),
-            'user':str(user_str)
-            }
-        elif(query=='rename'):
-            desc_str=''
-            if(table=='modules'):
-                desc_str='Renamed module to '+requestdata['modulename']
-            elif(table=='testscenarios'):
-                desc_str='Renamed scenario to '+requestdata['testscenarioname']
-            elif(table=='screens'):
-                desc_str='Renamed screen to '+requestdata['screenname']
-            elif(table=='testcases'):
-                desc_str='Renamed testcase to '+requestdata['testcasename']
-            value={
-            'description':desc_str,
-            'timestamp':str(getcurrentdate()),
-            'user':str(requestdata['modifiedby'])
-            }
-        elif(query=='submit'):
-            desc_str=''
-            if(requestdata['status']=='review'):
-                if(table=='modules'):
-                    desc_str='Submitted module '+requestdata['details']['moduleName']+' for review'
-                elif(table=='testscenarios'):
-                    desc_str='Submitted scenario '+requestdata['details']['testScenarioName']+' for review'
-                elif(table=='screens'):
-                    desc_str='Submitted screen '+requestdata['details']['screenName']+' for review'
-                elif(table=='testcases'):
-                    desc_str='Submitted testcase '+requestdata['details']['testCaseName']+' for review'
-            elif(requestdata['status']=='complete'):
-                if(table=='modules'):
-                    desc_str='Completed module '+requestdata['details']['moduleName']
-                elif(table=='testscenarios'):
-                    desc_str='Completed scenario '+requestdata['details']['testScenarioName']
-                elif(table=='screens'):
-                    desc_str='Completed screen '+requestdata['details']['screenName']
-                elif(table=='testcases'):
-                    desc_str='Completed testcase '+requestdata['details']['testCaseName']
-            elif(requestdata['status']=='reassigned'):
-                if(table=='modules'):
-                    desc_str='Reassigned module '+requestdata['details']['moduleName']+' for review'
-                elif(table=='testscenarios'):
-                    desc_str='Reassigned scenario '+requestdata['details']['testScenarioName']+' for review'
-                elif(table=='screens'):
-                    desc_str='Reassigned screen '+requestdata['details']['screenName']+' for review'
-                elif(table=='testcases'):
-                    desc_str='Reassigned testcase '+requestdata['details']['testCaseName']+' for review'
-            value={
-            'description':desc_str,
-            'timestamp':str(getcurrentdate()),
-            'user':str(requestdata['username'])
-            }
-        value=str(value).replace("'",'\"')
-        history[version]=value
-        del requestdata
-        return history
-    except Exception as e:
-        app.logger.error('Error in createHistory.')
-
-
-def getHistoryLatestVersion(res,table,hist,*args):
-    try:
-        oldverslist=[]
-        histFlag=False
-        versions=''
-        newver=''
-        if (hist is not None and len(hist)!=0):
-            oldverslist=hist.keys()
-            histFlag=True
-        if (len(res)!=0):
-            if(table=='users'):
-                versions=res[0]['nineteen68.getversions(history)']
-            else:
-                versions=res[0]['icetestautomation.getversions(history)']
-            if(versions==''):
-                return '000.001'
-            elif(len(oldverslist)==0):
-                oldverslist=versions.split(',')
-        elif (not histFlag):
-            return '000.000'
-        oldver=max(oldverslist)
-        if(len(args)!=0):
-            import math
-            newver = str(math.ceil(float(oldver)))
-            newver=newver.split('.')
-        else:
-            newver=str(float(oldver)+0.001).split('.')
-        if(len(newver[0])==1):
-            newver[0]="00"+newver[0]
-        elif(len(newver[0])==2):
-            newver[0]="0"+newver[0]
-        if(len(newver[1])==1):
-            newver[1]=newver[1]+"00"
-        elif(len(newver[1])==2):
-            newver[1]=newver[1]+"0"
-        newver= '.'.join(newver)
-        return newver
-    except Exception as e:
-        app.logger.error("Error in getHistoryLatestVersion")
-
+##def createHistory(query, table, request_data):
+##    try:
+##        history={}
+##        createclone=False
+##        requestdata=dict(request_data)
+##        if(requestdata.has_key('history') and requestdata['history'] != None):
+##            req_history=requestdata['history']
+##            for keys in req_history:
+##                history[keys.encode('utf-8')]=req_history[keys].encode('utf-8')
+##        if(requestdata.has_key("query")):
+##            del requestdata["query"]
+##        if(requestdata.has_key("subquery")):
+##            createclone=True
+##            del requestdata["subquery"]
+##        if(requestdata.has_key("modifiedflag")):
+##            del requestdata["modifiedflag"]
+##        primary_keys={'users':['userid'],
+##                    'projects':['projectid','domainid','projectname'],
+##                    'cycles':['cycleid','releaseid','cyclename'],
+##                    'releases':['releaseid','projectid','releasename'],
+##                    'icepermissions':['userid','domainid'],
+##                    'modules':['moduleid','projectid','modulename','versionnumber'],
+##                    'testsuites':['testsuiteid','cycleid','testsuitename','versionnumber'],
+##                    'testscenarios':['testscenarioid','projectid','testscenarioname','versionnumber'],
+##                    'screens':['screenid','projectid','screenname','versionnumber'],
+##                    'testcases':['testcaseid','screenid','testcasename','versionnumber']
+##                    }
+##        versionquery=''
+##        if(query=='submit'):
+##            if(table=='screens'):
+##                versionquery="select getversions(history) from "+table+" where "+primary_keys[table][0]+"="+requestdata['details']['screenID_c']
+##            elif(table=='testscenarios'):
+##                versionquery="select getversions(history) from "+table+" where "+primary_keys[table][0]+"="+requestdata['details']['testScenarioID_c']
+##            elif(table=='modules'):
+##                versionquery="select getversions(history) from "+table+" where "+primary_keys[table][0]+"="+requestdata['details']['moduleID_c']
+##            elif(table=='testcases'):
+##                versionquery="select getversions(history) from "+table+" where "+primary_keys[table][0]+"="+requestdata['details']['testCaseID_c']
+##        else:
+##            versionquery="select getversions(history) from "+table+" where "+primary_keys[table][0]+"="+str(requestdata[primary_keys[table][0]])
+##        if(table=='users'):
+##            queryresult=n68session.execute(versionquery)
+##        else:
+##            queryresult=icesession.execute(versionquery)
+##        if(query=='submit' and requestdata['status']=='complete'):
+##            version=getHistoryLatestVersion(queryresult.current_rows,table,history,query)
+##        else:
+##            version=getHistoryLatestVersion(queryresult.current_rows,table,history)
+##        value=""
+##        if(query=='create'):
+##            data=str(requestdata)#.replace("'","\'").replace('"',"'")
+##            if(createclone):
+##                desc_str='Replicated '
+##            else:
+##                desc_str='Created '
+##            value={
+##            'description':desc_str+table[:-1]+' with values '+data,
+##            'timestamp':str(getcurrentdate()),
+##            'user':str(requestdata['createdby'])
+##            }
+##        elif(query=='update'):
+##            data={}
+##            for keys in requestdata:
+##                if (keys not in primary_keys[table] and keys != 'modifiedby'
+##                and keys != 'modifiedon' and keys != 'modifiedbyrole'):
+##                    data[keys]=requestdata[keys]
+##            data=str(data).replace("'","\'").replace('"',"'")
+##            user_str=''
+##            if(table=='projects'):
+##                user_str=requestdata['createdby']
+##            else:
+##                user_str=requestdata['modifiedby']
+##            value={
+##            'description':'Updated properties: '+str(data),
+##            'timestamp':str(getcurrentdate()),
+##            'user':str(user_str)
+##            }
+##        elif(query=='assign'):
+##            user_str=''
+##            if(requestdata['alreadyassigned']!=True):
+##                user_str=requestdata['createdby']
+##            else:
+##                user_str=requestdata['modifiedby']
+##            value={
+##            'description':'Assigned project '+str(requestdata['projectids'])+'with domain '+str(requestdata['domainid'])+' to user '+str(requestdata['userid']),
+##            'timestamp':str(getcurrentdate()),
+##            'user':str(user_str)
+##            }
+##        elif(query=='rename'):
+##            desc_str=''
+##            if(table=='modules'):
+##                desc_str='Renamed module to '+requestdata['modulename']
+##            elif(table=='testscenarios'):
+##                desc_str='Renamed scenario to '+requestdata['testscenarioname']
+##            elif(table=='screens'):
+##                desc_str='Renamed screen to '+requestdata['screenname']
+##            elif(table=='testcases'):
+##                desc_str='Renamed testcase to '+requestdata['testcasename']
+##            value={
+##            'description':desc_str,
+##            'timestamp':str(getcurrentdate()),
+##            'user':str(requestdata['modifiedby'])
+##            }
+##        elif(query=='submit'):
+##            desc_str=''
+##            if(requestdata['status']=='review'):
+##                if(table=='modules'):
+##                    desc_str='Submitted module '+requestdata['details']['moduleName']+' for review'
+##                elif(table=='testscenarios'):
+##                    desc_str='Submitted scenario '+requestdata['details']['testScenarioName']+' for review'
+##                elif(table=='screens'):
+##                    desc_str='Submitted screen '+requestdata['details']['screenName']+' for review'
+##                elif(table=='testcases'):
+##                    desc_str='Submitted testcase '+requestdata['details']['testCaseName']+' for review'
+##            elif(requestdata['status']=='complete'):
+##                if(table=='modules'):
+##                    desc_str='Completed module '+requestdata['details']['moduleName']
+##                elif(table=='testscenarios'):
+##                    desc_str='Completed scenario '+requestdata['details']['testScenarioName']
+##                elif(table=='screens'):
+##                    desc_str='Completed screen '+requestdata['details']['screenName']
+##                elif(table=='testcases'):
+##                    desc_str='Completed testcase '+requestdata['details']['testCaseName']
+##            elif(requestdata['status']=='reassigned'):
+##                if(table=='modules'):
+##                    desc_str='Reassigned module '+requestdata['details']['moduleName']+' for review'
+##                elif(table=='testscenarios'):
+##                    desc_str='Reassigned scenario '+requestdata['details']['testScenarioName']+' for review'
+##                elif(table=='screens'):
+##                    desc_str='Reassigned screen '+requestdata['details']['screenName']+' for review'
+##                elif(table=='testcases'):
+##                    desc_str='Reassigned testcase '+requestdata['details']['testCaseName']+' for review'
+##            value={
+##            'description':desc_str,
+##            'timestamp':str(getcurrentdate()),
+##            'user':str(requestdata['username'])
+##            }
+##        value=str(value).replace("'",'\"')
+##        history[version]=value
+##        del requestdata
+##        return history
+##    except Exception as e:
+##        app.logger.error('Error in createHistory.')
+##
+##
+##def getHistoryLatestVersion(res,table,hist,*args):
+##    try:
+##        oldverslist=[]
+##        histFlag=False
+##        versions=''
+##        newver=''
+##        if (hist is not None and len(hist)!=0):
+##            oldverslist=hist.keys()
+##            histFlag=True
+##        if (len(res)!=0):
+##            if(table=='users'):
+##                versions=res[0]['nineteen68.getversions(history)']
+##            else:
+##                versions=res[0]['icetestautomation.getversions(history)']
+##            if(versions==''):
+##                return '000.001'
+##            elif(len(oldverslist)==0):
+##                oldverslist=versions.split(',')
+##        elif (not histFlag):
+##            return '000.000'
+##        oldver=max(oldverslist)
+##        if(len(args)!=0):
+##            import math
+##            newver = str(math.ceil(float(oldver)))
+##            newver=newver.split('.')
+##        else:
+##            newver=str(float(oldver)+0.001).split('.')
+##        if(len(newver[0])==1):
+##            newver[0]="00"+newver[0]
+##        elif(len(newver[0])==2):
+##            newver[0]="0"+newver[0]
+##        if(len(newver[1])==1):
+##            newver[1]=newver[1]+"00"
+##        elif(len(newver[1])==2):
+##            newver[1]=newver[1]+"0"
+##        newver= '.'.join(newver)
+##        return newver
+##    except Exception as e:
+##        app.logger.error("Error in getHistoryLatestVersion")
+##
 ################################################################################
 # END OF HISTORY
 ################################################################################
@@ -2484,7 +2472,7 @@ def updateActiveIceSessions():
         if(licensedata['plugins']['ice'][keys] == True):
             ice_plugins_list.append(keys)
     res={"id":"da9b196d-8021-4a68-be2b-753ec267305e","res":"fail","ts_now":str(datetime.now()),"connect_time":str(datetime.now()),"plugins":str(ice_plugins_list)}
-    response = {"node_check":False,"ice_check":res}
+    response = {"node_check":False,"ice_check":wrap(str(res),ice_ndac_key)}
     ice_uuid=None
     ice_ts=None
     try:
@@ -2493,8 +2481,9 @@ def updateActiveIceSessions():
             if(requestdata['query']=='disconnect'):
                 if(activeicesessions.has_key(requestdata['username'])):
                     del activeicesessions[requestdata['username']]
+                res['res']="success"
 
-            elif(requestdata['query']=='connect'):
+            elif(requestdata['query']=='connect' and requestdata.has_key('icesession')):
                 icesession = unwrap(requestdata['icesession'],ice_ndac_key)
                 icesession = ast.literal_eval(icesession)
                 ice_uuid=icesession['ice_id']
@@ -2516,11 +2505,13 @@ def updateActiveIceSessions():
                 #To add in active ice sessions
                 elif(ice_uuid!=None):
                     activeicesessions[username] = ice_uuid
-            res['res']="success"
+                res['res']="success"
             response = {"node_check":True,"ice_check":wrap(str(res),ice_ndac_key)}
         else:
             app.logger.error('Empty data received. updateActiveIceSessions.')
     except Exception as exc:
+        import traceback
+        app.logger.error(traceback.format_exc())
         app.logger.error('Error in updateActiveIceSessions.')
     return jsonify(response)
 
@@ -2634,7 +2625,7 @@ def isemptyrequest(requestdata):
         for key in requestdata:
             value = requestdata[key]
             if (key != 'additionalroles'
-                and key != 'getparampaths' and key != 'testcasesteps' and key != 'history'):
+                and key != 'getparampaths' and key != 'testcasesteps'):
                 if value == 'undefined' or value == '' or value == 'null' or value == None:
                     app.logger.error(key)
                     flag = True
@@ -2647,7 +2638,7 @@ def isemptyrequest(requestdata):
                 for key in requestdata:
                     value = requestdata[key]
                     if (key != 'additionalroles' and key != 'getparampaths'
-                     and key != 'testcasesteps' and key != 'history'):
+                     and key != 'testcasesteps'):
                         if value == 'undefined' or value == '' or value == 'null' or value == None:
                             app.logger.error(key)
                             flag = True
@@ -2986,7 +2977,10 @@ def updateonls():
         EXPECTING_RESPONSE=str(int(time.time()*24150))
         modelinfores = modelinfoprocessor()
         if(dbdata.has_key('mdlinfo')):
-            modelinfores.append(dbdata['mdlinfo'])
+            modelinfores.extend(dbdata['mdlinfo'])
+            del dbdata['mdlinfo']
+            datatodb=wrap(str(dbdata),mine)
+            dataholder('update',datatodb)
         datatols={
             "token": dbdata['tkn'],
             "action": "update",
@@ -3008,7 +3002,6 @@ def updateonls():
                     dataholder('update',datatodb)
                     stopserver()
             elif res['res'] == 'S':
-                del dbdata['mdlinfo']
                 datatodb=wrap(str(dbdata),mine)
                 dataholder('update',datatodb)
                 if(res.has_key('ldata')):
@@ -3686,13 +3679,6 @@ class ProfJ():
 ################################################################################
 
 if __name__ == '__main__':
-
-##    context = ('cert.pem', 'key.pem')#certificate and key files
-##    #https implementation
-##    app.run(host='127.0.0.1',port=1990,debug=True,ssl_context=context)
-##    app.run(host='127.0.0.1',port=1990,debug=True,ssl_context='adhoc')
-
-    #http implementations
     formatter = logging.Formatter("[%(asctime)s] {%(pathname)s:%(lineno)d} %(levelname)s - %(message)s")
     inhandler = TimedRotatingFileHandler(logspath+'/ndac/ndac'+datetime.now().strftime("_%Y%m%d-%H%M%S")+'.log',when='d', encoding='utf-8', backupCount=1)
     global handler
@@ -3719,8 +3705,6 @@ if __name__ == '__main__':
                 if not ('-' in startdate):
                     startdate = datetime.strptime(startdate, '%m/%d/%Y')
                     startdate = getbgntime('indate',startdate)
-                    ##print startdate
-                    ##startdate = datetime.strptime(startdate,'%m/%d/%Y %H%M%S')
                 else:
                     startdate = datetime.strptime(startdate, '%m/%d/%Y-%H%M%S')
 
@@ -3728,8 +3712,6 @@ if __name__ == '__main__':
                 if not ('-' in enddate):
                     enddate = datetime.strptime(enddate, '%m/%d/%Y')
                     enddate = getbgntime('indate',enddate)
-                    ##print enddate
-                    ##enddate = datetime.strptime(enddate,'%m/%d/%Y %H%M%S')
                 else:
                     enddate = datetime.strptime(enddate, '%m/%d/%Y-%H%M%S')
                 # this is provided as there was a request to create a key
