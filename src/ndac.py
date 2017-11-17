@@ -51,14 +51,14 @@ logspath= currdir + "/ndac_internals/logs"
 
 ndac_conf = json.loads(open(config_path).read())
 
-lsip = ndac_conf['ndac']['licenseserver']
+lsip = ndac_conf['licenseserver']
 from cassandra.cluster import Cluster
 from flask_cassandra import CassandraCluster
 from cassandra.auth import PlainTextAuthProvider
 dbup = False
 try:
-    auth = PlainTextAuthProvider(username=ndac_conf['ndac']['dbusername'], password=ndac_conf['ndac']['dbpassword'])
-    cluster = Cluster([ndac_conf['ndac']['databaseip']],port=int(ndac_conf['ndac']['dbport']),auth_provider=auth)
+    auth = PlainTextAuthProvider(username=ndac_conf['dbusername'], password=ndac_conf['dbpassword'])
+    cluster = Cluster([ndac_conf['databaseip']],port=int(ndac_conf['dbport']),auth_provider=auth)
 
     icesession = cluster.connect()
     n68session = cluster.connect()
@@ -2472,7 +2472,7 @@ def updateActiveIceSessions():
         if(licensedata['plugins']['ice'][keys] == True):
             ice_plugins_list.append(keys)
     res={"id":"da9b196d-8021-4a68-be2b-753ec267305e","res":"fail","ts_now":str(datetime.now()),"connect_time":str(datetime.now()),"plugins":str(ice_plugins_list)}
-    response = {"node_check":False,"ice_check":res}
+    response = {"node_check":False,"ice_check":wrap(str(res),ice_ndac_key)}
     ice_uuid=None
     ice_ts=None
     try:
@@ -2481,8 +2481,9 @@ def updateActiveIceSessions():
             if(requestdata['query']=='disconnect'):
                 if(activeicesessions.has_key(requestdata['username'])):
                     del activeicesessions[requestdata['username']]
+                res['res']="success"
 
-            elif(requestdata['query']=='connect'):
+            elif(requestdata['query']=='connect' and requestdata.has_key('icesession')):
                 icesession = unwrap(requestdata['icesession'],ice_ndac_key)
                 icesession = ast.literal_eval(icesession)
                 ice_uuid=icesession['ice_id']
@@ -2504,11 +2505,13 @@ def updateActiveIceSessions():
                 #To add in active ice sessions
                 elif(ice_uuid!=None):
                     activeicesessions[username] = ice_uuid
-            res['res']="success"
+                res['res']="success"
             response = {"node_check":True,"ice_check":wrap(str(res),ice_ndac_key)}
         else:
             app.logger.error('Empty data received. updateActiveIceSessions.')
     except Exception as exc:
+        import traceback
+        app.logger.error(traceback.format_exc())
         app.logger.error('Error in updateActiveIceSessions.')
     return jsonify(response)
 
@@ -3676,13 +3679,6 @@ class ProfJ():
 ################################################################################
 
 if __name__ == '__main__':
-
-##    context = ('cert.pem', 'key.pem')#certificate and key files
-##    #https implementation
-##    app.run(host='127.0.0.1',port=1990,debug=True,ssl_context=context)
-##    app.run(host='127.0.0.1',port=1990,debug=True,ssl_context='adhoc')
-
-    #http implementations
     formatter = logging.Formatter("[%(asctime)s] {%(pathname)s:%(lineno)d} %(levelname)s - %(message)s")
     inhandler = TimedRotatingFileHandler(logspath+'/ndac/ndac'+datetime.now().strftime("_%Y%m%d-%H%M%S")+'.log',when='d', encoding='utf-8', backupCount=1)
     global handler
@@ -3709,8 +3705,6 @@ if __name__ == '__main__':
                 if not ('-' in startdate):
                     startdate = datetime.strptime(startdate, '%m/%d/%Y')
                     startdate = getbgntime('indate',startdate)
-                    ##print startdate
-                    ##startdate = datetime.strptime(startdate,'%m/%d/%Y %H%M%S')
                 else:
                     startdate = datetime.strptime(startdate, '%m/%d/%Y-%H%M%S')
 
@@ -3718,8 +3712,6 @@ if __name__ == '__main__':
                 if not ('-' in enddate):
                     enddate = datetime.strptime(enddate, '%m/%d/%Y')
                     enddate = getbgntime('indate',enddate)
-                    ##print enddate
-                    ##enddate = datetime.strptime(enddate,'%m/%d/%Y %H%M%S')
                 else:
                     enddate = datetime.strptime(enddate, '%m/%d/%Y-%H%M%S')
                 # this is provided as there was a request to create a key
