@@ -2974,7 +2974,10 @@ def updateonls():
         EXPECTING_RESPONSE=str(int(time.time()*24150))
         modelinfores = modelinfoprocessor()
         if(dbdata.has_key('mdlinfo')):
-            modelinfores.append(dbdata['mdlinfo'])
+            modelinfores.extend(dbdata['mdlinfo'])
+            del dbdata['mdlinfo']
+            datatodb=wrap(str(dbdata),mine)
+            dataholder('update',datatodb)
         datatols={
             "token": dbdata['tkn'],
             "action": "update",
@@ -2996,7 +2999,6 @@ def updateonls():
                     dataholder('update',datatodb)
                     stopserver()
             elif res['res'] == 'S':
-                del dbdata['mdlinfo']
                 datatodb=wrap(str(dbdata),mine)
                 dataholder('update',datatodb)
                 if(res.has_key('ldata')):
