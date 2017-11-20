@@ -2080,7 +2080,7 @@ def reportStatusScenarios_ICE():
                 getreportstatusquery1 = ("select reportid,executionid,browser,comments,"
                 +"executedtime,modifiedby,modifiedbyrole,modifiedon,report,status,"
                 +"testscenarioid,testsuiteid from reports "
-                +"where executionid="+requestdata['executionid']+" ALLOW FILTERING")
+                +"where executionid="+requestdata['executionid']+" and testsuiteid="+requestdata['testsuiteid']+" ALLOW FILTERING")
                 queryresult = icesession.execute(getreportstatusquery1)
             elif(requestdata["query"] == 'scenarioname'):
                 getreportstatusquery2 = ("select testscenarioname "
