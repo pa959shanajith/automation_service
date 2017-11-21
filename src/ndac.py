@@ -90,6 +90,8 @@ ERR_CODE={
     "110":"<<<Critical error in NDAC>>>",
     "112":"Error establishing connection to Licensing Server. Retrying to establish connection",
     "115":"Connection to Licensing Server failed. Maximum retries exceeded. Hence, Shutting down server",
+    "201":"Error while registration with LS",
+    "202":"Error while pushing update to LS",
     "199":"Something Fishy..."
 }
 
@@ -2496,22 +2498,15 @@ def updateActiveIceSessions():
                 #To reject connection with same usernames
                 if(activeicesessions.has_key(username) and activeicesessions[username] != ice_uuid):
                     res['same_user'] = "True"
-                    response = {"node_check":False,"ice_check":wrap(str(res),ice_ndac_key)}
-                    return jsonify(response)
-                #To reject connections more than allowed number
-                elif(len(activeicesessions)>=licensedata['allowedIceSessions']):
-                    response = {"node_check":False,"ice_check":wrap(str(res),ice_ndac_key)}
-                    return jsonify(response)
+                    response["ice_check"]=wrap(str(res),ice_ndac_key)
                 #To add in active ice sessions
-                elif(ice_uuid!=None):
+                elif(len(activeicesessions)<licensedata['allowedIceSessions']):
                     activeicesessions[username] = ice_uuid
-                res['res']="success"
-            response = {"node_check":True,"ice_check":wrap(str(res),ice_ndac_key)}
+                    res['res']="success"
+                    response = {"node_check":True,"ice_check":wrap(str(res),ice_ndac_key)}
         else:
             app.logger.error('Empty data received. updateActiveIceSessions.')
     except Exception as exc:
-        import traceback
-        app.logger.error(traceback.format_exc())
         app.logger.error('Error in updateActiveIceSessions.')
     return jsonify(response)
 
@@ -2966,7 +2961,7 @@ def basecheckonls():
                 app.logger.critical(ERR_CODE['115'])
                 startTwoDaysTimer()
     except Exception as e:
-        app.logger.critical("Unable to contact storage areas")
+        app.logger.critical(ERR_CODE['201'])
     return basecheckstatus
 
 def updateonls():
@@ -3017,7 +3012,7 @@ def updateonls():
                 app.logger.critical(ERR_CODE['115'])
                 startTwoDaysTimer()
     except Exception as e:
-        app.logger.critical("Unable to contact storage areas")
+        app.logger.critical(ERR_CODE['202'])
 
 def getbgntime(requiredday,*args):
     import datetime
