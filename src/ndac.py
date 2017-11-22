@@ -1373,11 +1373,11 @@ def ScheduleTestSuite_ICE():
                 requestdata['testsuiteids']=','.join(str(idval) for idval in requestdata['testsuiteids'])
                 requestdata['browserlist'] = ','.join(str(idval) for idval in requestdata['browserlist'])
                 scheduletestsuitequery1=("insert into scheduledexecution(cycleid,scheduledatetime,"
-                +"scheduleid,browserlist,clientipaddress,clientport,scenariodetails,schedulestatus,"
+                +"scheduleid,browserlist,clientipaddress,userid,scenariodetails,schedulestatus,"
                 +"testsuiteids,testsuitename) values (" + requestdata['cycleid'] + ","
                 + str(requestdata['scheduledatetime']) + "," + requestdata['scheduleid'] + ",'["
                 + requestdata['browserlist'] + "]','" + requestdata['clientipaddress'] + "',"
-                + requestdata['clientport'] + ",'" + requestdata['scenariodetails'] + "','"
+                + requestdata['userid'] + ",'" + requestdata['scenariodetails'] + "','"
                 + requestdata['schedulestatus'] + "',[" + requestdata['testsuiteids'] + "],'"
                 + requestdata['testsuitename'] + "')")
                 queryresult = icesession.execute(scheduletestsuitequery1)
