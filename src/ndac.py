@@ -533,7 +533,7 @@ def insertInSuite_ICE():
                     +str(requestdata['oldversionnumber'])+" and projectid="
                     +requestdata['oldprojectid']+query['delete_flag'])
                     fetchqueryresult = icesession.execute(fetchOldData)
-                    if (len(fetchqueryresult.current_rows)!=0):
+                    if (len(fetchqueryresult.current_rows)!=0 and (fetchqueryresult.current_rows[0]['tags'] is not None)):
                         fetchqueryresult = fetchqueryresult.current_rows[0]
                         tags="['"+"','".join(fetchqueryresult['tags'])+"']"
                 #history=createHistory("create","modules",requestdata)
@@ -573,7 +573,7 @@ def insertInScenarios_ICE():
                     +str(requestdata['oldversionnumber'])+" and projectid="
                     +requestdata['oldprojectid']+query['delete_flag'])
                     fetchqueryresult = icesession.execute(fetchOldData)
-                    if (len(fetchqueryresult.current_rows)!=0):
+                    if (len(fetchqueryresult.current_rows)!=0 and (fetchqueryresult.current_rows[0]['tags'] is not None)):
                         fetchqueryresult = fetchqueryresult.current_rows[0]
                         tags="['"+"','".join(fetchqueryresult['tags'])+"']"
                 #history=createHistory("create","testscenarios",requestdata)
@@ -617,8 +617,9 @@ def insertInScreen_ICE():
                     fetchqueryresult = icesession.execute(fetchOldData)
                     if (len(fetchqueryresult.current_rows)!=0):
                         fetchqueryresult = fetchqueryresult.current_rows[0]
-                        tags="['"+"','".join(fetchqueryresult['tags'])+"']"
                         screendata=fetchqueryresult['screendata']
+                        if (fetchqueryresult['tags'] is not None):
+                            tags="['"+"','".join(fetchqueryresult['tags'])+"']"
                 #history=createHistory("create","screens",requestdata)
                 create_screen_query1 = ("insert into screens (projectid,screenname,"
                 +" screenid,versionnumber,createdby,createdon,createdthrough,"
@@ -659,8 +660,9 @@ def insertInTestcase_ICE():
                     fetchqueryresult = icesession.execute(fetchOldData)
                     if (len(fetchqueryresult.current_rows)!=0):
                         fetchqueryresult = fetchqueryresult.current_rows[0]
-                        tags="['"+"','".join(fetchqueryresult['tags'])+"']"
                         testcasesteps=fetchqueryresult['testcasesteps']
+                        if (fetchqueryresult['tags'] is not None):
+                            tags="['"+"','".join(fetchqueryresult['tags'])+"']"
                 #history=createHistory("create","testcases",requestdata)
                 create_testcase_query1 = ("insert into testcases (screenid,"
                 +"testcasename,testcaseid,versionnumber,createdby,createdon,"
@@ -1673,8 +1675,9 @@ def createUser_Nineteen68():
                 userid = str(uuid.uuid4())
                 deactivated = False
                 requestdata['userid']=userid
-                if(requestdata['ldapuser'] == False):
-                    requestdata['password'] = "'"+requestdata['password']+"'"
+                requestdata['password'] = "'"+requestdata['password']+"'"
+                if(requestdata['ldapuser']):
+                    requestdata['password'] = "null"
                 #history = createHistory("create","users",requestdata)
                 createuserquery2=("insert into users (userid,createdby,createdon,"
                 +"defaultrole,deactivated,emailid,firstname,lastname,ldapuser,password,username) values"
