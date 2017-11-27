@@ -50,7 +50,6 @@ assistpath = currdir + "/ndac_internals/assist"
 logspath= currdir + "/ndac_internals/logs"
 
 ndac_conf = json.loads(open(config_path).read())
-
 lsip = ndac_conf['licenseserver']
 from cassandra.cluster import Cluster
 from flask_cassandra import CassandraCluster
@@ -79,9 +78,11 @@ offlineendtime=''
 offlineuser = False
 onlineuser = False
 usersession = False
+
 licensedata=""
 LS_CRITICAL_ERR_CODE=['199','120','121','123','124','125']
 lsRetryCount=0
+chronographTimer=None
 ERR_CODE={
     "100":"<<<Another instance of NDAC is already registered with the License server>>>",
     "101":"<<<Unable to contact storage areas>>>",
@@ -94,6 +95,9 @@ ERR_CODE={
     "202":"Error while pushing update to LS",
     "199":"Something Fishy..."
 }
+
+if (ndac_conf.has_key('custChronographTimer')):
+    chronographTimer = ndac_conf['custChronographTimer']
 
 #counters for License
 debugcounter = 0
@@ -3000,8 +3004,6 @@ def updateonls():
                     dataholder('update',datatodb)
                     stopserver()
             elif res['res'] == 'S':
-                datatodb=wrap(str(dbdata),mine)
-                dataholder('update',datatodb)
                 if(res.has_key('ldata')):
                     licensedata = res['ldata']
         else:
@@ -3096,19 +3098,19 @@ def cronograph():
     try:
         import datetime
         from threading import Timer
-        x= datetime.datetime.today()
-        updatehr=00
-        updatemin=00
-        updatesec=00
-        updatemcrs=00
-        y = x + datetime.timedelta(days =1)
-        k=y.replace(hour=updatehr, minute=updatemin, second=updatesec, microsecond=updatemcrs)
-##        y=x.replace(day=x.day+1, hour=updatehr, minute=updatemin, second=updatesec, microsecond=updatemcrs)
-        #for development purposes only
-##        y=x.replace(day=x.day, hour=x.hour, minute=x.minute+1, second=updatesec, microsecond=updatemcrs)
-
-        delta_t=k-x
-        secs=delta_t.seconds+1
+        secs=None
+        if chronographTimer is not None:
+            secs=chronographTimer
+        else:
+            x= datetime.datetime.today()
+            updatehr=00
+            updatemin=00
+            updatesec=00
+            updatemcrs=00
+            y = x + datetime.timedelta(days =1)
+            k=y.replace(hour=updatehr, minute=updatemin, second=updatesec, microsecond=updatemcrs)
+            delta_t=k-x
+            secs=delta_t.seconds+1
         t = Timer(secs, updateonls)
         t.start()
     except Exception as cronoexeption:
