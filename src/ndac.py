@@ -2493,6 +2493,16 @@ def userAccess_Nineteen68():
 # END OF UTILITIES
 ################################################################################
 
+@app.route('/server',methods=['POST'])
+def checkServer():
+    response = "fail"
+    try:
+        activeicesessions.clear()
+        response = "pass"
+    except Exception as exc:
+        app.logger.error('Error in checkServer.')
+    return response
+
 @app.route('/server/updateActiveIceSessions',methods=['POST'])
 def updateActiveIceSessions():
     ice_plugins_list = []
