@@ -1406,6 +1406,10 @@ def ScheduleTestSuite_ICE():
                 elif(requestdata['scheduledetails'] == 'getallscheduleddetails'):
                     scheduletestsuitequery4=("select * from scheduledexecution"
                     +" where schedulestatus='scheduled' allow filtering;")
+                elif(requestdata['scheduledetails'] == 'checkscheduleddetails'):
+                    scheduletestsuitequery4=("select * from scheduledexecution"
+                    +" where scheduledatetime='" + requestdata['scheduledatetime'] + "'"
+                    +" and clientipaddress='" + requestdata['clientipaddress'] + "' ALLOW FILTERING")
                 queryresult = icesession.execute(scheduletestsuitequery4)
             elif(requestdata['query'] == 'getscheduledstatus'):
                 scheduletestsuitequery5=("select schedulestatus from scheduledexecution"
