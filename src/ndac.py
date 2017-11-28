@@ -123,7 +123,7 @@ def authenticateUser_Nineteen68():
     try:
         requestdata=json.loads(request.data)
         if not isemptyrequest(requestdata):
-            authenticateuser = ("select password from users where username = '"
+            authenticateuser = ("select password,userid from users where username = '"
                 +requestdata["username"]+"' "+" ALLOW FILTERING")
             queryresult = n68session.execute(authenticateuser)
             res= {"rows":queryresult.current_rows}
@@ -332,7 +332,10 @@ def getProjectType_Nineteen68():
             getProjectType = ("select projecttypeid FROM icetestautomation.projects "+
             "where projectid"+'='+ projectid+query['delete_flag'])
             queryresult = icesession.execute(getProjectType)
-            res={'rows':queryresult.current_rows}
+            getProjectTypeName = ("select projecttypename FROM icetestautomation.projecttype "+
+            "where projecttypeid"+'='+ str(queryresult.current_rows[0]['projecttypeid']))
+            queryresult1 = icesession.execute(getProjectTypeName)
+            res={'rows':queryresult.current_rows,'projecttype':queryresult1.current_rows}
        else:
             app.logger.error("Empty data received. getProjectType_Nineteen68")
     except Exception as e:
@@ -1406,6 +1409,10 @@ def ScheduleTestSuite_ICE():
                 elif(requestdata['scheduledetails'] == 'getallscheduleddetails'):
                     scheduletestsuitequery4=("select * from scheduledexecution"
                     +" where schedulestatus='scheduled' allow filtering;")
+                elif(requestdata['scheduledetails'] == 'checkscheduleddetails'):
+                    scheduletestsuitequery4=("select * from scheduledexecution"
+                    +" where scheduledatetime='" + requestdata['scheduledatetime'] + "'"
+                    +" and clientipaddress='" + requestdata['clientipaddress'] + "' ALLOW FILTERING")
                 queryresult = icesession.execute(scheduletestsuitequery4)
             elif(requestdata['query'] == 'getscheduledstatus'):
                 scheduletestsuitequery5=("select schedulestatus from scheduledexecution"
@@ -1692,6 +1699,20 @@ def createUser_Nineteen68():
                 +str(requestdata['ldapuser'])+" , "+requestdata['password']+" , '"
                 +requestdata['username']+"')")
                 queryresult = n68session.execute(createuserquery2)
+                res={'rows':'Success'}
+            elif(requestdata['query'] == 'createciuser'):
+                userid = str(uuid.uuid4())
+                deactivated = False
+                requestdata['userid']=userid
+                #history = createHistory("create","users",requestdata)
+                createuserquery3=("insert into users (userid,createdby,createdon,"
+                +"defaultrole,deactivated,emailid,firstname,lastname,ldapuser,password,username) values"
+                +"( "+str(userid)+" , '"+requestdata['username']+"' , "
+                + str(getcurrentdate())+" ,null,"
+                +str(deactivated)+" ,null,null,null"
+                +",null, '"+requestdata['password']+"' , '"
+                +requestdata['username']+"')")
+                queryresult = n68session.execute(createuserquery3)
                 res={'rows':'Success'}
             else:
                 return jsonify(res)
@@ -2471,6 +2492,16 @@ def userAccess_Nineteen68():
 ################################################################################
 # END OF UTILITIES
 ################################################################################
+
+@app.route('/server',methods=['POST'])
+def checkServer():
+    response = "fail"
+    try:
+        activeicesessions.clear()
+        response = "pass"
+    except Exception as exc:
+        app.logger.error('Error in checkServer.')
+    return response
 
 @app.route('/server/updateActiveIceSessions',methods=['POST'])
 def updateActiveIceSessions():
