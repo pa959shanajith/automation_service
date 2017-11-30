@@ -40,7 +40,6 @@ args = parser.parse_args()
 ice_ndac_key = 'ajkdfiHFEow#DjgLIqocn^8sjp2hfY&d'
 activeicesessions={}
 latest_access_time=datetime.now()
-timer = None
 
 ##os.chdir("..")
 #nineteen68 folder location is parent directory
@@ -78,8 +77,10 @@ offlineendtime=''
 offlineuser = False
 onlineuser = False
 usersession = False
-
+gracePeriodTimer=None
+twoDayTimer=None
 licensedata=""
+grace_period = 172800
 LS_CRITICAL_ERR_CODE=['199','120','121','123','124','125']
 lsRetryCount=0
 chronographTimer=None
@@ -2496,12 +2497,16 @@ def userAccess_Nineteen68():
 @app.route('/server',methods=['POST'])
 def checkServer():
     response = "fail"
+    status = 500
+    from flask import Response
     try:
-        activeicesessions.clear()
-        response = "pass"
+        if(onlineuser == True or offlineuser == True):
+            activeicesessions.clear()
+            response = "pass"
+            status = 200
     except Exception as exc:
-        app.logger.error('Error in checkServer.')
-    return response
+        app.logger.error('Error in checkServer')
+    return Response(response, status, mimetype='text/plain')
 
 @app.route('/server/updateActiveIceSessions',methods=['POST'])
 def updateActiveIceSessions():
@@ -3071,17 +3076,23 @@ def getbgntime(requiredday,*args):
     return day
 
 def connectingls(data):
-    global lsRetryCount,timer
+    global lsRetryCount,twoDayTimer
     lsRetryCount+=1
     connectionstatus=False
     try:
         lsresponse = requests.post('http://'+lsip+":5000/ndacrequest",data=data)
         if lsresponse.status_code == 200:
+            info=dataholder('select')
+            dbdata=ast.literal_eval(unwrap(info,mine))
+            if(dbdata.has_key('grace_period')):
+                del dbdata['grace_period']
+                datatodb = wrap(str(dbdata),mine)
+                dataholder('update',datatodb)
             lsRetryCount=0
             connectionstatus = lsresponse.content
-            if( timer != None and timer.isAlive()):
-                timer.cancel()
-                timer=None
+            if( twoDayTimer != None and twoDayTimer.isAlive()):
+                twoDayTimer.cancel()
+                twoDayTimer=None
     except Exception as e:
         app.logger.critical("License server must be running")
     return connectionstatus
@@ -3130,18 +3141,26 @@ def cronograph():
         import datetime
         from threading import Timer
         secs=None
+        x = None
         if chronographTimer is not None:
             secs=chronographTimer
         else:
-            x= datetime.datetime.today()
-            updatehr=00
-            updatemin=00
-            updatesec=00
-            updatemcrs=00
-            y = x + datetime.timedelta(days =1)
-            k=y.replace(hour=updatehr, minute=updatemin, second=updatesec, microsecond=updatemcrs)
-            delta_t=k-x
-            secs=delta_t.seconds+1
+            if(time.timezone != -19800):
+                x = datetime.datetime.utcnow() + datetime.timedelta(seconds = 19800)
+            else:
+                x = datetime.datetime.today()
+
+            datetime_at_twelve = datetime.datetime.strptime(str(x.year)+'-'+str(x.month)+'-'+str(x.day)+' 00:00:00', '%Y-%m-%d %H:%M:%S')
+            datetime_at_nine = datetime.datetime.strptime(str(x.year)+'-'+str(x.month)+'-'+str(x.day)+' 9:00:00', '%Y-%m-%d %H:%M:%S')
+            datetime_at_six_thirty = datetime.datetime.strptime(str(x.year)+'-'+str(x.month)+'-'+str(x.day)+' 18:30:00', '%Y-%m-%d %H:%M:%S')
+            datetime_at_next_nine = datetime.datetime.strptime(str((x + datetime.timedelta(days=1)).year)+'-'+str((x + datetime.timedelta(days=1)).month)+'-'+str((x + datetime.timedelta(days=1)).day)+' 9:00:00', '%Y-%m-%d %H:%M:%S')
+
+            if(x >= datetime_at_nine and x < datetime_at_six_thirty):
+                #For update at 6:30 PM
+                secs = (datetime_at_six_thirty - x).total_seconds()
+            elif((x >= datetime_at_six_thirty and x < datetime_at_next_nine) or (x >=datetime_at_twelve and x < datetime_at_nine)):
+                #For update at 9:00 AM
+                secs = (datetime_at_next_nine - x).total_seconds()
         t = Timer(secs, updateonls)
         t.start()
     except Exception as cronoexeption:
@@ -3171,6 +3190,7 @@ def dataholder(ops,*args):
     return data
 
 def checkSetup():
+    global grace_period
     enndac=False
     errmsg=''
     #checks if the db is already existing,
@@ -3183,6 +3203,8 @@ def checkSetup():
         if info !='':
             #Retrieve the data from db and decrypt it
             dbdata = ast.literal_eval(unwrap(info,mine))
+            if(dbdata.has_key('grace_period')):
+                grace_period = dbdata['grace_period']
             dbmacid=dbdata['macid']
             sysmacid=str(getMacAddress()).strip()
             if len(dbmacid)==0:
@@ -3213,25 +3235,36 @@ def beginserver():
         app.logger.critical("<<<<Database needs to be Started>>>>")
 
 def stopserver():
-    global onlineuser
+    global onlineuser, offlineuser, gracePeriodTimer
+    if(gracePeriodTimer != None and gracePeriodTimer.isAlive()):
+        gracePeriodTimer.cancel()
+        gracePeriodTimer = None
     onlineuser = False
+    offlineuser = False
     app.logger.error("License Server can't be reached.")
 
 def startTwoDaysTimer():
-    import datetime
     from threading import Timer
-    global timer
-    x= datetime.datetime.today()
-    updatehr=00
-    updatemin=00
-    updatesec=00
-    updatemcrs=00
-    y = x + datetime.timedelta(days=2)
-    k=y.replace(hour=updatehr, minute=updatemin, second=updatesec, microsecond=updatemcrs)
-    delta_t=k-x
-    secs=delta_t.seconds+1
-    timer = Timer(secs, stopserver)
-    timer.start()
+    global twoDayTimer,gracePeriodTimer
+    twoDayTimer = Timer(grace_period, stopserver)
+    twoDayTimer.start()
+    gracePeriodTimer = Timer(3600,saveGracePeriod)
+    gracePeriodTimer.start()
+
+def saveGracePeriod():
+    from threading import Timer
+    global gracePeriodTimer,twoDayTimer
+    if (twoDayTimer.isAlive()):
+        dbdata=dataholder('select')
+        dbdata = ast.literal_eval(unwrap(str(dbdata),mine))
+        if(dbdata.has_key('grace_period')):
+            dbdata['grace_period']=dbdata['grace_period'] - 3600
+        else:
+            dbdata['grace_period']=169200
+        datatodb=wrap(str(dbdata),mine)
+        dataholder('update',datatodb)
+        gracePeriodTimer = Timer(3600,saveGracePeriod)
+        gracePeriodTimer.start()
 
 from Crypto import Random
 from Crypto.Cipher import AES
