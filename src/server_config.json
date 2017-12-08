@@ -1,7 +1,7 @@
 {
-    "licenseserver":"licenseserverip",
-    "databaseip": "databaseip",
+    "licenseserver":"127.0.0.1",
+    "databaseip": "127.0.0.1",
     "dbport": "9042",
     "dbusername": "nineteen68",
-    "dbpassword": "dbpassword"
+    "dbpassword": "TA@SLK2017"
 }
