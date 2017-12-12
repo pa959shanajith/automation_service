@@ -10,31 +10,31 @@
 #-------------------------------------------------------------------------------
 import sys
 import os
-from os import access
-#sys.path.append('./packages/Lib/site-packages')
 import json
 import requests
 import subprocess
 import sqlite3
-
-import logging
-handler=''
-
 from datetime import datetime
 import time
 import uuid
-
 import ast
-
 from flask import Flask, request , jsonify
 from waitress import serve
+import logging
 from logging.handlers import TimedRotatingFileHandler
 app = Flask(__name__)
 
 import argparse
 parser = argparse.ArgumentParser()
-parser.add_argument("-k","--verbosity", type=str, help="home user"
-                    +"registration. Provide the offline registration filename")
+parser.add_argument("-k", type=str, dest='offlinemode', metavar='filename',
+    help="Home user registration. Provide the offline registration file")
+log_group = parser.add_mutually_exclusive_group()
+log_group.add_argument("-V", "--verbose", action="store_true", help="Set logger level to Verbose")
+log_group.add_argument("-D", "--debug", action="store_true", help="Set logger level to Debug")
+log_group.add_argument("-I", "--info", action="store_true", help="Set logger level to Info")
+log_group.add_argument("-W", "--warn", action="store_true", help="Set logger level to Warning")
+log_group.add_argument("-E", "--error", action="store_true", help="Set logger level to Error")
+log_group.add_argument("-C", "--critical", action="store_true", help="Set logger level to Critical")
 args = parser.parse_args()
 
 ice_ndac_key = 'ajkdfiHFEow#DjgLIqocn^8sjp2hfY&d'
@@ -2654,6 +2654,33 @@ ndacinfo = {
 ############################
 # BEGIN OF GENERIC FUNCTIONS
 ############################
+def initLoggers(level):
+    logLevel = logging.ERROR
+    consoleFormat = "[%(asctime)s] %(levelname)s in %(module)s: %(message)s"
+    if level.verbose:
+        logLevel = logging.NOTSET
+    elif level.debug:
+        logLevel = logging.DEBUG
+        consoleFormat = "[%(asctime)s] %(levelname)s in %(module)s:%(lineno)d: %(message)s"
+    elif level.info:
+        logLevel = logging.INFO
+    elif level.warn:
+        logLevel = logging.WARNING
+    elif level.error:
+        logLevel = logging.ERROR
+    elif level.critical:
+        logLevel = logging.CRITICAL
+    app.debug = True
+    consoleFormatter = logging.Formatter(consoleFormat)
+    consoleHandler = app.logger.handlers[0]
+    consoleHandler.setFormatter(consoleFormatter)
+    fileFormatter = logging.Formatter("[%(asctime)s] {%(pathname)s:%(lineno)d} %(levelname)s - %(message)s")
+    fileHandler = TimedRotatingFileHandler(logspath+'/ndac/ndac'+datetime.now().strftime("_%Y%m%d-%H%M%S")+'.log',when='d', encoding='utf-8', backupCount=1)
+    fileHandler.setFormatter(fileFormatter)
+    app.logger.addHandler(fileHandler)
+    app.logger.setLevel(logLevel)
+    app.logger.propagate = False
+
 def isemptyrequest(requestdata):
     flag = False
     global offlineuser
@@ -2681,30 +2708,18 @@ def isemptyrequest(requestdata):
                             app.logger.error(key)
                             flag = True
             else:
-                global handler
-                handler.setLevel(logging.CRITICAL)
-                app.logger.addHandler(handler)
                 app.logger.critical("User validity expired... "
                 +"Please contact Nineteen68 Team for Enabling")
-                handler.setLevel(logging.disable(logging.CRITICAL))
-                app.logger.addHandler(handler)
                 usersession = False
                 flag = True
         else:
             if offlineuser != True:
                 flag = True
                 app.logger.critical("Access to Nineteen68 Expired.")
-                handler.setLevel(logging.disable(logging.CRITICAL))
-                app.logger.addHandler(handler)
             else:
                 flag = True
-                global handler
-                handler.setLevel(logging.CRITICAL)
-                app.logger.addHandler(handler)
                 app.logger.critical("User validity expired... "
                 +"Please contact Nineteen68 Team for Enabling")
-                handler.setLevel(logging.disable(logging.CRITICAL))
-                app.logger.addHandler(handler)
     return flag
 
 def getcurrentdate():
@@ -3743,23 +3758,15 @@ class ProfJ():
 ################################################################################
 
 if __name__ == '__main__':
-    formatter = logging.Formatter("[%(asctime)s] {%(pathname)s:%(lineno)d} %(levelname)s - %(message)s")
-    inhandler = TimedRotatingFileHandler(logspath+'/ndac/ndac'+datetime.now().strftime("_%Y%m%d-%H%M%S")+'.log',when='d', encoding='utf-8', backupCount=1)
-    global handler
-    global licensedata
-    handler=inhandler
-    handler.setLevel(logging.ERROR)
-    handler.setFormatter(formatter)
-    app.logger.addHandler(handler)
-    app.logger.propagate = False
+    initLoggers(args)
     mac = getMacAddress()
     cleanndac=checkSetup()
     if not cleanndac:
         app.logger.critical("Please contact Team - Nineteen68. Critical Error.")
     else:
-        if args.verbosity:
+        if args.offlinemode:
             try:
-                f = open(sys.argv[-1],"r")
+                f = open(args.offlinemode,"r")
                 contents = f.read()
                 f.close()
                 userinformation=unwrap(str(contents),offreg)
@@ -3802,4 +3809,4 @@ if __name__ == '__main__':
                 cronograph()
                 beginserver()
             else:
-                app.logger.critical("Please contact Team - Nineteen68. Issue: License Server")
+                app.logger.critical("Please contact Team - Nineteen68")
