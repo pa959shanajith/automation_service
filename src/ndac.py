@@ -138,7 +138,7 @@ def authenticateUser_Nineteen68():
         else:
             app.logger.warn('Empty data received. authentication')
     except Exception as authenticateuserexc:
-        servicesException('authenticateUser',authenticateuserexc)
+        servicesException('authenticateUser_Nineteen68',authenticateuserexc)
     return jsonify(res)
 
 #service for user ldap validation
@@ -156,7 +156,7 @@ def authenticateUser_Nineteen68_ldap():
         else:
             app.logger.warn('Empty data received. authentication')
     except Exception as authenticateuserldapexc:
-        servicesException("authenticateUser_ldap",authenticateuserldapexc)
+        servicesException("authenticateUser_Nineteen68_ldap",authenticateuserldapexc)
     return jsonify(res)
 
 #service for getting rolename by roleid
@@ -211,8 +211,8 @@ def authenticateUser_Nineteen68_projassigned():
         else:
             app.logger.warn('Empty data received. authentication')
             return jsonify(res)
-    except Exception as authenticateuserprojassignedexc:
-        servicesException("authenticateUser_projassigned",authenticateuserprojassignedexc)
+    except Exception as e:
+        servicesException("authenticateUser_Nineteen68_projassigned",e)
         return jsonify(res)
 
 #service for loading user information
@@ -458,9 +458,9 @@ def testscenariosid_exists_ICE():
             queryresult = icesession.execute(testscenario_check)
             res={'rows':queryresult.current_rows}
         else:
-            app.logger.warn("Empty data received. testscenariosid_exists")
+            app.logger.warn("Empty data received. testscenariosid_exists_ICE")
     except Exception as e:
-        servicesException("testscenariosid_exists",e)
+        servicesException("testscenariosid_exists_ICE",e)
     return jsonify(res)
 
 
@@ -520,9 +520,9 @@ def get_node_details_ICE():
 ##            if(len(queryresult.current_rows)!=0 and res['rows'][0]['history'] != None):
 ##                res['rows'][0]['history']=dict(res['rows'][0]['history'])
         else:
-            app.logger.warn("Empty data received. testcase_exists")
+            app.logger.warn("Empty data received. get_node_details_ICE")
     except Exception as e:
-        servicesException("testcase_exists",e)
+        servicesException("get_node_details_ICE",e)
     return jsonify(res)
 
 @app.route('/create_ice/delete_node_ICE',methods=['POST'])
@@ -538,9 +538,9 @@ def delete_node_ICE():
             queryresult = icesession.execute(delete_query)
             res={'rows':'Success'}
         else:
-            app.logger.warn("Empty data received. testscenario_exists")
+            app.logger.warn("Empty data received. delete_node_ICE")
     except Exception as e:
-        servicesException("testcase_exists",e)
+        servicesException("delete_node_ICE",e)
     return jsonify(res)
 
 @app.route('/create_ice/insertInSuite_ICE',methods=['POST'])
@@ -1277,7 +1277,7 @@ def readTestSuite_ICE():
             else:
                 return jsonify(res)
         else:
-            app.logger.warn('Empty data received. assign projects.')
+            app.logger.warn('Empty data received. read testsuites.')
             return jsonify(res)
         res= {"rows":queryresult.current_rows}
         return jsonify(res)
@@ -1326,7 +1326,7 @@ def updateTestSuite_ICE():
             else:
                 return jsonify(res)
         else:
-            app.logger.warn('Empty data received. assign projects.')
+            app.logger.warn('Empty data received. update testsuite.')
             return jsonify(res)
         res={'rows':'Success'}
         return jsonify(res)
@@ -1380,12 +1380,12 @@ def ExecuteTestSuite_ICE() :
             else:
                 return jsonify(res)
         else:
-            app.logger.warn('Empty data received. assign projects.')
+            app.logger.warn('Empty data received. execute testsuite.')
             return jsonify(res)
         res={'rows':queryresult.current_rows}
         return jsonify(res)
     except Exception as execuitetestsuiteexc:
-        servicesException("execuiteTestSuite_ICE",execuitetestsuiteexc)
+        servicesException("ExecuteTestSuite_ICE",execuitetestsuiteexc)
         return jsonify(res)
 
 ################################################################################
@@ -1544,8 +1544,8 @@ def viewQcMappedList_ICE():
 
 #fetches the user roles for assigning during creation/updation user
 @app.route('/admin/getUserRoles_Nineteen68',methods=['POST'])
-def getUserRoles():
-    app.logger.info("Inside getUserRoles")
+def getUserRoles_Nineteen68():
+    app.logger.info("Inside getUserRoles_Nineteen68")
     res={'rows':'fail'}
     try:
         userrolesquery="select roleid, rolename from roles"
@@ -2131,7 +2131,7 @@ def getSuiteDetailsInExecution_ICE():
             app.logger.warn('Empty data received. report suites details execution.')
             return jsonify(res)
     except Exception as getsuitedetailsexc:
-        servicesException("getAllSuites_ICE",getsuitedetailsexc)
+        servicesException("getSuiteDetailsInExecution_ICE",getsuitedetailsexc)
         return jsonify(res)
 
 #fetching all the reports status
@@ -2683,7 +2683,31 @@ ndacinfo = {
     "macid": "",
     "tkn": "",
 }
-ecodeServices = {}
+ecodeServices = {"authenticateUser_Nineteen68":"300","authenticateUser_Nineteen68_ldap":"301",
+    "getRoleNameByRoleId_Nineteen68":"302","authenticateUser_Nineteen68_projassigned":"303",
+    "loadUserInfo_Nineteen68":"304","getReleaseIDs_Ninteen68":"305","getCycleIDs_Ninteen68":"306",
+    "getProjectType_Nineteen68":"307","getProjectIDs_Nineteen68":"308","getAllNames_ICE":"309",
+    "testsuiteid_exists_ICE":"310","testscenariosid_exists_ICE":"311","testscreenid_exists_ICE":"312",
+    "testcaseid_exists_ICE":"313","get_node_details_ICE":"314","delete_node_ICE":"315",
+    "insertInSuite_ICE":"316","insertInScenarios_ICE":"317","insertInScreen_ICE":"318",
+    "insertInTestcase_ICE":"319","updateTestScenario_ICE":"320","updateModule_ICE":"321",
+    "updateModulename_ICE":"322","updateTestscenarioname_ICE":"323","updateScreenname_ICE":"324",
+    "updateTestcasename_ICE":"325","submitTask":"326","getKeywordDetails":"327","readTestCase_ICE":"328",
+    "getScrapeDataScreenLevel_ICE":"329","debugTestCase_ICE":"330","updateScreen_ICE":"331",
+    "updateTestCase_ICE":"332","getTestcaseDetailsForScenario_ICE":"333","getTestcasesByScenarioId_ICE":"334",
+    "readTestSuite_ICE":"335","updateTestSuite_ICE":"336","ExecuteTestSuite_ICE":"337",
+    "ScheduleTestSuite_ICE":"338","qcProjectDetails_ICE":"339","saveQcDetails_ICE":"340",
+    "viewQcMappedList_ICE":"341","getUserRoles":"342","getDetails_ICE":"343","getNames_ICE":"344",
+    "getDomains_ICE":"345","getAssignedProjects_ICE":"346","createUser_Nineteen68":"347",
+    "getUserData_Nineteen68":"348","updateUser_Nineteen68":"349","createProject_ICE":"350",
+    "updateProject_ICE":"351","getUsers_Nineteen68":"352","assignProjects_ICE":"353",
+    "getAllUsers_Nineteen68":"354","getAvailablePlugins":"355","getAllSuites_ICE":"356",
+    "getSuiteDetailsInExecution_ICE":"357","reportStatusScenarios_ICE":"358","getReport_Nineteen68":"359",
+    "exportToJson_ICE":"360","createHistory":"361","encrypt_ICE":"362","dataUpdator_ICE":"363",
+    "userAccess_Nineteen68":"364","checkServer":"365","updateActiveIceSessions":"366",
+    "counterupdator":"367","getreports_in_day":"368","getsuites_inititated":"369","getscenario_inititated":"370",
+    "gettestcases_inititated":"371","modelinfoprocessor":"372","dataprocessor":"373","reportdataprocessor":"374"
+}
 
 ################################################################################
 # END OF GLOBAL VARIABLES
@@ -2726,8 +2750,7 @@ def printErrorCodes(ecode):
 
 def servicesException(srv, exc):
     app.logger.debug("Exception occured in "+srv+"\n Error: "+exc)
-    #app.logger.info("[ECODE: " + ecodeServices[srv] + "] Internal error occured in api")
-    app.logger.info("[ECODE: " + srv + "] Internal error occured in api")
+    app.logger.error("[ECODE: " + ecodeServices[srv] + "] Internal error occured in api")
 
 def isemptyrequest(requestdata):
     flag = False
