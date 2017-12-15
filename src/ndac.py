@@ -22,6 +22,9 @@ from flask import Flask, request , jsonify
 from waitress import serve
 import logging
 from logging.handlers import TimedRotatingFileHandler
+from cassandra.cluster import Cluster
+from flask_cassandra import CassandraCluster
+from cassandra.auth import PlainTextAuthProvider
 app = Flask(__name__)
 
 import argparse
@@ -50,28 +53,7 @@ logspath= currdir + "/ndac_internals/logs"
 
 ndac_conf = json.loads(open(config_path).read())
 lsip = ndac_conf['licenseserver']
-from cassandra.cluster import Cluster
-from flask_cassandra import CassandraCluster
-from cassandra.auth import PlainTextAuthProvider
 dbup = False
-try:
-    auth = PlainTextAuthProvider(username=ndac_conf['dbusername'], password=ndac_conf['dbpassword'])
-    cluster = Cluster([ndac_conf['databaseip']],port=int(ndac_conf['dbport']),auth_provider=auth)
-
-    icesession = cluster.connect()
-    n68session = cluster.connect()
-
-    from cassandra.query import dict_factory
-    icesession.row_factory = dict_factory
-    icesession.set_keyspace('icetestautomation')
-
-    n68session.row_factory = dict_factory
-    n68session.set_keyspace('nineteen68')
-    dbup = True
-except Exception as dbexception:
-    app.logger.error(printErrorCodes('206'))
-
-#default values for offline user
 offlinestarttime=''
 offlineendtime=''
 offlineuser = False
@@ -94,22 +76,32 @@ ERR_CODE={
     "206":"Error while establishing connection to Database",
     "207":"Database connection Unavailable",
     "208":"License server must be running",
+    "209":"Critical Internal Exception occured",
+    "210":"Critical Internal Exception occured: updateData",
     "211":"Another instance of NDAC is already registered with the License server",
     "212":"Unable to contact storage areas",
     "213":"Critical error in storage areas",
     "214":"Please contact Team - Nineteen68. Setup is corrupted",
     "215":"Error establishing connection to Licensing Server. Retrying to establish connection",
-    "216":"Connection to Licensing Server failed. Maximum retries exceeded. Hence, Shutting down server",
-    "231":"Internal Exception occured: reports",
-    "232":"Internal Exception occured: suites",
-    "233":"Internal Exception occured: scenario",
-    "234":"Internal Exception occured: testcases",
-    "235":"Internal Exception occured: infoprocessor",
-    "236":"Internal Exception occured: dataprocessor1",
-    "237":"Internal Exception occured: dataprocessor2",
-    "238":"Critical Internal Exception occured",
-    "239":"Critical Internal Exception occured"
+    "216":"Connection to Licensing Server failed. Maximum retries exceeded. Hence, Shutting down server"
 }
+
+try:
+    auth = PlainTextAuthProvider(username=ndac_conf['dbusername'], password=ndac_conf['dbpassword'])
+    cluster = Cluster([ndac_conf['databaseip']],port=int(ndac_conf['dbport']),auth_provider=auth)
+
+    icesession = cluster.connect()
+    n68session = cluster.connect()
+
+    from cassandra.query import dict_factory
+    icesession.row_factory = dict_factory
+    icesession.set_keyspace('icetestautomation')
+
+    n68session.row_factory = dict_factory
+    n68session.set_keyspace('nineteen68')
+    dbup = True
+except Exception as dbexception:
+    app.logger.error("[ECODE: 206] " + ERR_CODE['206'])
 
 if (ndac_conf.has_key('custChronographTimer')):
     chronographTimer = ndac_conf['custChronographTimer']
@@ -146,7 +138,7 @@ def authenticateUser_Nineteen68():
         else:
             app.logger.warn('Empty data received. authentication')
     except Exception as authenticateuserexc:
-        app.logger.error('Error in authenticateUser.')
+        servicesException('authenticateUser_Nineteen68',authenticateuserexc)
     return jsonify(res)
 
 #service for user ldap validation
@@ -164,7 +156,7 @@ def authenticateUser_Nineteen68_ldap():
         else:
             app.logger.warn('Empty data received. authentication')
     except Exception as authenticateuserldapexc:
-        app.logger.error('Error in authenticateUser_ldap.')
+        servicesException("authenticateUser_Nineteen68_ldap",authenticateuserldapexc)
     return jsonify(res)
 
 #service for getting rolename by roleid
@@ -186,7 +178,7 @@ def getRoleNameByRoleId_Nineteen68():
 
             return jsonify(res)
     except Exception as rolenameexc:
-        app.logger.error('Error in getRoleNameByRoleId_Nineteen68.')
+        servicesException("getRoleNameByRoleId_Nineteen68",rolenameexc)
         return jsonify(res)
 
 #utility checks whether user is having projects assigned
@@ -196,7 +188,7 @@ def authenticateUser_Nineteen68_projassigned():
     try:
         requestdata=json.loads(request.data)
         app.logger.info("Inside authenticateUser_Nineteen68_projassigned."
-            +"Query: "+requestdata["query"])
+            +"Query: "+str(requestdata["query"]))
         if not isemptyrequest(requestdata):
             if(requestdata["query"] == 'getUserId'):
                 authenticateuserprojassigned1= ("select userid,defaultrole "
@@ -219,8 +211,8 @@ def authenticateUser_Nineteen68_projassigned():
         else:
             app.logger.warn('Empty data received. authentication')
             return jsonify(res)
-    except Exception as authenticateuserprojassignedexc:
-        app.logger.error('Error in authenticateUser_projassigned.')
+    except Exception as e:
+        servicesException("authenticateUser_Nineteen68_projassigned",e)
         return jsonify(res)
 
 #service for loading user information
@@ -231,7 +223,7 @@ def loadUserInfo_Nineteen68():
         ui_plugins_list = []
         requestdata=json.loads(request.data)
         app.logger.info("Inside loadUserInfo_Nineteen68. Query: "
-            +requestdata["query"])
+            +str(requestdata["query"]))
         if not isemptyrequest(requestdata):
             if(requestdata["query"] == 'userInfo'):
                 global latest_access_time
@@ -286,7 +278,7 @@ def loadUserInfo_Nineteen68():
             app.logger.warn('Empty data received. loadUserInfo')
             return jsonify(res)
     except Exception as loaduserinfoexc:
-        app.logger.error('Error in loadUserInfo_Nineteen68.')
+        servicesException("loadUserInfo_Nineteen68",loaduserinfoexc)
         return jsonify(res)
 
 ################################################################################
@@ -315,7 +307,7 @@ def getReleaseIDs_Ninteen68():
        else:
             app.logger.warn("Empty data received. getReleaseIDs_Ninteen68")
     except Exception as e:
-        app.logger.error('Error in getReleaseIDs_Ninteen68.')
+        servicesException("getReleaseIDs_Ninteen68",e)
     return jsonify(res)
 
 
@@ -334,7 +326,7 @@ def getCycleIDs_Ninteen68():
        else:
             app.logger.warn("Empty data received. getCycleIDs_Ninteen68")
     except Exception as e:
-        app.logger.error('Error in getCycleIDs_Ninteen68.')
+        servicesException("getCycleIDs_Ninteen68",e)
     return jsonify(res)
 
 @app.route('/create_ice/getProjectType_Nineteen68',methods=['POST'])
@@ -355,7 +347,7 @@ def getProjectType_Nineteen68():
        else:
             app.logger.warn("Empty data received. getProjectType_Nineteen68")
     except Exception as e:
-        app.logger.error('Error in getProjectType_Nineteen68.')
+        servicesException("getProjectType_Nineteen68",e)
     return jsonify(res)
 
 #getting ProjectID and names of project sassigned to particular user
@@ -365,7 +357,7 @@ def getProjectIDs_Nineteen68():
     try:
         requestdata=json.loads(request.data)
         app.logger.info("Inside getProjectIDs_Nineteen68. Query: "
-            +requestdata["query"])
+            +str(requestdata["query"]))
         if not isemptyrequest(requestdata):
             prjDetails={
                 'projectId':[],
@@ -406,7 +398,7 @@ def getProjectIDs_Nineteen68():
         else:
             app.logger.warn("Empty data received. getProjectIDs_Nineteen68")
     except Exception as e:
-        app.logger.error('Error in getProjectIDs_Nineteen68.')
+        servicesException("getProjectIDs_Nineteen68",e)
     return jsonify(res)
 
 #getting names of module/scenario/screen/testcase name of given id
@@ -425,7 +417,7 @@ def getAllNames_ICE():
        else:
             app.logger.warn("Empty data received. getAllNames_ICE")
     except Exception as e:
-        app.logger.error('Error in getAllNames_ICE.')
+        servicesException("getAllNames_ICE",e)
     return jsonify(res)
 
 #getting names of module/scenario/screen/testcase name of given id
@@ -434,7 +426,7 @@ def testsuiteid_exists_ICE():
     res={'rows':'fail'}
     try:
         requestdata=json.loads(request.data)
-        app.logger.info("Inside testsuiteid_exists_ICE. Query: "+requestdata["name"])
+        app.logger.info("Inside testsuiteid_exists_ICE. Query: "+str(requestdata["name"]))
         if not isemptyrequest(requestdata):
             query_name=requestdata['name']
             if query_name=='suite_check':
@@ -447,7 +439,7 @@ def testsuiteid_exists_ICE():
         else:
             app.logger.warn("Empty data received. testsuiteid_exists_ICE")
     except Exception as e:
-        app.logger.error('Error in testsuiteid_exists_ICE.')
+        servicesException("testsuiteid_exists_ICE",e)
     return jsonify(res)
 
 @app.route('/create_ice/testscenariosid_exists_ICE',methods=['POST'])
@@ -455,7 +447,7 @@ def testscenariosid_exists_ICE():
     res={'rows':'fail'}
     try:
         requestdata=json.loads(request.data)
-        app.logger.info("Inside testscenariosid_exists_ICE. Query: "+requestdata["name"])
+        app.logger.info("Inside testscenariosid_exists_ICE. Query: "+str(requestdata["name"]))
         if not isemptyrequest(requestdata):
             query_name=requestdata['name']
             if query_name=='scenario_check':
@@ -466,9 +458,9 @@ def testscenariosid_exists_ICE():
             queryresult = icesession.execute(testscenario_check)
             res={'rows':queryresult.current_rows}
         else:
-            app.logger.warn("Empty data received. testscenariosid_exists")
+            app.logger.warn("Empty data received. testscenariosid_exists_ICE")
     except Exception as e:
-        app.logger.error('Error in testscenariosid_exists.')
+        servicesException("testscenariosid_exists_ICE",e)
     return jsonify(res)
 
 
@@ -477,7 +469,7 @@ def testscreenid_exists_ICE():
     res={'rows':'fail'}
     try:
         requestdata=json.loads(request.data)
-        app.logger.info("Inside testscreenid_exists_ICE. Query: "+requestdata["name"])
+        app.logger.info("Inside testscreenid_exists_ICE. Query: "+str(requestdata["name"]))
         if not isemptyrequest(requestdata):
             query_name=requestdata['name']
             if query_name=='screen_check':
@@ -490,7 +482,7 @@ def testscreenid_exists_ICE():
         else:
             app.logger.warn("Empty data received. testscreenid_exists_ICE")
     except Exception as e:
-        app.logger.error('Error in testscreenid_exists_ICE.')
+        servicesException("testscreenid_exists_ICE",e)
     return jsonify(res)
 
 @app.route('/create_ice/testcaseid_exists_ICE',methods=['POST'])
@@ -498,7 +490,7 @@ def testcaseid_exists_ICE():
     res={'rows':'fail'}
     try:
         requestdata=json.loads(request.data)
-        app.logger.info("Inside testcaseid_exists_ICE. Query: "+requestdata["name"])
+        app.logger.info("Inside testcaseid_exists_ICE. Query: "+str(requestdata["name"]))
         if not isemptyrequest(requestdata):
             query_name=requestdata['name']
             if query_name=='testcase_check':
@@ -511,7 +503,7 @@ def testcaseid_exists_ICE():
         else:
             app.logger.warn("Empty data received. testcaseid_exists_ICE")
     except Exception as e:
-        app.logger.error('Error in testcaseid_exists_ICE.')
+        servicesException("testcaseid_exists_ICE",e)
     return jsonify(res)
 
 @app.route('/create_ice/get_node_details_ICE',methods=['POST'])
@@ -519,7 +511,7 @@ def get_node_details_ICE():
     res={'rows':'fail'}
     try:
         requestdata=json.loads(request.data)
-        app.logger.info("Inside get_node_details_ICE. Name: "+requestdata["name"])
+        app.logger.info("Inside get_node_details_ICE. Name: "+str(requestdata["name"]))
         if not isemptyrequest(requestdata):
             query_name=requestdata['name']
             get_node_data=query[query_name]+requestdata['id']+query['delete_flag']
@@ -528,9 +520,9 @@ def get_node_details_ICE():
 ##            if(len(queryresult.current_rows)!=0 and res['rows'][0]['history'] != None):
 ##                res['rows'][0]['history']=dict(res['rows'][0]['history'])
         else:
-            app.logger.warn("Empty data received. testcase_exists")
+            app.logger.warn("Empty data received. get_node_details_ICE")
     except Exception as e:
-        app.logger.error('Error in testcase_exists.')
+        servicesException("get_node_details_ICE",e)
     return jsonify(res)
 
 @app.route('/create_ice/delete_node_ICE',methods=['POST'])
@@ -538,7 +530,7 @@ def delete_node_ICE():
     res={'rows':'fail'}
     try:
         requestdata=json.loads(request.data)
-        app.logger.info("Inside delete_node_ICE. Name: "+requestdata["name"])
+        app.logger.info("Inside delete_node_ICE. Name: "+str(requestdata["name"]))
         if not isemptyrequest(requestdata):
             query_name=requestdata['name']
             get_delete_query(requestdata['id'],requestdata['node_name'],requestdata['version_number'],requestdata['parent_node_id'])
@@ -546,9 +538,9 @@ def delete_node_ICE():
             queryresult = icesession.execute(delete_query)
             res={'rows':'Success'}
         else:
-            app.logger.warn("Empty data received. testscenario_exists")
+            app.logger.warn("Empty data received. delete_node_ICE")
     except Exception as e:
-        app.logger.error('Error in testcase_exists.')
+        servicesException("delete_node_ICE",e)
     return jsonify(res)
 
 @app.route('/create_ice/insertInSuite_ICE',methods=['POST'])
@@ -556,7 +548,7 @@ def insertInSuite_ICE():
     res={'rows':'fail'}
     try:
         requestdata=json.loads(request.data)
-        app.logger.info("Inside insertInSuite_ICE. Query: "+requestdata["query"])
+        app.logger.info("Inside insertInSuite_ICE. Query: "+str(requestdata["query"]))
         if not isemptyrequest(requestdata):
             if(requestdata["query"] == 'notflagsuite'):
                 tags="['"+requestdata['tags']+"']"
@@ -589,7 +581,7 @@ def insertInSuite_ICE():
         else:
             app.logger.warn("Empty data received. insertInSuite_ICE")
     except Exception as e:
-        app.logger.error('Error in insertInSuite_ICE.')
+        servicesException("insertInSuite_ICE",e)
     return jsonify(res)
 
 @app.route('/create_ice/insertInScenarios_ICE',methods=['POST'])
@@ -597,7 +589,7 @@ def insertInScenarios_ICE():
     res={'rows':'fail'}
     try:
         requestdata=json.loads(request.data)
-        app.logger.info("Inside insertInScenarios_ICE. Query: "+requestdata["query"])
+        app.logger.info("Inside insertInScenarios_ICE. Query: "+str(requestdata["query"]))
         if not isemptyrequest(requestdata):
             if(requestdata["query"] == 'notflagscenarios'):
                 tags="['"+requestdata['tags']+"']"
@@ -631,7 +623,7 @@ def insertInScenarios_ICE():
         else:
             app.logger.warn("Empty data received. insertInScenarios_ICE")
     except Exception as e:
-        app.logger.error('Error in insertInScenarios_ICE.')
+        servicesException("insertInScenarios_ICE",e)
     return jsonify(res)
 
 @app.route('/create_ice/insertInScreen_ICE',methods=['POST'])
@@ -639,7 +631,7 @@ def insertInScreen_ICE():
     res={'rows':'fail'}
     try:
         requestdata=json.loads(request.data)
-        app.logger.info("Inside insertInScreen_ICE. Query: "+requestdata["query"])
+        app.logger.info("Inside insertInScreen_ICE. Query: "+str(requestdata["query"]))
         if not isemptyrequest(requestdata):
             if(requestdata["query"] == 'notflagscreen'):
                 tags="['"+requestdata['tags']+"']"
@@ -675,7 +667,7 @@ def insertInScreen_ICE():
         else:
             app.logger.warn("Empty data received. insertInScreen_ICE")
     except Exception as e:
-        app.logger.error('Error in insertInScreen_ICE.')
+        servicesException("insertInScreen_ICE",e)
     return jsonify(res)
 
 @app.route('/create_ice/insertInTestcase_ICE',methods=['POST'])
@@ -683,7 +675,7 @@ def insertInTestcase_ICE():
     res={'rows':'fail'}
     try:
         requestdata=json.loads(request.data)
-        app.logger.info("Inside insertInTestcase_ICE. Query: "+requestdata["query"])
+        app.logger.info("Inside insertInTestcase_ICE. Query: "+str(requestdata["query"]))
         if not isemptyrequest(requestdata):
             if(requestdata["query"] == 'notflagtestcase'):
                 tags="['"+requestdata['tags']+"']"
@@ -719,7 +711,7 @@ def insertInTestcase_ICE():
         else:
             app.logger.warn("Empty data received. insertInTestcase_ICE")
     except Exception as e:
-        app.logger.error('Error in insertInTestcase_ICE.')
+        servicesException("insertInTestcase_ICE",e)
     return jsonify(res)
 
 @app.route('/create_ice/updateTestScenario_ICE',methods=['POST'])
@@ -728,7 +720,7 @@ def updateTestScenario_ICE():
     try:
         requestdata=json.loads(request.data)
         app.logger.info("Inside updateTestScenario_ICE. Modified_flag: "
-            +requestdata["modifiedflag"])
+            +str(requestdata["modifiedflag"]))
         if not isemptyrequest(requestdata):
             ##requestdata['testcaseid']=','.join(str(idval) for idval in requestdata['testcaseid'])
             #history=createHistory("update","testscenarios",requestdata)
@@ -754,7 +746,7 @@ def updateTestScenario_ICE():
         else:
             app.logger.warn("Empty data received. updateTestScenario_ICE")
     except Exception as e:
-        app.logger.error('Error in updateTestScenario_ICE.')
+        servicesException("updateTestScenario_ICE",e)
     return jsonify(res)
 
 @app.route('/create_ice/updateModule_ICE',methods=['POST'])
@@ -763,7 +755,7 @@ def updateModule_ICE():
     try:
         requestdata=json.loads(request.data)
         app.logger.info("Inside updateModule_ICE. Modified_flag: "
-            +requestdata["modifiedflag"])
+            +str(requestdata["modifiedflag"]))
         if not isemptyrequest(requestdata):
             requestdata['testscenarioids']=','.join(str(idval) for idval in requestdata['testscenarioids'])
             #history=createHistory("update","modules",requestdata)
@@ -787,7 +779,7 @@ def updateModule_ICE():
         else:
             app.logger.warn("Empty data received. updateModule_ICE")
     except Exception as e:
-        app.logger.error('Error in updateModule_ICE.')
+        servicesException("updateModule_ICE",e)
     return jsonify(res)
 
 @app.route('/create_ice/updateModulename_ICE',methods=['POST'])
@@ -813,7 +805,7 @@ def updateModulename_ICE():
        else:
             app.logger.warn("Empty data received. updateModulename_ICE")
     except Exception as e:
-        app.logger.error('Error in updateModulename_ICE.')
+        servicesException("updateModulename_ICE",e)
     return jsonify(res)
 
 @app.route('/create_ice/updateTestscenarioname_ICE',methods=['POST'])
@@ -839,7 +831,7 @@ def updateTestscenarioname_ICE():
        else:
             app.logger.warn("Empty data received. updateTestscenarioname_ICE")
     except Exception as e:
-        app.logger.error('Error in updateTestscenarioname_ICE.')
+        servicesException("updateTestscenarioname_ICE",e)
     return jsonify(res)
 
 
@@ -868,7 +860,7 @@ def updateScreenname_ICE():
         else:
             app.logger.warn("Empty data received. updateScreenname_ICE")
     except Exception as e:
-        app.logger.error('Error in updateScreenname_ICE.')
+        servicesException("updateScreenname_ICE",e)
     return jsonify(res)
 
 
@@ -898,7 +890,7 @@ def updateTestcasename_ICE():
        else:
             app.logger.warn("Empty data received. updateTestcasename_ICE")
     except Exception as e:
-        app.logger.error('Error in updateTestcasename_ICE.')
+        servicesException("updateTestcasename_ICE",e)
     return jsonify(res)
 
 
@@ -907,7 +899,7 @@ def updateTestcasename_ICE():
 ##    res={'rows':'fail'}
 ##    try:
 ##        requestdata=json.loads(request.data)
-##        app.logger.info("Inside submitTask. Table: "+requestdata["table"])
+##        app.logger.info("Inside submitTask. Table: "+str(requestdata["table"]))
 ##        if not isemptyrequest(requestdata):
 ##            #history=createHistory("submit",requestdata['table'].lower(),requestdata)
 ##            if(requestdata['table'].lower()=='screens'):
@@ -941,7 +933,7 @@ def updateTestcasename_ICE():
 ##        else:
 ##            app.logger.warn("Empty data received. submitTask")
 ##    except Exception as e:
-##        app.logger.error('Error in submitTask.')
+##        servicesException("submitTask",e)
 ##    return jsonify(res)
 ################################################################################
 # END OF MIND MAPS
@@ -976,7 +968,7 @@ def getKeywordDetails():
         else:
             app.logger.warn('Empty data received. getKeywordDetails')
     except Exception as keywordsexc:
-        app.logger.error('Error in getKeywordDetails.')
+        servicesException("getKeywordDetails",keywordsexc)
     return jsonify(res)
 
 #test case reading service
@@ -985,7 +977,7 @@ def readTestCase_ICE():
     res={'rows':'fail'}
     try:
         requestdata=json.loads(request.data)
-        app.logger.info("Inside readTestCase_ICE. Query: "+requestdata["query"])
+        app.logger.info("Inside readTestCase_ICE. Query: "+str(requestdata["query"]))
         if not isemptyrequest(requestdata):
             if(requestdata['query'] == "readtestcase"):
                 readtestcasequery1 = ("select testcasesteps,testcasename "
@@ -1011,7 +1003,7 @@ def readTestCase_ICE():
             app.logger.warn('Empty data received. reading Testcase')
         res= {"rows": queryresult.current_rows}
     except Exception as readtestcaseexc:
-        app.logger.error('Error in readTestCase_ICE.')
+        servicesException("readTestCase_ICE",readtestcaseexc)
     return jsonify(res)
 
 
@@ -1021,7 +1013,7 @@ def getScrapeDataScreenLevel_ICE():
     res={'rows':'fail'}
     try:
         requestdata=json.loads(request.data)
-        app.logger.info("Inside getScrapeDataScreenLevel_ICE. Query: "+requestdata["query"])
+        app.logger.info("Inside getScrapeDataScreenLevel_ICE. Query: "+str(requestdata["query"]))
         if not isemptyrequest(requestdata):
             if (requestdata['query'] == 'getscrapedata'):
                 getscrapedataquery1=("select screenid,screenname,screendata from "
@@ -1038,7 +1030,7 @@ def getScrapeDataScreenLevel_ICE():
         else:
             app.logger.warn('Empty data received. reading Testcase')
     except Exception as getscrapedataexc:
-        app.logger.error('Error in getScrapeDataScreenLevel_ICE.')
+        servicesException("getScrapeDataScreenLevel_ICE",getscrapedataexc)
     return jsonify(res)
 
 # fetches data for debug the testcase
@@ -1056,7 +1048,7 @@ def debugTestCase_ICE():
         else:
             app.logger.warn('Empty data received. reading Testcase')
     except Exception as debugtestcaseexc:
-        app.logger.error('Error in debugTestCase_ICE.')
+        servicesException("debugTestCase_ICE",debugtestcaseexc)
     return jsonify(res)
 
 # updates the screen data
@@ -1083,7 +1075,7 @@ def updateScreen_ICE():
         else:
             app.logger.warn('Empty data received. updating screen')
     except Exception as updatescreenexc:
-        app.logger.error('Error in updateScreen_ICE.')
+        servicesException("updateScreen_ICE",updatescreenexc)
     return jsonify(res)
 
 #test case updating service
@@ -1092,7 +1084,7 @@ def updateTestCase_ICE():
     res={'rows':'fail'}
     try:
         requestdata=json.loads(request.data)
-        app.logger.info("Inside updateTestCase_ICE. Query: "+requestdata["query"])
+        app.logger.info("Inside updateTestCase_ICE. Query: "+str(requestdata["query"]))
         if not isemptyrequest(requestdata):
             if(requestdata["query"] == 'checktestcaseexist'):
                 updatetestcasequery1 = ("select testcaseid from testcases where "
@@ -1116,7 +1108,7 @@ def updateTestCase_ICE():
         else:
             app.logger.warn('Empty data received. updating testcases')
     except Exception as updatetestcaseexception:
-        app.logger.error('Error in updateTestCase_ICE.')
+        servicesException("updateTestCase_ICE",updatetestcaseexception)
     return jsonify(res)
 
 #fetches all the testcases under a test scenario
@@ -1126,7 +1118,7 @@ def getTestcaseDetailsForScenario_ICE():
     try:
         requestdata=json.loads(request.data)
         app.logger.info("Inside getTestcaseDetailsForScenario_ICE. Query: "
-            +requestdata["query"])
+            +str(requestdata["query"]))
         if not isemptyrequest(requestdata):
             if(requestdata["query"] == 'testscenariotable'):
                 gettestscenarioquery1=("select testcaseids from testscenarios where "
@@ -1150,7 +1142,7 @@ def getTestcaseDetailsForScenario_ICE():
         else:
             app.logger.warn('Empty data received. getting testcases from scenarios.')
     except Exception as userrolesexc:
-        app.logger.error('Error in getTestcaseDetailsForScenario_ICE.')
+        servicesException("getTestcaseDetailsForScenario_ICE",userrolesexc)
     return jsonify(res)
 
 ################################################################################
@@ -1170,7 +1162,7 @@ def getTestcasesByScenarioId_ICE():
     try:
         requestdata=json.loads(request.data)
         app.logger.info("Inside getTestcasesByScenarioId_ICE. Query: "
-            +requestdata["query"])
+            +str(requestdata["query"]))
         if not isemptyrequest(requestdata):
             if(requestdata["query"] == 'gettestcaseids'):
                 gettestcaseidquery1  = ("select testcaseids from testscenarios "
@@ -1186,8 +1178,8 @@ def getTestcasesByScenarioId_ICE():
                 res={'rows':'fail'}
         else:
             app.logger.warn('Empty data received. getting testcases.')
-    except Exception as gettestcasesbyscenarioidexception:
-        app.logger.error('Error in getTestcasesByScenarioId_ICE.')
+    except Exception as e:
+        servicesException("getTestcasesByScenarioId_ICE",e)
     return jsonify(res)
 
 #read test suite nineteen68
@@ -1196,7 +1188,7 @@ def readTestSuite_ICE():
     res={'rows':'fail'}
     try:
         requestdata=json.loads(request.data)
-        app.logger.info("Inside readTestSuite_ICE. Query: "+requestdata["query"])
+        app.logger.info("Inside readTestSuite_ICE. Query: "+str(requestdata["query"]))
         if not isemptyrequest(requestdata):
             if(requestdata["query"] == 'testsuitecheck'):
                 readtestsuitequery1 = ("select donotexecute,conditioncheck, "
@@ -1285,12 +1277,12 @@ def readTestSuite_ICE():
             else:
                 return jsonify(res)
         else:
-            app.logger.warn('Empty data received. assign projects.')
+            app.logger.warn('Empty data received. read testsuites.')
             return jsonify(res)
         res= {"rows":queryresult.current_rows}
         return jsonify(res)
     except Exception as exporttojsonexc:
-        app.logger.error('Error in readTestSuite_ICE.')
+        servicesException("readTestSuite_ICE",exporttojsonexc)
         res={'rows':'fail'}
         return jsonify(res)
 
@@ -1303,7 +1295,7 @@ def updateTestSuite_ICE():
     res={'rows':'fail'}
     try:
         requestdata=json.loads(request.data)
-        app.logger.info("Inside updateTestSuite_ICE. Query: "+requestdata["query"])
+        app.logger.info("Inside updateTestSuite_ICE. Query: "+str(requestdata["query"]))
         if not isemptyrequest(requestdata):
             if(requestdata['query'] == 'deletetestsuitequery'):
                 deletetestsuitequery=("delete conditioncheck,donotexecute,"
@@ -1334,12 +1326,12 @@ def updateTestSuite_ICE():
             else:
                 return jsonify(res)
         else:
-            app.logger.warn('Empty data received. assign projects.')
+            app.logger.warn('Empty data received. update testsuite.')
             return jsonify(res)
         res={'rows':'Success'}
         return jsonify(res)
     except Exception as updatetestsuiteexc:
-        app.logger.error('Error in updateTestSuite_ICE')
+        servicesException("updateTestSuite_ICE",updatetestsuiteexc)
         return jsonify(res)
 
 @app.route('/suite/ExecuteTestSuite_ICE',methods=['POST'])
@@ -1347,7 +1339,7 @@ def ExecuteTestSuite_ICE() :
     res={'rows':'fail'}
     try:
         requestdata=json.loads(request.data)
-        app.logger.info("Inside ExecuteTestSuite_ICE. Query: "+requestdata["query"])
+        app.logger.info("Inside ExecuteTestSuite_ICE. Query: "+str(requestdata["query"]))
         if not isemptyrequest(requestdata):
             if(requestdata['query'] == 'testcaseid'):
                 executetestsuitequery1=("select testcaseids from testscenarios where"
@@ -1388,12 +1380,12 @@ def ExecuteTestSuite_ICE() :
             else:
                 return jsonify(res)
         else:
-            app.logger.warn('Empty data received. assign projects.')
+            app.logger.warn('Empty data received. execute testsuite.')
             return jsonify(res)
         res={'rows':queryresult.current_rows}
         return jsonify(res)
     except Exception as execuitetestsuiteexc:
-        app.logger.error('Error in execuiteTestSuite_ICE')
+        servicesException("ExecuteTestSuite_ICE",execuitetestsuiteexc)
         return jsonify(res)
 
 ################################################################################
@@ -1408,7 +1400,7 @@ def ScheduleTestSuite_ICE():
     res={'rows':'fail'}
     try:
         requestdata=json.loads(request.data)
-        app.logger.info("Inside ScheduleTestSuite_ICE. Query: "+requestdata["query"])
+        app.logger.info("Inside ScheduleTestSuite_ICE. Query: "+str(requestdata["query"]))
         if not isemptyrequest(requestdata):
             if(requestdata['query'] == 'insertscheduledata'):
                 requestdata['testsuiteids']=','.join(str(idval) for idval in requestdata['testsuiteids'])
@@ -1459,7 +1451,7 @@ def ScheduleTestSuite_ICE():
         res={'rows':queryresult.current_rows}
         return jsonify(res)
     except Exception as scheduletestsuiteexc:
-        app.logger.error('Error in ScheduleTestSuite_ICE')
+        servicesException("ScheduleTestSuite_ICE",scheduletestsuiteexc)
         return jsonify(res)
 
 ################################################################################
@@ -1476,7 +1468,7 @@ def qcProjectDetails_ICE():
     res={'rows':'fail'}
     try:
         requestdata=json.loads(request.data)
-        app.logger.info("Inside qcProjectDetails_ICE. Query: "+requestdata["query"])
+        app.logger.info("Inside qcProjectDetails_ICE. Query: "+str(requestdata["query"]))
         if not isemptyrequest(requestdata):
             if(requestdata["query"] == 'getprojectDetails'):
                 qcprojectdetailsquery1  = ("select projectids from icepermissions where userid="+requestdata["userid"])
@@ -1494,8 +1486,8 @@ def qcProjectDetails_ICE():
         else:
             app.logger.warn('Empty data received. getting qcProjectDetails.')
             res =  jsonify(res)
-    except Exception as gettestcasesbyscenarioidexception:
-        app.logger.error('Error in qcProjectDetails_ICE.')
+    except Exception as e:
+        servicesException("qcProjectDetails_ICE",e)
     return res
 
 @app.route('/qualityCenter/saveQcDetails_ICE',methods=['POST'])
@@ -1503,7 +1495,7 @@ def saveQcDetails_ICE():
     res={'rows':'fail'}
     try:
         requestdata=json.loads(request.data)
-        app.logger.info("Inside saveQcDetails_ICE. Query: "+requestdata["query"])
+        app.logger.info("Inside saveQcDetails_ICE. Query: "+str(requestdata["query"]))
         if not isemptyrequest(requestdata):
             if(requestdata["query"] == 'saveQcDetails_ICE'):
                 gettestcaseidquery1  = ("INSERT INTO qualitycenterdetails (testscenarioid,qcdetailsid,qcdomain,qcfolderpath,qcproject,qctestcase,qctestset) VALUES ("+requestdata["testscenarioid"]
@@ -1517,8 +1509,8 @@ def saveQcDetails_ICE():
         else:
             app.logger.warn('Empty data received. getting saveQcDetails.')
             res =  jsonify(res)
-    except Exception as gettestcasesbyscenarioidexception:
-        app.logger.error('Error in saveQcDetails_ICE.')
+    except Exception as e:
+        servicesException("saveQcDetails_ICE",e)
     return res
 
 @app.route('/qualityCenter/viewQcMappedList_ICE',methods=['POST'])
@@ -1526,7 +1518,7 @@ def viewQcMappedList_ICE():
     res={'rows':'fail'}
     try:
         requestdata=json.loads(request.data)
-        app.logger.info("Inside viewQcMappedList_ICE. Query: "+requestdata["query"])
+        app.logger.info("Inside viewQcMappedList_ICE. Query: "+str(requestdata["query"]))
         if not isemptyrequest(requestdata):
             if(requestdata["query"] == 'qcdetails'):
                 viewqcmappedquery1  = ("SELECT * FROM qualitycenterdetails where testscenarioid="+requestdata["testscenarioid"])
@@ -1538,8 +1530,8 @@ def viewQcMappedList_ICE():
         else:
             app.logger.warn('Empty data received. getting QcMappedList.')
             res =  jsonify(res)
-    except Exception as gettestcasesbyscenarioidexception:
-        app.logger.error('Error in viewQcMappedList_ICE.')
+    except Exception as e:
+        servicesException("viewQcMappedList_ICE",e)
     return res
 ################################################################################
 # END OF QUALITYCENTRE
@@ -1552,8 +1544,8 @@ def viewQcMappedList_ICE():
 
 #fetches the user roles for assigning during creation/updation user
 @app.route('/admin/getUserRoles_Nineteen68',methods=['POST'])
-def getUserRoles():
-    app.logger.info("Inside getUserRoles")
+def getUserRoles_Nineteen68():
+    app.logger.info("Inside getUserRoles_Nineteen68")
     res={'rows':'fail'}
     try:
         userrolesquery="select roleid, rolename from roles"
@@ -1561,7 +1553,7 @@ def getUserRoles():
         res={'rows':queryresult.current_rows}
         return jsonify(res)
     except Exception as userrolesexc:
-        app.logger.error('Error in getUserRoles_Nineteen68.')
+        servicesException("getUserRoles_Nineteen68",userrolesexc)
         return jsonify(res)
 
 
@@ -1574,7 +1566,7 @@ def getDetails_ICE():
     res={'rows':'fail'}
     try:
         requestdata=json.loads(request.data)
-        app.logger.info("Inside getDetails_ICE. Query: "+requestdata["query"])
+        app.logger.info("Inside getDetails_ICE. Query: "+str(requestdata["query"]))
         if not isemptyrequest(requestdata):
             if(requestdata["query"] == 'domaindetails'):
                 ptype={}
@@ -1625,7 +1617,7 @@ def getDetails_ICE():
             app.logger.warn('Empty data received. generic details.')
             return jsonify(res)
     except Exception as getdetailsexc:
-        app.logger.error('Error in getDetails_ICE.')
+        servicesException("getDetails_ICE",getdetailsexc)
         return jsonify(res)
 
 
@@ -1636,7 +1628,7 @@ def getNames_ICE():
     res={'rows':'fail'}
     try:
         requestdata=json.loads(request.data)
-        app.logger.info("Inside getNames_ICE. Query: "+requestdata["query"])
+        app.logger.info("Inside getNames_ICE. Query: "+str(requestdata["query"]))
         if not isemptyrequest(requestdata):
             if(requestdata["query"] == 'domainsall'):
                 getnamesquery1=("select projectid,projectname from projects "
@@ -1666,7 +1658,7 @@ def getNames_ICE():
             app.logger.warn('Empty data received. generic name details.')
             return jsonify(res)
     except Exception as getnamesexc:
-        app.logger.error('Error in getNames_ICE.')
+        servicesException("getNames_ICE",getnamesexc)
         return jsonify(res)
 
 #service renders all the domains in DB
@@ -1680,7 +1672,7 @@ def getDomains_ICE():
         res={'rows':queryresult.current_rows}
         return jsonify(res)
     except Exception as getdomainsexc:
-        app.logger.error('Error in getDomains_ICE.')
+        servicesException("getDomains_ICE",getdomainsexc)
         return jsonify(res)
 
 #service fetches projects assigned to user.
@@ -1690,7 +1682,7 @@ def getAssignedProjects_ICE():
     try:
         requestdata=json.loads(request.data)
         app.logger.info("Inside getAssignedProjects_ICE. Query: "
-            +requestdata["query"])
+            +str(requestdata["query"]))
         if not isemptyrequest(requestdata):
             if(requestdata['query'] == 'projectid'):
                 getassingedprojectsquery1=("select projectids from "
@@ -1709,8 +1701,8 @@ def getAssignedProjects_ICE():
         else:
             app.logger.warn('Empty data received. assigned projects.')
             return jsonify(res)
-    except Exception as getassingedprojectsexc:
-        app.logger.error('Error in getAssignedProjects_ICE.')
+    except Exception as e:
+        servicesException("getAssignedProjects_ICE",e)
         return jsonify(res)
 
 #service creates new users into Nineteen68
@@ -1719,7 +1711,7 @@ def createUser_Nineteen68():
     res={'rows':'fail'}
     try:
         requestdata=json.loads(request.data)
-        app.logger.info("Inside createUser_Nineteen68. Query: "+requestdata["query"])
+        app.logger.info("Inside createUser_Nineteen68. Query: "+str(requestdata["query"]))
         if not isemptyrequest(requestdata):
             if(requestdata['query'] == 'allusernames'):
                 createuserquery1=("select username from users")
@@ -1759,8 +1751,8 @@ def createUser_Nineteen68():
                 res={'rows':'Success'}
         else:
             app.logger.warn('Empty data received. create user.')
-    except Exception as createusersexc:
-        app.logger.error('Error in createUser_Nineteen68.')
+    except Exception as e:
+        servicesException("createUser_Nineteen68",e)
     return jsonify(res)
 
 #service fetch user data from Nineteen68
@@ -1795,8 +1787,8 @@ def getUserData_Nineteen68():
         else:
             app.logger.warn('Empty data received. Get user data.')
             return jsonify(res)
-    except Exception as updateUserexc:
-        app.logger.error('Error in getUserData_Nineteen68')
+    except Exception as e:
+        servicesException("getUserData_Nineteen68",e)
         res={'rows':'fail'}
         return jsonify(res)
 
@@ -1841,8 +1833,8 @@ def updateUser_Nineteen68():
         else:
             app.logger.warn('Empty data received. update user.')
             return jsonify(res)
-    except Exception as updateUserexc:
-        app.logger.error('Error in updateUser_nineteen68')
+    except Exception as e:
+        servicesException("updateUser_nineteen68",e)
         res={'rows':'fail'}
         return jsonify(res)
 
@@ -1852,7 +1844,7 @@ def createProject_ICE():
     res={'rows':'fail'}
     try:
         requestdata=json.loads(request.data)
-        app.logger.info("Inside createProject_ICE. Query: "+requestdata["query"])
+        app.logger.info("Inside createProject_ICE. Query: "+str(requestdata["query"]))
         if not isemptyrequest(requestdata):
             if(requestdata['query'] == 'projecttype'):
                 projecttypequery=("select projecttypeid from projecttype where"
@@ -1912,7 +1904,7 @@ def createProject_ICE():
         else:
             app.logger.warn('Empty data received. create project.')
     except Exception as createprojectexc:
-        app.logger.error('Error in createProject_ICE')
+        servicesException("createProject_ICE",createprojectexc)
     return jsonify(res)
 
 #service updates the specified project structure into ICE keyspace
@@ -1921,7 +1913,7 @@ def updateProject_ICE():
     res={'rows':'fail'}
     try:
         requestdata=json.loads(request.data)
-        app.logger.info("Inside updateProject_ICE. Query: "+requestdata["query"])
+        app.logger.info("Inside updateProject_ICE. Query: "+str(requestdata["query"]))
         if not isemptyrequest(requestdata):
             if(requestdata['query'] == 'deleterelease'):
                 updateprojectquery1=("delete from releases where releasename='"
@@ -1938,7 +1930,7 @@ def updateProject_ICE():
         else:
             app.logger.warn('Empty data received. update project.')
     except Exception as updateprojectexc:
-        app.logger.error('Error in updateProject_ICE')
+        servicesException("updateProject_ICE",updateprojectexc)
     return jsonify(res)
 
 #fetches user data into Nineteen68
@@ -1984,7 +1976,7 @@ def getUsers_Nineteen68():
             return jsonify(res)
         return jsonify(res)
     except Exception as getUsersexc:
-        app.logger.error('Error in getUsers_Nineteen68')
+        servicesException("getUsers_Nineteen68",getUsersexc)
         return jsonify(res)
 
 #service assigns projects to a specific user
@@ -2023,7 +2015,7 @@ def assignProjects_ICE():
         res={'rows':'Success'}
         return jsonify(res)
     except Exception as assignprojectsexc:
-        app.logger.error('Error in assignProjects_ICE')
+        servicesException("assignProjects_ICE",assignprojectsexc)
         return jsonify(res)
 
 # service fetches all users
@@ -2037,7 +2029,7 @@ def getAllUsers_Nineteen68():
         res={'rows':queryresult.current_rows}
         return jsonify(res)
     except Exception as getallusersexc:
-        app.logger.error('Error in getAllUsers_Nineteen68')
+        servicesException("getAllUsers_Nineteen68",getallusersexc)
         return jsonify(res)
 
 @app.route('/admin/getAvailablePlugins',methods=['POST'])
@@ -2052,7 +2044,7 @@ def getAvailablePlugins():
         res={'rows':ice_plugins_list}
         return jsonify(res)
     except Exception as getallusersexc:
-        app.logger.error('Error in getAvailablePlugins')
+        servicesException("getAvailablePlugins",getallusersexc)
         return jsonify(res)
 
 ################################################################################
@@ -2071,7 +2063,7 @@ def getAllSuites_ICE():
     res={'rows':'fail'}
     try:
         requestdata=json.loads(request.data)
-        app.logger.info("Inside getAllSuites_ICE. Query: "+requestdata["query"])
+        app.logger.info("Inside getAllSuites_ICE. Query: "+str(requestdata["query"]))
         if not isemptyrequest(requestdata):
         #the code below is commented as per the new requirement
 		#ALM #460 - Reports - HTML report takes very
@@ -2118,7 +2110,7 @@ def getAllSuites_ICE():
             app.logger.warn('Empty data received. report suites details.')
             return jsonify(res)
     except Exception as getAllSuitesexc:
-        app.logger.error('Error in getAllSuites_ICE.')
+        servicesException("getAllSuites_ICE",getAllSuitesexc)
         res={'rows':'fail'}
         return jsonify(res)
 
@@ -2139,7 +2131,7 @@ def getSuiteDetailsInExecution_ICE():
             app.logger.warn('Empty data received. report suites details execution.')
             return jsonify(res)
     except Exception as getsuitedetailsexc:
-        app.logger.error('Error in getAllSuites_ICE.')
+        servicesException("getSuiteDetailsInExecution_ICE",getsuitedetailsexc)
         return jsonify(res)
 
 #fetching all the reports status
@@ -2148,7 +2140,7 @@ def reportStatusScenarios_ICE():
     res={'rows':'fail'}
     try:
         requestdata=json.loads(request.data)
-        app.logger.info("Inside reportStatusScenarios_ICE. Query: "+requestdata["query"])
+        app.logger.info("Inside reportStatusScenarios_ICE. Query: "+str(requestdata["query"]))
         if not isemptyrequest(requestdata):
             if(requestdata["query"] == 'executiondetails'):
                 getreportstatusquery1 = ("select reportid,executionid,browser,comments,"
@@ -2170,7 +2162,7 @@ def reportStatusScenarios_ICE():
             app.logger.warn('Empty data received. report status of scenarios.')
             return jsonify(res)
     except Exception as getreportstatusexc:
-        app.logger.error('Error in reportStatusScenarios_ICE.')
+        servicesException("reportStatusScenarios_ICE",getreportstatusexc)
         res={'rows':'fail'}
         return jsonify(res)
 
@@ -2180,7 +2172,7 @@ def getReport_Nineteen68():
     res={'rows':'fail'}
     try:
         requestdata=json.loads(request.data)
-        app.logger.info("Inside getReport_Nineteen68. Query: "+requestdata["query"])
+        app.logger.info("Inside getReport_Nineteen68. Query: "+str(requestdata["query"]))
         if not isemptyrequest(requestdata):
             if(requestdata["query"] == 'projectsUnderDomain'):
                 getreportquery1 =("select report,executedtime,testscenarioid "
@@ -2222,8 +2214,7 @@ def getReport_Nineteen68():
             app.logger.warn('Empty data received. report.')
             return jsonify(res)
     except Exception as getreportexc:
-        app.logger.error(getreportexc)
-        app.logger.error('Error in getReport_Nineteen68.')
+        servicesException("getReport_Nineteen68",getreportexc)
         return jsonify(res)
 
 #export json feature on reports
@@ -2232,7 +2223,7 @@ def exportToJson_ICE():
     res={'rows':'fail'}
     try:
         requestdata=json.loads(request.data)
-        app.logger.info("Inside exportToJson_ICE. Query: "+requestdata["query"])
+        app.logger.info("Inside exportToJson_ICE. Query: "+str(requestdata["query"]))
         if not isemptyrequest(requestdata):
             if(requestdata["query"] == 'reportdata'):
                 exporttojsonquery1 = ("select report from reports "
@@ -2255,7 +2246,7 @@ def exportToJson_ICE():
             app.logger.warn('Empty data received. JSON Exporting.')
             return jsonify(res)
     except Exception as exporttojsonexc:
-        app.logger.error('Error in exportToJson_ICE.')
+        servicesException("exportToJson_ICE",exporttojsonexc)
         res={'rows':'fail'}
         return jsonify(res)
 
@@ -2409,7 +2400,7 @@ def exportToJson_ICE():
 ##        del requestdata
 ##        return history
 ##    except Exception as e:
-##        app.logger.error('Error in createHistory.')
+##        servicesException("createHistory",e)
 ##
 ##
 ##def getHistoryLatestVersion(res,table,hist,*args):
@@ -2483,7 +2474,7 @@ def encrypt_ICE():
             app.logger.error("Invalid input")
             return str(res)
     except Exception as e:
-        app.logger.error('Error in encrypt_ICE.')
+        servicesException("encrypt_ICE",e)
         return str(res)
 
 #directly updates license data
@@ -2506,8 +2497,8 @@ def dataUpdator_ICE():
                 res = {'rows':'fail'}
         else:
             app.logger.warn('Empty data received. Data Updator.')
-    except Exception as exporttojsonexc:
-        app.logger.error('Error in dataUpdator_ICE.')
+    except Exception as e:
+        servicesException("dataUpdator_ICE",e)
     return jsonify(res)
 
 #directly updates user access
@@ -2534,9 +2525,8 @@ def userAccess_Nineteen68():
                 res={'rows':'False'}
         else:
             app.logger.warn('Empty data received. user Access Permission.')
-
     except Exception as useraccessexc:
-        app.logger.error('Error in userAccess_Nineteen68.')
+        servicesException("userAccess_Nineteen68",useraccessexc)
     return jsonify(res)
 ################################################################################
 # END OF UTILITIES
@@ -2554,7 +2544,7 @@ def checkServer():
             response = "pass"
             status = 200
     except Exception as exc:
-        app.logger.error('Error in checkServer')
+        servicesException("checkServer",exc)
     return Response(response, status, mimetype='text/plain')
 
 @app.route('/server/updateActiveIceSessions',methods=['POST'])
@@ -2571,7 +2561,7 @@ def updateActiveIceSessions():
     ice_ts=None
     try:
         requestdata=json.loads(request.data)
-        app.logger.info("Inside updateActiveIceSessions. Query: "+requestdata["query"])
+        app.logger.info("Inside updateActiveIceSessions. Query: "+str(requestdata["query"]))
         if not isemptyrequest(requestdata):
             if(requestdata['query']=='disconnect'):
                 if(activeicesessions.has_key(requestdata['username'])):
@@ -2600,7 +2590,7 @@ def updateActiveIceSessions():
         else:
             app.logger.warn('Empty data received. updateActiveIceSessions.')
     except Exception as exc:
-        app.logger.error('Error in updateActiveIceSessions.')
+        servicesException("updateActiveIceSessions",exc)
     return jsonify(response)
 
 ##################################################
@@ -2693,6 +2683,31 @@ ndacinfo = {
     "macid": "",
     "tkn": "",
 }
+ecodeServices = {"authenticateUser_Nineteen68":"300","authenticateUser_Nineteen68_ldap":"301",
+    "getRoleNameByRoleId_Nineteen68":"302","authenticateUser_Nineteen68_projassigned":"303",
+    "loadUserInfo_Nineteen68":"304","getReleaseIDs_Ninteen68":"305","getCycleIDs_Ninteen68":"306",
+    "getProjectType_Nineteen68":"307","getProjectIDs_Nineteen68":"308","getAllNames_ICE":"309",
+    "testsuiteid_exists_ICE":"310","testscenariosid_exists_ICE":"311","testscreenid_exists_ICE":"312",
+    "testcaseid_exists_ICE":"313","get_node_details_ICE":"314","delete_node_ICE":"315",
+    "insertInSuite_ICE":"316","insertInScenarios_ICE":"317","insertInScreen_ICE":"318",
+    "insertInTestcase_ICE":"319","updateTestScenario_ICE":"320","updateModule_ICE":"321",
+    "updateModulename_ICE":"322","updateTestscenarioname_ICE":"323","updateScreenname_ICE":"324",
+    "updateTestcasename_ICE":"325","submitTask":"326","getKeywordDetails":"327","readTestCase_ICE":"328",
+    "getScrapeDataScreenLevel_ICE":"329","debugTestCase_ICE":"330","updateScreen_ICE":"331",
+    "updateTestCase_ICE":"332","getTestcaseDetailsForScenario_ICE":"333","getTestcasesByScenarioId_ICE":"334",
+    "readTestSuite_ICE":"335","updateTestSuite_ICE":"336","ExecuteTestSuite_ICE":"337",
+    "ScheduleTestSuite_ICE":"338","qcProjectDetails_ICE":"339","saveQcDetails_ICE":"340",
+    "viewQcMappedList_ICE":"341","getUserRoles":"342","getDetails_ICE":"343","getNames_ICE":"344",
+    "getDomains_ICE":"345","getAssignedProjects_ICE":"346","createUser_Nineteen68":"347",
+    "getUserData_Nineteen68":"348","updateUser_Nineteen68":"349","createProject_ICE":"350",
+    "updateProject_ICE":"351","getUsers_Nineteen68":"352","assignProjects_ICE":"353",
+    "getAllUsers_Nineteen68":"354","getAvailablePlugins":"355","getAllSuites_ICE":"356",
+    "getSuiteDetailsInExecution_ICE":"357","reportStatusScenarios_ICE":"358","getReport_Nineteen68":"359",
+    "exportToJson_ICE":"360","createHistory":"361","encrypt_ICE":"362","dataUpdator_ICE":"363",
+    "userAccess_Nineteen68":"364","checkServer":"365","updateActiveIceSessions":"366",
+    "counterupdator":"367","getreports_in_day":"368","getsuites_inititated":"369","getscenario_inititated":"370",
+    "gettestcases_inititated":"371","modelinfoprocessor":"372","dataprocessor":"373","reportdataprocessor":"374"
+}
 
 ################################################################################
 # END OF GLOBAL VARIABLES
@@ -2702,9 +2717,8 @@ ndacinfo = {
 # BEGIN OF GENERIC FUNCTIONS
 #################################################################################
 def initLoggers(level):
-    app.logger.info("Inside initLoggers")
     logLevel = logging.ERROR
-    consoleFormat = "[%(asctime)s] %(levelname)s in %(module)s: %(message)s"
+    consoleFormat = "[%(asctime)s] %(levelname)s in %(module)s:%(lineno)d: %(message)s"
     if level.verbose:
         logLevel = logging.NOTSET
     elif level.debug:
@@ -2722,16 +2736,21 @@ def initLoggers(level):
     consoleFormatter = logging.Formatter(consoleFormat)
     consoleHandler = app.logger.handlers[0]
     consoleHandler.setFormatter(consoleFormatter)
-    fileFormatter = logging.Formatter("[%(asctime)s] {%(pathname)s:%(lineno)d} %(levelname)s - %(message)s")
+    fileFormatter = logging.Formatter('''{"timestamp": "%(asctime)s", "file": "%(pathname)s", "lineno.": %(lineno)d, "level": "%(levelname)s", "message": "%(message)s"}''')
     fileHandler = TimedRotatingFileHandler(logspath+'/ndac/ndac'+datetime.now().strftime("_%Y%m%d-%H%M%S")+'.log',when='d', encoding='utf-8', backupCount=1)
     fileHandler.setFormatter(fileFormatter)
     app.logger.addHandler(fileHandler)
     app.logger.setLevel(logLevel)
     app.logger.propagate = False
+    app.logger.info("Inside initLoggers")
 
 def printErrorCodes(ecode):
     msg = "[ECODE: " + ecode + "] " + ERR_CODE[ecode]
     return msg
+
+def servicesException(srv, exc):
+    app.logger.debug("Exception occured in "+srv+"\n Error: "+exc)
+    app.logger.error("[ECODE: " + ecodeServices[srv] + "] Internal error occured in api")
 
 def isemptyrequest(requestdata):
     flag = False
@@ -2742,7 +2761,7 @@ def isemptyrequest(requestdata):
             if (key != 'additionalroles'
                 and key != 'getparampaths' and key != 'testcasesteps'):
                 if value == 'undefined' or value == '' or value == 'null' or value == None:
-                    app.logger.error(key)
+                    app.logger.warn(str(key)+" is empty")
                     flag = True
     else:
         currenttime=datetime.now()
@@ -2753,7 +2772,7 @@ def isemptyrequest(requestdata):
                     if (key != 'additionalroles' and key != 'getparampaths'
                      and key != 'testcasesteps'):
                         if value == 'undefined' or value == '' or value == 'null' or value == None:
-                            app.logger.error(key)
+                            app.logger.warn(str(key)+" is empty")
                             flag = True
             else:
                 stopserver()
@@ -2820,7 +2839,7 @@ def counterupdator(updatortype,userid,count):
         icesession.execute(updatequery)
         status = True
     except Exception as counterupdatorexc:
-        app.logger.error('Error in counterupdatorexc.')
+        servicesException("counterupdator",counterupdatorexc)
     return status
 
 def getreports_in_day(bgnts,endts):
@@ -2831,7 +2850,7 @@ def getreports_in_day(bgnts,endts):
         queryresult = icesession.execute(query)
         res= {"rows":queryresult.current_rows}
     except Exception as getreports_in_dayexc:
-        app.logger.error(printErrorCodes('231'))
+        servicesException("getreports_in_day",getreports_in_dayexc)
     return res
 
 def getsuites_inititated(bgnts,endts):
@@ -2843,7 +2862,7 @@ def getsuites_inititated(bgnts,endts):
         queryresult = icesession.execute(suitequery)
         res= {"rows":queryresult.current_rows}
     except Exception as getsuites_inititatedexc:
-        app.logger.error(printErrorCodes('232'))
+        servicesException("getsuites_inititated",getsuites_inititatedexc)
     return res
 
 def getscenario_inititated(bgnts,endts):
@@ -2855,7 +2874,7 @@ def getscenario_inititated(bgnts,endts):
         queryresult = icesession.execute(scenarioquery)
         res= {"rows":queryresult.current_rows}
     except Exception as getscenario_inititatedexc:
-        app.logger.error(printErrorCodes('233'))
+        servicesException("getscenario_inititated",getscenario_inititatedexc)
     return res
 
 def gettestcases_inititated(bgnts,endts):
@@ -2867,7 +2886,7 @@ def gettestcases_inititated(bgnts,endts):
         queryresult = icesession.execute(testcasesquery)
         res = {"rows":queryresult.current_rows}
     except Exception as gettestcases_inititatedexc:
-        app.logger.error(printErrorCodes('234'))
+        servicesException("gettestcases_inititated",gettestcases_inititatedexc)
     return res
 
 def modelinfoprocessor():
@@ -2897,7 +2916,7 @@ def modelinfoprocessor():
         dailydata['license_usd'] = licensesarray
         modelinfo.append(dailydata)
     except Exception as e:
-        app.logger.error(printErrorCodes('235'))
+        servicesException("modelinfoprocessor",e)
     return modelinfo
 
 def dataprocessor(datatofetch,fromdate,todate):
@@ -2943,7 +2962,7 @@ def dataprocessor(datatofetch,fromdate,todate):
 ##        respobj['active_usrs'] = usr_data
         respobj['active_usrs'] = usr_list
     except Exception as dataprocessorexc:
-        app.logger.error(printErrorCodes('236'))
+        servicesException("dataprocessor",dataprocessorexc)
     return respobj
 
 def reportdataprocessor(resultset,fromdate,todate):
@@ -2961,7 +2980,7 @@ def reportdataprocessor(resultset,fromdate,todate):
         eachreports_in_day['day'] = str(todate)
         eachreports_in_day['reprt_cnt'] = str(count)
     except Exception as reportdataprocessorexc:
-        app.logger.error(printErrorCodes('237'))
+        servicesException("reportdataprocessor",reportdataprocessorexc)
     return eachreports_in_day
 
 ################################################################################
@@ -3179,7 +3198,7 @@ def scheduleenabler(starttime):
         global offlineuser
         offlineuser = True
     except Exception as scheduleenablerexeption:
-        app.logger.error(printErrorCodes('238'))
+        app.logger.error(printErrorCodes('209'))
 
 def cronograph():
     app.logger.info("Chronograph triggred")
@@ -3210,7 +3229,7 @@ def cronograph():
         t = Timer(secs, updateonls)
         t.start()
     except Exception as cronoexeption:
-        app.logger.critical(printErrorCodes('239'))
+        app.logger.critical(printErrorCodes('210'))
 
 def dataholder(ops,*args):
     data = False
