@@ -149,7 +149,7 @@ def authenticateUser_Nineteen68_ldap():
     try:
         requestdata=json.loads(request.data)
         if not isemptyrequest(requestdata):
-            authenticateuserldap = ("select ldapuser from users where "
+            authenticateuserldap = ("select ldapuser,userid from users where "
                 +"username = '"+requestdata["username"]+"'"+"allow filtering")
             queryresult = n68session.execute(authenticateuserldap)
             res= {"rows":queryresult.current_rows}
@@ -2749,7 +2749,8 @@ def printErrorCodes(ecode):
     return msg
 
 def servicesException(srv, exc):
-    app.logger.debug("Exception occured in "+srv+"\n Error: "+exc)
+    app.logger.debug("Exception occured in "+srv)
+    app.logger.debug(exc)
     app.logger.error("[ECODE: " + ecodeServices[srv] + "] Internal error occured in api")
 
 def isemptyrequest(requestdata):
