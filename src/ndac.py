@@ -32,7 +32,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("-k", type=str, dest='offlinemode', metavar='filename',
     help="Home user registration. Provide the offline registration file")
 log_group = parser.add_mutually_exclusive_group()
-log_group.add_argument("-V", "--verbose", action="store_true", help="Set logger level to Verbose")
+log_group.add_argument("-T", "--test", action="store_true", help="Set logger level to Test Environment")
 log_group.add_argument("-D", "--debug", action="store_true", help="Set logger level to Debug")
 log_group.add_argument("-I", "--info", action="store_true", help="Set logger level to Info")
 log_group.add_argument("-W", "--warn", action="store_true", help="Set logger level to Warning")
@@ -149,7 +149,7 @@ def authenticateUser_Nineteen68_ldap():
     try:
         requestdata=json.loads(request.data)
         if not isemptyrequest(requestdata):
-            authenticateuserldap = ("select ldapuser from users where "
+            authenticateuserldap = ("select ldapuser,userid from users where "
                 +"username = '"+requestdata["username"]+"'"+"allow filtering")
             queryresult = n68session.execute(authenticateuserldap)
             res= {"rows":queryresult.current_rows}
@@ -2719,9 +2719,7 @@ ecodeServices = {"authenticateUser_Nineteen68":"300","authenticateUser_Nineteen6
 def initLoggers(level):
     logLevel = logging.ERROR
     consoleFormat = "[%(asctime)s] %(levelname)s in %(module)s:%(lineno)d: %(message)s"
-    if level.verbose:
-        logLevel = logging.NOTSET
-    elif level.debug:
+    if level.debug:
         logLevel = logging.DEBUG
         consoleFormat = "[%(asctime)s] %(levelname)s in %(module)s:%(lineno)d: %(message)s"
     elif level.info:
@@ -2740,7 +2738,11 @@ def initLoggers(level):
     fileHandler = TimedRotatingFileHandler(logspath+'/ndac/ndac'+datetime.now().strftime("_%Y%m%d-%H%M%S")+'.log',when='d', encoding='utf-8', backupCount=1)
     fileHandler.setFormatter(fileFormatter)
     app.logger.addHandler(fileHandler)
-    app.logger.setLevel(logLevel)
+    if level.test:
+        consoleHandler.setLevel(logging.WARNING)
+        fileHandler.setLevel(logging.DEBUG)
+    else:
+        app.logger.setLevel(logLevel)
     app.logger.propagate = False
     app.logger.info("Inside initLoggers")
 
@@ -2749,7 +2751,8 @@ def printErrorCodes(ecode):
     return msg
 
 def servicesException(srv, exc):
-    app.logger.debug("Exception occured in "+srv+"\n Error: "+exc)
+    app.logger.debug("Exception occured in "+srv)
+    app.logger.debug(exc)
     app.logger.error("[ECODE: " + ecodeServices[srv] + "] Internal error occured in api")
 
 def isemptyrequest(requestdata):
