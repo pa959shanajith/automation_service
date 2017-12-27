@@ -569,7 +569,7 @@ def insertInSuite_ICE():
                 +"'," + requestdata['moduleid'] + ","+str(requestdata['versionnumber'])
                 +",'"+requestdata['createdby']+"'," + str(getcurrentdate())
                 + ",'"+requestdata['createdthrough']+"',"+str(requestdata['deleted'])
-                +", '"+requestdata['skucodemodule']+"',"+tags+",[])")
+                +", '"+requestdata['skucodemodule']+"',"+tags+",[]) IF NOT EXISTS")
                 queryresult = icesession.execute(create_suite_query1)
                 res={'rows':'Success'}
             elif(requestdata["query"] == 'selectsuite'):
@@ -609,7 +609,7 @@ def insertInScenarios_ICE():
                 +requestdata['projectid'] + ",'"+requestdata['testscenarioname']
                 +"',"+requestdata['testscenarioid']+","+str(requestdata['versionnumber'])
                 +",'"+requestdata['createdby']+"'," + str(getcurrentdate())
-                +", '"+requestdata['skucodetestscenario']+"',"+tags+",[],"+str(requestdata['deleted'])+")")
+                +", '"+requestdata['skucodetestscenario']+"',"+tags+",[],"+str(requestdata['deleted'])+") IF NOT EXISTS")
                 queryresult = icesession.execute(create_scenario_query1)
                 res={'rows':'success'}
             elif(requestdata["query"] == 'deletescenarios'):
@@ -617,7 +617,7 @@ def insertInScenarios_ICE():
                 +" where testscenarioid="+requestdata['testscenarioid']+" and "
                 +"testscenarioname='"+requestdata['testscenarioname'] +"' and "
                 +"projectid = "+requestdata['projectid']+" and versionnumber="
-                +str(requestdata['versionnumber']))
+                +str(requestdata['versionnumber'])+" IF EXISTS")
                 queryresult = icesession.execute(delete_scenario_query)
                 res={'rows':'Success'}
         else:
@@ -655,7 +655,7 @@ def insertInScreen_ICE():
                 +" , "+str(requestdata['versionnumber'])
                 +" ,'"+requestdata['createdby']+"'," + str(getcurrentdate())
                 +", '"+requestdata['createdthrough']+"' , "+str(requestdata['deleted'])
-                +",'"+screendata+"','"+requestdata['skucodescreen']+"',"+tags+")")
+                +",'"+screendata+"','"+requestdata['skucodescreen']+"',"+tags+") IF NOT EXISTS")
                 queryresult = icesession.execute(create_screen_query1)
                 res={'rows':'Success'}
             elif(requestdata["query"] == 'selectscreen'):
@@ -699,7 +699,7 @@ def insertInTestcase_ICE():
                 +"'," + requestdata['testcaseid'] + ","+str(requestdata['versionnumber'])
                 +",'"+ requestdata['createdby']+"'," + str(getcurrentdate())+", '"
                 +requestdata['createdthrough'] +"',"+str(requestdata['deleted'])+",'"
-                +requestdata['skucodetestcase']+"',"+tags+",'"+testcasesteps+"')")
+                +requestdata['skucodetestcase']+"',"+tags+",'"+testcasesteps+"') IF NOT EXISTS")
                 queryresult = icesession.execute(create_testcase_query1)
                 res={'rows':'Success'}
             elif(requestdata["query"] == 'selecttestcase'):
@@ -799,7 +799,7 @@ def updateModulename_ICE():
              +",'"+requestdata['modifiedby']+"','"+requestdata['modifiedbyrole']
              +"',"+ str(getcurrentdate())+",'"+requestdata['createdby'] +"'," + str(getcurrentdate())
              + ",'"+requestdata['createdthrough']+"',"+str(requestdata['deleted'])
-             +", '"+requestdata['skucodemodule']+"',['"+requestdata['tags']+"'],["+requestdata['testscenarioids']+"])")
+             +", '"+requestdata['skucodemodule']+"',['"+requestdata['tags']+"'],["+requestdata['testscenarioids']+"]) IF NOT EXISTS")
              queryresult = icesession.execute(update_modulename_query)
              res={'rows':'Success'}
        else:
@@ -825,7 +825,7 @@ def updateTestscenarioname_ICE():
             +",'"+requestdata['modifiedby']+"','"+requestdata['modifiedbyrole']
             +"',"+ str(getcurrentdate())+",'"+requestdata['createdby'] +"'," + str(requestdata['createdon'])
             + ","+str(requestdata['deleted'])+",'"+requestdata['skucodetestscenario']+"',['"
-            +requestdata['tags']+"'],["+requestdata['testcaseids']+"])")
+            +requestdata['tags']+"'],["+requestdata['testcaseids']+"]) IF NOT EXISTS")
             queryresult = icesession.execute(update_testscenario_name_query)
             res={'rows':'Success'}
        else:
@@ -854,7 +854,7 @@ def updateScreenname_ICE():
             +",'"+requestdata['createdthrough']+"',"+str(requestdata['deleted'])
             +",'"+requestdata['modifiedby']+"','"+requestdata['modifiedbyrole']
             +"',"+str(getcurrentdate())+",'"+requestdata['screendata']
-            +"','"+requestdata['skucodescreen']+"',['"+requestdata['tags']+"'])")
+            +"','"+requestdata['skucodescreen']+"',['"+requestdata['tags']+"']) IF NOT EXISTS")
             queryresult = icesession.execute(update_screenname_query)
             res={'rows':'Success'}
         else:
@@ -884,7 +884,7 @@ def updateTestcasename_ICE():
             +"',"+str(requestdata["deleted"])+",'"+requestdata['modifiedby']
             +"','"+requestdata['modifiedbyrole']+"',"+str(getcurrentdate())
             +",'"+requestdata['skucodetestcase']+"',['"+requestdata['tags']
-            +"'],'"+requestdata['testcasesteps']+"')")
+            +"'],'"+requestdata['testcasesteps']+"') IF NOT EXISTS")
             queryresult = icesession.execute(update_testcasename_query)
             res={'rows':'Success'}
        else:
@@ -1225,7 +1225,7 @@ def readTestSuite_ICE():
                 +str(getcurrentdate())+",'"+requestdata["createdthrough"]+"',"
                 +str(requestdata["deleted"])+",["+requestdata["donotexecute"]+"],["
                 +requestdata['getparampaths'] +"],'"+requestdata["skucodetestsuite"]+"',['"
-                +requestdata["tags"]+"'],["+requestdata["testscenarioids"]+"])")
+                +requestdata["tags"]+"'],["+requestdata["testscenarioids"]+"]) IF NOT EXISTS")
                 queryresult = icesession.execute(readtestsuitequery3)
             elif(requestdata["query"] == 'fetchdata'):
                 readtestsuitequery4 = ("select * from testsuites "
@@ -1237,7 +1237,7 @@ def readTestSuite_ICE():
                 "testsuiteid=" + requestdata["testsuiteid"]
                 + " and cycleid=" + requestdata["cycleid"]
                 + " and testsuitename='" + requestdata["testsuitename"]
-                +"' and versionnumber="+str(requestdata["versionnumber"]))
+                +"' and versionnumber="+str(requestdata["versionnumber"])+" IF EXISTS")
                 queryresult = icesession.execute(readtestsuitequery5)
             elif(requestdata["query"] == 'updatescenarioinnsuite'):
                 requestdata['conditioncheck'] = ','.join(str(idval) for idval in requestdata['conditioncheck'])
@@ -1256,7 +1256,7 @@ def readTestSuite_ICE():
                 +str(requestdata["deleted"])+",["+requestdata["donotexecute"]+"],["+
                 requestdata["getparampaths"]+"],'"+requestdata["modifiedby"]+"',"
                 +str(getcurrentdate())+",'"+requestdata["skucodetestsuite"]+"',['"+
-                requestdata["tags"]+"'],["+requestdata["testscenarioids"]+"])")
+                requestdata["tags"]+"'],["+requestdata["testscenarioids"]+"]) IF NOT EXISTS")
                 queryresult = icesession.execute(readtestsuitequery6)
             elif(requestdata["query"] == 'testcasename'):
                 readtestsuitequery7 = ("select testscenarioname,projectid from testscenarios where "
@@ -1303,7 +1303,7 @@ def updateTestSuite_ICE():
                 +str(requestdata['cycleid'])
                 +" and testsuitename='"+requestdata['testsuitename']
                 +"' and testsuiteid="+str(requestdata['testsuiteid'])
-                +" and versionnumber ="+str(requestdata['versionnumber'])+";")
+                +" and versionnumber ="+str(requestdata['versionnumber'])+" IF EXISTS")
                 queryresult = icesession.execute(deletetestsuitequery)
             elif(requestdata['query'] == 'updatetestsuitedataquery'):
                 #history=createHistory("update","testsuites",requestdata)
@@ -2817,10 +2817,10 @@ def testcase_exists(screen_id,testcase_name,version_number,testcase_id=''):
 
 def get_delete_query(node_id,node_name,node_version_number,node_parentid,projectid=None):
     node_version_number=str(node_version_number)
-    query['delete_module']="delete FROM modules WHERE moduleid="+node_id+" and modulename='"+node_name+"' and versionnumber="+node_version_number+" and projectid="+node_parentid
-    query['delete_testscenario']="delete FROM testscenarios WHERE testscenarioid="+node_id+" and testscenarioname='"+node_name+"' and versionnumber="+node_version_number+" and projectid="+node_parentid
-    query['delete_screen']="delete FROM screens WHERE screenid="+node_id+" and screenname='"+node_name+"' and versionnumber="+node_version_number+" and projectid="+node_parentid
-    query['delete_testcase']="delete FROM testcases WHERE testcaseid="+node_id+" and testcasename='"+node_name+"' and versionnumber="+node_version_number+" and screenid="+node_parentid
+    query['delete_module']="delete FROM modules WHERE moduleid="+node_id+" and modulename='"+node_name+"' and versionnumber="+node_version_number+" and projectid="+node_parentid+" IF EXISTS"
+    query['delete_testscenario']="delete FROM testscenarios WHERE testscenarioid="+node_id+" and testscenarioname='"+node_name+"' and versionnumber="+node_version_number+" and projectid="+node_parentid+" IF EXISTS"
+    query['delete_screen']="delete FROM screens WHERE screenid="+node_id+" and screenname='"+node_name+"' and versionnumber="+node_version_number+" and projectid="+node_parentid+" IF EXISTS"
+    query['delete_testcase']="delete FROM testcases WHERE testcaseid="+node_id+" and testcasename='"+node_name+"' and versionnumber="+node_version_number+" and screenid="+node_parentid+" IF EXISTS"
 
 ############################
 # END OF GENERIC FUNCTIONS
