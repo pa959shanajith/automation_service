@@ -76,8 +76,8 @@ ERR_CODE={
     "206":"Error while establishing connection to Database",
     "207":"Database connection Unavailable",
     "208":"License server must be running",
-    "209":"Critical Internal Exception occured",
-    "210":"Critical Internal Exception occured: updateData",
+    "209":"Critical Internal Exception occurred",
+    "210":"Critical Internal Exception occurred: updateData",
     "211":"Another instance of NDAC is already registered with the License server",
     "212":"Unable to contact storage areas",
     "213":"Critical error in storage areas",
@@ -2564,8 +2564,9 @@ def updateActiveIceSessions():
         app.logger.info("Inside updateActiveIceSessions. Query: "+str(requestdata["query"]))
         if not isemptyrequest(requestdata):
             if(requestdata['query']=='disconnect'):
-                if(activeicesessions.has_key(requestdata['username'])):
-                    del activeicesessions[requestdata['username']]
+                username=requestdata['username'].lower()
+                if(activeicesessions.has_key(username)):
+                    del activeicesessions[username]
                 res['res']="success"
 
             elif(requestdata['query']=='connect' and requestdata.has_key('icesession')):
@@ -2573,20 +2574,32 @@ def updateActiveIceSessions():
                 icesession = ast.literal_eval(icesession)
                 ice_uuid=icesession['ice_id']
                 ice_ts=icesession['connect_time']
-                username=icesession['username']
+                username=icesession['username'].lower()
                 latest_access_time=datetime.strptime(ice_ts, '%Y-%m-%d %H:%M:%S.%f')
                 res['id']=ice_uuid
                 res['connect_time']=ice_ts
+                app.logger.debug("Connected clients: "+str(activeicesessions.keys()))
 
-                #To reject connection with same usernames
-                if(activeicesessions.has_key(username) and activeicesessions[username] != ice_uuid):
-                    res['same_user'] = "True"
-                    response["ice_check"]=wrap(str(res),ice_ndac_key)
-                #To add in active ice sessions
-                elif(len(activeicesessions)<licensedata['allowedIceSessions']):
-                    activeicesessions[username] = ice_uuid
-                    res['res']="success"
-                    response = {"node_check":True,"ice_check":wrap(str(res),ice_ndac_key)}
+                #To check whether user exists in db or not
+                authenticateuser = "select userid from users where username='"+username+"' ALLOW FILTERING"
+                queryresult = n68session.execute(authenticateuser)
+                if len(queryresult.current_rows) == 0:
+                    res['err_msg'] = "Unauthorized: Access denied, user is not registered with Nineteen68"
+                    response = {"node_check":"userNotValid","ice_check":wrap(str(res),ice_ndac_key)}
+                else:
+                    #To reject connection with same usernames
+                    if(activeicesessions.has_key(username) and activeicesessions[username] != ice_uuid):
+                        res['err_msg'] = "Connection exists with same username"
+                        response["ice_check"]=wrap(str(res),ice_ndac_key)
+                    #To check if license is available
+                    elif(len(activeicesessions)>=licensedata['allowedIceSessions']):
+                        res['err_msg'] = "All ice sessions are in use"
+                        response["ice_check"]=wrap(str(res),ice_ndac_key)
+                    #To add in active ice sessions
+                    else:
+                        activeicesessions[username] = ice_uuid
+                        res['res']="success"
+                        response = {"node_check":"allow","ice_check":wrap(str(res),ice_ndac_key)}
         else:
             app.logger.warn('Empty data received. updateActiveIceSessions.')
     except Exception as exc:
@@ -2994,7 +3007,7 @@ def reportdataprocessor(resultset,fromdate,todate):
 ################################################################################
 def getMacAddress():
     app.logger.debug("Inside getMacAddress")
-    mac=''
+    mac=""
     if sys.platform == 'win32':
         for line in os.popen("ipconfig /all"):
             if line.lstrip().startswith('Physical Address'):
