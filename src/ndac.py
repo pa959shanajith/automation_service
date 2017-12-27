@@ -76,8 +76,8 @@ ERR_CODE={
     "206":"Error while establishing connection to Database",
     "207":"Database connection Unavailable",
     "208":"License server must be running",
-    "209":"Critical Internal Exception occured",
-    "210":"Critical Internal Exception occured: updateData",
+    "209":"Critical Internal Exception occurred",
+    "210":"Critical Internal Exception occurred: updateData",
     "211":"Another instance of NDAC is already registered with the License server",
     "212":"Unable to contact storage areas",
     "213":"Critical error in storage areas",
@@ -569,7 +569,7 @@ def insertInSuite_ICE():
                 +"'," + requestdata['moduleid'] + ","+str(requestdata['versionnumber'])
                 +",'"+requestdata['createdby']+"'," + str(getcurrentdate())
                 + ",'"+requestdata['createdthrough']+"',"+str(requestdata['deleted'])
-                +", '"+requestdata['skucodemodule']+"',"+tags+",[])")
+                +", '"+requestdata['skucodemodule']+"',"+tags+",[]) IF NOT EXISTS")
                 queryresult = icesession.execute(create_suite_query1)
                 res={'rows':'Success'}
             elif(requestdata["query"] == 'selectsuite'):
@@ -609,7 +609,7 @@ def insertInScenarios_ICE():
                 +requestdata['projectid'] + ",'"+requestdata['testscenarioname']
                 +"',"+requestdata['testscenarioid']+","+str(requestdata['versionnumber'])
                 +",'"+requestdata['createdby']+"'," + str(getcurrentdate())
-                +", '"+requestdata['skucodetestscenario']+"',"+tags+",[],"+str(requestdata['deleted'])+")")
+                +", '"+requestdata['skucodetestscenario']+"',"+tags+",[],"+str(requestdata['deleted'])+") IF NOT EXISTS")
                 queryresult = icesession.execute(create_scenario_query1)
                 res={'rows':'success'}
             elif(requestdata["query"] == 'deletescenarios'):
@@ -617,7 +617,7 @@ def insertInScenarios_ICE():
                 +" where testscenarioid="+requestdata['testscenarioid']+" and "
                 +"testscenarioname='"+requestdata['testscenarioname'] +"' and "
                 +"projectid = "+requestdata['projectid']+" and versionnumber="
-                +str(requestdata['versionnumber']))
+                +str(requestdata['versionnumber'])+" IF EXISTS")
                 queryresult = icesession.execute(delete_scenario_query)
                 res={'rows':'Success'}
         else:
@@ -655,7 +655,7 @@ def insertInScreen_ICE():
                 +" , "+str(requestdata['versionnumber'])
                 +" ,'"+requestdata['createdby']+"'," + str(getcurrentdate())
                 +", '"+requestdata['createdthrough']+"' , "+str(requestdata['deleted'])
-                +",'"+screendata+"','"+requestdata['skucodescreen']+"',"+tags+")")
+                +",'"+screendata+"','"+requestdata['skucodescreen']+"',"+tags+") IF NOT EXISTS")
                 queryresult = icesession.execute(create_screen_query1)
                 res={'rows':'Success'}
             elif(requestdata["query"] == 'selectscreen'):
@@ -699,7 +699,7 @@ def insertInTestcase_ICE():
                 +"'," + requestdata['testcaseid'] + ","+str(requestdata['versionnumber'])
                 +",'"+ requestdata['createdby']+"'," + str(getcurrentdate())+", '"
                 +requestdata['createdthrough'] +"',"+str(requestdata['deleted'])+",'"
-                +requestdata['skucodetestcase']+"',"+tags+",'"+testcasesteps+"')")
+                +requestdata['skucodetestcase']+"',"+tags+",'"+testcasesteps+"') IF NOT EXISTS")
                 queryresult = icesession.execute(create_testcase_query1)
                 res={'rows':'Success'}
             elif(requestdata["query"] == 'selecttestcase'):
@@ -799,7 +799,7 @@ def updateModulename_ICE():
              +",'"+requestdata['modifiedby']+"','"+requestdata['modifiedbyrole']
              +"',"+ str(getcurrentdate())+",'"+requestdata['createdby'] +"'," + str(getcurrentdate())
              + ",'"+requestdata['createdthrough']+"',"+str(requestdata['deleted'])
-             +", '"+requestdata['skucodemodule']+"',['"+requestdata['tags']+"'],["+requestdata['testscenarioids']+"])")
+             +", '"+requestdata['skucodemodule']+"',['"+requestdata['tags']+"'],["+requestdata['testscenarioids']+"]) IF NOT EXISTS")
              queryresult = icesession.execute(update_modulename_query)
              res={'rows':'Success'}
        else:
@@ -825,7 +825,7 @@ def updateTestscenarioname_ICE():
             +",'"+requestdata['modifiedby']+"','"+requestdata['modifiedbyrole']
             +"',"+ str(getcurrentdate())+",'"+requestdata['createdby'] +"'," + str(requestdata['createdon'])
             + ","+str(requestdata['deleted'])+",'"+requestdata['skucodetestscenario']+"',['"
-            +requestdata['tags']+"'],["+requestdata['testcaseids']+"])")
+            +requestdata['tags']+"'],["+requestdata['testcaseids']+"]) IF NOT EXISTS")
             queryresult = icesession.execute(update_testscenario_name_query)
             res={'rows':'Success'}
        else:
@@ -854,7 +854,7 @@ def updateScreenname_ICE():
             +",'"+requestdata['createdthrough']+"',"+str(requestdata['deleted'])
             +",'"+requestdata['modifiedby']+"','"+requestdata['modifiedbyrole']
             +"',"+str(getcurrentdate())+",'"+requestdata['screendata']
-            +"','"+requestdata['skucodescreen']+"',['"+requestdata['tags']+"'])")
+            +"','"+requestdata['skucodescreen']+"',['"+requestdata['tags']+"']) IF NOT EXISTS")
             queryresult = icesession.execute(update_screenname_query)
             res={'rows':'Success'}
         else:
@@ -884,7 +884,7 @@ def updateTestcasename_ICE():
             +"',"+str(requestdata["deleted"])+",'"+requestdata['modifiedby']
             +"','"+requestdata['modifiedbyrole']+"',"+str(getcurrentdate())
             +",'"+requestdata['skucodetestcase']+"',['"+requestdata['tags']
-            +"'],'"+requestdata['testcasesteps']+"')")
+            +"'],'"+requestdata['testcasesteps']+"') IF NOT EXISTS")
             queryresult = icesession.execute(update_testcasename_query)
             res={'rows':'Success'}
        else:
@@ -1225,7 +1225,7 @@ def readTestSuite_ICE():
                 +str(getcurrentdate())+",'"+requestdata["createdthrough"]+"',"
                 +str(requestdata["deleted"])+",["+requestdata["donotexecute"]+"],["
                 +requestdata['getparampaths'] +"],'"+requestdata["skucodetestsuite"]+"',['"
-                +requestdata["tags"]+"'],["+requestdata["testscenarioids"]+"])")
+                +requestdata["tags"]+"'],["+requestdata["testscenarioids"]+"]) IF NOT EXISTS")
                 queryresult = icesession.execute(readtestsuitequery3)
             elif(requestdata["query"] == 'fetchdata'):
                 readtestsuitequery4 = ("select * from testsuites "
@@ -1237,7 +1237,7 @@ def readTestSuite_ICE():
                 "testsuiteid=" + requestdata["testsuiteid"]
                 + " and cycleid=" + requestdata["cycleid"]
                 + " and testsuitename='" + requestdata["testsuitename"]
-                +"' and versionnumber="+str(requestdata["versionnumber"]))
+                +"' and versionnumber="+str(requestdata["versionnumber"])+" IF EXISTS")
                 queryresult = icesession.execute(readtestsuitequery5)
             elif(requestdata["query"] == 'updatescenarioinnsuite'):
                 requestdata['conditioncheck'] = ','.join(str(idval) for idval in requestdata['conditioncheck'])
@@ -1256,7 +1256,7 @@ def readTestSuite_ICE():
                 +str(requestdata["deleted"])+",["+requestdata["donotexecute"]+"],["+
                 requestdata["getparampaths"]+"],'"+requestdata["modifiedby"]+"',"
                 +str(getcurrentdate())+",'"+requestdata["skucodetestsuite"]+"',['"+
-                requestdata["tags"]+"'],["+requestdata["testscenarioids"]+"])")
+                requestdata["tags"]+"'],["+requestdata["testscenarioids"]+"]) IF NOT EXISTS")
                 queryresult = icesession.execute(readtestsuitequery6)
             elif(requestdata["query"] == 'testcasename'):
                 readtestsuitequery7 = ("select testscenarioname,projectid from testscenarios where "
@@ -1303,7 +1303,7 @@ def updateTestSuite_ICE():
                 +str(requestdata['cycleid'])
                 +" and testsuitename='"+requestdata['testsuitename']
                 +"' and testsuiteid="+str(requestdata['testsuiteid'])
-                +" and versionnumber ="+str(requestdata['versionnumber'])+";")
+                +" and versionnumber ="+str(requestdata['versionnumber'])+" IF EXISTS")
                 queryresult = icesession.execute(deletetestsuitequery)
             elif(requestdata['query'] == 'updatetestsuitedataquery'):
                 #history=createHistory("update","testsuites",requestdata)
@@ -2564,8 +2564,9 @@ def updateActiveIceSessions():
         app.logger.info("Inside updateActiveIceSessions. Query: "+str(requestdata["query"]))
         if not isemptyrequest(requestdata):
             if(requestdata['query']=='disconnect'):
-                if(activeicesessions.has_key(requestdata['username'])):
-                    del activeicesessions[requestdata['username']]
+                username=requestdata['username'].lower()
+                if(activeicesessions.has_key(username)):
+                    del activeicesessions[username]
                 res['res']="success"
 
             elif(requestdata['query']=='connect' and requestdata.has_key('icesession')):
@@ -2573,20 +2574,32 @@ def updateActiveIceSessions():
                 icesession = ast.literal_eval(icesession)
                 ice_uuid=icesession['ice_id']
                 ice_ts=icesession['connect_time']
-                username=icesession['username']
+                username=icesession['username'].lower()
                 latest_access_time=datetime.strptime(ice_ts, '%Y-%m-%d %H:%M:%S.%f')
                 res['id']=ice_uuid
                 res['connect_time']=ice_ts
+                app.logger.debug("Connected clients: "+str(activeicesessions.keys()))
 
-                #To reject connection with same usernames
-                if(activeicesessions.has_key(username) and activeicesessions[username] != ice_uuid):
-                    res['same_user'] = "True"
-                    response["ice_check"]=wrap(str(res),ice_ndac_key)
-                #To add in active ice sessions
-                elif(len(activeicesessions)<licensedata['allowedIceSessions']):
-                    activeicesessions[username] = ice_uuid
-                    res['res']="success"
-                    response = {"node_check":True,"ice_check":wrap(str(res),ice_ndac_key)}
+                #To check whether user exists in db or not
+                authenticateuser = "select userid from users where username='"+username+"' ALLOW FILTERING"
+                queryresult = n68session.execute(authenticateuser)
+                if len(queryresult.current_rows) == 0:
+                    res['err_msg'] = "Unauthorized: Access denied, user is not registered with Nineteen68"
+                    response = {"node_check":"userNotValid","ice_check":wrap(str(res),ice_ndac_key)}
+                else:
+                    #To reject connection with same usernames
+                    if(activeicesessions.has_key(username) and activeicesessions[username] != ice_uuid):
+                        res['err_msg'] = "Connection exists with same username"
+                        response["ice_check"]=wrap(str(res),ice_ndac_key)
+                    #To check if license is available
+                    elif(len(activeicesessions)>=licensedata['allowedIceSessions']):
+                        res['err_msg'] = "All ice sessions are in use"
+                        response["ice_check"]=wrap(str(res),ice_ndac_key)
+                    #To add in active ice sessions
+                    else:
+                        activeicesessions[username] = ice_uuid
+                        res['res']="success"
+                        response = {"node_check":"allow","ice_check":wrap(str(res),ice_ndac_key)}
         else:
             app.logger.warn('Empty data received. updateActiveIceSessions.')
     except Exception as exc:
@@ -2817,10 +2830,10 @@ def testcase_exists(screen_id,testcase_name,version_number,testcase_id=''):
 
 def get_delete_query(node_id,node_name,node_version_number,node_parentid,projectid=None):
     node_version_number=str(node_version_number)
-    query['delete_module']="delete FROM modules WHERE moduleid="+node_id+" and modulename='"+node_name+"' and versionnumber="+node_version_number+" and projectid="+node_parentid
-    query['delete_testscenario']="delete FROM testscenarios WHERE testscenarioid="+node_id+" and testscenarioname='"+node_name+"' and versionnumber="+node_version_number+" and projectid="+node_parentid
-    query['delete_screen']="delete FROM screens WHERE screenid="+node_id+" and screenname='"+node_name+"' and versionnumber="+node_version_number+" and projectid="+node_parentid
-    query['delete_testcase']="delete FROM testcases WHERE testcaseid="+node_id+" and testcasename='"+node_name+"' and versionnumber="+node_version_number+" and screenid="+node_parentid
+    query['delete_module']="delete FROM modules WHERE moduleid="+node_id+" and modulename='"+node_name+"' and versionnumber="+node_version_number+" and projectid="+node_parentid+" IF EXISTS"
+    query['delete_testscenario']="delete FROM testscenarios WHERE testscenarioid="+node_id+" and testscenarioname='"+node_name+"' and versionnumber="+node_version_number+" and projectid="+node_parentid+" IF EXISTS"
+    query['delete_screen']="delete FROM screens WHERE screenid="+node_id+" and screenname='"+node_name+"' and versionnumber="+node_version_number+" and projectid="+node_parentid+" IF EXISTS"
+    query['delete_testcase']="delete FROM testcases WHERE testcaseid="+node_id+" and testcasename='"+node_name+"' and versionnumber="+node_version_number+" and screenid="+node_parentid+" IF EXISTS"
 
 ############################
 # END OF GENERIC FUNCTIONS
@@ -2994,7 +3007,7 @@ def reportdataprocessor(resultset,fromdate,todate):
 ################################################################################
 def getMacAddress():
     app.logger.debug("Inside getMacAddress")
-    mac=''
+    mac=""
     if sys.platform == 'win32':
         for line in os.popen("ipconfig /all"):
             if line.lstrip().startswith('Physical Address'):
