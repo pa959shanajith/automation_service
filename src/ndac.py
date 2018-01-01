@@ -3047,10 +3047,6 @@ def basecheckonls():
         dbdata = unwrap(str(dbdata),mine)
         dbdata = ast.literal_eval(dbdata)
         token=dbdata['tkn']
-        if token!='':
-            tokenExists=True
-        else:
-            tokenExists=False
         EXPECTING_RESPONSE=str(int(time.time()*24150))
         baserequest= {
             "action": "register",
@@ -3076,7 +3072,7 @@ def basecheckonls():
                     global licensedata
                     global onlineuser
                     licensedata=actresp['ldata']
-                    if tokenExists:
+                    if token==actresp['token']:
                         basecheckstatus = True
                     else:
                         dbdata['tkn']=actresp['token']
