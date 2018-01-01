@@ -1321,7 +1321,7 @@ def updateTestSuite_ICE():
                 +" and testsuiteid="+ requestdata['testsuiteid']
                 +" and versionnumber = "+ str(requestdata['versionnumber'])
                 +" and testsuitename='"+ requestdata['testsuitename']
-                +"';")
+                +"' IF EXISTS;")
                 queryresult = icesession.execute(updatetestsuitedataquery)
             else:
                 return jsonify(res)
