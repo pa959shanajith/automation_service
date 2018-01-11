@@ -18,13 +18,14 @@ from datetime import datetime
 import time
 import uuid
 import ast
+import redis
 from flask import Flask, request , jsonify
 from waitress import serve
 import logging
 from logging.handlers import TimedRotatingFileHandler
 from cassandra.cluster import Cluster
-from flask_cassandra import CassandraCluster
 from cassandra.auth import PlainTextAuthProvider
+from cassandra.query import dict_factory
 app = Flask(__name__)
 
 import argparse
@@ -41,6 +42,7 @@ log_group.add_argument("-C", "--critical", action="store_true", help="Set logger
 args = parser.parse_args()
 
 ice_ndac_key = 'ajkdfiHFEow#DjgLIqocn^8sjp2hfY&d'
+db_keys = "NinEteEn68dAtaBAs3eNcRypT10nk3yS"
 activeicesessions={}
 latest_access_time=datetime.now()
 
@@ -83,25 +85,9 @@ ERR_CODE={
     "213":"Critical error in storage areas",
     "214":"Please contact Team - Nineteen68. Setup is corrupted",
     "215":"Error establishing connection to Licensing Server. Retrying to establish connection",
-    "216":"Connection to Licensing Server failed. Maximum retries exceeded. Hence, Shutting down server"
+    "216":"Connection to Licensing Server failed. Maximum retries exceeded. Hence, Shutting down server",
+    "217":"Error while establishing connection to Redis"
 }
-
-try:
-    auth = PlainTextAuthProvider(username=ndac_conf['dbusername'], password=ndac_conf['dbpassword'])
-    cluster = Cluster([ndac_conf['databaseip']],port=int(ndac_conf['dbport']),auth_provider=auth)
-
-    icesession = cluster.connect()
-    n68session = cluster.connect()
-
-    from cassandra.query import dict_factory
-    icesession.row_factory = dict_factory
-    icesession.set_keyspace('icetestautomation')
-
-    n68session.row_factory = dict_factory
-    n68session.set_keyspace('nineteen68')
-    dbup = True
-except Exception as dbexception:
-    app.logger.error("[ECODE: 206] " + ERR_CODE['206'])
 
 if (ndac_conf.has_key('custChronographTimer')):
     chronographTimer = ndac_conf['custChronographTimer']
@@ -999,9 +985,9 @@ def readTestCase_ICE():
                 +"from testcases where screenid=" + requestdata['screenid']
                 + " and versionnumber="+str(requestdata['versionnumber'])+query['delete_flag'])
                 queryresult = icesession.execute(readtestcasequery3)
+            res= {"rows": queryresult.current_rows}
         else:
             app.logger.warn('Empty data received. reading Testcase')
-        res= {"rows": queryresult.current_rows}
     except Exception as readtestcaseexc:
         servicesException("readTestCase_ICE",readtestcaseexc)
     return jsonify(res)
@@ -1428,6 +1414,7 @@ def ScheduleTestSuite_ICE():
                 + requestdata['scheduleid'])
                 queryresult = icesession.execute(scheduletestsuitequery3)
             elif(requestdata['query'] == 'getallscheduledetails'):
+                scheduletestsuitequery4=""
                 if(requestdata['scheduledetails'] == 'getallscheduledata'):
                     scheduletestsuitequery4=("select * from scheduledexecution")
                 elif(requestdata['scheduledetails'] == 'getallscheduleddetails'):
@@ -1502,16 +1489,12 @@ def saveQcDetails_ICE():
                 +","+requestdata["testscenarioid"]+",'"+requestdata["qcdomain"]+"','"+requestdata["qcfolderpath"]+"','"+requestdata["qcproject"]
                 +"','"+requestdata["qctestcase"]+"','"+requestdata["qctestset"]+"')")
                 queryresult = icesession.execute(gettestcaseidquery1)
-            else:
-                res={'rows':'fail'}
-            res= {"rows":queryresult.current_rows}
-            res =  jsonify(res)
+                res= {"rows":queryresult.current_rows}
         else:
             app.logger.warn('Empty data received. getting saveQcDetails.')
-            res =  jsonify(res)
     except Exception as e:
         servicesException("saveQcDetails_ICE",e)
-    return res
+    return jsonify(res)
 
 @app.route('/qualityCenter/viewQcMappedList_ICE',methods=['POST'])
 def viewQcMappedList_ICE():
@@ -1523,16 +1506,12 @@ def viewQcMappedList_ICE():
             if(requestdata["query"] == 'qcdetails'):
                 viewqcmappedquery1  = ("SELECT * FROM qualitycenterdetails where testscenarioid="+requestdata["testscenarioid"])
                 queryresult = icesession.execute(viewqcmappedquery1)
-            else:
-                res={'rows':'fail'}
-            res= {"rows":queryresult.current_rows}
-            res =  jsonify(res)
+                res= {"rows":queryresult.current_rows}
         else:
             app.logger.warn('Empty data received. getting QcMappedList.')
-            res =  jsonify(res)
     except Exception as e:
         servicesException("viewQcMappedList_ICE",e)
-    return res
+    return jsonify(res)
 ################################################################################
 # END OF QUALITYCENTRE
 ################################################################################
@@ -1592,6 +1571,7 @@ def getDetails_ICE():
                         projectList.append(prj)
                 res={'rows':projectList}
             elif(requestdata["query"] == 'projectsdetails'):
+                getdetailsquery2=""
                 if(requestdata["subquery"] == 'projecttypeid'):
                     getdetailsquery2=("select projecttypeid,projectname from projects"
                         +" where projectid="+ requestdata['id']+query['delete_flag'])
@@ -2540,7 +2520,6 @@ def checkServer():
     from flask import Response
     try:
         if(onlineuser == True or offlineuser == True):
-            activeicesessions.clear()
             response = "pass"
             status = 200
     except Exception as exc:
@@ -2563,10 +2542,12 @@ def updateActiveIceSessions():
         requestdata=json.loads(request.data)
         app.logger.info("Inside updateActiveIceSessions. Query: "+str(requestdata["query"]))
         if not isemptyrequest(requestdata):
+            activeicesessions=json.loads(unwrap(redisSession.get('icesessions'),db_keys))
             if(requestdata['query']=='disconnect'):
                 username=requestdata['username'].lower()
                 if(activeicesessions.has_key(username)):
                     del activeicesessions[username]
+                    redisSession.set('icesessions',wrap(json.dumps(activeicesessions),db_keys))
                 res['res']="success"
 
             elif(requestdata['query']=='connect' and requestdata.has_key('icesession')):
@@ -2588,16 +2569,22 @@ def updateActiveIceSessions():
                     response = {"node_check":"userNotValid","ice_check":wrap(str(res),ice_ndac_key)}
                 else:
                     #To reject connection with same usernames
+                    user_channel=redisSession.pubsub_numsub("ICE1_normal_"+username,"ICE1_scheduling_"+username)
+                    user_channel_cnt=int(user_channel[0][1]+user_channel[1][1])
+                    if(user_channel_cnt == 0 and activeicesessions.has_key(username)):
+                        del activeicesessions[username]
                     if(activeicesessions.has_key(username) and activeicesessions[username] != ice_uuid):
                         res['err_msg'] = "Connection exists with same username"
                         response["ice_check"]=wrap(str(res),ice_ndac_key)
                     #To check if license is available
-                    elif(len(activeicesessions)>=licensedata['allowedIceSessions']):
+                    elif(len(activeicesessions)>=int(licensedata['allowedIceSessions'])):
                         res['err_msg'] = "All ice sessions are in use"
                         response["ice_check"]=wrap(str(res),ice_ndac_key)
                     #To add in active ice sessions
                     else:
+                        activeicesessions=json.loads(unwrap(redisSession.get('icesessions'),db_keys))
                         activeicesessions[username] = ice_uuid
+                        redisSession.set('icesessions',wrap(json.dumps(activeicesessions),db_keys))
                         res['res']="success"
                         response = {"node_check":"allow","ice_check":wrap(str(res),ice_ndac_key)}
         else:
@@ -2636,11 +2623,9 @@ def getTopMatches_ProfJ():
 ##        print "State of saved query after this query: ",savedQueries
 ##        print"------------------------------------------------------------"
         res={'rows':response}
-        return jsonify(res)
     except Exception as e:
-        import traceback
-        traceback.print_exc()
         res={'rows':'fail'}
+    return jsonify(res)
 
 #Prof J Second Service: Updating the Question's Frequency
 @app.route('/chatbot/updateFrequency_ProfJ',methods=['POST'])
@@ -2658,11 +2643,9 @@ def updateFrequency_ProfJ():
 ##        print(weights[int(qid)])
         response = True
         res={'rows': response}
-        return jsonify(res)
     except Exception as e:
-        import traceback
-        traceback.print_exc()
         res={'rows':'fail'}
+    return jsonify(res)
 
 ################################################################################
 # END OF CHATBOT
@@ -2990,11 +2973,9 @@ def dataprocessor(datatofetch,fromdate,todate):
     return respobj
 
 def reportdataprocessor(resultset,fromdate,todate):
-    processorres = False
     count = 0
+    eachreports_in_day={"reprt_cnt":"","day":""}
     try:
-        eachreports_in_day={"reprt_cnt":"","day":""}
-        curr=datetime.now()
         if resultset['rows'] != 'fail':
             for eachrow in resultset['rows']:
                 exectime=eachrow['executedtime']
@@ -3041,7 +3022,6 @@ def gettimestamp(date):
 def basecheckonls():
     app.logger.info("Inside basecheckonls")
     basecheckstatus = False
-    tokenExists = False
     try:
         dbdata = dataholder('select')
         dbdata = unwrap(str(dbdata),mine)
@@ -3087,6 +3067,7 @@ def basecheckonls():
                 app.logger.critical(printErrorCodes('216'))
                 startTwoDaysTimer()
     except Exception as e:
+        app.logger.debug(e)
         app.logger.error(printErrorCodes('201'))
     return basecheckstatus
 
@@ -3139,6 +3120,7 @@ def updateonls():
                 app.logger.critical(printErrorCodes('216'))
                 startTwoDaysTimer()
     except Exception as e:
+        app.logger.debug(e)
         app.logger.error(printErrorCodes('202'))
 
 def getbgntime(requiredday,*args):
@@ -3195,6 +3177,7 @@ def connectingls(data):
                 twoDayTimer.cancel()
                 twoDayTimer=None
     except Exception as e:
+        app.logger.debug(e)
         app.logger.error(printErrorCodes('208'))
     return connectionstatus
 
@@ -3232,7 +3215,8 @@ def scheduleenabler(starttime):
         threading.Timer(delay, beginserver).start()
         global offlineuser
         offlineuser = True
-    except Exception as scheduleenablerexeption:
+    except Exception as e:
+        app.logger.debug(e)
         app.logger.error(printErrorCodes('209'))
 
 def cronograph():
@@ -3249,7 +3233,8 @@ def cronograph():
             secs = (getupdatetime() - x).total_seconds()
         t = Timer(secs, updateonls)
         t.start()
-    except Exception as cronoexeption:
+    except Exception as e:
+        app.logger.debug(e)
         app.logger.critical(printErrorCodes('210'))
 
 def dataholder(ops,*args):
@@ -3261,7 +3246,6 @@ def dataholder(ops,*args):
         else:
             # CREATE DATABASE CONNECTION
             conn = sqlite3.connect(logspath+"/data.db")
-            cursor = conn.cursor()
             if ops=='select':
                 cursor1 = conn.execute("SELECT intrtkndt FROM clndls WHERE sysid='ndackey'")
                 for row in cursor1:
@@ -3272,6 +3256,7 @@ def dataholder(ops,*args):
             conn.commit()
             conn.close()
     except Exception as e:
+        app.logger.debug(e)
         app.logger.critical(printErrorCodes('213'))
     return data
 
@@ -3826,6 +3811,36 @@ if __name__ == '__main__':
     if not cleanndac:
         app.logger.critical(printErrorCodes('214'))
     else:
+        try:
+            cass_conf=ndac_conf['cassandra']
+            cass_user=unwrap(cass_conf['dbusername'],db_keys)
+            cass_pass=unwrap(cass_conf['dbpassword'],db_keys)
+            cass_auth = PlainTextAuthProvider(username=cass_user, password=cass_pass)
+            cluster = Cluster([cass_conf['databaseip']],port=int(cass_conf['dbport']),auth_provider=cass_auth)
+            icesession = cluster.connect()
+            n68session = cluster.connect()
+            icesession.row_factory = dict_factory
+            icesession.set_keyspace('icetestautomation')
+            n68session.row_factory = dict_factory
+            n68session.set_keyspace('nineteen68')
+            dbup = True
+        except Exception as e:
+            dbup = False
+            app.logger.debug(e)
+            app.logger.critical(printErrorCodes('206'))
+
+        try:
+            redisdb_conf = ndac_conf['redis']
+            redisdb_pass = unwrap(redisdb_conf['dbpassword'],db_keys)
+            redisSession = redis.StrictRedis(host=redisdb_conf['databaseip'], port=int(redisdb_conf['dbport']), password=redisdb_pass, db=3)
+            if redisSession.get('icesessions') is None:
+                redisSession.set('icesessions',wrap('{}',db_keys))
+            dbup = True
+        except Exception as e:
+            dbup = False
+            app.logger.debug(e)
+            app.logger.critical(printErrorCodes('217'))
+
         if args.offlinemode:
             app.logger.info("Offline Mode Detected")
             try:
