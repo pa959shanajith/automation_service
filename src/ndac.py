@@ -18,13 +18,14 @@ from datetime import datetime
 import time
 import uuid
 import ast
+import redis
 from flask import Flask, request , jsonify
 from waitress import serve
 import logging
 from logging.handlers import TimedRotatingFileHandler
 from cassandra.cluster import Cluster
-from flask_cassandra import CassandraCluster
 from cassandra.auth import PlainTextAuthProvider
+from cassandra.query import dict_factory
 app = Flask(__name__)
 
 import argparse
@@ -41,6 +42,7 @@ log_group.add_argument("-C", "--critical", action="store_true", help="Set logger
 args = parser.parse_args()
 
 ice_ndac_key = 'ajkdfiHFEow#DjgLIqocn^8sjp2hfY&d'
+db_keys = "NinEteEn68dAtaBAs3eNcRypT10nk3yS"
 activeicesessions={}
 latest_access_time=datetime.now()
 
@@ -83,25 +85,9 @@ ERR_CODE={
     "213":"Critical error in storage areas",
     "214":"Please contact Team - Nineteen68. Setup is corrupted",
     "215":"Error establishing connection to Licensing Server. Retrying to establish connection",
-    "216":"Connection to Licensing Server failed. Maximum retries exceeded. Hence, Shutting down server"
+    "216":"Connection to Licensing Server failed. Maximum retries exceeded. Hence, Shutting down server",
+    "217":"Error while establishing connection to Redis"
 }
-
-try:
-    auth = PlainTextAuthProvider(username=ndac_conf['dbusername'], password=ndac_conf['dbpassword'])
-    cluster = Cluster([ndac_conf['databaseip']],port=int(ndac_conf['dbport']),auth_provider=auth)
-
-    icesession = cluster.connect()
-    n68session = cluster.connect()
-
-    from cassandra.query import dict_factory
-    icesession.row_factory = dict_factory
-    icesession.set_keyspace('icetestautomation')
-
-    n68session.row_factory = dict_factory
-    n68session.set_keyspace('nineteen68')
-    dbup = True
-except Exception as dbexception:
-    app.logger.error("[ECODE: 206] " + ERR_CODE['206'])
 
 if (ndac_conf.has_key('custChronographTimer')):
     chronographTimer = ndac_conf['custChronographTimer']
@@ -3826,6 +3812,33 @@ if __name__ == '__main__':
     if not cleanndac:
         app.logger.critical(printErrorCodes('214'))
     else:
+        try:
+            cass_conf=ndac_conf['cassandra']
+            cass_user=unwrap(cass_conf['dbusername'],db_keys)
+            cass_pass=unwrap(cass_conf['dbpassword'],db_keys)
+            cass_auth = PlainTextAuthProvider(username=cass_user, password=cass_pass)
+            cluster = Cluster([cass_conf['databaseip']],port=int(cass_conf['dbport']),auth_provider=cass_auth)
+            icesession = cluster.connect()
+            n68session = cluster.connect()
+            icesession.row_factory = dict_factory
+            icesession.set_keyspace('icetestautomation')
+            n68session.row_factory = dict_factory
+            n68session.set_keyspace('nineteen68')
+            dbup = True
+        except:
+            dbup = False
+            app.logger.critical(printErrorCodes('206'))
+
+        try:
+            redisdb_conf = ndac_conf['redis']
+            redisdb_pass = unwrap(redisdb_conf['dbpassword'],db_keys)
+            redissession = redis.StrictRedis(host=redisdb_conf['databaseip'], port=int(redisdb_conf['dbport']), password=redisdb_pass, db=3)
+            redissession.get('testkey')
+            dbup = True
+        except:
+            dbup = False
+            app.logger.critical(printErrorCodes('217'))
+
         if args.offlinemode:
             app.logger.info("Offline Mode Detected")
             try:
