@@ -2526,7 +2526,6 @@ def checkServer():
     from flask import Response
     try:
         if(onlineuser == True or offlineuser == True):
-            activeicesessions.clear()
             response = "pass"
             status = 200
     except Exception as exc:
@@ -2549,10 +2548,12 @@ def updateActiveIceSessions():
         requestdata=json.loads(request.data)
         app.logger.info("Inside updateActiveIceSessions. Query: "+str(requestdata["query"]))
         if not isemptyrequest(requestdata):
+            activeicesessions=json.loads(unwrap(redisSession.get('icesessions'),db_keys))
             if(requestdata['query']=='disconnect'):
                 username=requestdata['username'].lower()
                 if(activeicesessions.has_key(username)):
                     del activeicesessions[username]
+                    redisSession.set('icesessions',wrap(json.dumps(activeicesessions),db_keys))
                 res['res']="success"
 
             elif(requestdata['query']=='connect' and requestdata.has_key('icesession')):
@@ -2574,16 +2575,22 @@ def updateActiveIceSessions():
                     response = {"node_check":"userNotValid","ice_check":wrap(str(res),ice_ndac_key)}
                 else:
                     #To reject connection with same usernames
+                    user_channel=redisSession.pubsub_numsub("ICE1_normal_"+username,"ICE1_scheduling_"+username)
+                    user_channel_cnt=int(user_channel[0][1]+user_channel[1][1])
+                    if(user_channel_cnt == 0 and activeicesessions.has_key(username)):
+                        del activeicesessions[username]
                     if(activeicesessions.has_key(username) and activeicesessions[username] != ice_uuid):
                         res['err_msg'] = "Connection exists with same username"
                         response["ice_check"]=wrap(str(res),ice_ndac_key)
                     #To check if license is available
-                    elif(len(activeicesessions)>=licensedata['allowedIceSessions']):
+                    elif(len(activeicesessions)>=int(licensedata['allowedIceSessions'])):
                         res['err_msg'] = "All ice sessions are in use"
                         response["ice_check"]=wrap(str(res),ice_ndac_key)
                     #To add in active ice sessions
                     else:
+                        activeicesessions=json.loads(unwrap(redisSession.get('icesessions'),db_keys))
                         activeicesessions[username] = ice_uuid
+                        redisSession.set('icesessions',wrap(json.dumps(activeicesessions),db_keys))
                         res['res']="success"
                         response = {"node_check":"allow","ice_check":wrap(str(res),ice_ndac_key)}
         else:
@@ -3825,18 +3832,21 @@ if __name__ == '__main__':
             n68session.row_factory = dict_factory
             n68session.set_keyspace('nineteen68')
             dbup = True
-        except:
+        except Exception as e:
             dbup = False
+            app.logger.debug(e)
             app.logger.critical(printErrorCodes('206'))
 
         try:
             redisdb_conf = ndac_conf['redis']
             redisdb_pass = unwrap(redisdb_conf['dbpassword'],db_keys)
-            redissession = redis.StrictRedis(host=redisdb_conf['databaseip'], port=int(redisdb_conf['dbport']), password=redisdb_pass, db=3)
-            redissession.get('testkey')
+            redisSession = redis.StrictRedis(host=redisdb_conf['databaseip'], port=int(redisdb_conf['dbport']), password=redisdb_pass, db=3)
+            if redisSession.get('icesessions') is None:
+                redisSession.set('icesessions',wrap('{}',db_keys))
             dbup = True
-        except:
+        except Exception as e:
             dbup = False
+            app.logger.debug(e)
             app.logger.critical(printErrorCodes('217'))
 
         if args.offlinemode:
