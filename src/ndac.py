@@ -55,7 +55,8 @@ logspath= currdir + "/ndac_internals/logs"
 
 ndac_conf = json.loads(open(config_path).read())
 lsip = ndac_conf['licenseserver']
-dbup = False
+cass_dbup = False
+redis_dbup = False
 offlinestarttime=''
 offlineendtime=''
 offlineuser = False
@@ -2589,6 +2590,9 @@ def updateActiveIceSessions():
                         response = {"node_check":"allow","ice_check":wrap(str(res),ice_ndac_key)}
         else:
             app.logger.warn('Empty data received. updateActiveIceSessions.')
+    except redis.ConnectionError as exc:
+        app.logger.critical(printErrorCodes('217'))
+        servicesException("updateActiveIceSessions",exc)
     except Exception as exc:
         servicesException("updateActiveIceSessions",exc)
     return jsonify(response)
@@ -3301,7 +3305,7 @@ def checkSetup():
     return enndac
 
 def beginserver():
-    if dbup:
+    if cass_dbup and redis_dbup:
         serve(app,host='127.0.0.1',port=1990)
     else:
         app.logger.critical(printErrorCodes('207'))
@@ -3823,9 +3827,9 @@ if __name__ == '__main__':
             icesession.set_keyspace('icetestautomation')
             n68session.row_factory = dict_factory
             n68session.set_keyspace('nineteen68')
-            dbup = True
+            cass_dbup = True
         except Exception as e:
-            dbup = False
+            cass_dbup = False
             app.logger.debug(e)
             app.logger.critical(printErrorCodes('206'))
 
@@ -3835,9 +3839,9 @@ if __name__ == '__main__':
             redisSession = redis.StrictRedis(host=redisdb_conf['databaseip'], port=int(redisdb_conf['dbport']), password=redisdb_pass, db=3)
             if redisSession.get('icesessions') is None:
                 redisSession.set('icesessions',wrap('{}',db_keys))
-            dbup = True
+            redis_dbup = True
         except Exception as e:
-            dbup = False
+            redis_dbup = False
             app.logger.debug(e)
             app.logger.critical(printErrorCodes('217'))
 
