@@ -14,7 +14,7 @@ import json
 import requests
 import subprocess
 import sqlite3
-from datetime import datetime
+from datetime import datetime,timedelta
 import time
 import uuid
 import ast
@@ -2832,8 +2832,8 @@ def counterupdator(updatortype,userid,count):
     status=False
     try:
         beginingoftime = datetime.utcfromtimestamp(0)
-        currentdateindays = getupdatetime() - beginingoftime
-        currentdate = long(currentdateindays.total_seconds() * 1000.0)
+        currenttime = datetime.utcnow() + timedelta(seconds = 19800)
+        currentdate = long((currenttime - beginingoftime).total_seconds() * 1000.0)
         updatorarray = ["update counters set counter=counter + ",
                     " where counterdate= "," and userid = "," and countertype= ",";"]
         updatequery=(updatorarray[0]+str(count)+updatorarray[1]
@@ -2849,7 +2849,7 @@ def getreports_in_day(bgnts,endts):
     res = {"rows":"fail"}
     try:
         query=("select * from reports where executedtime  >= "
-            +str(bgnts)+" and executedtime <= "+str(endts)+" allow filtering;")
+            +str(bgnts)+" and executedtime < "+str(endts)+" allow filtering;")
         queryresult = icesession.execute(query)
         res= {"rows":queryresult.current_rows}
     except Exception as getreports_in_dayexc:
@@ -2895,10 +2895,9 @@ def gettestcases_inititated(bgnts,endts):
 def modelinfoprocessor():
     modelinfo=[]
     try:
-        import datetime
         bgnyesday = None
         bgnoftday = None
-        x = datetime.datetime.utcnow() + datetime.timedelta(seconds = 19800)
+        x = datetime.utcnow() + timedelta(seconds = 19800)
         if(x.hour == 18):
             bgnyesday = getbgntime('time_at_nine')
             bgnoftday = getbgntime('time_at_six_thirty')
@@ -2907,7 +2906,7 @@ def modelinfoprocessor():
             bgnoftday = getbgntime('time_at_nine')
         dailydata={}
         allusers = []
-        dailydata['day'] = str(datetime.datetime.now())
+        dailydata['day'] = str(x)
         bgnts=gettimestamp(bgnyesday)
         endts=gettimestamp(bgnoftday)
         resultset=getreports_in_day(bgnts,endts)
@@ -3128,38 +3127,21 @@ def updateonls():
         app.logger.error(printErrorCodes('202'))
 
 def getbgntime(requiredday,*args):
-    import datetime
     currentday = ''
     day = ''
     if len(args)==0:
-        currentday=datetime.datetime.utcnow() + datetime.timedelta(seconds = 19800)
+        currentday=datetime.utcnow() + timedelta(seconds = 19800)
     else:
         currentday=args[0]
     if requiredday == 'time_at_nine':
-        day=datetime.datetime(currentday.year, currentday.month, currentday.day,9,0,0,0)
+        day=datetime(currentday.year, currentday.month, currentday.day,9,0,0,0)
     elif requiredday == 'yest':
-        yesterday=currentday - datetime.timedelta(1)
-        day=datetime.datetime(yesterday.year, yesterday.month, yesterday.day,18,30,0,0)
+        yesterday=currentday - timedelta(1)
+        day=datetime(yesterday.year, yesterday.month, yesterday.day,18,30,0,0)
     elif requiredday == 'time_at_six_thirty':
-        day=datetime.datetime(currentday.year, currentday.month, currentday.day,18,30,0,0)
+        day=datetime(currentday.year, currentday.month, currentday.day,18,30,0,0)
     elif requiredday == 'indate':
-        day=datetime.datetime(currentday.year, currentday.month, currentday.day,0,0,0,0)
-    return day
-
-def getupdatetime():
-    import datetime
-    x = datetime.datetime.utcnow() + datetime.timedelta(seconds = 19800)
-    day = None
-    datetime_at_twelve = datetime.datetime.strptime(str(x.year)+'-'+str(x.month)+'-'+str(x.day)+' 00:00:00', '%Y-%m-%d %H:%M:%S')
-    datetime_at_nine = datetime.datetime.strptime(str(x.year)+'-'+str(x.month)+'-'+str(x.day)+' 9:00:00', '%Y-%m-%d %H:%M:%S')
-    datetime_at_six_thirty = datetime.datetime.strptime(str(x.year)+'-'+str(x.month)+'-'+str(x.day)+' 18:30:00', '%Y-%m-%d %H:%M:%S')
-    datetime_at_next_nine = datetime.datetime.strptime(str((x + datetime.timedelta(days=1)).year)+'-'+str((x + datetime.timedelta(days=1)).month)+'-'+str((x + datetime.timedelta(days=1)).day)+' 9:00:00', '%Y-%m-%d %H:%M:%S')
-    if(x >= datetime_at_nine and x < datetime_at_six_thirty):
-        #For update at 6:30 PM
-        day = datetime_at_six_thirty
-    elif((x >= datetime_at_six_thirty and x < datetime_at_next_nine) or (x >=datetime_at_twelve and x < datetime_at_nine)):
-        #For update at 9:00 AM
-        day = datetime_at_next_nine
+        day=datetime(currentday.year, currentday.month, currentday.day,0,0,0,0)
     return day
 
 def connectingls(data):
@@ -3226,15 +3208,24 @@ def scheduleenabler(starttime):
 def cronograph():
     app.logger.info("Chronograph triggred")
     try:
-        import datetime
         from threading import Timer
         secs=None
         x = None
         if chronographTimer is not None:
             secs=chronographTimer
         else:
-            x = datetime.datetime.utcnow() + datetime.timedelta(seconds = 19800)
-            secs = (getupdatetime() - x).total_seconds()
+            day = None
+            datetime_at_twelve = datetime.strptime(str(x.year)+'-'+str(x.month)+'-'+str(x.day)+' 00:00:00', '%Y-%m-%d %H:%M:%S')
+            datetime_at_nine = datetime.strptime(str(x.year)+'-'+str(x.month)+'-'+str(x.day)+' 9:00:00', '%Y-%m-%d %H:%M:%S')
+            datetime_at_six_thirty = datetime.strptime(str(x.year)+'-'+str(x.month)+'-'+str(x.day)+' 18:30:00', '%Y-%m-%d %H:%M:%S')
+            datetime_at_next_nine = datetime.strptime(str((x + timedelta(days=1)).year)+'-'+str((x + timedelta(days=1)).month)+'-'+str((x + timedelta(days=1)).day)+' 9:00:00', '%Y-%m-%d %H:%M:%S')
+            if(x >= datetime_at_nine and x < datetime_at_six_thirty):
+                #For update at 6:30 PM
+                day = datetime_at_six_thirty
+            elif((x >= datetime_at_six_thirty and x < datetime_at_next_nine) or (x >=datetime_at_twelve and x < datetime_at_nine)):
+                #For update at 9:00 AM
+                day = datetime_at_next_nine
+            secs = (day - x).total_seconds()
         t = Timer(secs, updateonls)
         t.start()
     except Exception as e:
