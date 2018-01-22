@@ -14,7 +14,7 @@ import json
 import requests
 import subprocess
 import sqlite3
-from datetime import datetime,timedelta
+from datetime import datetime, timedelta
 import time
 import uuid
 import ast
@@ -2556,6 +2556,8 @@ def updateActiveIceSessions():
                 icesession = ast.literal_eval(icesession)
                 ice_uuid=icesession['ice_id']
                 ice_ts=icesession['connect_time']
+                if('.' not in ice_ts):
+                    ice_ts = ice_ts + '.000000'
                 username=icesession['username'].lower()
                 latest_access_time=datetime.strptime(ice_ts, '%Y-%m-%d %H:%M:%S.%f')
                 res['id']=ice_uuid
@@ -2832,8 +2834,8 @@ def counterupdator(updatortype,userid,count):
     status=False
     try:
         beginingoftime = datetime.utcfromtimestamp(0)
-        currenttime = datetime.utcnow() + timedelta(seconds = 19800)
-        currentdate = long((currenttime - beginingoftime).total_seconds() * 1000.0)
+        currentdateindays = getupdatetime() - beginingoftime
+        currentdate = long(currentdateindays.total_seconds() * 1000.0)
         updatorarray = ["update counters set counter=counter + ",
                     " where counterdate= "," and userid = "," and countertype= ",";"]
         updatequery=(updatorarray[0]+str(count)+updatorarray[1]
@@ -2848,8 +2850,8 @@ def counterupdator(updatortype,userid,count):
 def getreports_in_day(bgnts,endts):
     res = {"rows":"fail"}
     try:
-        query=("select * from reports where executedtime  >= "
-            +str(bgnts)+" and executedtime < "+str(endts)+" allow filtering;")
+        query=("select * from reports where executedtime  > "
+            +str(bgnts)+" and executedtime <= "+str(endts)+" allow filtering;")
         queryresult = icesession.execute(query)
         res= {"rows":queryresult.current_rows}
     except Exception as getreports_in_dayexc:
@@ -2859,8 +2861,8 @@ def getreports_in_day(bgnts,endts):
 def getsuites_inititated(bgnts,endts):
     res = {"rows":"fail"}
     try:
-        suitequery=("select * from counters where counterdate >= "+str(bgnts)
-        +" and counterdate < "+str(endts)
+        suitequery=("select * from counters where counterdate > "+str(bgnts)
+        +" and counterdate <= "+str(endts)
         +" and countertype='testsuites' ALLOW FILTERING;")
         queryresult = icesession.execute(suitequery)
         res= {"rows":queryresult.current_rows}
@@ -2871,8 +2873,8 @@ def getsuites_inititated(bgnts,endts):
 def getscenario_inititated(bgnts,endts):
     res = {"rows":"fail"}
     try:
-        scenarioquery=("select * from counters where counterdate >= "+str(bgnts)
-        +" and counterdate < "+str(endts)
+        scenarioquery=("select * from counters where counterdate > "+str(bgnts)
+        +" and counterdate <= "+str(endts)
         +" and countertype='testscenarios' ALLOW FILTERING;")
         queryresult = icesession.execute(scenarioquery)
         res= {"rows":queryresult.current_rows}
@@ -2883,8 +2885,8 @@ def getscenario_inititated(bgnts,endts):
 def gettestcases_inititated(bgnts,endts):
     res = {"rows":"fail"}
     try:
-        testcasesquery=("select * from counters where counterdate >= "+str(bgnts)
-        +" and counterdate < "+str(endts)
+        testcasesquery=("select * from counters where counterdate > "+str(bgnts)
+        +" and counterdate <= "+str(endts)
         +" and countertype='testcases' ALLOW FILTERING;")
         queryresult = icesession.execute(testcasesquery)
         res = {"rows":queryresult.current_rows}
@@ -2921,9 +2923,7 @@ def modelinfoprocessor():
         testcasesobj = dataprocessor('testcases',bgnts,endts)
         dailydata['t_exec_cnt'] = str(testcasesobj['tcases_cnt'])
         allusers = allusers + testcasesobj['active_usrs']
-        licensesarray=[]
-        licensesarray.append(str(len(set(allusers))))
-        dailydata['license_usd'] = licensesarray
+        dailydata['license_usd'] = str(len(set(allusers)))
         modelinfo.append(dailydata)
     except Exception as e:
         servicesException("modelinfoprocessor",e)
@@ -3144,6 +3144,21 @@ def getbgntime(requiredday,*args):
         day=datetime(currentday.year, currentday.month, currentday.day,0,0,0,0)
     return day
 
+def getupdatetime():
+    x = datetime.utcnow() + timedelta(seconds = 19800)
+    day = None
+    datetime_at_twelve = datetime.strptime(str(x.year)+'-'+str(x.month)+'-'+str(x.day)+' 00:00:00', '%Y-%m-%d %H:%M:%S')
+    datetime_at_nine = datetime.strptime(str(x.year)+'-'+str(x.month)+'-'+str(x.day)+' 9:00:00', '%Y-%m-%d %H:%M:%S')
+    datetime_at_six_thirty = datetime.strptime(str(x.year)+'-'+str(x.month)+'-'+str(x.day)+' 18:30:00', '%Y-%m-%d %H:%M:%S')
+    datetime_at_next_nine = datetime.strptime(str((x + timedelta(days=1)).year)+'-'+str((x + timedelta(days=1)).month)+'-'+str((x + timedelta(days=1)).day)+' 9:00:00', '%Y-%m-%d %H:%M:%S')
+    if(x >= datetime_at_nine and x < datetime_at_six_thirty):
+        #For update at 6:30 PM
+        day = datetime_at_six_thirty
+    elif((x >= datetime_at_six_thirty and x < datetime_at_next_nine) or (x >=datetime_at_twelve and x < datetime_at_nine)):
+        #For update at 9:00 AM
+        day = datetime_at_next_nine
+    return day
+
 def connectingls(data):
     global lsRetryCount,twoDayTimer
     lsRetryCount+=1
@@ -3210,22 +3225,11 @@ def cronograph():
     try:
         from threading import Timer
         secs=None
-        x = None
         if chronographTimer is not None:
             secs=chronographTimer
         else:
-            day = None
-            datetime_at_twelve = datetime.strptime(str(x.year)+'-'+str(x.month)+'-'+str(x.day)+' 00:00:00', '%Y-%m-%d %H:%M:%S')
-            datetime_at_nine = datetime.strptime(str(x.year)+'-'+str(x.month)+'-'+str(x.day)+' 9:00:00', '%Y-%m-%d %H:%M:%S')
-            datetime_at_six_thirty = datetime.strptime(str(x.year)+'-'+str(x.month)+'-'+str(x.day)+' 18:30:00', '%Y-%m-%d %H:%M:%S')
-            datetime_at_next_nine = datetime.strptime(str((x + timedelta(days=1)).year)+'-'+str((x + timedelta(days=1)).month)+'-'+str((x + timedelta(days=1)).day)+' 9:00:00', '%Y-%m-%d %H:%M:%S')
-            if(x >= datetime_at_nine and x < datetime_at_six_thirty):
-                #For update at 6:30 PM
-                day = datetime_at_six_thirty
-            elif((x >= datetime_at_six_thirty and x < datetime_at_next_nine) or (x >=datetime_at_twelve and x < datetime_at_nine)):
-                #For update at 9:00 AM
-                day = datetime_at_next_nine
-            secs = (day - x).total_seconds()
+            x = datetime.utcnow() + timedelta(seconds = 19800)
+            secs = (getupdatetime() - x).total_seconds()
         t = Timer(secs, updateonls)
         t.start()
     except Exception as e:
