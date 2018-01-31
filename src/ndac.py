@@ -53,8 +53,7 @@ config_path = currdir+'/server_config.json'
 assistpath = currdir + "/ndac_internals/assist"
 logspath= currdir + "/ndac_internals/logs"
 
-ndac_conf = json.loads(open(config_path).read())
-lsip = ndac_conf['licenseserver']
+lsip="127.0.0.1"
 cass_dbup = False
 redis_dbup = False
 offlinestarttime=''
@@ -87,11 +86,10 @@ ERR_CODE={
     "214":"Please contact Team - Nineteen68. Setup is corrupted",
     "215":"Error establishing connection to Licensing Server. Retrying to establish connection",
     "216":"Connection to Licensing Server failed. Maximum retries exceeded. Hence, Shutting down server",
-    "217":"Error while establishing connection to Redis"
+    "217":"Error while establishing connection to Redis",
+    "218":"Invalid configuration file",
+    "219":"Please contact Team - Nineteen68. Error while starting NDAC"
 }
-
-if (ndac_conf.has_key('custChronographTimer')):
-    chronographTimer = ndac_conf['custChronographTimer']
 
 #counters for License
 debugcounter = 0
@@ -2536,7 +2534,7 @@ def updateActiveIceSessions():
         if(licensedata['plugins']['ice'][keys] == True):
             ice_plugins_list.append(keys)
     res={"id":"da9b196d-8021-4a68-be2b-753ec267305e","res":"fail","ts_now":str(datetime.now()),"connect_time":str(datetime.now()),"plugins":str(ice_plugins_list)}
-    response = {"node_check":False,"ice_check":wrap(str(res),ice_ndac_key)}
+    response = {"node_check":False,"ice_check":wrap(json.dumps(res),ice_ndac_key)}
     ice_uuid=None
     ice_ts=None
     try:
@@ -2553,7 +2551,7 @@ def updateActiveIceSessions():
 
             elif(requestdata['query']=='connect' and requestdata.has_key('icesession')):
                 icesession = unwrap(requestdata['icesession'],ice_ndac_key)
-                icesession = ast.literal_eval(icesession)
+                icesession = json.loads(icesession)
                 ice_uuid=icesession['ice_id']
                 ice_ts=icesession['connect_time']
                 if('.' not in ice_ts):
@@ -2569,7 +2567,7 @@ def updateActiveIceSessions():
                 queryresult = n68session.execute(authenticateuser)
                 if len(queryresult.current_rows) == 0:
                     res['err_msg'] = "Unauthorized: Access denied, user is not registered with Nineteen68"
-                    response = {"node_check":"userNotValid","ice_check":wrap(str(res),ice_ndac_key)}
+                    response = {"node_check":"userNotValid","ice_check":wrap(json.dumps(res),ice_ndac_key)}
                 else:
                     #To reject connection with same usernames
                     user_channel=redisSession.pubsub_numsub("ICE1_normal_"+username,"ICE1_scheduling_"+username)
@@ -2578,18 +2576,18 @@ def updateActiveIceSessions():
                         del activeicesessions[username]
                     if(activeicesessions.has_key(username) and activeicesessions[username] != ice_uuid):
                         res['err_msg'] = "Connection exists with same username"
-                        response["ice_check"]=wrap(str(res),ice_ndac_key)
+                        response["ice_check"]=wrap(json.dumps(res),ice_ndac_key)
                     #To check if license is available
                     elif(len(activeicesessions)>=int(licensedata['allowedIceSessions'])):
                         res['err_msg'] = "All ice sessions are in use"
-                        response["ice_check"]=wrap(str(res),ice_ndac_key)
+                        response["ice_check"]=wrap(json.dumps(res),ice_ndac_key)
                     #To add in active ice sessions
                     else:
                         activeicesessions=json.loads(unwrap(redisSession.get('icesessions'),db_keys))
                         activeicesessions[username] = ice_uuid
                         redisSession.set('icesessions',wrap(json.dumps(activeicesessions),db_keys))
                         res['res']="success"
-                        response = {"node_check":"allow","ice_check":wrap(str(res),ice_ndac_key)}
+                        response = {"node_check":"allow","ice_check":wrap(json.dumps(res),ice_ndac_key)}
         else:
             app.logger.warn('Empty data received. updateActiveIceSessions.')
     except redis.ConnectionError as exc:
@@ -2899,13 +2897,16 @@ def modelinfoprocessor():
     try:
         bgnyesday = None
         bgnoftday = None
-        x = datetime.utcnow() + timedelta(seconds = 19800)
-        if(x.hour == 18):
-            bgnyesday = getbgntime('time_at_nine')
-            bgnoftday = getbgntime('time_at_six_thirty')
-        elif(x.hour == 9):
+        x = getbgntime('now')
+        if(x.hour <= 9):
             bgnyesday = getbgntime('yest')
             bgnoftday = getbgntime('time_at_nine')
+        elif(x.hour > 9 and x.hour <= 18):
+            bgnyesday = getbgntime('time_at_nine')
+            bgnoftday = getbgntime('time_at_six_thirty')
+        else:
+            bgnyesday = getbgntime('time_at_six_thirty')
+            bgnoftday = x
         dailydata={}
         allusers = []
         dailydata['day'] = str(x)
@@ -3027,8 +3028,6 @@ def basecheckonls():
     basecheckstatus = False
     try:
         dbdata = dataholder('select')
-        dbdata = unwrap(str(dbdata),mine)
-        dbdata = ast.literal_eval(dbdata)
         token=dbdata['tkn']
         EXPECTING_RESPONSE=str(int(time.time()*24150))
         baserequest= {
@@ -3037,7 +3036,7 @@ def basecheckonls():
             "lCheck": str(latest_access_time),
             "ts": EXPECTING_RESPONSE
         }
-        baserequest=wrap(str(baserequest),omgall)
+        baserequest=wrap(json.dumps(baserequest),omgall)
         connectresponse = connectingls(baserequest)
         if connectresponse != False:
             actresp = unwrap(str(connectresponse),omgall)
@@ -3059,8 +3058,7 @@ def basecheckonls():
                         basecheckstatus = True
                     else:
                         dbdata['tkn']=actresp['token']
-                        datatodb=wrap(str(dbdata),mine)
-                        basecheckstatus=dataholder('update',datatodb)
+                        basecheckstatus=dataholder('update',dbdata)
                     onlineuser = True
         else:
             if lsRetryCount<3:
@@ -3078,15 +3076,13 @@ def updateonls():
     app.logger.info("Inside updateonls")
     try:
         global licensedata
-        info=dataholder('select')
-        dbdata=ast.literal_eval(unwrap(info,mine))
+        dbdata=dataholder('select')
         EXPECTING_RESPONSE=str(int(time.time()*24150))
         modelinfores = modelinfoprocessor()
         if(dbdata.has_key('mdlinfo')):
             modelinfores.extend(dbdata['mdlinfo'])
             del dbdata['mdlinfo']
-            datatodb=wrap(str(dbdata),mine)
-            dataholder('update',datatodb)
+            dataholder('update',dbdata)
         datatols={
             "token": dbdata['tkn'],
             "action": "update",
@@ -3094,18 +3090,17 @@ def updateonls():
             "lCheck": str(latest_access_time),
             "modelinfo": modelinfores
         }
-        datatols=wrap(str(datatols),omgall)
+        datatols=wrap(json.dumps(datatols),omgall)
         updateresponse = connectingls(datatols)
         if updateresponse != False:
             cronograph()
-            res = ast.literal_eval(unwrap(str(updateresponse),omgall))
+            res = json.loads(unwrap(str(updateresponse),omgall))
             if res['res'] == 'F':
                 emsg="[ECODE: "+res['ecode']+"] "+res['message']
                 if (res['ecode'] in LS_CRITICAL_ERR_CODE):
                     app.logger.critical(emsg)
                     dbdata['mdlinfo']=modelinfores
-                    datatodb=wrap(str(dbdata),mine)
-                    dataholder('update',datatodb)
+                    dataholder('update',dbdata)
                     stopserver()
                 else:
                     app.logger.error(emsg)
@@ -3118,8 +3113,7 @@ def updateonls():
                 updateonls()
             else:
                 dbdata['mdlinfo']=modelinfores
-                datatodb=wrap(str(dbdata),mine)
-                dataholder('update',datatodb)
+                dataholder('update',dbdata)
                 app.logger.critical(printErrorCodes('216'))
                 startTwoDaysTimer()
     except Exception as e:
@@ -3142,6 +3136,8 @@ def getbgntime(requiredday,*args):
         day=datetime(currentday.year, currentday.month, currentday.day,18,30,0,0)
     elif requiredday == 'indate':
         day=datetime(currentday.year, currentday.month, currentday.day,0,0,0,0)
+    elif requiredday == 'now':
+        day=currentday.replace(microsecond=0)
     return day
 
 def getupdatetime():
@@ -3166,15 +3162,13 @@ def connectingls(data):
     try:
         lsresponse = requests.post('http://'+lsip+":5000/ndacrequest",data=data)
         if lsresponse.status_code == 200:
-            info=dataholder('select')
-            dbdata=ast.literal_eval(unwrap(info,mine))
+            dbdata=dataholder('select')
             if(dbdata.has_key('grace_period')):
                 del dbdata['grace_period']
-                datatodb = wrap(str(dbdata),mine)
-                dataholder('update',datatodb)
+                dataholder('update',dbdata)
             lsRetryCount=0
             connectionstatus = lsresponse.content
-            if( twoDayTimer != None and twoDayTimer.isAlive()):
+            if (twoDayTimer != None and twoDayTimer.isAlive()):
                 twoDayTimer.cancel()
                 twoDayTimer=None
     except Exception as e:
@@ -3246,11 +3240,17 @@ def dataholder(ops,*args):
             # CREATE DATABASE CONNECTION
             conn = sqlite3.connect(logspath+"/data.db")
             if ops=='select':
+                #Retrieve the data from db and decrypt it
                 cursor1 = conn.execute("SELECT intrtkndt FROM clndls WHERE sysid='ndackey'")
                 for row in cursor1:
-                    data =  row[0]
+                    data = row[0]
+                data=unwrap(str(data),mine)
+                data=json.loads(data)
             elif ops=='update':
-                cursor1 = conn.execute("UPDATE clndls SET intrtkndt = ? WHERE sysid = 'ndackey'",args)
+                #Encrypt data and update in db
+                datatodb=json.dumps(args[0])
+                datatodb=wrap(datatodb,mine)
+                cursor1 = conn.execute("UPDATE clndls SET intrtkndt = ? WHERE sysid = 'ndackey'",[datatodb])
                 data=True
             conn.commit()
             conn.close()
@@ -3270,10 +3270,8 @@ def checkSetup():
     #else considers patch db is modified/deleted
     dbexists=dataholder('check')
     if dbexists:
-        info=dataholder('select')
-        if info !='':
-            #Retrieve the data from db and decrypt it
-            dbdata = ast.literal_eval(unwrap(info,mine))
+        dbdata=dataholder('select')
+        if dbdata:
             if(dbdata.has_key('grace_period')):
                 grace_period = dbdata['grace_period']
             dbmacid=dbdata['macid']
@@ -3281,8 +3279,7 @@ def checkSetup():
             if len(dbmacid)==0:
                 enndac=True
                 dbdata['macid']=sysmacid
-                datatodb = wrap(str(dbdata),mine)
-                dataholder('update',datatodb)
+                dataholder('update',dbdata)
             elif dbmacid!=sysmacid:
                 enndac=False
                 errCode='211'
@@ -3327,14 +3324,12 @@ def saveGracePeriod():
     from threading import Timer
     global gracePeriodTimer,twoDayTimer
     if (twoDayTimer.isAlive()):
-        dbdata=dataholder('select')
-        dbdata = ast.literal_eval(unwrap(str(dbdata),mine))
+        dbdata = dataholder('select')
         if(dbdata.has_key('grace_period')):
             dbdata['grace_period']=dbdata['grace_period'] - 3600
         else:
             dbdata['grace_period']=169200
-        datatodb=wrap(str(dbdata),mine)
-        dataholder('update',datatodb)
+        dataholder('update',dbdata)
         gracePeriodTimer = Timer(3600,saveGracePeriod)
         gracePeriodTimer.start()
 
@@ -3803,87 +3798,105 @@ class ProfJ():
 # END OF INTERNAL COMPONENTS
 ################################################################################
 
-if __name__ == '__main__':
-    initLoggers(args)
-    sysMAC = str(getMacAddress()).strip()
+def main():
+    global lsip,cass_dbup,redis_dbup,icesession,n68session,redisSession,licensedata,chronographTimer
     cleanndac = checkSetup()
     if not cleanndac:
         app.logger.critical(printErrorCodes('214'))
-    else:
+        return False
+
+    try:
+        ndac_conf = json.loads(open(config_path).read())
+        lsip = ndac_conf['licenseserver']
+        if (ndac_conf.has_key('custChronographTimer')):
+            chronographTimer = ndac_conf['custChronographTimer']
+            app.logger.debug("'custChronographTimer' detected.")
+    except Exception as e:
+        app.logger.debug(e)
+        app.logger.critical(printErrorCodes('218'))
+        return False
+
+    try:
+        cass_conf=ndac_conf['cassandra']
+        cass_user=unwrap(cass_conf['dbusername'],db_keys)
+        cass_pass=unwrap(cass_conf['dbpassword'],db_keys)
+        cass_auth = PlainTextAuthProvider(username=cass_user, password=cass_pass)
+        cluster = Cluster([cass_conf['databaseip']],port=int(cass_conf['dbport']),auth_provider=cass_auth)
+        icesession = cluster.connect()
+        n68session = cluster.connect()
+        icesession.row_factory = dict_factory
+        icesession.set_keyspace('icetestautomation')
+        n68session.row_factory = dict_factory
+        n68session.set_keyspace('nineteen68')
+        cass_dbup = True
+    except Exception as e:
+        cass_dbup = False
+        app.logger.debug(e)
+        app.logger.critical(printErrorCodes('206'))
+        return False
+
+    try:
+        redisdb_conf = ndac_conf['redis']
+        redisdb_pass = unwrap(redisdb_conf['dbpassword'],db_keys)
+        redisSession = redis.StrictRedis(host=redisdb_conf['databaseip'], port=int(redisdb_conf['dbport']), password=redisdb_pass, db=3)
+        if redisSession.get('icesessions') is None:
+            redisSession.set('icesessions',wrap('{}',db_keys))
+        redis_dbup = True
+    except Exception as e:
+        redis_dbup = False
+        app.logger.debug(e)
+        app.logger.critical(printErrorCodes('217'))
+        return False
+
+    if args.offlinemode:
+        app.logger.info("Offline Mode Detected")
         try:
-            cass_conf=ndac_conf['cassandra']
-            cass_user=unwrap(cass_conf['dbusername'],db_keys)
-            cass_pass=unwrap(cass_conf['dbpassword'],db_keys)
-            cass_auth = PlainTextAuthProvider(username=cass_user, password=cass_pass)
-            cluster = Cluster([cass_conf['databaseip']],port=int(cass_conf['dbport']),auth_provider=cass_auth)
-            icesession = cluster.connect()
-            n68session = cluster.connect()
-            icesession.row_factory = dict_factory
-            icesession.set_keyspace('icetestautomation')
-            n68session.row_factory = dict_factory
-            n68session.set_keyspace('nineteen68')
-            cass_dbup = True
-        except Exception as e:
-            cass_dbup = False
-            app.logger.debug(e)
-            app.logger.critical(printErrorCodes('206'))
+            f = open(args.offlinemode,"r")
+            contents = f.read()
+            f.close()
+            userinformation=unwrap(str(contents),offreg)
+            userinfo=ast.literal_eval(userinformation)
 
-        try:
-            redisdb_conf = ndac_conf['redis']
-            redisdb_pass = unwrap(redisdb_conf['dbpassword'],db_keys)
-            redisSession = redis.StrictRedis(host=redisdb_conf['databaseip'], port=int(redisdb_conf['dbport']), password=redisdb_pass, db=3)
-            if redisSession.get('icesessions') is None:
-                redisSession.set('icesessions',wrap('{}',db_keys))
-            redis_dbup = True
-        except Exception as e:
-            redis_dbup = False
-            app.logger.debug(e)
-            app.logger.critical(printErrorCodes('217'))
+            startdate = userinfo['offlinereginfo']['startdate']
+            if not ('-' in startdate):
+                startdate = datetime.strptime(startdate, '%m/%d/%Y')
+                startdate = getbgntime('indate',startdate)
+            else:
+                startdate = datetime.strptime(startdate, '%m/%d/%Y-%H%M%S')
 
-        if args.offlinemode:
-            app.logger.info("Offline Mode Detected")
-            try:
-                f = open(args.offlinemode,"r")
-                contents = f.read()
-                f.close()
-                userinformation=unwrap(str(contents),offreg)
-                userinfo=ast.literal_eval(userinformation)
-
-                startdate = userinfo['offlinereginfo']['startdate']
-                if not ('-' in startdate):
-                    startdate = datetime.strptime(startdate, '%m/%d/%Y')
-                    startdate = getbgntime('indate',startdate)
-                else:
-                    startdate = datetime.strptime(startdate, '%m/%d/%Y-%H%M%S')
-
-                enddate = userinfo['offlinereginfo']['enddate']
-                if not ('-' in enddate):
-                    enddate = datetime.strptime(enddate, '%m/%d/%Y')
-                    enddate = getbgntime('indate',enddate)
-                else:
-                    enddate = datetime.strptime(enddate, '%m/%d/%Y-%H%M%S')
-                # this is provided as there was a request to create a key
-                # without mac address
-                if 'mac' in userinfo['offlinereginfo']:
-                    if userinfo['offlinereginfo']['mac'] != 'NO':
-                        mac = userinfo['offlinereginfo']['mac']
-                    else:
-                        mac = 'nomacaddress'
-                enabled = offlineuserenabler(startdate,enddate,mac)
-                licensedata=userinfo['licensedata']
-                if enabled == True:
-                    beginserver()
-                else:
-                    if (startdate > datetime.now()):
-                        scheduleenabler(offlinestarttime)
-                        app.logger.error("Server starts only after : "+str(offlinestarttime))
-                    else:
-                        app.logger.error("Please contact Team - Nineteen68. Issue: offlineuser.key");
-            except Exception as e:
-                app.logger.critical("Please contact Team - Nineteen68. Issue: Offline user")
-        else:
-            if (basecheckonls()):
-                cronograph()
+            enddate = userinfo['offlinereginfo']['enddate']
+            if not ('-' in enddate):
+                enddate = datetime.strptime(enddate, '%m/%d/%Y')
+                enddate = getbgntime('indate',enddate)
+            else:
+                enddate = datetime.strptime(enddate, '%m/%d/%Y-%H%M%S')
+            # this is provided as there was a request to create a key
+            # without mac address
+            mac = 'nomacaddress'
+            if 'mac' in userinfo['offlinereginfo']:
+                if userinfo['offlinereginfo']['mac'] != 'NO':
+                    mac = userinfo['offlinereginfo']['mac']
+            enabled = offlineuserenabler(startdate,enddate,mac)
+            licensedata=userinfo['licensedata']
+            if enabled == True:
                 beginserver()
             else:
-                app.logger.critical("Please contact Team - Nineteen68")
+                if (startdate > datetime.now()):
+                    scheduleenabler(offlinestarttime)
+                    app.logger.error("Server starts only after : "+str(offlinestarttime))
+                else:
+                    app.logger.critical(printErrorCodes('204'))
+        except Exception as e:
+            app.logger.debug(e)
+            app.logger.critical(printErrorCodes('218'))
+    else:
+        if (basecheckonls()):
+            cronograph()
+            beginserver()
+        else:
+            app.logger.critical(printErrorCodes('218'))
+
+if __name__ == '__main__':
+    initLoggers(args)
+    sysMAC = str(getMacAddress()).strip()
+    main()
