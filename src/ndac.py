@@ -22,13 +22,19 @@ import redis
 from flask import Flask, request , jsonify
 from waitress import serve
 import logging
+import logging.config
 from logging.handlers import TimedRotatingFileHandler
 from cassandra.cluster import Cluster
 from cassandra.auth import PlainTextAuthProvider
 from cassandra.query import dict_factory
+from nltk.stem import PorterStemmer
+from threading import Timer
+import argparse
+import base64
+from Crypto.Cipher import AES
+from Crypto import Random
 app = Flask(__name__)
 
-import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("-k", type=str, dest='offlinemode', metavar='filename',
     help="Home user registration. Provide the offline registration file")
@@ -53,8 +59,7 @@ config_path = currdir+'/server_config.json'
 assistpath = currdir + "/ndac_internals/assist"
 logspath= currdir + "/ndac_internals/logs"
 
-ndac_conf = json.loads(open(config_path).read())
-lsip = ndac_conf['licenseserver']
+lsip="127.0.0.1"
 cass_dbup = False
 redis_dbup = False
 offlinestarttime=''
@@ -87,17 +92,38 @@ ERR_CODE={
     "214":"Please contact Team - Nineteen68. Setup is corrupted",
     "215":"Error establishing connection to Licensing Server. Retrying to establish connection",
     "216":"Connection to Licensing Server failed. Maximum retries exceeded. Hence, Shutting down server",
-    "217":"Error while establishing connection to Redis"
+    "217":"Error while establishing connection to Redis",
+    "218":"Invalid configuration file",
+    "219":"Please contact Team - Nineteen68. Error while starting NDAC",
+    "220":"Error occured in assist module: Update weights",
+    "221":"Error occured in assist module: Update queries",
+    "222":"Unable to contact storage areas: Assist Components",
+    "223":"Critical error in storage areas: Assist Components"
 }
-
-if (ndac_conf.has_key('custChronographTimer')):
-    chronographTimer = ndac_conf['custChronographTimer']
 
 #counters for License
 debugcounter = 0
 scenarioscounter = 0
 gtestsuiteid = []
 suitescounter = 0
+
+#Variables for ProfJ
+questions=[] # to store the questions
+pages=[] # to store the pages
+keywords=[] # to store the keywords
+weights=[] # to store the weights
+answers=[] # to store the answers
+pquestions=[] #preprocessed questions
+newQuesInfo=[] #list to store relevant info about new questions
+savedQueries = None #A variable to save every single relevant query asked by user
+updateW = [[]]
+weightUpdateTime = 60
+chatbot = None
+profj_db_path=assistpath+"/ProfJ.db"
+profj_log_conf_path = assistpath + "/logging_config.conf"
+profj_syn_path = assistpath + "/SYNONYMS.json"
+profj_keywords_path = assistpath+"/keywords_db.txt"
+profj_sqlitedb=None
 
 #server check
 @app.route('/')
@@ -2440,8 +2466,6 @@ def encrypt_ICE():
     app.logger.info("Inside encrypt_ICE")
     res = "fail"
     try:
-        import base64
-        from Crypto.Cipher import AES
         BS = 16
         pad = lambda s: s + (BS - len(s) % BS) * chr(BS - len(s) % BS)
         key = b'\x74\x68\x69\x73\x49\x73\x41\x53\x65\x63\x72\x65\x74\x4b\x65\x79'
@@ -2536,7 +2560,7 @@ def updateActiveIceSessions():
         if(licensedata['plugins']['ice'][keys] == True):
             ice_plugins_list.append(keys)
     res={"id":"da9b196d-8021-4a68-be2b-753ec267305e","res":"fail","ts_now":str(datetime.now()),"connect_time":str(datetime.now()),"plugins":str(ice_plugins_list)}
-    response = {"node_check":False,"ice_check":wrap(str(res),ice_ndac_key)}
+    response = {"node_check":False,"ice_check":wrap(json.dumps(res),ice_ndac_key)}
     ice_uuid=None
     ice_ts=None
     try:
@@ -2553,7 +2577,7 @@ def updateActiveIceSessions():
 
             elif(requestdata['query']=='connect' and requestdata.has_key('icesession')):
                 icesession = unwrap(requestdata['icesession'],ice_ndac_key)
-                icesession = ast.literal_eval(icesession)
+                icesession = json.loads(icesession)
                 ice_uuid=icesession['ice_id']
                 ice_ts=icesession['connect_time']
                 if('.' not in ice_ts):
@@ -2569,7 +2593,7 @@ def updateActiveIceSessions():
                 queryresult = n68session.execute(authenticateuser)
                 if len(queryresult.current_rows) == 0:
                     res['err_msg'] = "Unauthorized: Access denied, user is not registered with Nineteen68"
-                    response = {"node_check":"userNotValid","ice_check":wrap(str(res),ice_ndac_key)}
+                    response = {"node_check":"userNotValid","ice_check":wrap(json.dumps(res),ice_ndac_key)}
                 else:
                     #To reject connection with same usernames
                     user_channel=redisSession.pubsub_numsub("ICE1_normal_"+username,"ICE1_scheduling_"+username)
@@ -2578,18 +2602,18 @@ def updateActiveIceSessions():
                         del activeicesessions[username]
                     if(activeicesessions.has_key(username) and activeicesessions[username] != ice_uuid):
                         res['err_msg'] = "Connection exists with same username"
-                        response["ice_check"]=wrap(str(res),ice_ndac_key)
+                        response["ice_check"]=wrap(json.dumps(res),ice_ndac_key)
                     #To check if license is available
                     elif(len(activeicesessions)>=int(licensedata['allowedIceSessions'])):
                         res['err_msg'] = "All ice sessions are in use"
-                        response["ice_check"]=wrap(str(res),ice_ndac_key)
+                        response["ice_check"]=wrap(json.dumps(res),ice_ndac_key)
                     #To add in active ice sessions
                     else:
                         activeicesessions=json.loads(unwrap(redisSession.get('icesessions'),db_keys))
                         activeicesessions[username] = ice_uuid
                         redisSession.set('icesessions',wrap(json.dumps(activeicesessions),db_keys))
                         res['res']="success"
-                        response = {"node_check":"allow","ice_check":wrap(str(res),ice_ndac_key)}
+                        response = {"node_check":"allow","ice_check":wrap(json.dumps(res),ice_ndac_key)}
         else:
             app.logger.warn('Empty data received. updateActiveIceSessions.')
     except redis.ConnectionError as exc:
@@ -2607,50 +2631,34 @@ def updateActiveIceSessions():
 @app.route('/chatbot/getTopMatches_ProfJ',methods=['POST'])
 def getTopMatches_ProfJ():
     app.logger.info("Inside getTopMatches_ProfJ")
+    global newQuesInfo, savedQueries
+    res={'rows':'fail'}
     try:
-##        print "getting top matches for ya.."
-##        print request.data
         query = str(request.data)
-        global newQuesInfo
-        global savedQueries
-        #Importing Modules for Prof J
-##        import xlrd
-##        from collections import OrderedDict
-##        import simplejson as json
-##        from nltk.stem import PorterStemmer
-
-        #Step 2 Matching query with Data
         profj = ProfJ(pages,questions,answers,keywords,weights,pquestions,newQuesInfo,savedQueries)
         response,newQuesInfo,savedQueries = profj.start(query)
         #if response[0][1] == "Please be relevant..I work soulfully for Nineteen68":
             #response[0][1] = str(chatbot.get_response(query))
-##        print "---------------The status of global variable---------------"
-##        print "newQuesInfo after this query: ",newQuesInfo
-##        print "State of saved query after this query: ",savedQueries
-##        print"------------------------------------------------------------"
+        profj_sqlitedb.updateCaptureTable()
         res={'rows':response}
     except Exception as e:
-        res={'rows':'fail'}
+        servicesException("getTopMatches_ProfJ",e)
     return jsonify(res)
 
 #Prof J Second Service: Updating the Question's Frequency
 @app.route('/chatbot/updateFrequency_ProfJ',methods=['POST'])
 def updateFrequency_ProfJ():
     app.logger.info("Inside updateFrequency_ProfJ")
+    res={'rows':'fail'}
     try:
-##        print "updating the frequency.."
-##        print request.data
         qid = request.data
         weights[int(qid)] += 1
-##        print weights[int(qid)]
         temp = []
         temp.append(qid)
         temp.append(weights[int(qid)])
-##        print(weights[int(qid)])
-        response = True
-        res={'rows': response}
+        res={'rows': True}
     except Exception as e:
-        res={'rows':'fail'}
+        servicesException("updateFrequency_ProfJ",e)
     return jsonify(res)
 
 ################################################################################
@@ -2708,7 +2716,8 @@ ecodeServices = {"authenticateUser_Nineteen68":"300","authenticateUser_Nineteen6
     "exportToJson_ICE":"360","createHistory":"361","encrypt_ICE":"362","dataUpdator_ICE":"363",
     "userAccess_Nineteen68":"364","checkServer":"365","updateActiveIceSessions":"366",
     "counterupdator":"367","getreports_in_day":"368","getsuites_inititated":"369","getscenario_inititated":"370",
-    "gettestcases_inititated":"371","modelinfoprocessor":"372","dataprocessor":"373","reportdataprocessor":"374"
+    "gettestcases_inititated":"371","modelinfoprocessor":"372","dataprocessor":"373","reportdataprocessor":"374",
+    "getTopMatches_ProfJ": "375", "updateFrequency_ProfJ": "376"
 }
 
 ################################################################################
@@ -2899,13 +2908,16 @@ def modelinfoprocessor():
     try:
         bgnyesday = None
         bgnoftday = None
-        x = datetime.utcnow() + timedelta(seconds = 19800)
-        if(x.hour == 18):
-            bgnyesday = getbgntime('time_at_nine')
-            bgnoftday = getbgntime('time_at_six_thirty')
-        elif(x.hour == 9):
+        x = getbgntime('now')
+        if(x.hour <= 9):
             bgnyesday = getbgntime('yest')
             bgnoftday = getbgntime('time_at_nine')
+        elif(x.hour > 9 and x.hour <= 18):
+            bgnyesday = getbgntime('time_at_nine')
+            bgnoftday = getbgntime('time_at_six_thirty')
+        else:
+            bgnyesday = getbgntime('time_at_six_thirty')
+            bgnoftday = x
         dailydata={}
         allusers = []
         dailydata['day'] = str(x)
@@ -3027,8 +3039,6 @@ def basecheckonls():
     basecheckstatus = False
     try:
         dbdata = dataholder('select')
-        dbdata = unwrap(str(dbdata),mine)
-        dbdata = ast.literal_eval(dbdata)
         token=dbdata['tkn']
         EXPECTING_RESPONSE=str(int(time.time()*24150))
         baserequest= {
@@ -3037,7 +3047,7 @@ def basecheckonls():
             "lCheck": str(latest_access_time),
             "ts": EXPECTING_RESPONSE
         }
-        baserequest=wrap(str(baserequest),omgall)
+        baserequest=wrap(json.dumps(baserequest),omgall)
         connectresponse = connectingls(baserequest)
         if connectresponse != False:
             actresp = unwrap(str(connectresponse),omgall)
@@ -3059,8 +3069,7 @@ def basecheckonls():
                         basecheckstatus = True
                     else:
                         dbdata['tkn']=actresp['token']
-                        datatodb=wrap(str(dbdata),mine)
-                        basecheckstatus=dataholder('update',datatodb)
+                        basecheckstatus=dataholder('update',dbdata)
                     onlineuser = True
         else:
             if lsRetryCount<3:
@@ -3078,15 +3087,13 @@ def updateonls():
     app.logger.info("Inside updateonls")
     try:
         global licensedata
-        info=dataholder('select')
-        dbdata=ast.literal_eval(unwrap(info,mine))
+        dbdata=dataholder('select')
         EXPECTING_RESPONSE=str(int(time.time()*24150))
         modelinfores = modelinfoprocessor()
         if(dbdata.has_key('mdlinfo')):
             modelinfores.extend(dbdata['mdlinfo'])
             del dbdata['mdlinfo']
-            datatodb=wrap(str(dbdata),mine)
-            dataholder('update',datatodb)
+            dataholder('update',dbdata)
         datatols={
             "token": dbdata['tkn'],
             "action": "update",
@@ -3094,18 +3101,17 @@ def updateonls():
             "lCheck": str(latest_access_time),
             "modelinfo": modelinfores
         }
-        datatols=wrap(str(datatols),omgall)
+        datatols=wrap(json.dumps(datatols),omgall)
         updateresponse = connectingls(datatols)
         if updateresponse != False:
             cronograph()
-            res = ast.literal_eval(unwrap(str(updateresponse),omgall))
+            res = json.loads(unwrap(str(updateresponse),omgall))
             if res['res'] == 'F':
                 emsg="[ECODE: "+res['ecode']+"] "+res['message']
                 if (res['ecode'] in LS_CRITICAL_ERR_CODE):
                     app.logger.critical(emsg)
                     dbdata['mdlinfo']=modelinfores
-                    datatodb=wrap(str(dbdata),mine)
-                    dataholder('update',datatodb)
+                    dataholder('update',dbdata)
                     stopserver()
                 else:
                     app.logger.error(emsg)
@@ -3118,8 +3124,7 @@ def updateonls():
                 updateonls()
             else:
                 dbdata['mdlinfo']=modelinfores
-                datatodb=wrap(str(dbdata),mine)
-                dataholder('update',datatodb)
+                dataholder('update',dbdata)
                 app.logger.critical(printErrorCodes('216'))
                 startTwoDaysTimer()
     except Exception as e:
@@ -3142,6 +3147,8 @@ def getbgntime(requiredday,*args):
         day=datetime(currentday.year, currentday.month, currentday.day,18,30,0,0)
     elif requiredday == 'indate':
         day=datetime(currentday.year, currentday.month, currentday.day,0,0,0,0)
+    elif requiredday == 'now':
+        day=currentday.replace(microsecond=0)
     return day
 
 def getupdatetime():
@@ -3166,15 +3173,13 @@ def connectingls(data):
     try:
         lsresponse = requests.post('http://'+lsip+":5000/ndacrequest",data=data)
         if lsresponse.status_code == 200:
-            info=dataholder('select')
-            dbdata=ast.literal_eval(unwrap(info,mine))
+            dbdata=dataholder('select')
             if(dbdata.has_key('grace_period')):
                 del dbdata['grace_period']
-                datatodb = wrap(str(dbdata),mine)
-                dataholder('update',datatodb)
+                dataholder('update',dbdata)
             lsRetryCount=0
             connectionstatus = lsresponse.content
-            if( twoDayTimer != None and twoDayTimer.isAlive()):
+            if (twoDayTimer != None and twoDayTimer.isAlive()):
                 twoDayTimer.cancel()
                 twoDayTimer=None
     except Exception as e:
@@ -3210,10 +3215,9 @@ def timerbegins(startdate,enddate):
 
 def scheduleenabler(starttime):
     try:
-        import threading
         runningtime = starttime - datetime.now()
         delay = (runningtime).total_seconds()
-        threading.Timer(delay, beginserver).start()
+        Timer(delay, beginserver).start()
         global offlineuser
         offlineuser = True
     except Exception as e:
@@ -3223,7 +3227,6 @@ def scheduleenabler(starttime):
 def cronograph():
     app.logger.info("Chronograph triggred")
     try:
-        from threading import Timer
         secs=None
         if chronographTimer is not None:
             secs=chronographTimer
@@ -3246,17 +3249,56 @@ def dataholder(ops,*args):
             # CREATE DATABASE CONNECTION
             conn = sqlite3.connect(logspath+"/data.db")
             if ops=='select':
+                #Retrieve the data from db and decrypt it
                 cursor1 = conn.execute("SELECT intrtkndt FROM clndls WHERE sysid='ndackey'")
                 for row in cursor1:
-                    data =  row[0]
+                    data = row[0]
+                data=unwrap(str(data),mine)
+                data=json.loads(data)
             elif ops=='update':
-                cursor1 = conn.execute("UPDATE clndls SET intrtkndt = ? WHERE sysid = 'ndackey'",args)
+                #Encrypt data and update in db
+                datatodb=json.dumps(args[0])
+                datatodb=wrap(datatodb,mine)
+                cursor1 = conn.execute("UPDATE clndls SET intrtkndt = ? WHERE sysid = 'ndackey'",[datatodb])
                 data=True
             conn.commit()
             conn.close()
     except Exception as e:
         app.logger.debug(e)
         app.logger.critical(printErrorCodes('213'))
+    return data
+
+def dataholder_profj(ops,*args):
+    data = False
+    try:
+        if ops=='check':
+            if os.access(profj_db_path,os.R_OK):
+                data = True
+        else:
+            # CREATE DATABASE CONNECTION
+            conn = sqlite3.connect(profj_db_path)
+            if ops=='getMainDB':
+                cursor1 = conn.execute("SELECT * FROM mainDB")
+                data = []
+                for row in cursor1:
+                    data.append(row)
+            elif ops=='getQues':
+                cursor1 = conn.execute("SELECT * FROM NewQuestions")
+                data = []
+                for row in cursor1:
+                    data.append(row)
+            elif ops=='insertCapQuery':
+                cursor1 = conn.executemany('INSERT INTO CapturedQueries VALUES (?,?)', [args[0]])
+                data=True
+            elif ops=='updateWeight':
+                for i in range(len(weights)):
+                    cursor1 = conn.execute('UPDATE mainDB SET Weightage= ? WHERE qid = ?',(weights[i],i))
+                data=True
+            conn.commit()
+            conn.close()
+    except Exception as e:
+        app.logger.debug(e)
+        app.logger.critical(printErrorCodes('223'))
     return data
 
 def checkSetup():
@@ -3269,11 +3311,10 @@ def checkSetup():
         #else considers the Patch is replaced in another Machine
     #else considers patch db is modified/deleted
     dbexists=dataholder('check')
+    profj_dbexists=dataholder_profj('check')
     if dbexists:
-        info=dataholder('select')
-        if info !='':
-            #Retrieve the data from db and decrypt it
-            dbdata = ast.literal_eval(unwrap(info,mine))
+        dbdata=dataholder('select')
+        if dbdata:
             if(dbdata.has_key('grace_period')):
                 grace_period = dbdata['grace_period']
             dbmacid=dbdata['macid']
@@ -3281,8 +3322,7 @@ def checkSetup():
             if len(dbmacid)==0:
                 enndac=True
                 dbdata['macid']=sysmacid
-                datatodb = wrap(str(dbdata),mine)
-                dataholder('update',datatodb)
+                dataholder('update',dbdata)
             elif dbmacid!=sysmacid:
                 enndac=False
                 errCode='211'
@@ -3295,12 +3335,19 @@ def checkSetup():
         enndac=False
         errCode='212'
 
+    if not profj_dbexists:
+        enndac=False
+        errCode='222'
+
     if errCode!=0:
         app.logger.error(printErrorCodes(errCode))
     return enndac
 
 def beginserver():
+    global profj_sqlitedb
     if cass_dbup and redis_dbup:
+        profj_sqlitedb = SQLite_DataSetup()
+        updateWeightages() # ProfJ component
         serve(app,host='127.0.0.1',port=1990)
     else:
         app.logger.critical(printErrorCodes('207'))
@@ -3315,7 +3362,6 @@ def stopserver():
     app.logger.error(printErrorCodes('205'))
 
 def startTwoDaysTimer():
-    from threading import Timer
     global twoDayTimer,gracePeriodTimer
     twoDayTimer = Timer(grace_period, stopserver)
     twoDayTimer.start()
@@ -3324,22 +3370,17 @@ def startTwoDaysTimer():
     app.logger.info("Two day timer begins")
 
 def saveGracePeriod():
-    from threading import Timer
     global gracePeriodTimer,twoDayTimer
     if (twoDayTimer.isAlive()):
-        dbdata=dataholder('select')
-        dbdata = ast.literal_eval(unwrap(str(dbdata),mine))
+        dbdata = dataholder('select')
         if(dbdata.has_key('grace_period')):
             dbdata['grace_period']=dbdata['grace_period'] - 3600
         else:
             dbdata['grace_period']=169200
-        datatodb=wrap(str(dbdata),mine)
-        dataholder('update',datatodb)
+        dataholder('update',dbdata)
         gracePeriodTimer = Timer(3600,saveGracePeriod)
         gracePeriodTimer.start()
 
-from Crypto import Random
-from Crypto.Cipher import AES
 BS = 16
 def pad(data):
     padding = BS - len(data) % BS
@@ -3366,371 +3407,75 @@ def wrap(data, key, iv='0'*16):
 #Begining of ProfJ assist Components
 ####################################
 
-#Saving assist data in global variables
-#Step 1 Loading Data from JSON
-##try:
-##    import sys
-##    base = os.getcwd()
-##    #path = base + "\\Portable_python\\ndac\\src\\assist"
-##    #sys.path.append(path)
-
-##    import sqlite3
-##except:
-##    app.logger.error('Error in accessing assist files..')
-
-
-#Setting up Data
-##try:
-    # File to read the Data from SQLite File into an array.
-##    import sqlite3
-##except:
-##    print "Error Imprting module sqlite."
-
-
 class SQLite_DataSetup():
-    try:
-        def __init__(self):
-            self.questions=[] # to store the questions
-            self.pages=[] # to store the pages
-            self.keywords=[] # to store the keywords
-            self.weightages=[] # to store the weightages
-            self.answers=[] # to store the answers
-            self.pquestions=[] #preprocessed questions
-            self.newQuesInfo=[] #list to store relevant info about new questions
-    except:
-        app.logger.error("Error in __init__ function.")
+    def __init__(self):
+        global questions,pages,weights,answers,keywords,pquestions,newQuesInfo
+        app.logger.debug("Inside SQLite_DataSetup")
+        mainDB_data=dataholder_profj("getMainDB")
+        for row in mainDB_data:
+            weights.append(int(row[1]))
+            questions.append(row[2])
+            answers.append(row[3])
+            keywords.append(row[4])
+            pages.append(row[5])
+            pquestions.append(row[6])
 
-        # Function to Load Data using JSON file.
-    def loadData(self):
-       # print "wfsdvaqusgwnqbwh"
-##        import os
-        #print "OS.cwd()------------",os.getcwd()
-##        base = os.getcwd()
-##        print 'base',base
-        path = assistpath + "/ProfJ.db"
-        conn = sqlite3.connect(path)
-        c = conn.cursor()
-           # print data
+        ques_data=dataholder_profj("getQues")
+        for col in ques_data:
+            info =[col[1],col[2],col[3]]
+            newQuesInfo.append(info)
 
-        # Preparing the lists
-        for row in c.execute('SELECT * FROM mainDB'):
-            self.weightages.append(int(row[1]))
-            self.questions.append(row[2])
-            self.answers.append(row[3])
-            self.keywords.append(row[4])
-            self.pages.append(row[5])
-            self.pquestions.append(row[6])
+    # Function to update the captured Queries.
+    def updateCaptureTable(self):
+        app.logger.debug("Inside updateCaptureTable")
+        status=False
+        try:
+            if savedQueries is not None:
+                data = tuple(savedQueries)
+                status=dataholder_profj("insertCapQuery",data)
+        except Exception as e:
+            app.logger.debug(e)
+            app.logger.error(printErrorCodes("221"))
+        return status
 
-        for col in c.execute('SELECT * FROM NewQuestions'):
-            info =[]
-            info.append(col[1])
-            info.append(col[2])
-            info.append(col[3])
-            self.newQuesInfo.append(info)
-        conn.close()
 
-    try:
-        # Function to get the Pages.
-        def getPages(self):
-            return self.pages
-    except:
-        app.logger.error("Error in getPages()")
-
-    try:
-        # Function to return the Questions.
-        def getQuestions(self):
-            return self.questions
-    except:
-        app.logger.error("Error in getQuestions()")
-
-    try:
-        # Function to return the Answers.
-        def getAnswers(self):
-            return self.answers
-    except:
-        app.logger.error("Error in getAnswers()")
-
-    try:
-        # Function to retun the Weights.
-        def getWeightages(self):
-            return self.weightages
-    except:
-        app.logger.error("Error in getWeightages()")
-
-    try:
-        # Function to return Keywords.
-        def getKeywords(self):
-            return self.keywords
-    except:
-        app.logger.error("Error in getKeywords()")
-
-    try:
-        # Function to get the Processed Questions.
-        def getPQuestions(self):
-            return self.pquestions
-    except:
-        app.logger.error("Error in getPQuestions()")
-
-    try:
-        # Function to get the New Questions.
-        def getNewQuesInfo(self):
-            return self.newQuesInfo
-    except:
-        app.logger.error("Error in getNewQuesInfo()")
-
-    try:
-        # Function to update the captured Queries.
-        def updateCaptureTable(self,savedQueries):
-            t = []
-            for list in savedQueries:
-                temp = []
-                temp.append(list[0])
-                temp.append(list[1])
-                temp1 = tuple(temp)
-                t.append(temp1)
-            #print t
-            #inserting values in table:
-            conn = sqlite3.connect('ProfJ.db')
-            c = conn.cursor()
-            c.executemany('INSERT INTO CapturedQueries VALUES (?,?)', t)
-            conn.commit()
-##            for row in c.execute('SELECT * FROM CapturedQueries'):
-##                print row
-            conn.close()
-            return savedQueries
-    except:
-        app.logger.error("Error in updateCaptureTable()")
-##
+###Training the Bot
+##def trainProfJ():
+##    global chatbot
 ##    try:
-##            # Function to update the weightages in Database[Used periodically by thread].
-##            def updateWeightages(self,weightages):
-##                print "inside update weightages..."
-##                conn = sqlite3.connect('ProfJ.db')
-##                c = conn.cursor()
-##                for i in range(len(weightages)):
-##                    c.execute('UPDATE mainDB SET Weightage= ? WHERE qid = ?',(weightage[i],i))
-##                conn.commit()
-##                conn.close()
-##                return True
-##    except:
-##            print "Error in updateCaptureTable()"
-
-    try:
-        # Function to update the new questions in the database.
-        def updateCaptureTable(self):
-            return True
-    except:
-        app.logger.error("Error in updateCaptureTable()")
-
-try:
-    ds = SQLite_DataSetup()
-    ds.loadData()
-    questions = ds.getQuestions()
-    pquestions = ds.getPQuestions()
-    pages = ds.getPages()
-    weights = ds.getWeightages()
-    answers = ds.getAnswers()
-    keywords = ds.getKeywords()
-    #2 D array: Ques, processed Ques & Frequency
-    newQuesInfo = ds.getNewQuesInfo()
-    #A list to save every single relevant query asked by user
-    savedQueries = [[]]
-    updateW = [[]]
-except:
-    import traceback
-    traceback.print_exc()
-    app.logger.error('Unable to use assist module SQLite_DataSetups..')
-
-
-#Training the Bot
-
-#try:
-    #chatbot = 0
-    #import threading
-    #def trainProfJ():
-
-        #try:
-            #from chatterbot import ChatBot
-        #except:
-            #app.logger.error('Portable python used doesnot have chatterbot module..please ask for latest portable python')
-        #global chatbot
-        #print "starting training parallely"
-        #chatbot = ChatBot(
-
-            #'Prof J',
-            #trainer='chatterbot.trainers.ChatterBotCorpusTrainer'
-
-        #)
-        #Train based on the english corpus
-        #chatbot.train("chatterbot.corpus.english")
-       # print "chatbot training successfully completed.."
-
-    #Starting chatbot training Parallely
-    #threading.Thread(target = trainProfJ).start()
-#except:
-    #app.logger.error('Unable to train chatbot..Ensure that you have chatterbot modules in Portable Python')
+##        from chatterbot import ChatBot
+##        import threading
+##        app.logger.debug("Starting ProfJ training")
+##        chatbot = ChatBot(
+##            'Prof J',
+##            trainer='chatterbot.trainers.ChatterBotCorpusTrainer'
+##        )
+##        #Train based on the english corpus
+##        chatbot.train("chatterbot.corpus.english")
+##        app.logger.debug("ProfJ training successfully completed")
+##
+##        #Starting chatbot training Parallely
+##        threading.Thread(target = trainProfJ).start()
+##    except Exception as e:
+##        app.logger.debug(e)
+##        app.logger.critical('Chatterbot module missing portable python')
 
 
 #Updating the sqlite database
-updateTime = 60
 def updateWeightages():
+    app.logger.debug("Inside updateWeightages")
+    t=Timer(weightUpdateTime,updateWeightages)
+    status=[]
     try:
-        global weights
-##        print "inside update weightages..."
-        base = os.getcwd()
-        path = assistpath+"/ProfJ.db"
-        conn = sqlite3.connect(path)
-        c = conn.cursor()
-##        print "thread called the function...in every : ",updateTime, " seconds"
-        for i in range(len(weights)):
-            c.execute('UPDATE mainDB SET Weightage= ? WHERE qid = ?',(weights[i],i))
-        conn.commit()
-        conn.close()
-        return True
-    except:
-        import traceback
-        traceback.print_exc()
-        app.logger.error('Cannot update weightages in ProfJ database')
-#Invoking parallel thread which will update the weightages of the questions in the DB
-try:
+        status=dataholder_profj("updateWeight")
+    except Exception as e:
+        app.logger.debug(e)
+        app.logger.error(printErrorCodes('220'))
+    t.start()
+    return status
 
-    from threading import Timer,Thread,Event
-    class repeatedTimer():
-       def __init__(self,t,hFunction):
-          self.t=t
-          self.hFunction = hFunction
-          self.thread = Timer(self.t,self.handle_function)
-
-       def handle_function(self):
-          self.hFunction()
-          self.thread = Timer(self.t,self.handle_function)
-          self.thread.start()
-
-       def start(self):
-          self.thread.start()
-
-       def cancel(self):
-          self.thread.cancel()
-
-    updaterThread = repeatedTimer(updateTime,updateWeightages)
-    updaterThread.start()
-except:
-    import traceback
-    traceback.print_exc()
-    app.logger.error('Cannot access repeatedTimer Module..or it can not call periodic function to update the weightage.')
-
-
-try:
-    import logging
-    import logging.config
-    from nltk.stem import PorterStemmer
-    import simplejson
-except:
-    import traceback
-    traceback.print_exc()
-    app.logger.error("Error in importing core modules ProfJ")
 
 class ProfJ():
-
-    def Preprocess(self,query_string):
-        #creating configuration for logging
-##        import os
-        #print "OS.cwd()------------",os.getcwd()
-##        base = os.getcwd()
-##        print 'BASE in profJ',base
-        path = assistpath + "/logging_config.conf"
-        logging.config.fileConfig(path,disable_existing_loggers=False)
-
-        # Create logger object. This will be used for logging.
-        logger = logging.getLogger("ProfJ")
-
-        logger.info("Qustion asked is "+query_string)
-
-        #Step 1: Punctuations Removal
-        query1_str = "".join(c for c in query_string if c not in ('@','!','.',':','>','<','"','\'','?','*','/','&','(',')','-'))
-##        print "Query after Step 1 of processing:[punctuations removed] ",query1_str
-
-        #Step 2: Converting string into lowercase
-        query2 = [w.lower() for w in query1_str.split()]
-        query2_str = " ".join(query2)
-##        print "Query after Step 2 of processing:[lower Case] ",query2_str
-
-
-        #Step 3: Correcting appostropes.. Need this dictionary to be quite large
-        APPOSTOPHES = {"s" : "is", "'re" : "are","m":"am"}
-        words = (' '.join(query2_str.split("'"))).split()
-        query5 = [ APPOSTOPHES[word] if word in APPOSTOPHES else word for word in words]
-##        print "Query after Step 3 of processing:[appostophes]: ",query5
-
-        import simplejson
-        #Step 4: Normalizing words
-        path = assistpath + "/SYNONYMS.json"
-        with open(path,"r") as data_file:
-                SYNONYMS = simplejson.load(data_file)
-        query6 = [ SYNONYMS[word] if word in SYNONYMS else word for word in query5]
-##        print "Query after Step 6 of processing:[synonyms]: ",query6
-
-
-        #Step 5: Stemming
-        ps = PorterStemmer()
-        query_final=set([ps.stem(i) for i in query6])
-##        print "Query after Step 7 of processing:[stemming] ",query_final
-        return query_final
-
-
-    def matcher(self,query_final):
-        intersection = []
-        for q in self.pquestions:
-            q1 = set (q.split(" "))
-           # print "Supposedly Questions", q1
-            intersection.append (len(query_final & q1))
-           # print len(query_final & q1)
-        return intersection
-
-    def getTopX(self,intersection):
-        relevance=[]
-        cnt = 0
-        for i in intersection:
-            relevance.append(10**(i+2) + self.weights[cnt])
-            cnt+=1
-
-        max_index = [i[0] for i in sorted(enumerate(relevance), key=lambda x:x[1],reverse=True)]
-        #max_value = [i[1] for i in sorted(enumerate(relevance), key=lambda x:x[1],reverse=True)]
-
-        #print max_value
-        # print max_index
-        ans = []
-        #print "-------------------------------------------------"
-        for i in range(self.topX):
-            #print questions_original[max_index[i]]
-            if(intersection[max_index[i]]==0):
-                break
-            ans.append(self.questions[max_index[i]])
-            #print (self.questions[max_index[i]]+ "( Intersection: "+str(intersection[max_index[i]])+ " Weightage: "+str(self.weights[max_index[i]])+")")
-        #print "-------------------------------------------------"
-        return ans
-
-    def calculateRel(self,query_final):
-            try:
-                #Check whether query contains n68 domain or not
-##                import sys
-##                import os
-##                base = os.getcwd()
-##                path = base + "\\keywords_db.txt"
-                path = assistpath+"/keywords_db.txt"
-                f = open(path,"r")
-                key = f.read()
-                keywords = set(key.split())
-
-                if (len(query_final)==0):
-                    match=0
-                else:
-                    match=len(query_final & keywords)/float(len(query_final))
-                #print "Percentage Match [In my domain]", match*100,"%"
-                return match
-            except:
-                app.logger.error("keywords_db.txt not found.")
-##                print "keywords_db.txt not foud."
 
     def __init__(self,pages,questions,answers,keywords,weights,pquestions, newQuesInfo, savedQueries):
         self.questions = questions
@@ -3742,14 +3487,77 @@ class ProfJ():
         self.newQuesInfo = newQuesInfo
         self.topX = 5
         self.userQuery=""
-        self.savedQueries = savedQueries # Captures all the "Relevant" queries asked by User, It is list of list[[query1,page1],[query2,page2]]
+        # Captures all the "Relevant" queries asked by User
+        # It is list of list[[query1,page1],[query2,page2]]
+        self.savedQueries = savedQueries
+
+    def Preprocess(self,query_string):
+        logging.config.fileConfig(profj_log_conf_path,disable_existing_loggers=False)
+        logger = logging.getLogger("ProfJ")
+        logger.info("Question asked is "+query_string)
+
+        #Step 1: Punctuations Removal
+        query1_str = "".join(c for c in query_string if c not in ('@','!','.',':','>','<','"','\'','?','*','/','&','(',')','-'))
+
+        #Step 2: Converting string into lowercase
+        query2 = [w.lower() for w in query1_str.split()]
+        query2_str = " ".join(query2)
+
+        #Step 3: Correcting appostropes.. Need this dictionary to be quite large
+        APPOSTOPHES = {"s" : "is", "'re" : "are","m":"am"}
+        words = (' '.join(query2_str.split("'"))).split()
+        query5 = [ APPOSTOPHES[word] if word in APPOSTOPHES else word for word in words]
+
+        #Step 4: Normalizing words
+        data_file=open(profj_syn_path,"r")
+        SYNONYMS = json.loads(data_file.read())
+        data_file.close()
+        query6 = [ SYNONYMS[word] if word in SYNONYMS else word for word in query5]
+
+        #Step 5: Stemming
+        ps = PorterStemmer()
+        query_final=set([ps.stem(i) for i in query6])
+        return query_final
+
+    def matcher(self,query_final):
+        intersection = []
+        for q in self.pquestions:
+            q1 = set (q.split(" "))
+            intersection.append (len(query_final & q1))
+        return intersection
+
+    def getTopX(self,intersection):
+        relevance=[]
+        cnt = 0
+        for i in intersection:
+            relevance.append(10**(i+2) + self.weights[cnt])
+            cnt+=1
+
+        max_index = [i[0] for i in sorted(enumerate(relevance), key=lambda x:x[1],reverse=True)]
+        ans = []
+        for i in range(self.topX):
+            if(intersection[max_index[i]]==0):
+                break
+            ans.append(self.questions[max_index[i]])
+        return ans
+
+    def calculateRel(self,query_final):
+        f = open(profj_keywords_path ,"r")
+        key = f.read()
+        keywords = set(key.split())
+        f.close()
+
+        if (len(query_final)==0):
+            match=0
+        else:
+            match=len(query_final & keywords)/float(len(query_final))
+        return match
 
     def setState(self,state):
         self.state = state
 
     def start(self,userQuery):
         response = []
-##        print "I am the right one"
         query_string = userQuery
         self.userQuery = userQuery
         if query_string is not None:
@@ -3758,13 +3566,8 @@ class ProfJ():
             query_final = self.Preprocess(query_string)
             rel = self.calculateRel(query_final)
             if (rel > 0):
-                temp = []
-                temp.append(query_string)
-                temp.append(currPage)
-                self.savedQueries.append(temp)
-                #getting intersection
+                self.savedQueries=[query_string,currPage]
                 intersection = self.matcher(query_final)
-                #displaying most common and most frequent
                 ques = self.getTopX(intersection)
                 if ques:
                     for i in range(len(ques)):
@@ -3773,7 +3576,6 @@ class ProfJ():
                         temp.append(self.questions[self.questions.index(ques[i])])
                         temp.append(self.answers[self.questions.index(ques[i])])
                         response.append(temp)
-##                    print response
                 else:
                     response = [[-1,"Sometimes, I may not have the information you need...We recorded your query..will get back to you soon",-1]]
                     flag = True
@@ -3782,12 +3584,8 @@ class ProfJ():
                             nques[2] = nques[2] + 1
                             flag = False
                     if (flag):
-                        temp =[]
-                        temp.append(str(query_string))
-                        temp.append(str(query_final))
-                        temp.append(0)
-                        self.newQuesInfo.append(temp)
-
+                        temp1 =[str(query_string),str(query_final),0]
+                        self.newQuesInfo.append(temp1)
                     #self.newKeys.append(query_string)
             else:
                 response = [[-1, "Please be relevant..I work soulfully for Nineteen68", -1]]
@@ -3795,95 +3593,114 @@ class ProfJ():
             response = [-1, "Invalid Input...Please try again", -1]
         return response, self.newQuesInfo, self.savedQueries
 
-#Basic Setup of ProfJ Done!
+
 ################################################
 #End of ProfJ assist components
 ################################################
+
 ################################################################################
 # END OF INTERNAL COMPONENTS
 ################################################################################
 
-if __name__ == '__main__':
-    initLoggers(args)
-    sysMAC = str(getMacAddress()).strip()
+def main():
+    global lsip,cass_dbup,redis_dbup,icesession,n68session,redisSession,licensedata,chronographTimer
     cleanndac = checkSetup()
     if not cleanndac:
         app.logger.critical(printErrorCodes('214'))
-    else:
+        return False
+
+    try:
+        ndac_conf = json.loads(open(config_path).read())
+        lsip = ndac_conf['licenseserver']
+        if (ndac_conf.has_key('custChronographTimer')):
+            chronographTimer = ndac_conf['custChronographTimer']
+            app.logger.debug("'custChronographTimer' detected.")
+    except Exception as e:
+        app.logger.debug(e)
+        app.logger.critical(printErrorCodes('218'))
+        return False
+
+    try:
+        cass_conf=ndac_conf['cassandra']
+        cass_user=unwrap(cass_conf['dbusername'],db_keys)
+        cass_pass=unwrap(cass_conf['dbpassword'],db_keys)
+        cass_auth = PlainTextAuthProvider(username=cass_user, password=cass_pass)
+        cluster = Cluster([cass_conf['databaseip']],port=int(cass_conf['dbport']),auth_provider=cass_auth)
+        icesession = cluster.connect()
+        n68session = cluster.connect()
+        icesession.row_factory = dict_factory
+        icesession.set_keyspace('icetestautomation')
+        n68session.row_factory = dict_factory
+        n68session.set_keyspace('nineteen68')
+        cass_dbup = True
+    except Exception as e:
+        cass_dbup = False
+        app.logger.debug(e)
+        app.logger.critical(printErrorCodes('206'))
+        return False
+
+    try:
+        redisdb_conf = ndac_conf['redis']
+        redisdb_pass = unwrap(redisdb_conf['dbpassword'],db_keys)
+        redisSession = redis.StrictRedis(host=redisdb_conf['databaseip'], port=int(redisdb_conf['dbport']), password=redisdb_pass, db=3)
+        if redisSession.get('icesessions') is None:
+            redisSession.set('icesessions',wrap('{}',db_keys))
+        redis_dbup = True
+    except Exception as e:
+        redis_dbup = False
+        app.logger.debug(e)
+        app.logger.critical(printErrorCodes('217'))
+        return False
+
+    if args.offlinemode:
+        app.logger.info("Offline Mode Detected")
         try:
-            cass_conf=ndac_conf['cassandra']
-            cass_user=unwrap(cass_conf['dbusername'],db_keys)
-            cass_pass=unwrap(cass_conf['dbpassword'],db_keys)
-            cass_auth = PlainTextAuthProvider(username=cass_user, password=cass_pass)
-            cluster = Cluster([cass_conf['databaseip']],port=int(cass_conf['dbport']),auth_provider=cass_auth)
-            icesession = cluster.connect()
-            n68session = cluster.connect()
-            icesession.row_factory = dict_factory
-            icesession.set_keyspace('icetestautomation')
-            n68session.row_factory = dict_factory
-            n68session.set_keyspace('nineteen68')
-            cass_dbup = True
-        except Exception as e:
-            cass_dbup = False
-            app.logger.debug(e)
-            app.logger.critical(printErrorCodes('206'))
+            f = open(args.offlinemode,"r")
+            contents = f.read()
+            f.close()
+            userinformation=unwrap(str(contents),offreg)
+            userinfo=ast.literal_eval(userinformation)
 
-        try:
-            redisdb_conf = ndac_conf['redis']
-            redisdb_pass = unwrap(redisdb_conf['dbpassword'],db_keys)
-            redisSession = redis.StrictRedis(host=redisdb_conf['databaseip'], port=int(redisdb_conf['dbport']), password=redisdb_pass, db=3)
-            if redisSession.get('icesessions') is None:
-                redisSession.set('icesessions',wrap('{}',db_keys))
-            redis_dbup = True
-        except Exception as e:
-            redis_dbup = False
-            app.logger.debug(e)
-            app.logger.critical(printErrorCodes('217'))
+            startdate = userinfo['offlinereginfo']['startdate']
+            if not ('-' in startdate):
+                startdate = datetime.strptime(startdate, '%m/%d/%Y')
+                startdate = getbgntime('indate',startdate)
+            else:
+                startdate = datetime.strptime(startdate, '%m/%d/%Y-%H%M%S')
 
-        if args.offlinemode:
-            app.logger.info("Offline Mode Detected")
-            try:
-                f = open(args.offlinemode,"r")
-                contents = f.read()
-                f.close()
-                userinformation=unwrap(str(contents),offreg)
-                userinfo=ast.literal_eval(userinformation)
-
-                startdate = userinfo['offlinereginfo']['startdate']
-                if not ('-' in startdate):
-                    startdate = datetime.strptime(startdate, '%m/%d/%Y')
-                    startdate = getbgntime('indate',startdate)
-                else:
-                    startdate = datetime.strptime(startdate, '%m/%d/%Y-%H%M%S')
-
-                enddate = userinfo['offlinereginfo']['enddate']
-                if not ('-' in enddate):
-                    enddate = datetime.strptime(enddate, '%m/%d/%Y')
-                    enddate = getbgntime('indate',enddate)
-                else:
-                    enddate = datetime.strptime(enddate, '%m/%d/%Y-%H%M%S')
-                # this is provided as there was a request to create a key
-                # without mac address
-                if 'mac' in userinfo['offlinereginfo']:
-                    if userinfo['offlinereginfo']['mac'] != 'NO':
-                        mac = userinfo['offlinereginfo']['mac']
-                    else:
-                        mac = 'nomacaddress'
-                enabled = offlineuserenabler(startdate,enddate,mac)
-                licensedata=userinfo['licensedata']
-                if enabled == True:
-                    beginserver()
-                else:
-                    if (startdate > datetime.now()):
-                        scheduleenabler(offlinestarttime)
-                        app.logger.error("Server starts only after : "+str(offlinestarttime))
-                    else:
-                        app.logger.error("Please contact Team - Nineteen68. Issue: offlineuser.key");
-            except Exception as e:
-                app.logger.critical("Please contact Team - Nineteen68. Issue: Offline user")
-        else:
-            if (basecheckonls()):
-                cronograph()
+            enddate = userinfo['offlinereginfo']['enddate']
+            if not ('-' in enddate):
+                enddate = datetime.strptime(enddate, '%m/%d/%Y')
+                enddate = getbgntime('indate',enddate)
+            else:
+                enddate = datetime.strptime(enddate, '%m/%d/%Y-%H%M%S')
+            # this is provided as there was a request to create a key
+            # without mac address
+            mac = 'nomacaddress'
+            if 'mac' in userinfo['offlinereginfo']:
+                if userinfo['offlinereginfo']['mac'] != 'NO':
+                    mac = userinfo['offlinereginfo']['mac']
+            enabled = offlineuserenabler(startdate,enddate,mac)
+            licensedata=userinfo['licensedata']
+            if enabled == True:
                 beginserver()
             else:
-                app.logger.critical("Please contact Team - Nineteen68")
+                if (startdate > datetime.now()):
+                    scheduleenabler(offlinestarttime)
+                    app.logger.error("Server starts only after : "+str(offlinestarttime))
+                else:
+                    app.logger.critical(printErrorCodes('204'))
+        except Exception as e:
+            app.logger.debug(e)
+            app.logger.critical(printErrorCodes('218'))
+    else:
+        if (basecheckonls()):
+            cronograph()
+            beginserver()
+        else:
+            app.logger.critical(printErrorCodes('218'))
+
+if __name__ == '__main__':
+    initLoggers(args)
+    sysMAC = str(getMacAddress()).strip()
+    main()
