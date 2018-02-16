@@ -2556,7 +2556,6 @@ def updateActiveIceSessions():
     global activeicesessions
     global latest_access_time
     ice_plugins_list = []
-    allowed_macs = licensedata['allowedMacAddresses']
     for keys in licensedata['plugins']['ice']:
         if(licensedata['plugins']['ice'][keys] == True):
             ice_plugins_list.append(keys)
@@ -2588,36 +2587,33 @@ def updateActiveIceSessions():
                 res['id']=ice_uuid
                 res['connect_time']=ice_ts
                 app.logger.debug("Connected clients: "+str(activeicesessions.keys()))
-                if(icesession['system_mac'] in allowed_macs):
-                    #To check whether user exists in db or not
-                    authenticateuser = "select userid from users where username='"+username+"' ALLOW FILTERING"
-                    queryresult = n68session.execute(authenticateuser)
-                    if len(queryresult.current_rows) == 0:
-                        res['err_msg'] = "Unauthorized: Access denied, user is not registered with Nineteen68"
-                        response = {"node_check":"userNotValid","ice_check":wrap(json.dumps(res),ice_ndac_key)}
-                    else:
-                        #To reject connection with same usernames
-                        user_channel=redisSession.pubsub_numsub("ICE1_normal_"+username,"ICE1_scheduling_"+username)
-                        user_channel_cnt=int(user_channel[0][1]+user_channel[1][1])
-                        if(user_channel_cnt == 0 and activeicesessions.has_key(username)):
-                            del activeicesessions[username]
-                        if(activeicesessions.has_key(username) and activeicesessions[username] != ice_uuid):
-                            res['err_msg'] = "Connection exists with same username"
-                            response["ice_check"]=wrap(json.dumps(res),ice_ndac_key)
-                        #To check if license is available
-                        elif(len(activeicesessions)>=int(licensedata['allowedIceSessions'])):
-                            res['err_msg'] = "All ice sessions are in use"
-                            response["ice_check"]=wrap(json.dumps(res),ice_ndac_key)
-                        #To add in active ice sessions
-                        else:
-                            activeicesessions=json.loads(unwrap(redisSession.get('icesessions'),db_keys))
-                            activeicesessions[username] = ice_uuid
-                            redisSession.set('icesessions',wrap(json.dumps(activeicesessions),db_keys))
-                            res['res']="success"
-                            response = {"node_check":"allow","ice_check":wrap(json.dumps(res),ice_ndac_key)}
+
+                #To check whether user exists in db or not
+                authenticateuser = "select userid from users where username='"+username+"' ALLOW FILTERING"
+                queryresult = n68session.execute(authenticateuser)
+                if len(queryresult.current_rows) == 0:
+                    res['err_msg'] = "Unauthorized: Access denied, user is not registered with Nineteen68"
+                    response = {"node_check":"userNotValid","ice_check":wrap(json.dumps(res),ice_ndac_key)}
                 else:
-                    res['err_msg'] = "Unauthorized: Access denied, system is not registered with Nineteen68"
-                    response["ice_check"]=wrap(json.dumps(res),ice_ndac_key)
+                    #To reject connection with same usernames
+                    user_channel=redisSession.pubsub_numsub("ICE1_normal_"+username,"ICE1_scheduling_"+username)
+                    user_channel_cnt=int(user_channel[0][1]+user_channel[1][1])
+                    if(user_channel_cnt == 0 and activeicesessions.has_key(username)):
+                        del activeicesessions[username]
+                    if(activeicesessions.has_key(username) and activeicesessions[username] != ice_uuid):
+                        res['err_msg'] = "Connection exists with same username"
+                        response["ice_check"]=wrap(json.dumps(res),ice_ndac_key)
+                    #To check if license is available
+                    elif(len(activeicesessions)>=int(licensedata['allowedIceSessions'])):
+                        res['err_msg'] = "All ice sessions are in use"
+                        response["ice_check"]=wrap(json.dumps(res),ice_ndac_key)
+                    #To add in active ice sessions
+                    else:
+                        activeicesessions=json.loads(unwrap(redisSession.get('icesessions'),db_keys))
+                        activeicesessions[username] = ice_uuid
+                        redisSession.set('icesessions',wrap(json.dumps(activeicesessions),db_keys))
+                        res['res']="success"
+                        response = {"node_check":"allow","ice_check":wrap(json.dumps(res),ice_ndac_key)}
         else:
             app.logger.warn('Empty data received. updateActiveIceSessions.')
     except redis.ConnectionError as exc:

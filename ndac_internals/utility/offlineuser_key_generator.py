@@ -32,7 +32,6 @@ contents =   {
 	},
     "licensedata": {
         "allowedIceSessions" : 5,
-        "allowedMacAddresses": ["XX-XX-XX-XX-XX-XX"],
         "plugins" : {
             "alm" : True,
             "deadcode" : True,
@@ -74,15 +73,13 @@ def wrap(data, key, iv='0'*16):
     aes = AES.new(key, AES.MODE_CBC, iv)
     return aes.encrypt(pad(data)).encode('hex')
 
-def jsoncreator(macid,startdate,enddate,allowedMacs):
+def jsoncreator(macid,startdate,enddate):
 ##    global contents
 ##    contents = ast.literal_eval(contents)
 ##    print contents
     contents['offlinereginfo']['mac'] = macid
     contents['offlinereginfo']['startdate'] = startdate
     contents['offlinereginfo']['enddate'] = enddate
-    allowedMacs=allowedMacs.split(',')
-    contents['licensedata']['allowedMacAddresses'] = allowedMacs
     return contents
 
 def filegenerator(jsonifieddata):
@@ -98,21 +95,17 @@ if __name__ == '__main__':
     try:
         allinputs = str(sys.argv[-1])
         allinputs=allinputs.split(';')
-        if len(allinputs) >= 3:
+        if len(allinputs) == 3:
             macid = allinputs[0]
             startdate = allinputs[1]
             enddate = allinputs[2]
-            if len(allinputs) == 4:
-                allowedMacs = allinputs[3]
-            else:
-                allowedMacs = macid
-            jsonifieddata = jsoncreator(macid,startdate,enddate,allowedMacs)
+            jsonifieddata = jsoncreator(macid,startdate,enddate)
             filegenerator(str(jsonifieddata))
             print ("A file with name offlineuser.key is generated,\n"
             +"Please use it for Offline Registration to Nineteen68")
         else:
             print 'File should be run with the following command\n'
-            print 'python.exe offlineuser_key_generator.py {MACADDRESS};<startdate[mm/dd/yyyy{-hhmmss}]>;<enddate[mm/dd/yyyy{-hhmmss}]>;<mac1>,<mac2>,..,<macN> \n Specify NO , if MACADDRESS is not provided.'
+            print 'python.exe offline_registration_file_generator.py {MACADDRESS};<startdate[mm/dd/yyyy{-hhmmss}]>;<enddate[mm/dd/yyyy{-hhmmss}]> \n Specify NO , if MACADDRESS is not provided.'
     except Exception as e:
         import traceback
         traceback.print_exc()
