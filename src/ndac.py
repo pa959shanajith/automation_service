@@ -47,8 +47,16 @@ log_group.add_argument("-E", "--error", action="store_true", help="Set logger le
 log_group.add_argument("-C", "--critical", action="store_true", help="Set logger level to Critical")
 args = parser.parse_args()
 
-ice_ndac_key = 'ajkdfiHFEow#DjgLIqocn^8sjp2hfY&d'
-db_keys = "NinEteEn68dAtaBAs3eNcRypT10nk3yS"
+ice_ndac_key = "".join(['a','j','k','d','f','i','H','F','E','o','w','#','D','j',
+    'g','L','I','q','o','c','n','^','8','s','j','p','2','h','f','Y','&','d'])
+db_keys = "".join(['N','i','n','E','t','e','E','n','6','8','d','A','t','a','B',
+    'A','s','3','e','N','c','R','y','p','T','1','0','n','k','3','y','S'])
+mine = "".join(['\x4e','\x36','\x38','\x53','\x51','\x4c','\x69','\x74','\x65','\x44','\x61','\x74','\x61','\x53','\x65',
+    '\x63','\x72','\x65','\x74','\x4b','\x65','\x79','\x43','\x6f','\x6d','\x70','\x4f','\x4e','\x65','\x6e','\x74','\x73'])
+offreg = "".join(['\x69','\x41','\x6d','\x4e','\x6f','\x74','\x4f','\x6e','\x6c','\x69','\x6e','\x65','\x55','\x73','\x65',
+    '\x72','\x49','\x4e','\x65','\x65','\x64','\x4e','\x6f','\x74','\x52','\x65','\x67','\x69','\x73','\x74','\x65','\x72'])
+omgall = "".join(['\x4e','\x69','\x6e','\x65','\x74','\x65','\x65','\x6e','\x36','\x38','\x6e','\x64','\x61','\x74','\x63',
+    '\x6c','\x69','\x63','\x65','\x6e','\x73','\x69','\x6e','\x67'])
 activeicesessions={}
 latest_access_time=datetime.now()
 
@@ -2679,15 +2687,12 @@ query['scenario']='select testscenarioname FROM testscenarios where testscenario
 query['screen']='select screenname FROM screens where screenid='
 query['testcase']='select testcasename FROM testcases where testcaseid='
 #Getting complete details of single node
-mine='\x4e\x36\x38\x53\x51\x4c\x69\x74\x65\x44\x61\x74\x61\x53\x65\x63\x72\x65\x74\x4b\x65\x79\x43\x6f\x6d\x70\x4f\x4e\x65\x6e\x74\x73'
 query['module_details']='select * from modules where moduleid='
-offreg='\x69\x41\x6d\x4e\x6f\x74\x4f\x6e\x6c\x69\x6e\x65\x55\x73\x65\x72\x49\x4e\x65\x65\x64\x4e\x6f\x74\x52\x65\x67\x69\x73\x74\x65\x72'
 query['testscenario_details']='select * from testscenarios where testscenarioid='
 query['screen_details']='select * from screens where screenid='
 query['testcase_details']='select * from testcases where testcaseid='
 query['delete_flag'] = ' and deleted=false allow filtering'
 numberofdays=1
-omgall="\x4e\x69\x6e\x65\x74\x65\x65\x6e\x36\x38\x6e\x64\x61\x74\x63\x6c\x69\x63\x65\x6e\x73\x69\x6e\x67"
 ndacinfo = {
     "macid": "",
     "tkn": "",
