@@ -51,7 +51,7 @@ def filldb():
     	"macid": "",
     	"tkn": "",
     }
-    datatodb = wrap(str(data),KEY_NDAC)
+    datatodb = wrap(json.dumps(data),KEY_NDAC)
     cursor.execute("CREATE TABLE IF NOT EXISTS clndls (sysid TEXT PRIMARY KEY, intrtkndt TEXT);")
     cursor.execute("INSERT INTO clndls(sysid,intrtkndt) VALUES (?,?)",('ndackey',datatodb))
     conn.commit()

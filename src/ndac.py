@@ -47,8 +47,16 @@ log_group.add_argument("-E", "--error", action="store_true", help="Set logger le
 log_group.add_argument("-C", "--critical", action="store_true", help="Set logger level to Critical")
 args = parser.parse_args()
 
-ice_ndac_key = 'ajkdfiHFEow#DjgLIqocn^8sjp2hfY&d'
-db_keys = "NinEteEn68dAtaBAs3eNcRypT10nk3yS"
+ice_ndac_key = "".join(['a','j','k','d','f','i','H','F','E','o','w','#','D','j',
+    'g','L','I','q','o','c','n','^','8','s','j','p','2','h','f','Y','&','d'])
+db_keys = "".join(['N','i','n','E','t','e','E','n','6','8','d','A','t','a','B',
+    'A','s','3','e','N','c','R','y','p','T','1','0','n','k','3','y','S'])
+mine = "".join(['\x4e','\x36','\x38','\x53','\x51','\x4c','\x69','\x74','\x65','\x44','\x61','\x74','\x61','\x53','\x65',
+    '\x63','\x72','\x65','\x74','\x4b','\x65','\x79','\x43','\x6f','\x6d','\x70','\x4f','\x4e','\x65','\x6e','\x74','\x73'])
+offreg = "".join(['\x69','\x41','\x6d','\x4e','\x6f','\x74','\x4f','\x6e','\x6c','\x69','\x6e','\x65','\x55','\x73','\x65',
+    '\x72','\x49','\x4e','\x65','\x65','\x64','\x4e','\x6f','\x74','\x52','\x65','\x67','\x69','\x73','\x74','\x65','\x72'])
+omgall = "".join(['\x4e','\x69','\x6e','\x65','\x74','\x65','\x65','\x6e','\x36','\x38','\x6e','\x64','\x61','\x74','\x63',
+    '\x6c','\x69','\x63','\x65','\x6e','\x73','\x69','\x6e','\x67'])
 activeicesessions={}
 latest_access_time=datetime.now()
 
@@ -69,7 +77,7 @@ onlineuser = False
 usersession = False
 gracePeriodTimer=None
 twoDayTimer=None
-licensedata=""
+licensedata=None
 grace_period = 172800
 LS_CRITICAL_ERR_CODE=['199','120','121','123','124','125']
 lsRetryCount=0
@@ -81,8 +89,8 @@ ERR_CODE={
     "203":"NDAC is stopped. Issue - Licensing Server is offline",
     "204":"NDAC is stopped. Issue - Offline license expired",
     "205":"NDAC is stopped due to license expiry or loss of connectivity",
-    "206":"Error while establishing connection to Database",
-    "207":"Database connection Unavailable",
+    "206":"Error while establishing connection to Nineteen68 Database",
+    "207":"Database connectivity Unavailable",
     "208":"License server must be running",
     "209":"Critical Internal Exception occurred",
     "210":"Critical Internal Exception occurred: updateData",
@@ -139,7 +147,7 @@ def server_ready():
 #service for login to Nineteen68
 @app.route('/login/authenticateUser_Nineteen68',methods=['POST'])
 def authenticateUser_Nineteen68():
-    app.logger.info("Inside authenticateUser_Nineteen68")
+    app.logger.debug("Inside authenticateUser_Nineteen68")
     res={'rows':'fail'}
     try:
         requestdata=json.loads(request.data)
@@ -157,7 +165,7 @@ def authenticateUser_Nineteen68():
 #service for user ldap validation
 @app.route('/login/authenticateUser_Nineteen68/ldap',methods=['POST'])
 def authenticateUser_Nineteen68_ldap():
-    app.logger.info("Inside authenticateUser_Nineteen68_ldap")
+    app.logger.debug("Inside authenticateUser_Nineteen68_ldap")
     res={'rows':'fail'}
     try:
         requestdata=json.loads(request.data)
@@ -175,7 +183,7 @@ def authenticateUser_Nineteen68_ldap():
 #service for getting rolename by roleid
 @app.route('/login/getRoleNameByRoleId_Nineteen68',methods=['POST'])
 def getRoleNameByRoleId_Nineteen68():
-    app.logger.info("Inside getRoleNameByRoleId_Nineteen68")
+    app.logger.debug("Inside getRoleNameByRoleId_Nineteen68")
     res={'rows':'fail'}
     try:
         requestdata=json.loads(request.data)
@@ -200,7 +208,7 @@ def authenticateUser_Nineteen68_projassigned():
     res={'rows':'fail'}
     try:
         requestdata=json.loads(request.data)
-        app.logger.info("Inside authenticateUser_Nineteen68_projassigned."
+        app.logger.debug("Inside authenticateUser_Nineteen68_projassigned."
             +"Query: "+str(requestdata["query"]))
         if not isemptyrequest(requestdata):
             if(requestdata["query"] == 'getUserId'):
@@ -233,9 +241,8 @@ def authenticateUser_Nineteen68_projassigned():
 def loadUserInfo_Nineteen68():
     res={'rows':'fail'}
     try:
-        ui_plugins_list = []
         requestdata=json.loads(request.data)
-        app.logger.info("Inside loadUserInfo_Nineteen68. Query: "
+        app.logger.debug("Inside loadUserInfo_Nineteen68. Query: "
             +str(requestdata["query"]))
         if not isemptyrequest(requestdata):
             if(requestdata["query"] == 'userInfo'):
@@ -271,15 +278,15 @@ def loadUserInfo_Nineteen68():
                                     +" allow filtering")
                 queryresult = n68session.execute(loaduserinfo2)
             elif(requestdata["query"] == 'userPlugins'):
-                loaduserinfo3 = ("select roleid,alm,autogenpath,dashboard,deadcode,"
-                                +"ice,mindmap,neuron2d,neuron3d,oxbowcode,reports,weboccular from "
-                                +"userpermissions where roleid = "
+                loaduserinfo3 = ("select alm,apg,dashboard,deadcode,mindmap,"
+                                +"neuron2d,neuron3d,oxbowcode,reports,weboccular,"
+                                +"utility from userpermissions where roleid = "
                                 +requestdata["roleid"]+" allow filtering")
                 queryresult = n68session.execute(loaduserinfo3)
+                ui_plugins_list = []
                 for keys in licensedata['plugins']:
-                    if(keys != 'ice'):
-                        if(licensedata['plugins'][keys] == True):
-                            ui_plugins_list.append(keys)
+                    if(licensedata['plugins'][keys] == True):
+                        ui_plugins_list.append(keys)
                 for keys in (queryresult.current_rows)[0]:
                     if(keys not in ui_plugins_list):
                         (queryresult.current_rows)[0][keys] = False
@@ -307,7 +314,7 @@ def loadUserInfo_Nineteen68():
 #getting Release_iDs of Project
 @app.route('/create_ice/getReleaseIDs_Ninteen68',methods=['POST'])
 def getReleaseIDs_Ninteen68():
-    app.logger.info("Inside getReleaseIDs_Ninteen68")
+    app.logger.debug("Inside getReleaseIDs_Ninteen68")
     res={'rows':'fail'}
     try:
        requestdata=json.loads(request.data)
@@ -326,7 +333,7 @@ def getReleaseIDs_Ninteen68():
 
 @app.route('/create_ice/getCycleIDs_Ninteen68',methods=['POST'])
 def getCycleIDs_Ninteen68():
-    app.logger.info("Inside getCycleIDs_Ninteen68")
+    app.logger.debug("Inside getCycleIDs_Ninteen68")
     res={'rows':'fail'}
     try:
        requestdata=json.loads(request.data)
@@ -344,7 +351,7 @@ def getCycleIDs_Ninteen68():
 
 @app.route('/create_ice/getProjectType_Nineteen68',methods=['POST'])
 def getProjectType_Nineteen68():
-    app.logger.info("Inside getProjectType_Nineteen68")
+    app.logger.debug("Inside getProjectType_Nineteen68")
     res={'rows':'fail'}
     try:
        requestdata=json.loads(request.data)
@@ -369,7 +376,7 @@ def getProjectIDs_Nineteen68():
     res={'rows':'fail'}
     try:
         requestdata=json.loads(request.data)
-        app.logger.info("Inside getProjectIDs_Nineteen68. Query: "
+        app.logger.debug("Inside getProjectIDs_Nineteen68. Query: "
             +str(requestdata["query"]))
         if not isemptyrequest(requestdata):
             prjDetails={
@@ -417,7 +424,7 @@ def getProjectIDs_Nineteen68():
 #getting names of module/scenario/screen/testcase name of given id
 @app.route('/create_ice/getNames_Ninteen68',methods=['POST'])
 def getAllNames_ICE():
-    app.logger.info("Inside getAllNames_ICE")
+    app.logger.debug("Inside getAllNames_ICE")
     res={'rows':'fail'}
     try:
        requestdata=json.loads(request.data)
@@ -439,7 +446,7 @@ def testsuiteid_exists_ICE():
     res={'rows':'fail'}
     try:
         requestdata=json.loads(request.data)
-        app.logger.info("Inside testsuiteid_exists_ICE. Query: "+str(requestdata["name"]))
+        app.logger.debug("Inside testsuiteid_exists_ICE. Query: "+str(requestdata["name"]))
         if not isemptyrequest(requestdata):
             query_name=requestdata['name']
             if query_name=='suite_check':
@@ -460,7 +467,7 @@ def testscenariosid_exists_ICE():
     res={'rows':'fail'}
     try:
         requestdata=json.loads(request.data)
-        app.logger.info("Inside testscenariosid_exists_ICE. Query: "+str(requestdata["name"]))
+        app.logger.debug("Inside testscenariosid_exists_ICE. Query: "+str(requestdata["name"]))
         if not isemptyrequest(requestdata):
             query_name=requestdata['name']
             if query_name=='scenario_check':
@@ -482,7 +489,7 @@ def testscreenid_exists_ICE():
     res={'rows':'fail'}
     try:
         requestdata=json.loads(request.data)
-        app.logger.info("Inside testscreenid_exists_ICE. Query: "+str(requestdata["name"]))
+        app.logger.debug("Inside testscreenid_exists_ICE. Query: "+str(requestdata["name"]))
         if not isemptyrequest(requestdata):
             query_name=requestdata['name']
             if query_name=='screen_check':
@@ -503,7 +510,7 @@ def testcaseid_exists_ICE():
     res={'rows':'fail'}
     try:
         requestdata=json.loads(request.data)
-        app.logger.info("Inside testcaseid_exists_ICE. Query: "+str(requestdata["name"]))
+        app.logger.debug("Inside testcaseid_exists_ICE. Query: "+str(requestdata["name"]))
         if not isemptyrequest(requestdata):
             query_name=requestdata['name']
             if query_name=='testcase_check':
@@ -524,7 +531,7 @@ def get_node_details_ICE():
     res={'rows':'fail'}
     try:
         requestdata=json.loads(request.data)
-        app.logger.info("Inside get_node_details_ICE. Name: "+str(requestdata["name"]))
+        app.logger.debug("Inside get_node_details_ICE. Name: "+str(requestdata["name"]))
         if not isemptyrequest(requestdata):
             query_name=requestdata['name']
             get_node_data=query[query_name]+requestdata['id']+query['delete_flag']
@@ -543,7 +550,7 @@ def delete_node_ICE():
     res={'rows':'fail'}
     try:
         requestdata=json.loads(request.data)
-        app.logger.info("Inside delete_node_ICE. Name: "+str(requestdata["name"]))
+        app.logger.debug("Inside delete_node_ICE. Name: "+str(requestdata["name"]))
         if not isemptyrequest(requestdata):
             query_name=requestdata['name']
             get_delete_query(requestdata['id'],requestdata['node_name'],requestdata['version_number'],requestdata['parent_node_id'])
@@ -561,7 +568,7 @@ def insertInSuite_ICE():
     res={'rows':'fail'}
     try:
         requestdata=json.loads(request.data)
-        app.logger.info("Inside insertInSuite_ICE. Query: "+str(requestdata["query"]))
+        app.logger.debug("Inside insertInSuite_ICE. Query: "+str(requestdata["query"]))
         if not isemptyrequest(requestdata):
             if(requestdata["query"] == 'notflagsuite'):
                 tags="['"+requestdata['tags']+"']"
@@ -602,7 +609,7 @@ def insertInScenarios_ICE():
     res={'rows':'fail'}
     try:
         requestdata=json.loads(request.data)
-        app.logger.info("Inside insertInScenarios_ICE. Query: "+str(requestdata["query"]))
+        app.logger.debug("Inside insertInScenarios_ICE. Query: "+str(requestdata["query"]))
         if not isemptyrequest(requestdata):
             if(requestdata["query"] == 'notflagscenarios'):
                 tags="['"+requestdata['tags']+"']"
@@ -644,7 +651,7 @@ def insertInScreen_ICE():
     res={'rows':'fail'}
     try:
         requestdata=json.loads(request.data)
-        app.logger.info("Inside insertInScreen_ICE. Query: "+str(requestdata["query"]))
+        app.logger.debug("Inside insertInScreen_ICE. Query: "+str(requestdata["query"]))
         if not isemptyrequest(requestdata):
             if(requestdata["query"] == 'notflagscreen'):
                 tags="['"+requestdata['tags']+"']"
@@ -688,7 +695,7 @@ def insertInTestcase_ICE():
     res={'rows':'fail'}
     try:
         requestdata=json.loads(request.data)
-        app.logger.info("Inside insertInTestcase_ICE. Query: "+str(requestdata["query"]))
+        app.logger.debug("Inside insertInTestcase_ICE. Query: "+str(requestdata["query"]))
         if not isemptyrequest(requestdata):
             if(requestdata["query"] == 'notflagtestcase'):
                 tags="['"+requestdata['tags']+"']"
@@ -732,7 +739,7 @@ def updateTestScenario_ICE():
     res={'rows':'fail'}
     try:
         requestdata=json.loads(request.data)
-        app.logger.info("Inside updateTestScenario_ICE. Modified_flag: "
+        app.logger.debug("Inside updateTestScenario_ICE. Modified_flag: "
             +str(requestdata["modifiedflag"]))
         if not isemptyrequest(requestdata):
             ##requestdata['testcaseid']=','.join(str(idval) for idval in requestdata['testcaseid'])
@@ -767,7 +774,7 @@ def updateModule_ICE():
     res={'rows':'fail'}
     try:
         requestdata=json.loads(request.data)
-        app.logger.info("Inside updateModule_ICE. Modified_flag: "
+        app.logger.debug("Inside updateModule_ICE. Modified_flag: "
             +str(requestdata["modifiedflag"]))
         if not isemptyrequest(requestdata):
             requestdata['testscenarioids']=','.join(str(idval) for idval in requestdata['testscenarioids'])
@@ -797,7 +804,7 @@ def updateModule_ICE():
 
 @app.route('/create_ice/updateModulename_ICE',methods=['POST'])
 def updateModulename_ICE():
-    app.logger.info("Inside updateModulename_ICE")
+    app.logger.debug("Inside updateModulename_ICE")
     res={'rows':'fail'}
     try:
        requestdata=json.loads(request.data)
@@ -823,7 +830,7 @@ def updateModulename_ICE():
 
 @app.route('/create_ice/updateTestscenarioname_ICE',methods=['POST'])
 def updateTestscenarioname_ICE():
-    app.logger.info("Inside updateTestscenarioname_ICE")
+    app.logger.debug("Inside updateTestscenarioname_ICE")
     res={'rows':'fail'}
     try:
        requestdata=json.loads(request.data)
@@ -850,7 +857,7 @@ def updateTestscenarioname_ICE():
 
 @app.route('/create_ice/updateScreenname_ICE',methods=['POST'])
 def updateScreenname_ICE():
-    app.logger.info("Inside updateScreenname_ICE")
+    app.logger.debug("Inside updateScreenname_ICE")
     res={'rows':'fail'}
     try:
         requestdata=json.loads(request.data)
@@ -879,7 +886,7 @@ def updateScreenname_ICE():
 
 @app.route('/create_ice/updateTestcasename_ICE',methods=['POST'])
 def updateTestcasename_ICE():
-    app.logger.info("Inside updateTestcasename_ICE")
+    app.logger.debug("Inside updateTestcasename_ICE")
     res={'rows':'fail'}
     try:
        requestdata=json.loads(request.data)
@@ -912,7 +919,7 @@ def updateTestcasename_ICE():
 ##    res={'rows':'fail'}
 ##    try:
 ##        requestdata=json.loads(request.data)
-##        app.logger.info("Inside submitTask. Table: "+str(requestdata["table"]))
+##        app.logger.debug("Inside submitTask. Table: "+str(requestdata["table"]))
 ##        if not isemptyrequest(requestdata):
 ##            #history=createHistory("submit",requestdata['table'].lower(),requestdata)
 ##            if(requestdata['table'].lower()=='screens'):
@@ -961,7 +968,7 @@ def updateTestcasename_ICE():
 #keywords loader for design screen
 @app.route('/design/getKeywordDetails_ICE',methods=['POST'])
 def getKeywordDetails():
-    app.logger.info("Inside getKeywordDetails")
+    app.logger.debug("Inside getKeywordDetails")
     res={'rows':'fail'}
     try:
         projecttypename = request.data
@@ -990,7 +997,7 @@ def readTestCase_ICE():
     res={'rows':'fail'}
     try:
         requestdata=json.loads(request.data)
-        app.logger.info("Inside readTestCase_ICE. Query: "+str(requestdata["query"]))
+        app.logger.debug("Inside readTestCase_ICE. Query: "+str(requestdata["query"]))
         if not isemptyrequest(requestdata):
             if(requestdata['query'] == "readtestcase"):
                 readtestcasequery1 = ("select testcasesteps,testcasename "
@@ -1026,7 +1033,7 @@ def getScrapeDataScreenLevel_ICE():
     res={'rows':'fail'}
     try:
         requestdata=json.loads(request.data)
-        app.logger.info("Inside getScrapeDataScreenLevel_ICE. Query: "+str(requestdata["query"]))
+        app.logger.debug("Inside getScrapeDataScreenLevel_ICE. Query: "+str(requestdata["query"]))
         if not isemptyrequest(requestdata):
             if (requestdata['query'] == 'getscrapedata'):
                 getscrapedataquery1=("select screenid,screenname,screendata from "
@@ -1049,7 +1056,7 @@ def getScrapeDataScreenLevel_ICE():
 # fetches data for debug the testcase
 @app.route('/design/debugTestCase_ICE',methods=['POST'])
 def debugTestCase_ICE():
-    app.logger.info("Inside debugTestCase_ICE")
+    app.logger.debug("Inside debugTestCase_ICE")
     res={'rows':'fail'}
     try:
         requestdata=json.loads(request.data)
@@ -1067,7 +1074,7 @@ def debugTestCase_ICE():
 # updates the screen data
 @app.route('/design/updateScreen_ICE',methods=['POST'])
 def updateScreen_ICE():
-    app.logger.info("Inside updateScreen_ICE")
+    app.logger.debug("Inside updateScreen_ICE")
     res={'rows':'fail'}
     try:
         requestdata=json.loads(request.data)
@@ -1097,7 +1104,7 @@ def updateTestCase_ICE():
     res={'rows':'fail'}
     try:
         requestdata=json.loads(request.data)
-        app.logger.info("Inside updateTestCase_ICE. Query: "+str(requestdata["query"]))
+        app.logger.debug("Inside updateTestCase_ICE. Query: "+str(requestdata["query"]))
         if not isemptyrequest(requestdata):
             if(requestdata["query"] == 'checktestcaseexist'):
                 updatetestcasequery1 = ("select testcaseid from testcases where "
@@ -1130,7 +1137,7 @@ def getTestcaseDetailsForScenario_ICE():
     res={'rows':'fail'}
     try:
         requestdata=json.loads(request.data)
-        app.logger.info("Inside getTestcaseDetailsForScenario_ICE. Query: "
+        app.logger.debug("Inside getTestcaseDetailsForScenario_ICE. Query: "
             +str(requestdata["query"]))
         if not isemptyrequest(requestdata):
             if(requestdata["query"] == 'testscenariotable'):
@@ -1174,7 +1181,7 @@ def getTestcasesByScenarioId_ICE():
     res={'rows':'fail'}
     try:
         requestdata=json.loads(request.data)
-        app.logger.info("Inside getTestcasesByScenarioId_ICE. Query: "
+        app.logger.debug("Inside getTestcasesByScenarioId_ICE. Query: "
             +str(requestdata["query"]))
         if not isemptyrequest(requestdata):
             if(requestdata["query"] == 'gettestcaseids'):
@@ -1201,7 +1208,7 @@ def readTestSuite_ICE():
     res={'rows':'fail'}
     try:
         requestdata=json.loads(request.data)
-        app.logger.info("Inside readTestSuite_ICE. Query: "+str(requestdata["query"]))
+        app.logger.debug("Inside readTestSuite_ICE. Query: "+str(requestdata["query"]))
         if not isemptyrequest(requestdata):
             if(requestdata["query"] == 'testsuitecheck'):
                 readtestsuitequery1 = ("select donotexecute,conditioncheck, "
@@ -1308,7 +1315,7 @@ def updateTestSuite_ICE():
     res={'rows':'fail'}
     try:
         requestdata=json.loads(request.data)
-        app.logger.info("Inside updateTestSuite_ICE. Query: "+str(requestdata["query"]))
+        app.logger.debug("Inside updateTestSuite_ICE. Query: "+str(requestdata["query"]))
         if not isemptyrequest(requestdata):
             if(requestdata['query'] == 'deletetestsuitequery'):
                 deletetestsuitequery=("delete conditioncheck,donotexecute,"
@@ -1352,7 +1359,7 @@ def ExecuteTestSuite_ICE() :
     res={'rows':'fail'}
     try:
         requestdata=json.loads(request.data)
-        app.logger.info("Inside ExecuteTestSuite_ICE. Query: "+str(requestdata["query"]))
+        app.logger.debug("Inside ExecuteTestSuite_ICE. Query: "+str(requestdata["query"]))
         if not isemptyrequest(requestdata):
             if(requestdata['query'] == 'testcaseid'):
                 executetestsuitequery1=("select testcaseids from testscenarios where"
@@ -1413,7 +1420,7 @@ def ScheduleTestSuite_ICE():
     res={'rows':'fail'}
     try:
         requestdata=json.loads(request.data)
-        app.logger.info("Inside ScheduleTestSuite_ICE. Query: "+str(requestdata["query"]))
+        app.logger.debug("Inside ScheduleTestSuite_ICE. Query: "+str(requestdata["query"]))
         if not isemptyrequest(requestdata):
             if(requestdata['query'] == 'insertscheduledata'):
                 requestdata['testsuiteids']=','.join(str(idval) for idval in requestdata['testsuiteids'])
@@ -1482,7 +1489,7 @@ def qcProjectDetails_ICE():
     res={'rows':'fail'}
     try:
         requestdata=json.loads(request.data)
-        app.logger.info("Inside qcProjectDetails_ICE. Query: "+str(requestdata["query"]))
+        app.logger.debug("Inside qcProjectDetails_ICE. Query: "+str(requestdata["query"]))
         if not isemptyrequest(requestdata):
             if(requestdata["query"] == 'getprojectDetails'):
                 qcprojectdetailsquery1  = ("select projectids from icepermissions where userid="+requestdata["userid"])
@@ -1509,7 +1516,7 @@ def saveQcDetails_ICE():
     res={'rows':'fail'}
     try:
         requestdata=json.loads(request.data)
-        app.logger.info("Inside saveQcDetails_ICE. Query: "+str(requestdata["query"]))
+        app.logger.debug("Inside saveQcDetails_ICE. Query: "+str(requestdata["query"]))
         if not isemptyrequest(requestdata):
             if(requestdata["query"] == 'saveQcDetails_ICE'):
                 gettestcaseidquery1  = ("INSERT INTO qualitycenterdetails (testscenarioid,qcdetailsid,qcdomain,qcfolderpath,qcproject,qctestcase,qctestset) VALUES ("+requestdata["testscenarioid"]
@@ -1528,7 +1535,7 @@ def viewQcMappedList_ICE():
     res={'rows':'fail'}
     try:
         requestdata=json.loads(request.data)
-        app.logger.info("Inside viewQcMappedList_ICE. Query: "+str(requestdata["query"]))
+        app.logger.debug("Inside viewQcMappedList_ICE. Query: "+str(requestdata["query"]))
         if not isemptyrequest(requestdata):
             if(requestdata["query"] == 'qcdetails'):
                 viewqcmappedquery1  = ("SELECT * FROM qualitycenterdetails where testscenarioid="+requestdata["testscenarioid"])
@@ -1551,7 +1558,7 @@ def viewQcMappedList_ICE():
 #fetches the user roles for assigning during creation/updation user
 @app.route('/admin/getUserRoles_Nineteen68',methods=['POST'])
 def getUserRoles_Nineteen68():
-    app.logger.info("Inside getUserRoles_Nineteen68")
+    app.logger.debug("Inside getUserRoles_Nineteen68")
     res={'rows':'fail'}
     try:
         userrolesquery="select roleid, rolename from roles"
@@ -1572,7 +1579,7 @@ def getDetails_ICE():
     res={'rows':'fail'}
     try:
         requestdata=json.loads(request.data)
-        app.logger.info("Inside getDetails_ICE. Query: "+str(requestdata["query"]))
+        app.logger.debug("Inside getDetails_ICE. Query: "+str(requestdata["query"]))
         if not isemptyrequest(requestdata):
             if(requestdata["query"] == 'domaindetails'):
                 ptype={}
@@ -1584,9 +1591,9 @@ def getDetails_ICE():
                     else:
                         ptype[(row['projecttypename']).lower()]=row['projecttypeid']
                 del ptype['generic']
-                icePlugins=licensedata['plugins']['ice']
-                for p in icePlugins:
-                    if not icePlugins[p]:
+                icePlatforms=licensedata['platforms']
+                for p in icePlatforms:
+                    if not icePlatforms[p]:
                         del ptype[p]
                 ptype=ptype.values()
                 getdetailsquery1=("select projectid,projectname,projecttypeid from projects "
@@ -1635,7 +1642,7 @@ def getNames_ICE():
     res={'rows':'fail'}
     try:
         requestdata=json.loads(request.data)
-        app.logger.info("Inside getNames_ICE. Query: "+str(requestdata["query"]))
+        app.logger.debug("Inside getNames_ICE. Query: "+str(requestdata["query"]))
         if not isemptyrequest(requestdata):
             if(requestdata["query"] == 'domainsall'):
                 getnamesquery1=("select projectid,projectname from projects "
@@ -1671,7 +1678,7 @@ def getNames_ICE():
 #service renders all the domains in DB
 @app.route('/admin/getDomains_ICE',methods=['POST'])
 def getDomains_ICE():
-    app.logger.info("Inside getDomains_ICE")
+    app.logger.debug("Inside getDomains_ICE")
     res={'rows':'fail'}
     try:
         getdomainsquery="select domainid,domainname from domains"
@@ -1688,7 +1695,7 @@ def getAssignedProjects_ICE():
     res={'rows':'fail'}
     try:
         requestdata=json.loads(request.data)
-        app.logger.info("Inside getAssignedProjects_ICE. Query: "
+        app.logger.debug("Inside getAssignedProjects_ICE. Query: "
             +str(requestdata["query"]))
         if not isemptyrequest(requestdata):
             if(requestdata['query'] == 'projectid'):
@@ -1718,7 +1725,7 @@ def createUser_Nineteen68():
     res={'rows':'fail'}
     try:
         requestdata=json.loads(request.data)
-        app.logger.info("Inside createUser_Nineteen68. Query: "+str(requestdata["query"]))
+        app.logger.debug("Inside createUser_Nineteen68. Query: "+str(requestdata["query"]))
         if not isemptyrequest(requestdata):
             if(requestdata['query'] == 'allusernames'):
                 createuserquery1=("select username from users")
@@ -1765,7 +1772,7 @@ def createUser_Nineteen68():
 #service fetch user data from Nineteen68
 @app.route('/admin/getUserData_Nineteen68',methods=['POST'])
 def getUserData_Nineteen68():
-    app.logger.info("Inside getUserData_Nineteen68")
+    app.logger.debug("Inside getUserData_Nineteen68")
     res={'rows':'fail'}
     try:
         requestdata=json.loads(request.data)
@@ -1802,7 +1809,7 @@ def getUserData_Nineteen68():
 #service update user data into Nineteen68
 @app.route('/admin/updateUser_Nineteen68',methods=['POST'])
 def updateUser_Nineteen68():
-    app.logger.info("Inside updateUser_Nineteen68")
+    app.logger.debug("Inside updateUser_Nineteen68")
     res={'rows':'fail'}
     try:
         requestdata=json.loads(request.data)
@@ -1851,7 +1858,7 @@ def createProject_ICE():
     res={'rows':'fail'}
     try:
         requestdata=json.loads(request.data)
-        app.logger.info("Inside createProject_ICE. Query: "+str(requestdata["query"]))
+        app.logger.debug("Inside createProject_ICE. Query: "+str(requestdata["query"]))
         if not isemptyrequest(requestdata):
             if(requestdata['query'] == 'projecttype'):
                 projecttypequery=("select projecttypeid from projecttype where"
@@ -1920,7 +1927,7 @@ def updateProject_ICE():
     res={'rows':'fail'}
     try:
         requestdata=json.loads(request.data)
-        app.logger.info("Inside updateProject_ICE. Query: "+str(requestdata["query"]))
+        app.logger.debug("Inside updateProject_ICE. Query: "+str(requestdata["query"]))
         if not isemptyrequest(requestdata):
             if(requestdata['query'] == 'deleterelease'):
                 updateprojectquery1=("delete from releases where releasename='"
@@ -1943,7 +1950,7 @@ def updateProject_ICE():
 #fetches user data into Nineteen68
 @app.route('/admin/getUsers_Nineteen68',methods=['POST'])
 def getUsers_Nineteen68():
-    app.logger.info("Inside getUsers_Nineteen68")
+    app.logger.debug("Inside getUsers_Nineteen68")
     res={'rows':'fail'}
     try:
         userid_list = []
@@ -1989,7 +1996,7 @@ def getUsers_Nineteen68():
 #service assigns projects to a specific user
 @app.route('/admin/assignProjects_ICE',methods=['POST'])
 def assignProjects_ICE():
-    app.logger.info("Inside assignProjects_ICE")
+    app.logger.debug("Inside assignProjects_ICE")
     res={'rows':'fail'}
     try:
         requestdata=json.loads(request.data)
@@ -2028,7 +2035,7 @@ def assignProjects_ICE():
 # service fetches all users
 @app.route('/admin/getAllUsers_Nineteen68',methods=['POST'])
 def getAllUsers_Nineteen68():
-    app.logger.info("Inside getAllUsers_Nineteen68")
+    app.logger.debug("Inside getAllUsers_Nineteen68")
     res={'rows':'fail'}
     try:
         queryforallusers=("select userid, username, defaultrole from users")
@@ -2041,12 +2048,12 @@ def getAllUsers_Nineteen68():
 
 @app.route('/admin/getAvailablePlugins',methods=['POST'])
 def getAvailablePlugins():
-    app.logger.info("Inside getAvailablePlugins")
+    app.logger.debug("Inside getAvailablePlugins")
     res={'rows':'fail'}
     try:
         ice_plugins_list = []
-        for keys in licensedata['plugins']['ice']:
-            if(licensedata['plugins']['ice'][keys] == True):
+        for keys in licensedata['platforms']:
+            if(licensedata['platforms'][keys] == True):
                 ice_plugins_list.append(keys)
         res={'rows':ice_plugins_list}
         return jsonify(res)
@@ -2070,7 +2077,7 @@ def getAllSuites_ICE():
     res={'rows':'fail'}
     try:
         requestdata=json.loads(request.data)
-        app.logger.info("Inside getAllSuites_ICE. Query: "+str(requestdata["query"]))
+        app.logger.debug("Inside getAllSuites_ICE. Query: "+str(requestdata["query"]))
         if not isemptyrequest(requestdata):
         #the code below is commented as per the new requirement
 		#ALM #460 - Reports - HTML report takes very
@@ -2124,7 +2131,7 @@ def getAllSuites_ICE():
 #fetching all the suite after execution
 @app.route('/reports/getSuiteDetailsInExecution_ICE',methods=['POST'])
 def getSuiteDetailsInExecution_ICE():
-    app.logger.info("Inside getSuiteDetailsInExecution_ICE")
+    app.logger.debug("Inside getSuiteDetailsInExecution_ICE")
     res={'rows':'fail'}
     try:
         requestdata=json.loads(request.data)
@@ -2147,7 +2154,7 @@ def reportStatusScenarios_ICE():
     res={'rows':'fail'}
     try:
         requestdata=json.loads(request.data)
-        app.logger.info("Inside reportStatusScenarios_ICE. Query: "+str(requestdata["query"]))
+        app.logger.debug("Inside reportStatusScenarios_ICE. Query: "+str(requestdata["query"]))
         if not isemptyrequest(requestdata):
             if(requestdata["query"] == 'executiondetails'):
                 getreportstatusquery1 = ("select reportid,executionid,browser,comments,"
@@ -2179,7 +2186,7 @@ def getReport_Nineteen68():
     res={'rows':'fail'}
     try:
         requestdata=json.loads(request.data)
-        app.logger.info("Inside getReport_Nineteen68. Query: "+str(requestdata["query"]))
+        app.logger.debug("Inside getReport_Nineteen68. Query: "+str(requestdata["query"]))
         if not isemptyrequest(requestdata):
             if(requestdata["query"] == 'projectsUnderDomain'):
                 getreportquery1 =("select report,executedtime,testscenarioid "
@@ -2230,7 +2237,7 @@ def exportToJson_ICE():
     res={'rows':'fail'}
     try:
         requestdata=json.loads(request.data)
-        app.logger.info("Inside exportToJson_ICE. Query: "+str(requestdata["query"]))
+        app.logger.debug("Inside exportToJson_ICE. Query: "+str(requestdata["query"]))
         if not isemptyrequest(requestdata):
             if(requestdata["query"] == 'reportdata'):
                 exporttojsonquery1 = ("select report from reports "
@@ -2463,7 +2470,7 @@ def exportToJson_ICE():
 #encrpytion utility AES
 @app.route('/utility/encrypt_ICE/aes',methods=['POST'])
 def encrypt_ICE():
-    app.logger.info("Inside encrypt_ICE")
+    app.logger.debug("Inside encrypt_ICE")
     res = "fail"
     try:
         BS = 16
@@ -2485,7 +2492,7 @@ def encrypt_ICE():
 #directly updates license data
 @app.route('/utility/dataUpdator_ICE',methods=['POST'])
 def dataUpdator_ICE():
-    app.logger.info("Inside dataUpdator_ICE")
+    app.logger.debug("Inside dataUpdator_ICE")
     res={'rows':'fail'}
     try:
         requestdata=json.loads(request.data)
@@ -2509,7 +2516,7 @@ def dataUpdator_ICE():
 #directly updates user access
 @app.route('/utility/userAccess_Nineteen68',methods=['POST'])
 def userAccess_Nineteen68():
-    app.logger.info("Inside userAccess_Nineteen68")
+    app.logger.debug("Inside userAccess_Nineteen68")
     res={'rows':'fail'}
     try:
         requestdata=json.loads(request.data)
@@ -2539,7 +2546,7 @@ def userAccess_Nineteen68():
 
 @app.route('/server',methods=['POST'])
 def checkServer():
-    app.logger.info("Inside checkServer")
+    app.logger.debug("Inside checkServer")
     response = "fail"
     status = 500
     from flask import Response
@@ -2556,8 +2563,8 @@ def updateActiveIceSessions():
     global activeicesessions
     global latest_access_time
     ice_plugins_list = []
-    for keys in licensedata['plugins']['ice']:
-        if(licensedata['plugins']['ice'][keys] == True):
+    for keys in licensedata['platforms']:
+        if(licensedata['platforms'][keys] == True):
             ice_plugins_list.append(keys)
     res={"id":"da9b196d-8021-4a68-be2b-753ec267305e","res":"fail","ts_now":str(datetime.now()),"connect_time":str(datetime.now()),"plugins":str(ice_plugins_list)}
     response = {"node_check":False,"ice_check":wrap(json.dumps(res),ice_ndac_key)}
@@ -2565,7 +2572,7 @@ def updateActiveIceSessions():
     ice_ts=None
     try:
         requestdata=json.loads(request.data)
-        app.logger.info("Inside updateActiveIceSessions. Query: "+str(requestdata["query"]))
+        app.logger.debug("Inside updateActiveIceSessions. Query: "+str(requestdata["query"]))
         if not isemptyrequest(requestdata):
             activeicesessions=json.loads(unwrap(redisSession.get('icesessions'),db_keys))
             if(requestdata['query']=='disconnect'):
@@ -2630,7 +2637,7 @@ def updateActiveIceSessions():
 #Prof J First Service: Getting Best Matches
 @app.route('/chatbot/getTopMatches_ProfJ',methods=['POST'])
 def getTopMatches_ProfJ():
-    app.logger.info("Inside getTopMatches_ProfJ")
+    app.logger.debug("Inside getTopMatches_ProfJ")
     global newQuesInfo, savedQueries
     res={'rows':'fail'}
     try:
@@ -2648,7 +2655,7 @@ def getTopMatches_ProfJ():
 #Prof J Second Service: Updating the Question's Frequency
 @app.route('/chatbot/updateFrequency_ProfJ',methods=['POST'])
 def updateFrequency_ProfJ():
-    app.logger.info("Inside updateFrequency_ProfJ")
+    app.logger.debug("Inside updateFrequency_ProfJ")
     res={'rows':'fail'}
     try:
         qid = request.data
@@ -2680,15 +2687,12 @@ query['scenario']='select testscenarioname FROM testscenarios where testscenario
 query['screen']='select screenname FROM screens where screenid='
 query['testcase']='select testcasename FROM testcases where testcaseid='
 #Getting complete details of single node
-mine='\x4e\x36\x38\x53\x51\x4c\x69\x74\x65\x44\x61\x74\x61\x53\x65\x63\x72\x65\x74\x4b\x65\x79\x43\x6f\x6d\x70\x4f\x4e\x65\x6e\x74\x73'
 query['module_details']='select * from modules where moduleid='
-offreg='\x69\x41\x6d\x4e\x6f\x74\x4f\x6e\x6c\x69\x6e\x65\x55\x73\x65\x72\x49\x4e\x65\x65\x64\x4e\x6f\x74\x52\x65\x67\x69\x73\x74\x65\x72'
 query['testscenario_details']='select * from testscenarios where testscenarioid='
 query['screen_details']='select * from screens where screenid='
 query['testcase_details']='select * from testcases where testcaseid='
 query['delete_flag'] = ' and deleted=false allow filtering'
 numberofdays=1
-omgall="\x4e\x69\x6e\x65\x74\x65\x65\x6e\x36\x38\x6e\x64\x61\x74\x63\x6c\x69\x63\x65\x6e\x73\x69\x6e\x67"
 ndacinfo = {
     "macid": "",
     "tkn": "",
@@ -2755,7 +2759,7 @@ def initLoggers(level):
     else:
         app.logger.setLevel(logLevel)
     app.logger.propagate = False
-    app.logger.info("Inside initLoggers")
+    app.logger.debug("Inside initLoggers")
 
 def printErrorCodes(ecode):
     msg = "[ECODE: " + ecode + "] " + ERR_CODE[ecode]
@@ -3035,7 +3039,7 @@ def gettimestamp(date):
     return timestampdata
 
 def basecheckonls():
-    app.logger.info("Inside basecheckonls")
+    app.logger.debug("Inside basecheckonls")
     basecheckstatus = False
     try:
         dbdata = dataholder('select')
@@ -3062,8 +3066,7 @@ def basecheckonls():
                     else:
                         app.logger.error(emsg)
                 elif actresp['res'] == 'S':
-                    global licensedata
-                    global onlineuser
+                    global onlineuser,licensedata
                     licensedata=actresp['ldata']
                     if token==actresp['token']:
                         basecheckstatus = True
@@ -3073,18 +3076,18 @@ def basecheckonls():
                     onlineuser = True
         else:
             if lsRetryCount<3:
-                app.logger.error(printErrorCodes('215'))
-                basecheckonls()
+                app.logger.info(printErrorCodes('215'))
+                time.sleep(10)
+                basecheckstatus=basecheckonls()
             else:
                 app.logger.critical(printErrorCodes('216'))
-                startTwoDaysTimer()
     except Exception as e:
         app.logger.debug(e)
         app.logger.error(printErrorCodes('201'))
     return basecheckstatus
 
 def updateonls():
-    app.logger.info("Inside updateonls")
+    app.logger.debug("Inside updateonls")
     try:
         global licensedata
         dbdata=dataholder('select')
@@ -3120,7 +3123,8 @@ def updateonls():
                     licensedata = res['ldata']
         else:
             if lsRetryCount<3:
-                app.logger.error(printErrorCodes('215'))
+                app.logger.info(printErrorCodes('215'))
+                time.sleep(10)
                 updateonls()
             else:
                 dbdata['mdlinfo']=modelinfores
@@ -3167,7 +3171,7 @@ def getupdatetime():
     return day
 
 def connectingls(data):
-    global lsRetryCount,twoDayTimer
+    global lsRetryCount,twoDayTimer,grace_period
     lsRetryCount+=1
     connectionstatus=False
     try:
@@ -3178,6 +3182,7 @@ def connectingls(data):
                 del dbdata['grace_period']
                 dataholder('update',dbdata)
             lsRetryCount=0
+            grace_period = 172800
             connectionstatus = lsresponse.content
             if (twoDayTimer != None and twoDayTimer.isAlive()):
                 twoDayTimer.cancel()
@@ -3225,7 +3230,7 @@ def scheduleenabler(starttime):
         app.logger.error(printErrorCodes('209'))
 
 def cronograph():
-    app.logger.info("Chronograph triggred")
+    app.logger.debug("Chronograph triggred")
     try:
         secs=None
         if chronographTimer is not None:
@@ -3367,7 +3372,7 @@ def startTwoDaysTimer():
     twoDayTimer.start()
     gracePeriodTimer = Timer(3600,saveGracePeriod)
     gracePeriodTimer.start()
-    app.logger.info("Two day timer begins")
+    app.logger.info("Two day timer begins...")
 
 def saveGracePeriod():
     global gracePeriodTimer,twoDayTimer
@@ -3463,7 +3468,6 @@ class SQLite_DataSetup():
 
 #Updating the sqlite database
 def updateWeightages():
-    app.logger.debug("Inside updateWeightages")
     t=Timer(weightUpdateTime,updateWeightages)
     status=[]
     try:
@@ -3613,7 +3617,7 @@ def main():
         ndac_conf = json.loads(open(config_path).read())
         lsip = ndac_conf['licenseserver']
         if (ndac_conf.has_key('custChronographTimer')):
-            chronographTimer = ndac_conf['custChronographTimer']
+            chronographTimer = int(ndac_conf['custChronographTimer'])
             app.logger.debug("'custChronographTimer' detected.")
     except Exception as e:
         app.logger.debug(e)
@@ -3653,7 +3657,7 @@ def main():
         return False
 
     if args.offlinemode:
-        app.logger.info("Offline Mode Detected")
+        app.logger.debug("Offline Mode Detected")
         try:
             f = open(args.offlinemode,"r")
             contents = f.read()
