@@ -1,6 +1,6 @@
 #-------------------------------------------------------------------------------
 # Name:        offlineuser_key_generator.py
-# Purpose:      POC keyfile generator
+# Purpose:     POC keyfile generator
 #
 # Author:      vishvas.a
 #
@@ -32,27 +32,28 @@ contents =   {
 	},
     "licensedata": {
         "allowedIceSessions" : 5,
+        "platforms" : {
+            "web" : True,
+            "mobileapp" : True,
+            "desktop" : True,
+            "mainframe" : True,
+            "webservice" : True,
+            "oebs" : True,
+            "sap" : True,
+            "mobileweb" : True
+        },
         "plugins" : {
             "alm" : True,
-            "deadcode" : True,
-            "weboccular" : True,
-            "mindmap" : True,
-            "ice" : {
-                "web" : True,
-                "mobileapp" : True,
-                "desktop" : True,
-                "mainframe" : True,
-                "webservice" : True,
-                "oebs" : True,
-                "sap" : True,
-                "mobileweb" : True
-            },
-            "neuron3d" : True,
-            "reports" : True,
-            "neuron2d" : True,
+            "apg" : True,
             "dashboard" : True,
-            "autogenpath" : True,
-            "oxbowcode" : True
+            "deadcode" : True,
+            "mindmap" : True,
+            "neuron2d" : True,
+            "neuron3d" : True,
+            "oxbowcode" : True,
+            "reports" : True,
+            "utility" : True,
+            "weboccular" : True
         }
     }
 }
