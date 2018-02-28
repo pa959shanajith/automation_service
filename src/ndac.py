@@ -36,8 +36,6 @@ from Crypto import Random
 app = Flask(__name__)
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-k", type=str, dest='offlinemode', metavar='filename',
-    help="Home user registration. Provide the offline registration file")
 log_group = parser.add_mutually_exclusive_group()
 log_group.add_argument("-T", "--test", action="store_true", help="Set logger level to Test Environment")
 log_group.add_argument("-D", "--debug", action="store_true", help="Set logger level to Debug")
@@ -45,7 +43,7 @@ log_group.add_argument("-I", "--info", action="store_true", help="Set logger lev
 log_group.add_argument("-W", "--warn", action="store_true", help="Set logger level to Warning")
 log_group.add_argument("-E", "--error", action="store_true", help="Set logger level to Error")
 log_group.add_argument("-C", "--critical", action="store_true", help="Set logger level to Critical")
-args = parser.parse_args()
+parserArgs = parser.parse_args()
 
 ice_ndac_key = "".join(['a','j','k','d','f','i','H','F','E','o','w','#','D','j',
     'g','L','I','q','o','c','n','^','8','s','j','p','2','h','f','Y','&','d'])
@@ -53,8 +51,6 @@ db_keys = "".join(['N','i','n','E','t','e','E','n','6','8','d','A','t','a','B',
     'A','s','3','e','N','c','R','y','p','T','1','0','n','k','3','y','S'])
 mine = "".join(['\x4e','\x36','\x38','\x53','\x51','\x4c','\x69','\x74','\x65','\x44','\x61','\x74','\x61','\x53','\x65',
     '\x63','\x72','\x65','\x74','\x4b','\x65','\x79','\x43','\x6f','\x6d','\x70','\x4f','\x4e','\x65','\x6e','\x74','\x73'])
-offreg = "".join(['\x69','\x41','\x6d','\x4e','\x6f','\x74','\x4f','\x6e','\x6c','\x69','\x6e','\x65','\x55','\x73','\x65',
-    '\x72','\x49','\x4e','\x65','\x65','\x64','\x4e','\x6f','\x74','\x52','\x65','\x67','\x69','\x73','\x74','\x65','\x72'])
 omgall = "".join(['\x4e','\x69','\x6e','\x65','\x74','\x65','\x65','\x6e','\x36','\x38','\x6e','\x64','\x61','\x74','\x63',
     '\x6c','\x69','\x63','\x65','\x6e','\x73','\x69','\x6e','\x67'])
 activeicesessions={}
@@ -70,11 +66,7 @@ logspath= currdir + "/ndac_internals/logs"
 lsip="127.0.0.1"
 cass_dbup = False
 redis_dbup = False
-offlinestarttime=''
-offlineendtime=''
-offlineuser = False
 onlineuser = False
-usersession = False
 gracePeriodTimer=None
 twoDayTimer=None
 licensedata=None
@@ -2551,7 +2543,7 @@ def checkServer():
     status = 500
     from flask import Response
     try:
-        if(onlineuser == True or offlineuser == True):
+        if (onlineuser == True):
             response = "pass"
             status = 200
     except Exception as exc:
@@ -2732,7 +2724,7 @@ ecodeServices = {"authenticateUser_Nineteen68":"300","authenticateUser_Nineteen6
 # BEGIN OF GENERIC FUNCTIONS
 #################################################################################
 def initLoggers(level):
-    logLevel = logging.ERROR
+    logLevel = logging.INFO
     consoleFormat = "[%(asctime)s] %(levelname)s in %(module)s:%(lineno)d: %(message)s"
     if level.debug:
         logLevel = logging.DEBUG
@@ -2772,7 +2764,6 @@ def servicesException(srv, exc):
 
 def isemptyrequest(requestdata):
     flag = False
-    global usersession
     if (onlineuser == True):
         for key in requestdata:
             value = requestdata[key]
@@ -2782,25 +2773,8 @@ def isemptyrequest(requestdata):
                     app.logger.warn(str(key)+" is empty")
                     flag = True
     else:
-        currenttime=datetime.now()
-        if usersession != False:
-            if (currenttime >= offlinestarttime and currenttime <= offlineendtime):
-                for key in requestdata:
-                    value = requestdata[key]
-                    if (key != 'additionalroles' and key != 'getparampaths'
-                     and key != 'testcasesteps'):
-                        if value == 'undefined' or value == '' or value == 'null' or value == None:
-                            app.logger.warn(str(key)+" is empty")
-                            flag = True
-            else:
-                stopserver()
-                flag = True
-        else:
-            flag = True
-            if offlineuser == True:
-                app.logger.critical(printErrorCodes('204'))
-            else:
-                app.logger.critical(printErrorCodes('203'))
+        flag = True
+        app.logger.critical(printErrorCodes('203'))
     return flag
 
 def getcurrentdate():
@@ -3192,43 +3166,6 @@ def connectingls(data):
         app.logger.error(printErrorCodes('208'))
     return connectionstatus
 
-def offlineuserenabler(startdate,enddate,usermac):
-    enabled = False
-    # this is provided as there was a request to create a key
-    # without mac address
-    if usermac != 'nomacaddress':
-        mac = sysMAC
-    else:
-        mac = usermac
-    if usermac in mac:
-        hastimebegin=timerbegins(startdate,enddate)
-        enabled = hastimebegin
-    return enabled
-
-def timerbegins(startdate,enddate):
-    global offlinestarttime
-    offlinestarttime=startdate
-    global offlineendtime
-    offlineendtime=enddate
-    if ((offlinestarttime < offlineendtime) and
-        (offlineendtime > datetime.now()) and (datetime.now() >= offlinestarttime)):
-        global offlineuser
-        global usersession
-        usersession=True
-        offlineuser = True
-    return usersession
-
-def scheduleenabler(starttime):
-    try:
-        runningtime = starttime - datetime.now()
-        delay = (runningtime).total_seconds()
-        Timer(delay, beginserver).start()
-        global offlineuser
-        offlineuser = True
-    except Exception as e:
-        app.logger.debug(e)
-        app.logger.error(printErrorCodes('209'))
-
 def cronograph():
     app.logger.debug("Chronograph triggred")
     try:
@@ -3358,12 +3295,11 @@ def beginserver():
         app.logger.critical(printErrorCodes('207'))
 
 def stopserver():
-    global onlineuser, usersession, gracePeriodTimer
+    global onlineuser, gracePeriodTimer
     if(gracePeriodTimer != None and gracePeriodTimer.isAlive()):
         gracePeriodTimer.cancel()
         gracePeriodTimer = None
     onlineuser = False
-    usersession = False
     app.logger.error(printErrorCodes('205'))
 
 def startTwoDaysTimer():
@@ -3607,7 +3543,7 @@ class ProfJ():
 ################################################################################
 
 def main():
-    global lsip,cass_dbup,redis_dbup,icesession,n68session,redisSession,licensedata,chronographTimer
+    global lsip,cass_dbup,redis_dbup,icesession,n68session,redisSession,chronographTimer
     cleanndac = checkSetup()
     if not cleanndac:
         app.logger.critical(printErrorCodes('214'))
@@ -3656,55 +3592,13 @@ def main():
         app.logger.critical(printErrorCodes('217'))
         return False
 
-    if args.offlinemode:
-        app.logger.debug("Offline Mode Detected")
-        try:
-            f = open(args.offlinemode,"r")
-            contents = f.read()
-            f.close()
-            userinformation=unwrap(str(contents),offreg)
-            userinfo=ast.literal_eval(userinformation)
-
-            startdate = userinfo['offlinereginfo']['startdate']
-            if not ('-' in startdate):
-                startdate = datetime.strptime(startdate, '%m/%d/%Y')
-                startdate = getbgntime('indate',startdate)
-            else:
-                startdate = datetime.strptime(startdate, '%m/%d/%Y-%H%M%S')
-
-            enddate = userinfo['offlinereginfo']['enddate']
-            if not ('-' in enddate):
-                enddate = datetime.strptime(enddate, '%m/%d/%Y')
-                enddate = getbgntime('indate',enddate)
-            else:
-                enddate = datetime.strptime(enddate, '%m/%d/%Y-%H%M%S')
-            # this is provided as there was a request to create a key
-            # without mac address
-            mac = 'nomacaddress'
-            if 'mac' in userinfo['offlinereginfo']:
-                if userinfo['offlinereginfo']['mac'] != 'NO':
-                    mac = userinfo['offlinereginfo']['mac']
-            enabled = offlineuserenabler(startdate,enddate,mac)
-            licensedata=userinfo['licensedata']
-            if enabled == True:
-                beginserver()
-            else:
-                if (startdate > datetime.now()):
-                    scheduleenabler(offlinestarttime)
-                    app.logger.error("Server starts only after : "+str(offlinestarttime))
-                else:
-                    app.logger.critical(printErrorCodes('204'))
-        except Exception as e:
-            app.logger.debug(e)
-            app.logger.critical(printErrorCodes('218'))
+    if (basecheckonls()):
+        cronograph()
+        beginserver()
     else:
-        if (basecheckonls()):
-            cronograph()
-            beginserver()
-        else:
-            app.logger.critical(printErrorCodes('218'))
+        app.logger.critical(printErrorCodes('218'))
 
 if __name__ == '__main__':
-    initLoggers(args)
+    initLoggers(parserArgs)
     sysMAC = str(getMacAddress()).strip()
     main()
