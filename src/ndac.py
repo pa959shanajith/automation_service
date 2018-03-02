@@ -17,9 +17,8 @@ import sqlite3
 from datetime import datetime, timedelta
 import time
 import uuid
-import ast
 import redis
-from flask import Flask, request , jsonify
+from flask import Flask,request,jsonify
 from waitress import serve
 import logging
 import logging.config
@@ -271,7 +270,7 @@ def loadUserInfo_Nineteen68():
                 queryresult = n68session.execute(loaduserinfo2)
             elif(requestdata["query"] == 'userPlugins'):
                 loaduserinfo3 = ("select alm,apg,dashboard,deadcode,mindmap,"
-                                +"neuron2d,neuron3d,oxbowcode,reports,weboccular,"
+                                +"neurongraphs,oxbowcode,reports,weboccular,"
                                 +"utility from userpermissions where roleid = "
                                 +requestdata["roleid"]+" allow filtering")
                 queryresult = n68session.execute(loaduserinfo3)
