@@ -2511,7 +2511,10 @@ def userAccess_Nineteen68():
     res={'rows':'fail'}
     try:
         requestdata=json.loads(request.data)
-        if not isemptyrequest(requestdata):
+        emptyRequestCheck = isemptyrequest(requestdata)
+        if emptyRequestCheck==0:
+            res={'rows':'off'}
+        elif not emptyRequestCheck:
             roleid=requestdata['roleid']
             servicename=requestdata['servicename']
             roleaccessquery = ("select servicelist from userpermissions "
@@ -2772,7 +2775,7 @@ def isemptyrequest(requestdata):
                     app.logger.warn(str(key)+" is empty")
                     flag = True
     else:
-        flag = True
+        flag = 0
         app.logger.critical(printErrorCodes('203'))
     return flag
 
