@@ -179,11 +179,18 @@ def getRoleNameByRoleId_Nineteen68():
     try:
         requestdata=json.loads(request.data)
         if not isemptyrequest(requestdata):
-            rolename = ("select rolename from roles where "
-                        +"roleid = "+requestdata["roleid"]
-                        +" allow filtering;")
-            queryresult = n68session.execute(rolename)
-            res = {"rows":queryresult.current_rows}
+            rolesList = requestdata["roleid"]
+            roles = {}
+            for roleid in rolesList:
+                try:
+                    rolename = ("select rolename from roles where roleid = "
+                        + roleid + " allow filtering")
+                    queryresult = n68session.execute(rolename)
+                    if len(queryresult.current_rows) > 0:
+                        roles[roleid] = queryresult.current_rows[0]['rolename']
+                except:
+                    pass
+            res={'rows':roles}
             return jsonify(res)
         else:
             app.logger.warn('Empty data received. authentication')
@@ -247,33 +254,27 @@ def loadUserInfo_Nineteen68():
                 rows=[]
                 for eachkey in queryresult.current_rows:
                     additionalroles=[]
-                    userid = eachkey['userid']
-                    emailid = eachkey['emailid']
-                    firstname = eachkey['firstname']
-                    lastname = eachkey['lastname']
-                    defaultrole = eachkey['defaultrole']
-                    ldapuser = eachkey['ldapuser']
-                    username = eachkey['username']
                     if eachkey['additionalroles'] != None:
                         for eachrole in eachkey['additionalroles']:
                             additionalroles.append(eachrole)
-                    eachobject={'userid':userid,'emailid':emailid,'firstname':firstname,
-                'lastname':lastname,'defaultrole':defaultrole,'ldapuser':ldapuser,
-                'username':username,'additionalroles':additionalroles}
-                    rows.append(eachobject)
+                    rows.append({
+                        'userid': eachkey['userid'],
+                        'emailid': eachkey['emailid'],
+                        'firstname': eachkey['firstname'],
+                        'lastname': eachkey['lastname'],
+                        'defaultrole': eachkey['defaultrole'],
+                        'ldapuser': eachkey['ldapuser'],
+                        'username': eachkey['username'],
+                        'additionalroles':additionalroles
+                    })
                 res={'rows':rows}
                 return jsonify(res)
-            elif(requestdata["query"] == 'loggedinRole'):
-                loaduserinfo2 = ("select rolename from roles where "
-                                    +"roleid = "+requestdata["roleid"]
-                                    +" allow filtering")
-                queryresult = n68session.execute(loaduserinfo2)
             elif(requestdata["query"] == 'userPlugins'):
-                loaduserinfo3 = ("select alm,apg,dashboard,deadcode,mindmap,"
+                loaduserinfo2 = ("select alm,apg,dashboard,deadcode,mindmap,"
                                 +"neurongraphs,oxbowcode,reports,weboccular,"
                                 +"utility from userpermissions where roleid = "
                                 +requestdata["roleid"]+" allow filtering")
-                queryresult = n68session.execute(loaduserinfo3)
+                queryresult = n68session.execute(loaduserinfo2)
                 ui_plugins_list = []
                 for keys in licensedata['plugins']:
                     if(licensedata['plugins'][keys] == True):
@@ -2512,8 +2513,10 @@ def userAccess_Nineteen68():
     try:
         requestdata=json.loads(request.data)
         emptyRequestCheck = isemptyrequest(requestdata)
-        if emptyRequestCheck==0:
+        if type(emptyRequestCheck) != bool:
             res={'rows':'off'}
+        elif (not emptyRequestCheck) and (requestdata['roleid']=="ignore"):
+            res={'rows':'True'}
         elif not emptyRequestCheck:
             roleid=requestdata['roleid']
             servicename=requestdata['servicename']
