@@ -23,6 +23,7 @@ from waitress import serve
 import logging
 import logging.config
 from logging.handlers import TimedRotatingFileHandler
+import cassandra
 from cassandra.cluster import Cluster
 from cassandra.auth import PlainTextAuthProvider
 from cassandra.query import dict_factory
@@ -2756,6 +2757,9 @@ def initLoggers(level):
     else:
         app.logger.setLevel(logLevel)
     app.logger.propagate = False
+    cassandra.cluster.log.setLevel(50) # Set cassanda's log level to critical
+    cassandra.connection.log.setLevel(50) # Set cassanda's log level to critical
+    cassandra.pool.log.setLevel(50) # Set cassanda's log level to critical
     app.logger.debug("Inside initLoggers")
 
 def printErrorCodes(ecode):
