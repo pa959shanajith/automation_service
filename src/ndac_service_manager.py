@@ -13,15 +13,14 @@ import win32service
 import win32serviceutil
 import win32event
 import servicemanager
-import os
+import os, sys
 import subprocess
-##LS_SERVICE = "nineteen68LS"
 
 class NDAC_Service_Manager(win32serviceutil.ServiceFramework):
     _svc_name_ = "nineteen68NDAC"
     _svc_display_name_ = "Nineteen68 NDAC Service"
     _svc_description_ = "Nineteen68 Data Access Components Service"
-    _exe_name_ = os.path.normpath(os.getcwd()+"/Lib/site-packages/win32/pythonservice.exe")
+    _exe_name_ = sys.executable
 
     def __init__(self, args):
         win32serviceutil.ServiceFramework.__init__(self,args)
@@ -42,28 +41,34 @@ class NDAC_Service_Manager(win32serviceutil.ServiceFramework):
         self.ReportServiceStatus(win32service.SERVICE_STOPPED)
 
     def main(self):
-        ##serv_stat=None
-        ##try:
-        ##    serv_stat = win32serviceutil.QueryServiceStatus(LS_SERVICE)
-        ##except:
-        ##    pass
-        ##if serv_stat is None:
-        ##    servicemanager.LogErrorMsg("License Server Service ("+LS_SERVICE+") NOT found.\n"
-        ##        +self._svc_display_name_+" ("+self._svc_name_+") is NOT Started.")
-        ##elif serv_stat[1] == 1:
-        ##    servicemanager.LogErrorMsg("License Server Service ("+LS_SERVICE+") is in STOPPED state.\n"
-        ##        +self._svc_display_name_+" ("+self._svc_name_+") is NOT Started.")
-        ##elif serv_stat[1] == 4:
-        os.chdir(os.path.normpath(os.getcwd()+"/../../.."))
+        os.chdir(os.path.dirname(sys.executable))
         servicemanager.LogInfoMsg(self._svc_display_name_+" ("+self._svc_name_+") is RUNNING.")
         rc = None
 
-        main_process = subprocess.Popen("ndac.exe", shell=True)
+        run_cmd = "ndac.exe"
+        if os.path.exists("./ndac_internals/logs/conf.txt"):
+            env_in = open("./ndac_internals/logs/conf.txt",'r')
+            env_conf = env_in.read().split(',')
+            env_in.close()
+            if len(env_conf[0]) > 0:
+                run_cmd += " -" + env_conf[0]
+            if len(env_conf) > 1 and env_conf[1] == "true":
+                run_cmd += " -k offlineuser.key"
+        main_process = subprocess.Popen(run_cmd, shell=True)
 
         while rc != win32event.WAIT_OBJECT_0:
             rc = win32event.WaitForSingleObject(self.hWaitStop, 5000)
 
-        subprocess.Popen("TASKKILL /F /IM ndac.exe /T")
+        subprocess.call("TASKKILL /F /IM ndac.exe /T")
+        servicemanager.LogInfoMsg(self._svc_display_name_+" ("+self._svc_name_+") is STOPPED .")
 
 if __name__ == '__main__':
-    win32serviceutil.HandleCommandLine(NDAC_Service_Manager)
+    if len(sys.argv) == 1:
+        try:
+            servicemanager.Initialize()
+            servicemanager.PrepareToHostSingle(NDAC_Service_Manager)
+            servicemanager.StartServiceCtrlDispatcher()
+        except:
+            win32serviceutil.HandleCommandLine(NDAC_Service_Manager)
+    else:
+        win32serviceutil.HandleCommandLine(NDAC_Service_Manager)
