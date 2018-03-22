@@ -98,7 +98,9 @@ ERR_CODE={
     "220":"Error occured in assist module: Update weights",
     "221":"Error occured in assist module: Update queries",
     "222":"Unable to contact storage areas: Assist Components",
-    "223":"Critical error in storage areas: Assist Components"
+    "223":"Critical error in storage areas: Assist Components",
+    "224":"Another instance of NDAC is already running",
+    "225":"Port 1990 already in use"
 }
 
 #counters for License
@@ -3602,8 +3604,18 @@ def main():
         return False
 
     if (basecheckonls()):
-        cronograph()
-        beginserver()
+        err_msg = None
+        try:
+            resp = requests.get("http://127.0.0.1:1990")
+            err_msg = printErrorCodes('225')
+            if resp.content == "Data Server Ready!!!":
+                err_msg = printErrorCodes('224')
+            app.logger.critical(err_msg)
+        except:
+            pass
+        if err_msg is None:
+            cronograph()
+            beginserver()
     else:
         app.logger.critical(printErrorCodes('218'))
 
