@@ -53,6 +53,8 @@ mine = "".join(['\x4e','\x36','\x38','\x53','\x51','\x4c','\x69','\x74','\x65','
     '\x63','\x72','\x65','\x74','\x4b','\x65','\x79','\x43','\x6f','\x6d','\x70','\x4f','\x4e','\x65','\x6e','\x74','\x73'])
 omgall = "".join(['\x4e','\x69','\x6e','\x65','\x74','\x65','\x65','\x6e','\x36','\x38','\x6e','\x64','\x61','\x74','\x63',
     '\x6c','\x69','\x63','\x65','\x6e','\x73','\x69','\x6e','\x67'])
+ldap_key = "".join(['l','!','g','#','t','W','3','l','g','G','h','1','3','@','(',
+    'c','E','s','$','T','p','R','0','T','c','O','I','-','k','3','y','S'])
 activeicesessions={}
 latest_access_time=datetime.now()
 
@@ -1714,138 +1716,106 @@ def getAssignedProjects_ICE():
         servicesException("getAssignedProjects_ICE",e)
         return jsonify(res)
 
-#service creates new users into Nineteen68
-@app.route('/admin/createUser_Nineteen68',methods=['POST'])
-def createUser_Nineteen68():
+# Service to create/edit/delete users in Nineteen68
+@app.route('/admin/manageUserDetails',methods=['POST'])
+def manageUserDetails():
     res={'rows':'fail'}
     try:
         requestdata=json.loads(request.data)
-        app.logger.debug("Inside createUser_Nineteen68. Query: "+str(requestdata["query"]))
+        app.logger.info("Inside manageUserDetails. Query: "+str(requestdata["action"]))
         if not isemptyrequest(requestdata):
-            if(requestdata['query'] == 'allusernames'):
-                createuserquery1=("select username from users")
-                queryresult = n68session.execute(createuserquery1)
-                res={'rows':queryresult.current_rows}
-            elif(requestdata['query'] == 'createuser'):
-                userid = str(uuid.uuid4())
-                deactivated = False
-                requestdata['userid']=userid
-                requestdata['password'] = "'"+requestdata['password']+"'"
-                if(requestdata['ldapuser']):
-                    requestdata['password'] = "null"
+            if not requestdata.has_key("password"): requestdata["password"] = ""
+            userQuery = ''
+
+            if (requestdata['action'] == "delete"):
+                userPermissionsQuery=("delete from icepermissions where userid="+
+                    requestdata["userid"])
+                icesession.execute(userPermissionsQuery)
+                userQuery=("delete from users where userid="+requestdata["userid"])
+            elif (requestdata['action'] == "create"):
+                fetchquery = ("select username from users where username = '"+
+                    requestdata["username"]+"' ALLOW FILTERING")
+                queryresult = n68session.execute(fetchquery)
+                if len(queryresult.current_rows) != 0 and requestdata["username"]!="ci_user":
+                    res["rows"] = "exists"
+                    return jsonify(res)
+                requestdata["userid"] = str(uuid.uuid4())
+                requestdata["password"] = "'"+requestdata["password"]+"'"
+                valueQuery = ""
+                if(requestdata["ldapuser"]):
+                    requestdata["password"] = "null"
+                else:
+                    requestdata["ldapuser"] = "{}"
                 #history = createHistory("create","users",requestdata)
-                createuserquery2=("insert into users (userid,createdby,createdon,"
-                +"defaultrole,deactivated,emailid,firstname,lastname,ldapuser,password,username) values"
-                +"( "+str(userid)+" , '"+requestdata['username']+"' , "
-                + str(getcurrentdate())+" , "+requestdata['defaultrole']+" , "
-                +str(deactivated)+" , '"+requestdata['emailid']+"' , '"
-                +requestdata['firstname']+"' , '"+requestdata['lastname']+"' , "
-                +str(requestdata['ldapuser'])+" , "+requestdata['password']+" , '"
-                +requestdata['username']+"')")
-                queryresult = n68session.execute(createuserquery2)
-                res={'rows':'Success'}
-            elif(requestdata['query'] == 'createciuser'):
-                userid = str(uuid.uuid4())
-                deactivated = False
-                requestdata['userid']=userid
-                #history = createHistory("create","users",requestdata)
-                createuserquery3=("insert into users (userid,createdby,createdon,"
-                +"defaultrole,deactivated,emailid,firstname,lastname,ldapuser,password,username) values"
-                +"( "+str(userid)+" , '"+requestdata['username']+"' , "
-                + str(getcurrentdate())+" ,null,"
-                +str(deactivated)+" ,null,null,null"
-                +",null, '"+requestdata['password']+"' , '"
-                +requestdata['username']+"')")
-                queryresult = n68session.execute(createuserquery3)
-                res={'rows':'Success'}
+                if(requestdata["ciuser"]):
+                    valueQuery = (requestdata["userid"]+",'"+requestdata["createdby"]+
+                        "',"+str(getcurrentdate())+",null,False,null,null,null,'{}',"+
+                        requestdata["password"]+",'"+requestdata["username"]+"'")
+                else:
+                    valueQuery = (requestdata["userid"]+",'"+requestdata["createdby"]+
+                        "',"+str(getcurrentdate())+","+requestdata['defaultrole']+
+                        ",False,'"+requestdata["emailid"]+"','"+requestdata["firstname"]+
+                        "','"+requestdata["lastname"]+"','"+str(requestdata['ldapuser'])+
+                        "',"+requestdata['password']+",'"+requestdata['username']+"'")
+                userQuery=("insert into users (userid,createdby,createdon,"+
+                    "defaultrole,deactivated,emailid,firstname,lastname,ldapuser"+
+                    ",password,username) values ("+valueQuery+")")
+            elif (requestdata['action'] == "update"):
+                passwordFeild = "',password='"+requestdata['password']
+                if requestdata['password']=='': passwordFeild = ''
+                requestdata['additionalroles'] = ','.join(str(roleid) for roleid in requestdata['additionalroles'])
+                if not requestdata["ldapuser"]:
+                    requestdata["ldapuser"] = "{}"
+                userQuery=("update users set firstname='"+requestdata['firstname']+
+                    passwordFeild+"',lastname='"+requestdata['lastname']+"',modifiedby='"+
+                    requestdata['createdby']+"',modifiedon="+str(getcurrentdate())+
+                    ",emailid='"+requestdata['emailid']+"',ldapuser='"+requestdata['ldapuser']+
+                    "',modifiedbyrole='"+str(requestdata['createdbyrole'])+
+                    "',additionalroles={"+str(requestdata['additionalroles'])+
+                    "} where userid="+requestdata['userid'])
+            n68session.execute(userQuery)
+            res["rows"] = "success"
         else:
-            app.logger.warn('Empty data received. create user.')
+            app.logger.warn('Empty data received. manage users.')
     except Exception as e:
-        servicesException("createUser_Nineteen68",e)
+        servicesException("manageUserDetails",e)
     return jsonify(res)
 
-#service fetch user data from Nineteen68
-@app.route('/admin/getUserData_Nineteen68',methods=['POST'])
-def getUserData_Nineteen68():
-    app.logger.debug("Inside getUserData_Nineteen68")
+@app.route('/admin/getUserDetails',methods=['POST'])
+def getUserDetails():
+    app.logger.info("Inside getUserDetails")
     res={'rows':'fail'}
     try:
         requestdata=json.loads(request.data)
         if not isemptyrequest(requestdata):
-            getuserdataquery=("select username,firstname,lastname,emailid,ldapuser,"
-               +"defaultrole,additionalroles from users where userid="+str(requestdata['userid']))
-            queryresult = n68session.execute(getuserdataquery)
-            rows=[]
-            for eachkey in queryresult.current_rows:
-                additionalroles=[]
-                emailid = eachkey['emailid']
-                firstname = eachkey['firstname']
-                lastname = eachkey['lastname']
-                ldapuser = eachkey['ldapuser']
-                username = eachkey['username']
-                defaultrole = eachkey['defaultrole']
-                if eachkey['additionalroles'] != None:
-                    for eachrole in eachkey['additionalroles']:
-                        additionalroles.append(eachrole)
-                eachobject={'userid':requestdata['userid'],'emailid':emailid,
-                'firstname':firstname,'lastname':lastname,'ldapuser':ldapuser,
-                'username':username,'additionalroles':additionalroles,'defaultrole':defaultrole}
-                rows.append(eachobject)
-            res={'rows':rows}
-            return jsonify(res)
-        else:
-            app.logger.warn('Empty data received. Get user data.')
-            return jsonify(res)
-    except Exception as e:
-        servicesException("getUserData_Nineteen68",e)
-        res={'rows':'fail'}
-        return jsonify(res)
-
-#service update user data into Nineteen68
-@app.route('/admin/updateUser_Nineteen68',methods=['POST'])
-def updateUser_Nineteen68():
-    app.logger.debug("Inside updateUser_Nineteen68")
-    res={'rows':'fail'}
-    try:
-        requestdata=json.loads(request.data)
-        if not isemptyrequest(requestdata):
-            requestdata['additionalroles'] = ','.join(str(roleid) for roleid in requestdata['additionalroles'])
-            #history = createHistory("update","users",requestdata)
-            if requestdata['password'] == 'existing':
-                updateuserquery2=("UPDATE users set "
-                +"username='" + requestdata['username']
-                + "', firstname='" + requestdata['firstname']
-                + "', lastname='" + requestdata['lastname']
-                + "', modifiedby='" + requestdata['modifiedby']
-                + "', modifiedon=" + str(getcurrentdate())
-                + ", emailid='" + requestdata['emailid']
-                + "', ldapuser= " + str(requestdata['ldapuser'])
-                + ", modifiedbyrole= '" + str(requestdata['modifiedbyrole'])
-                + "', additionalroles= {" + str(requestdata['additionalroles'])
-                + "} where userid=" + str(requestdata['userid']))
+            if requestdata.has_key("userid"):
+                fetchquery=("select username,firstname,lastname,emailid,ldapuser,"
+                   +"defaultrole,additionalroles from users where userid="+str(requestdata['userid']))
+                queryresult = n68session.execute(fetchquery)
+                if len(queryresult.current_rows) == 0:
+                    userList = []
+                else:
+                    userList = queryresult.current_rows[0]
+                    additionalroles = []
+                    if userList['additionalroles'] != None:
+                        for eachrole in userList['additionalroles']:
+                            additionalroles.append(eachrole)
+                    userList['additionalroles'] = additionalroles
             else:
-                updateuserquery2=("UPDATE users set "
-                +"username='" + requestdata['username']
-                + "', password='" + requestdata['password']
-                + "', firstname='" + requestdata['firstname']
-                + "', lastname='" + requestdata['lastname']
-                + "', modifiedby='" + requestdata['modifiedby']
-                + "', modifiedon=" + str(getcurrentdate())
-                + ", emailid='" + requestdata['emailid']
-                + "', ldapuser= " + str(requestdata['ldapuser'])
-                + ", modifiedbyrole= '" + str(requestdata['modifiedbyrole'])
-                + "', additionalroles= {" + str(requestdata['additionalroles'])
-                + "} where userid=" + str(requestdata['userid']))
-            queryresult = n68session.execute(updateuserquery2)
-            res={'rows':'Success'}
-            return jsonify(res)
+                fetchquery = "select userid,username,defaultrole from users"
+                queryresult = n68session.execute(fetchquery)
+                userList = []
+                for i in range(len(queryresult.current_rows)):
+                    username = queryresult.current_rows[i]["username"]
+                    # Hidden Admin User & Allow multiple CI Users
+                    if not (username in ["support.nineteen68", "ci_user"]):
+                        userList.append(queryresult.current_rows[i])
+            res["rows"] = userList
         else:
-            app.logger.warn('Empty data received. update user.')
-            return jsonify(res)
-    except Exception as e:
-        servicesException("updateUser_nineteen68",e)
-        res={'rows':'fail'}
-        return jsonify(res)
+            app.logger.warn('Empty data received. users fetch.')
+    except Exception as getallusersexc:
+        servicesException("getUserDetails",getallusersexc)
+    return jsonify(res)
 
 #service creates a complete project structure into ICE keyspace
 @app.route('/admin/createProject_ICE',methods=['POST'])
@@ -2027,20 +1997,6 @@ def assignProjects_ICE():
         servicesException("assignProjects_ICE",assignprojectsexc)
         return jsonify(res)
 
-# service fetches all users
-@app.route('/admin/getAllUsers_Nineteen68',methods=['POST'])
-def getAllUsers_Nineteen68():
-    app.logger.debug("Inside getAllUsers_Nineteen68")
-    res={'rows':'fail'}
-    try:
-        queryforallusers=("select userid, username, defaultrole from users")
-        queryresult = n68session.execute(queryforallusers)
-        res={'rows':queryresult.current_rows}
-        return jsonify(res)
-    except Exception as getallusersexc:
-        servicesException("getAllUsers_Nineteen68",getallusersexc)
-        return jsonify(res)
-
 @app.route('/admin/getAvailablePlugins',methods=['POST'])
 def getAvailablePlugins():
     app.logger.debug("Inside getAvailablePlugins")
@@ -2055,6 +2011,76 @@ def getAvailablePlugins():
     except Exception as getallusersexc:
         servicesException("getAvailablePlugins",getallusersexc)
         return jsonify(res)
+
+@app.route('/admin/manageLDAPConfig',methods=['POST'])
+def manageLDAPConfig():
+    res={'rows':'fail'}
+    try:
+        requestdata=json.loads(request.data)
+        app.logger.info("Inside manageLDAPConfig. Action is "+str(requestdata['action']))
+        if not isemptyrequest(requestdata):
+            configquery = ''
+            if not requestdata.has_key("authKey"): requestdata["authKey"] = ""
+            else: requestdata["authKey"] = wrap(requestdata["authKey"],ldap_key)
+            if not requestdata.has_key("authUser"): requestdata["authUser"] = ""
+            if (requestdata['action'] == "delete"):
+                configquery = ("delete from ldapdetails where servername = '"+
+                    requestdata["name"]+"'")
+            elif (requestdata['action'] == "create"):
+                fetchquery = ("select servername from ldapdetails where servername = '"+
+                    requestdata["name"]+"'")
+                queryresult = n68session.execute(fetchquery)
+                if len(queryresult.current_rows) != 0:
+                    res["rows"] = "exists"
+                    return jsonify(res)
+                configquery = ("INSERT INTO nineteen68.ldapdetails (servername,"+
+                    "url,base_dn,authtype,bind_dn,bind_credentials,fieldmap) VALUES ('"+
+                    requestdata["name"]+"','"+requestdata["ldapURL"]+"','"+
+                    requestdata["baseDN"]+"','"+requestdata["authType"]+"','"+
+                    requestdata["authUser"]+"','"+requestdata["authKey"]+"','"+
+                    requestdata["fieldMap"]+"')")
+            elif (requestdata['action'] == "update"):
+                authKeyFeild = "',bind_credentials='"+requestdata["authKey"]
+                if requestdata["authKey"] == "": authKeyFeild = ''
+                configquery = ("update ldapdetails set url='"+requestdata["ldapURL"]+
+                    "',base_dn='"+requestdata["baseDN"]+"',authtype='"+
+                    requestdata["authType"]+"',bind_dn='"+requestdata["authUser"]+
+                    authKeyFeild+"',fieldmap='"+requestdata["fieldMap"]+
+                    "' where servername = '"+requestdata["name"]+"'")
+            n68session.execute(configquery)
+            res["rows"] = "success"
+        else:
+            app.logger.warn('Empty data received. LDAP config manage.')
+    except Exception as getallusersexc:
+        servicesException("manageLDAPConfig",getallusersexc)
+    return jsonify(res)
+
+@app.route('/admin/getLDAPConfig',methods=['POST'])
+def getLDAPConfig():
+    app.logger.info("Inside getLDAPConfig")
+    res={'rows':'fail'}
+    try:
+        requestdata=json.loads(request.data)
+        if not isemptyrequest(requestdata):
+            if requestdata.has_key("name"):
+                fetchquery = ("select * from ldapdetails where servername = '"+
+                    requestdata["name"]+"'")
+                queryresult = n68session.execute(fetchquery)
+                password = queryresult.current_rows[0]["bind_credentials"]
+                if len(password) > 0:
+                    password = unwrap(password, ldap_key)
+                    queryresult.current_rows[0]["bind_credentials"] = password
+            else:
+                fetchquery = "select servername from ldapdetails"
+                queryresult = n68session.execute(fetchquery)
+            res["rows"] = queryresult.current_rows
+        else:
+            app.logger.warn('Empty data received. LDAP config fetch.')
+    except Exception as getallusersexc:
+        import traceback
+        traceback.print_exc()
+        servicesException("getLDAPConfig",getallusersexc)
+    return jsonify(res)
 
 ################################################################################
 # END OF ADMIN SCREEN
@@ -2712,10 +2738,10 @@ ecodeServices = {"authenticateUser_Nineteen68":"300","authenticateUser_Nineteen6
     "readTestSuite_ICE":"335","updateTestSuite_ICE":"336","ExecuteTestSuite_ICE":"337",
     "ScheduleTestSuite_ICE":"338","qcProjectDetails_ICE":"339","saveQcDetails_ICE":"340",
     "viewQcMappedList_ICE":"341","getUserRoles":"342","getDetails_ICE":"343","getNames_ICE":"344",
-    "getDomains_ICE":"345","getAssignedProjects_ICE":"346","createUser_Nineteen68":"347",
-    "getUserData_Nineteen68":"348","updateUser_Nineteen68":"349","createProject_ICE":"350",
+    "getDomains_ICE":"345","getAssignedProjects_ICE":"346","manageUserDetails":"347",
+    "getUserDetails":"348","manageLDAPConfig":"349","createProject_ICE":"350",
     "updateProject_ICE":"351","getUsers_Nineteen68":"352","assignProjects_ICE":"353",
-    "getAllUsers_Nineteen68":"354","getAvailablePlugins":"355","getAllSuites_ICE":"356",
+    "getLDAPConfig":"354","getAvailablePlugins":"355","getAllSuites_ICE":"356",
     "getSuiteDetailsInExecution_ICE":"357","reportStatusScenarios_ICE":"358","getReport_Nineteen68":"359",
     "exportToJson_ICE":"360","createHistory":"361","encrypt_ICE":"362","dataUpdator_ICE":"363",
     "userAccess_Nineteen68":"364","checkServer":"365","updateActiveIceSessions":"366",
