@@ -66,6 +66,8 @@ assistpath = currdir + "/ndac_internals/assist"
 logspath= currdir + "/ndac_internals/logs"
 
 lsip="127.0.0.1"
+lsport="5000"
+ndacport="1990"
 cass_dbup = False
 redis_dbup = False
 onlineuser = False
@@ -102,7 +104,7 @@ ERR_CODE={
     "222":"Unable to contact storage areas: Assist Components",
     "223":"Critical error in storage areas: Assist Components",
     "224":"Another instance of NDAC is already running",
-    "225":"Port 1990 already in use"
+    "225":"Port "+ndacport+" already in use"
 }
 
 #counters for License
@@ -3186,7 +3188,7 @@ def connectingls(data):
     lsRetryCount+=1
     connectionstatus=False
     try:
-        lsresponse = requests.post('http://'+lsip+":5000/ndacrequest",data=data)
+        lsresponse = requests.post('http://'+lsip+":"+lsport+"/ndacrequest",data=data)
         if lsresponse.status_code == 200:
             dbdata=dataholder('select')
             if(dbdata.has_key('grace_period')):
@@ -3327,7 +3329,7 @@ def beginserver():
     if cass_dbup and redis_dbup:
         profj_sqlitedb = SQLite_DataSetup()
         updateWeightages() # ProfJ component
-        serve(app,host='127.0.0.1',port=1990)
+        serve(app,host='127.0.0.1',port=int(ndacport))
     else:
         app.logger.critical(printErrorCodes('207'))
 
@@ -3580,7 +3582,7 @@ class ProfJ():
 ################################################################################
 
 def main():
-    global lsip,cass_dbup,redis_dbup,icesession,n68session,redisSession,chronographTimer
+    global lsip,lsport,ndacport,cass_dbup,redis_dbup,icesession,n68session,redisSession,chronographTimer
     cleanndac = checkSetup()
     if not cleanndac:
         app.logger.critical(printErrorCodes('214'))
@@ -3588,7 +3590,11 @@ def main():
 
     try:
         ndac_conf = json.loads(open(config_path).read())
-        lsip = ndac_conf['licenseserver']
+        lsip = ndac_conf['licenseserverip']
+        if ndac_conf.has_key('licenseserverport'):
+            lsport = ndac_conf['licenseserverport']
+        if ndac_conf.has_key('ndacserverport'):
+            ndacport = ndac_conf['ndacserverport']
         if (ndac_conf.has_key('custChronographTimer')):
             chronographTimer = int(ndac_conf['custChronographTimer'])
             app.logger.debug("'custChronographTimer' detected.")
@@ -3632,7 +3638,7 @@ def main():
     if (basecheckonls()):
         err_msg = None
         try:
-            resp = requests.get("http://127.0.0.1:1990")
+            resp = requests.get("http://127.0.0.1:"+ndacport)
             err_msg = printErrorCodes('225')
             if resp.content == "Data Server Ready!!!":
                 err_msg = printErrorCodes('224')
