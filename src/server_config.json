@@ -1,5 +1,5 @@
 {
-    "licenseserver":"127.0.0.1",
+    "licenseserverip":"127.0.0.1",
     "cassandra":{
         "databaseip": "127.0.0.1",
         "dbport": "9042",
