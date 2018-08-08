@@ -1010,9 +1010,10 @@ def readTestCase_ICE():
                 readtestcasequery2 = ("select screenid,testcasename,testcasesteps"
                 +" from testcases where testcaseid="+ requestdata['testcaseid'] + query['delete_flag'])
                 queryresult = icesession.execute(readtestcasequery2)
-                count = debugcounter + 1
-                userid = requestdata['userid']
-                counterupdator('testcases',userid,count)
+                if (not requestdata.has_key('readonly')):
+                    count = debugcounter + 1
+                    userid = requestdata['userid']
+                    counterupdator('testcases',userid,count)
             elif(requestdata['query'] == "screenid"):
                 readtestcasequery3 = ("select testcaseid,testcasename,testcasesteps "
                 +"from testcases where screenid=" + requestdata['screenid']
