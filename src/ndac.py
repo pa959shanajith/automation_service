@@ -2124,6 +2124,11 @@ def getAllSuites_ICE():
                 getallsuitesquery8 = ("select projectids from icepermissions "
                     +"where userid="+requestdata['userid'])
                 queryresult = icesession.execute(getallsuitesquery8)
+            elif(requestdata["query"] == 'scenariodetails'):
+                getallsuitesquery9=("select testsuiteid,testsuitename,testscenarioids "
+                    +"from testsuites where cycleid=" + requestdata['id']
+                    +" allow filtering;")
+                queryresult = icesession.execute(getallsuitesquery9)
 ##            elif(requestdata["query"] == 'projectsUnderDomain'):
 ##                getallsuitesquery2 =("select projectid from projects "
 ##                                +"where domainid="+requestdata['domainid']+";")
@@ -2192,6 +2197,21 @@ def reportStatusScenarios_ICE():
                 +"from testscenarios where testscenarioid="+requestdata['scenarioid']
                 +" ALLOW FILTERING")
                 queryresult = icesession.execute(getreportstatusquery2)
+            elif(requestdata["query"] == 'scenarionamemap'):
+                scnmap = {}
+                for scnid in list(set(requestdata['scenarioid'])):
+                    getreportstatusquery3 = ("select testscenarioname "
+                    +"from testscenarios where testscenarioid="+scnid
+                    +" ALLOW FILTERING")
+                    queryresult = icesession.execute(getreportstatusquery3)
+                    print queryresult.current_rows[0]
+                    scnmap[scnid] = queryresult.current_rows[0]["testscenarioname"]
+                return jsonify(scnmap)
+            elif(requestdata["query"] == 'allreports'):
+                getreportstatusquery4 = ("select reportid,browser,executedtime,status "
+                +"from reports where testscenarioid="+requestdata['scenarioid']
+                +" ALLOW FILTERING")
+                queryresult = icesession.execute(getreportstatusquery4)                      
             else:
                 return jsonify(res)
             res= {"rows":queryresult.current_rows}
