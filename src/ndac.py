@@ -58,8 +58,6 @@ ldap_key = "".join(['l','!','g','#','t','W','3','l','g','G','h','1','3','@','(',
 activeicesessions={}
 latest_access_time=datetime.now()
 
-##os.chdir("..")
-#nineteen68 folder location is parent directory
 currdir=os.getcwd()
 config_path = currdir+'/server_config.json'
 assistpath = currdir + "/ndac_internals/assist"
@@ -134,7 +132,10 @@ profj_sqlitedb=None
 #server check
 @app.route('/')
 def server_ready():
-    return 'Data Server Ready!!!'
+    msg = 'Data Server Stopped!!!'
+    if onlineuser:
+        msg = 'Data Server Ready!!!'
+    return msg
 
 
 ################################################################################
@@ -311,9 +312,9 @@ def loadUserInfo_Nineteen68():
 ################################################################################
 
 #getting Release_iDs of Project
-@app.route('/create_ice/getReleaseIDs_Ninteen68',methods=['POST'])
-def getReleaseIDs_Ninteen68():
-    app.logger.debug("Inside getReleaseIDs_Ninteen68")
+@app.route('/create_ice/getReleaseIDs_Nineteen68',methods=['POST'])
+def getReleaseIDs_Nineteen68():
+    app.logger.debug("Inside getReleaseIDs_Nineteen68")
     res={'rows':'fail'}
     try:
        requestdata=json.loads(request.data)
@@ -324,15 +325,15 @@ def getReleaseIDs_Ninteen68():
             queryresult = icesession.execute(getReleaseDetails)
             res={'rows':queryresult.current_rows}
        else:
-            app.logger.warn("Empty data received. getReleaseIDs_Ninteen68")
+            app.logger.warn("Empty data received. getReleaseIDs_Nineteen68")
     except Exception as e:
-        servicesException("getReleaseIDs_Ninteen68",e)
+        servicesException("getReleaseIDs_Nineteen68",e)
     return jsonify(res)
 
 
-@app.route('/create_ice/getCycleIDs_Ninteen68',methods=['POST'])
-def getCycleIDs_Ninteen68():
-    app.logger.debug("Inside getCycleIDs_Ninteen68")
+@app.route('/create_ice/getCycleIDs_Nineteen68',methods=['POST'])
+def getCycleIDs_Nineteen68():
+    app.logger.debug("Inside getCycleIDs_Nineteen68")
     res={'rows':'fail'}
     try:
        requestdata=json.loads(request.data)
@@ -343,9 +344,9 @@ def getCycleIDs_Ninteen68():
             queryresult = icesession.execute(getCycleDetails)
             res={'rows':queryresult.current_rows}
        else:
-            app.logger.warn("Empty data received. getCycleIDs_Ninteen68")
+            app.logger.warn("Empty data received. getCycleIDs_Nineteen68")
     except Exception as e:
-        servicesException("getCycleIDs_Ninteen68",e)
+        servicesException("getCycleIDs_Nineteen68",e)
     return jsonify(res)
 
 @app.route('/create_ice/getProjectType_Nineteen68',methods=['POST'])
@@ -421,7 +422,7 @@ def getProjectIDs_Nineteen68():
     return jsonify(res)
 
 #getting names of module/scenario/screen/testcase name of given id
-@app.route('/create_ice/getNames_Ninteen68',methods=['POST'])
+@app.route('/create_ice/getNames_Nineteen68',methods=['POST'])
 def getAllNames_ICE():
     app.logger.debug("Inside getAllNames_ICE")
     res={'rows':'fail'}
@@ -2211,7 +2212,7 @@ def reportStatusScenarios_ICE():
                 getreportstatusquery4 = ("select reportid,browser,executedtime,status "
                 +"from reports where testscenarioid="+requestdata['scenarioid']
                 +" ALLOW FILTERING")
-                queryresult = icesession.execute(getreportstatusquery4)                      
+                queryresult = icesession.execute(getreportstatusquery4)
             else:
                 return jsonify(res)
             res= {"rows":queryresult.current_rows}
@@ -2615,7 +2616,7 @@ def updateActiveIceSessions():
     for keys in licensedata['platforms']:
         if(licensedata['platforms'][keys] == True):
             ice_plugins_list.append(keys)
-    res={"id":"da9b196d-8021-4a68-be2b-753ec267305e","res":"fail","ts_now":str(datetime.now()),"connect_time":str(datetime.now()),"plugins":str(ice_plugins_list)}
+    res={"id":"","res":"fail","ts_now":str(datetime.now()),"connect_time":str(datetime.now()),"plugins":str(ice_plugins_list)}
     response = {"node_check":False,"ice_check":wrap(json.dumps(res),ice_ndac_key)}
     ice_uuid=None
     ice_ts=None
@@ -2748,7 +2749,7 @@ ndacinfo = {
 }
 ecodeServices = {"authenticateUser_Nineteen68":"300","authenticateUser_Nineteen68_ldap":"301",
     "getRoleNameByRoleId_Nineteen68":"302","authenticateUser_Nineteen68_projassigned":"303",
-    "loadUserInfo_Nineteen68":"304","getReleaseIDs_Ninteen68":"305","getCycleIDs_Ninteen68":"306",
+    "loadUserInfo_Nineteen68":"304","getReleaseIDs_Nineteen68":"305","getCycleIDs_Nineteen68":"306",
     "getProjectType_Nineteen68":"307","getProjectIDs_Nineteen68":"308","getAllNames_ICE":"309",
     "testsuiteid_exists_ICE":"310","testscenariosid_exists_ICE":"311","testscreenid_exists_ICE":"312",
     "testcaseid_exists_ICE":"313","get_node_details_ICE":"314","delete_node_ICE":"315",
@@ -3359,6 +3360,9 @@ def stopserver():
     if(gracePeriodTimer != None and gracePeriodTimer.isAlive()):
         gracePeriodTimer.cancel()
         gracePeriodTimer = None
+        dbdata = dataholder('select')
+        dbdata['grace_period']=0
+        dataholder('update',dbdata)
     onlineuser = False
     app.logger.error(printErrorCodes('205'))
 
@@ -3368,7 +3372,7 @@ def startTwoDaysTimer():
     twoDayTimer.start()
     gracePeriodTimer = Timer(3600,saveGracePeriod)
     gracePeriodTimer.start()
-    app.logger.info("Two day timer begins...")
+    app.logger.critical("Two day timer begins...")
 
 def saveGracePeriod():
     global gracePeriodTimer,twoDayTimer
@@ -3610,12 +3614,15 @@ def main():
         return False
 
     try:
-        ndac_conf = json.loads(open(config_path).read())
+        ndac_conf_obj = open(config_path, 'r')
+        ndac_conf = json.load(ndac_conf_obj)
+        ndac_conf_obj.close()
         lsip = ndac_conf['licenseserverip']
         if ndac_conf.has_key('licenseserverport'):
             lsport = ndac_conf['licenseserverport']
         if ndac_conf.has_key('ndacserverport'):
             ndacport = ndac_conf['ndacserverport']
+            ERR_CODE["225"] = "Port "+ndacport+" already in use"
         if (ndac_conf.has_key('custChronographTimer')):
             chronographTimer = int(ndac_conf['custChronographTimer'])
             app.logger.debug("'custChronographTimer' detected.")
@@ -3661,7 +3668,7 @@ def main():
         try:
             resp = requests.get("http://127.0.0.1:"+ndacport)
             err_msg = printErrorCodes('225')
-            if resp.content == "Data Server Ready!!!":
+            if resp.content == ['Data Server Ready!!!', 'Data Server Stopped!!!']:
                 err_msg = printErrorCodes('224')
             app.logger.critical(err_msg)
         except:
