@@ -2616,7 +2616,7 @@ def updateActiveIceSessions():
     for keys in licensedata['platforms']:
         if(licensedata['platforms'][keys] == True):
             ice_plugins_list.append(keys)
-    res={"id":"da9b196d-8021-4a68-be2b-753ec267305e","res":"fail","ts_now":str(datetime.now()),"connect_time":str(datetime.now()),"plugins":str(ice_plugins_list)}
+    res={"id":"","res":"fail","ts_now":str(datetime.now()),"connect_time":str(datetime.now()),"plugins":str(ice_plugins_list)}
     response = {"node_check":False,"ice_check":wrap(json.dumps(res),ice_ndac_key)}
     ice_uuid=None
     ice_ts=None
