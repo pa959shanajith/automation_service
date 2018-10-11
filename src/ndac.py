@@ -1386,11 +1386,11 @@ def ExecuteTestSuite_ICE() :
             elif(requestdata['query'] == 'insertreportquery'):
                 executetestsuitequery5=("insert into reports (reportid,executionid,"
                     +"testsuiteid,testscenarioid,executedtime,browser,modifiedon,status,"
-                    +"report) values (" + requestdata['reportid'] + ","
+                    +"report,cycleid) values (" + requestdata['reportid'] + ","
                     + requestdata['executionid']+ "," + requestdata['testsuiteid']
                     + "," + requestdata['testscenarioid'] + "," + str(getcurrentdate())
                     + ",'" + requestdata['browser'] + "'," + str(getcurrentdate())
-                    + ",'" + requestdata['status']+ "','" + requestdata['report'] + "')")
+                    + ",'" + requestdata['status']+ "','" + requestdata['report'] + "'," + requestdata['cycleid'] + ")")
                 queryresult = icesession.execute(executetestsuitequery5)
             elif(requestdata['query'] == 'inserintotexecutionquery'):
                executetestsuitequery6= ("insert into execution (testsuiteid,"
@@ -2198,6 +2198,7 @@ def reportStatusScenarios_ICE():
                 +"from testscenarios where testscenarioid="+requestdata['scenarioid']
                 +" ALLOW FILTERING")
                 queryresult = icesession.execute(getreportstatusquery2)
+                                           
             elif(requestdata["query"] == 'scenarionamemap'):
                 scnmap = {}
                 for scnid in list(set(requestdata['scenarioid'])):
@@ -2209,10 +2210,11 @@ def reportStatusScenarios_ICE():
                     scnmap[scnid] = queryresult.current_rows[0]["testscenarioname"]
                 return jsonify(scnmap)
             elif(requestdata["query"] == 'allreports'):
-                getreportstatusquery4 = ("select reportid,browser,executedtime,status "
+                getreportstatusquery4 = ("select reportid,browser,executionid,executedtime,status "
                 +"from reports where testscenarioid="+requestdata['scenarioid']
-                +" ALLOW FILTERING")
+                +"and cycleid="+requestdata['cycleid']+"ALLOW FILTERING")
                 queryresult = icesession.execute(getreportstatusquery4)
+                                           
             else:
                 return jsonify(res)
             res= {"rows":queryresult.current_rows}
@@ -2244,10 +2246,8 @@ def getReport_Nineteen68():
                 + requestdata['scenarioid']+query['delete_flag'])
                 queryresult = icesession.execute(getreportquery2)
             elif(requestdata["query"] == 'cycleid'):
-                getreportquery3 =("select cycleid from testsuites where "
-                +"testsuiteid=" + requestdata['suiteid']
-                + " and testsuitename = '" + requestdata['suitename']+"'"
-                + query['delete_flag'])
+                getreportquery3 =("select cycleid from reports where "
+                +"reportid=" + requestdata['reportid'] +"allow filtering")
                 queryresult = icesession.execute(getreportquery3)
             elif(requestdata["query"] == 'cycledetails'):
                 getreportquery4 =("select cyclename,releaseid from cycles "
@@ -3682,4 +3682,5 @@ def main():
 if __name__ == '__main__':
     initLoggers(parserArgs)
     sysMAC = str(getMacAddress()).strip()
+
     main()
