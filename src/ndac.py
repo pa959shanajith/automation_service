@@ -32,7 +32,7 @@ from threading import Timer
 import argparse
 import base64
 from Crypto.Cipher import AES
-from Crypto import Random
+import codecs
 app = Flask(__name__)
 
 parser = argparse.ArgumentParser()
@@ -2198,7 +2198,6 @@ def reportStatusScenarios_ICE():
                 +"from testscenarios where testscenarioid="+requestdata['scenarioid']
                 +" ALLOW FILTERING")
                 queryresult = icesession.execute(getreportstatusquery2)
-                                           
             elif(requestdata["query"] == 'scenarionamemap'):
                 scnmap = {}
                 for scnid in list(set(requestdata['scenarioid'])):
@@ -2206,7 +2205,6 @@ def reportStatusScenarios_ICE():
                     +"from testscenarios where testscenarioid="+scnid
                     +" ALLOW FILTERING")
                     queryresult = icesession.execute(getreportstatusquery3)
-                    print queryresult.current_rows[0]
                     scnmap[scnid] = queryresult.current_rows[0]["testscenarioname"]
                 return jsonify(scnmap)
             elif(requestdata["query"] == 'allreports'):
@@ -2214,7 +2212,6 @@ def reportStatusScenarios_ICE():
                 +"from reports where testscenarioid="+requestdata['scenarioid']
                 +"and cycleid="+requestdata['cycleid']+"ALLOW FILTERING")
                 queryresult = icesession.execute(getreportstatusquery4)
-                                           
             else:
                 return jsonify(res)
             res= {"rows":queryresult.current_rows}
@@ -3386,22 +3383,23 @@ def saveGracePeriod():
         gracePeriodTimer = Timer(3600,saveGracePeriod)
         gracePeriodTimer.start()
 
-BS = 16
 def pad(data):
+    BS = 16
     padding = BS - len(data) % BS
-    return data + padding * chr(padding)
+    return data + padding * chr(padding).encode('utf-8')
 
 def unpad(data):
     return data[0:-ord(data[-1])]
 
-def unwrap(hex_data, key, iv='0'*16):
-    data = ''.join(map(chr, bytearray.fromhex(hex_data)))
-    aes = AES.new(key, AES.MODE_CBC, iv)
-    return unpad(aes.decrypt(data))
+def unwrap(hex_data, key, iv=b'0'*16):
+    data = codecs.decode(hex_data, 'hex')
+    aes = AES.new(key.encode('utf-8'), AES.MODE_CBC, iv)
+    return unpad(aes.decrypt(data).decode('utf-8'))
 
-def wrap(data, key, iv='0'*16):
-    aes = AES.new(key, AES.MODE_CBC, iv)
-    return aes.encrypt(pad(data)).encode('hex')
+def wrap(data, key, iv=b'0'*16):
+    aes = AES.new(key.encode('utf-8'), AES.MODE_CBC, iv)
+    hex_data = aes.encrypt(pad(data.encode('utf-8')))
+    return codecs.encode(hex_data, 'hex')
 
 ##################################
 # END LICENSING SERVER COMPONENTS

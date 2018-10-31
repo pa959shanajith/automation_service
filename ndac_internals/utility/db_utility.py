@@ -10,13 +10,9 @@
 #-------------------------------------------------------------------------------
 import os.path
 import sys
-sys.path.append('.\packages\site-packages')
 import uuid
-
-from Crypto import Random
 from Crypto.Cipher import AES
-BS = 16
-
+import codecs
 import sqlite3
 import json
 
@@ -24,20 +20,14 @@ KEY_NDAC = "\x4e\x36\x38\x53\x51\x4c\x69\x74\x65\x44\x61\x74\x61\x53\x65\x63\x72
 
 #############################ENCRYPTION UTILITY START##############################
 def pad(data):
+    BS = 16
     padding = BS - len(data) % BS
-    return data + padding * chr(padding)
+    return data + padding * chr(padding).encode('utf-8')
 
-def unpad(data):
-    return data[0:-ord(data[-1])]
-
-def unwrap(hex_data, key, iv='0'*16):
-    data = ''.join(map(chr, bytearray.fromhex(hex_data)))
-    aes = AES.new(key, AES.MODE_CBC, iv)
-    return unpad(aes.decrypt(data))
-
-def wrap(data, key, iv='0'*16):
-    aes = AES.new(key, AES.MODE_CBC, iv)
-    return aes.encrypt(pad(data)).encode('hex')
+def wrap(data, key, iv=b'0'*16):
+    aes = AES.new(key.encode('utf-8'), AES.MODE_CBC, iv)
+    hex_data = aes.encrypt(pad(data.encode('utf-8')))
+    return codecs.encode(hex_data, 'hex')
 #############################ENCRYPTION UTILITY END##############################
 
 #############################DB UTILITY START ###################################
