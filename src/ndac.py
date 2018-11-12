@@ -1927,9 +1927,12 @@ def getUsers_Nineteen68():
         if not isemptyrequest(requestdata):
             userroles = requestdata['userroles']
             userrolesarr=[]
+            other_userrolesarr=[]
             for eachroleobj in userroles:
                 if eachroleobj['rolename'] == 'Admin' or eachroleobj['rolename'] == 'Test Manager' :
                     userrolesarr.append(eachroleobj['roleid'])
+                else:
+                    other_userrolesarr.append(eachroleobj['roleid'])
             domainquery = ("select domainid from projects where projectid="+requestdata['projectid']+" allow filtering")
             queryresultdomain= icesession.execute(domainquery)
             domainid =queryresultdomain.current_rows
@@ -1945,11 +1948,14 @@ def getUsers_Nineteen68():
             userroles=[]
             rids=[]
             for userid in userid_list:
-                queryforuser=("select userid, username, defaultrole from users "
+                queryforuser=("select userid, username, additionalroles,defaultrole from users "
                         +"where userid="+str(userid))
                 queryresultusername=n68session.execute(queryforuser)
+                additionalroles=[]
+                if queryresultusername.current_rows[0]['additionalroles'] is not None:
+                    additionalroles=map(str,queryresultusername.current_rows[0]['additionalroles'])
                 if not(len(queryresultusername.current_rows) == 0):
-                    if not (str(queryresultusername.current_rows[0]['defaultrole']) in userrolesarr):
+                    if not (str(queryresultusername.current_rows[0]['defaultrole']) in userrolesarr) or any(elem in additionalroles for elem in other_userrolesarr):
                         rids.append(userid)
                         userroles.append(queryresultusername.current_rows[0]['username'])
                         res["userRoles"]=userroles
