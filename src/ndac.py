@@ -2218,6 +2218,16 @@ def reportStatusScenarios_ICE():
                 +"from reports where testscenarioid="+requestdata['scenarioid']
                 +"and cycleid="+requestdata['cycleid']+"ALLOW FILTERING")
                 queryresult = icesession.execute(getreportstatusquery4)
+            elif(requestdata["query"] == 'latestreport'):
+                getreportstatusquery5 = ("select reportid,browser,executionid,executedtime,status "
+                +"from reports where testscenarioid="+requestdata['scenarioid'] 
+                +"and cycleid="+requestdata['cycleid']+"ALLOW FILTERING")
+                queryresult = icesession.execute(getreportstatusquery5) 
+                if (len(queryresult.current_rows)>0):
+                    queryresult.current_rows.sort(key=lambda x:x['executedtime']) 
+                    queryresult.current_rows[0]['count'] = len(queryresult.current_rows)
+                    res= {"rows":queryresult.current_rows[0]}
+                    return jsonify(res)                   
             else:
                 return jsonify(res)
             res= {"rows":queryresult.current_rows}
