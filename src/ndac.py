@@ -2225,7 +2225,7 @@ def reportStatusScenarios_ICE():
                 queryresult = icesession.execute(getreportstatusquery5) 
                 if (len(queryresult.current_rows)>0):
                     queryresult.current_rows.sort(key=lambda x:x['executedtime']) 
-                    queryresult.current_rows[0]['count'] = len(queryresult.current_rows)
+                    queryresult.current_rows[-1]['count'] = len(queryresult.current_rows)
                     res= {"rows":queryresult.current_rows[-1]}
                     return jsonify(res)                   
             else:
