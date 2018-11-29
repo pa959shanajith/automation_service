@@ -2220,14 +2220,14 @@ def reportStatusScenarios_ICE():
                 queryresult = icesession.execute(getreportstatusquery4)
             elif(requestdata["query"] == 'latestreport'):
                 getreportstatusquery5 = ("select reportid,browser,executionid,executedtime,status "
-                +"from reports where testscenarioid="+requestdata['scenarioid'] 
+                +"from reports where testscenarioid="+requestdata['scenarioid']
                 +"and cycleid="+requestdata['cycleid']+"ALLOW FILTERING")
-                queryresult = icesession.execute(getreportstatusquery5) 
+                queryresult = icesession.execute(getreportstatusquery5)
                 if (len(queryresult.current_rows)>0):
-                    queryresult.current_rows.sort(key=lambda x:x['executedtime']) 
+                    queryresult.current_rows.sort(key=lambda x:x['executedtime'])
                     queryresult.current_rows[-1]['count'] = len(queryresult.current_rows)
                     res= {"rows":queryresult.current_rows[-1]}
-                    return jsonify(res)                   
+                    return jsonify(res)
             else:
                 return jsonify(res)
             res= {"rows":queryresult.current_rows}
@@ -2319,6 +2319,38 @@ def exportToJson_ICE():
             return jsonify(res)
     except Exception as exporttojsonexc:
         servicesException("exportToJson_ICE",exporttojsonexc)
+        res={'rows':'fail'}
+        return jsonify(res)
+
+#update jira defect id in report data
+@app.route('/reports/updateReportData',methods=['POST'])
+def updateReportData():
+    res={'rows':'fail'}
+    try:
+        requestdata=json.loads(request.data)
+        app.logger.debug("Inside updateReportData.")
+        if not isemptyrequest(requestdata):
+            getreportquery = ("select report from reports where reportid ="+requestdata['reportid']+" ALLOW FILTERING")
+            queryresult = icesession.execute(getreportquery)
+            result = queryresult.current_rows
+            report = json.loads(result[0]['report'])
+            report_rows = report['rows']
+            row = None
+            for obj in report_rows:
+                if obj['id']==int(requestdata['slno']):
+                    row = obj
+                if "'" in obj['StepDescription']:
+                    obj['StepDescription'] = obj['StepDescription'].replace("'",'"')
+            if(row!=None):
+                row.update({'jira_defect_id':str(requestdata['defectid'])})
+                report['rows']=report_rows
+                updatereportquery = ("update reports set report='"+json.dumps(report)+"' where reportid="+requestdata['reportid']+
+                " and executionid="+requestdata['executionid'])
+                queryresult = icesession.execute(updatereportquery)
+                res={'rows':'Success'}
+                return jsonify(res)
+    except Exception as updatereportdataexc:
+        servicesException("updateReportData",updatereportdataexc)
         res={'rows':'fail'}
         return jsonify(res)
 
@@ -2784,7 +2816,7 @@ ecodeServices = {"authenticateUser_Nineteen68":"300","authenticateUser_Nineteen6
     "userAccess_Nineteen68":"364","checkServer":"365","updateActiveIceSessions":"366",
     "counterupdator":"367","getreports_in_day":"368","getsuites_inititated":"369","getscenario_inititated":"370",
     "gettestcases_inititated":"371","modelinfoprocessor":"372","dataprocessor":"373","reportdataprocessor":"374",
-    "getTopMatches_ProfJ": "375", "updateFrequency_ProfJ": "376"
+    "getTopMatches_ProfJ": "375", "updateFrequency_ProfJ": "376","updateReportData":"377"
 }
 
 ################################################################################
