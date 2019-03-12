@@ -1173,6 +1173,33 @@ def getTestcaseDetailsForScenario_ICE():
         servicesException("getTestcaseDetailsForScenario_ICE",userrolesexc)
     return jsonify(res)
 
+@app.route('/design/updateIrisObjectType',methods=['POST'])
+def updateIrisObjectType():
+    res={'rows':'fail'}
+    try:
+        requestdata = json.loads(request.data)
+        app.logger.debug("Inside updateIrisObjectType")
+        if not isemptyrequest(requestdata):
+            selectquery = ("select screendata from screens where projectid="+requestdata['projectid']+
+            " and screenid="+requestdata['screenid']+" and screenname='"+str(requestdata['screenname'])+
+            "' and versionnumber="+str(requestdata['versionnumber']))
+            result = icesession.execute(selectquery)
+            result = result.current_rows[0]
+            result = json.loads(result['screendata'])
+            result['mirror'] = str(result['mirror'][0]) + "'" + str(result['mirror'][1:-1]) + "'" + str(result['mirror'][-1:])
+            for i in range(0,len(result['view'])):
+                result['view'][i]['cord'] = str(result['view'][i]['cord'][0]) + "'" + str(result['view'][i]['cord'][1:-1]) + "'" + str(result['view'][i]['cord'][-1:])
+                if(result['view'][i]['xpath'] == requestdata['xpath']):
+                    result['view'][i]['objectType'] = requestdata['type']
+            updatequery = ("update screens set screendata='"+json.dumps(result)+
+            "' where projectid="+requestdata['projectid']+" and screenid="+requestdata['screenid']
+            +" and screenname='"+str(requestdata['screenname'])+"' and versionnumber="+str(requestdata['versionnumber']))
+            queryresult = icesession.execute(updatequery)
+            res={'rows':'success'}
+    except Exception as updateirisobjexc:
+        servicesException("updateIrisObjectType",updateirisobjexc)
+    return jsonify(res)
+
 ################################################################################
 # END OF DESIGN SCREEN
 ################################################################################
@@ -2834,7 +2861,7 @@ ecodeServices = {"authenticateUser_Nineteen68":"300","authenticateUser_Nineteen6
     "userAccess_Nineteen68":"364","checkServer":"365","updateActiveIceSessions":"366",
     "counterupdator":"367","getreports_in_day":"368","getsuites_inititated":"369","getscenario_inititated":"370",
     "gettestcases_inititated":"371","modelinfoprocessor":"372","dataprocessor":"373","reportdataprocessor":"374",
-    "getTopMatches_ProfJ": "375", "updateFrequency_ProfJ": "376","updateReportData":"377"
+    "getTopMatches_ProfJ": "375", "updateFrequency_ProfJ": "376","updateReportData":"377","updateIrisObjectType":"378"
 }
 
 ################################################################################
