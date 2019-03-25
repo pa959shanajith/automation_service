@@ -300,7 +300,7 @@ def loadUserInfo_Nineteen68():
     except Exception as loaduserinfoexc:
         servicesException("loadUserInfo_Nineteen68",loaduserinfoexc)
         return jsonify(res)
-		
+
 #service for loading ci_user information
 @app.route('/login/authenticateUser_Nineteen68_CI',methods=['POST'])
 def authenticateUser_Nineteen68_CI():
@@ -325,7 +325,7 @@ def authenticateUser_Nineteen68_CI():
             app.logger.warn('Empty data received. authentication')
     except Exception as authenticateuserciexc:
         servicesException('authenticateUser_Nineteen68_CI',authenticateuserciexc)
-    return jsonify(res)				   
+    return jsonify(res)
 
 ################################################################################
 # END OF LOGIN SCREEN
@@ -1212,16 +1212,24 @@ def updateIrisObjectType():
             result = icesession.execute(selectquery)
             result = result.current_rows[0]
             result = json.loads(result['screendata'])
-            result['mirror'] = str(result['mirror'][0]) + "'" + str(result['mirror'][1:-1]) + "'" + str(result['mirror'][-1:])
+            flag = False
             for i in range(0,len(result['view'])):
-                result['view'][i]['cord'] = str(result['view'][i]['cord'][0]) + "'" + str(result['view'][i]['cord'][1:-1]) + "'" + str(result['view'][i]['cord'][-1:])
                 if(result['view'][i]['xpath'] == requestdata['xpath']):
-                    result['view'][i]['objectType'] = requestdata['type']
-            updatequery = ("update screens set screendata='"+json.dumps(result)+
-            "' where projectid="+requestdata['projectid']+" and screenid="+requestdata['screenid']
-            +" and screenname='"+str(requestdata['screenname'])+"' and versionnumber="+str(requestdata['versionnumber']))
-            queryresult = icesession.execute(updatequery)
-            res={'rows':'success'}
+                    flag = True
+                    break
+            if(flag):
+                result['mirror'] = str(result['mirror'][0]) + "'" + str(result['mirror'][1:-1]) + "'" + str(result['mirror'][-1:])
+                for i in range(0,len(result['view'])):
+                    result['view'][i]['cord'] = str(result['view'][i]['cord'][0]) + "'" + str(result['view'][i]['cord'][1:-1]) + "'" + str(result['view'][i]['cord'][-1:])
+                    if(result['view'][i]['xpath'] == requestdata['xpath']):
+                        result['view'][i]['objectType'] = requestdata['type']
+                updatequery = ("update screens set screendata='"+json.dumps(result)+
+                "' where projectid="+requestdata['projectid']+" and screenid="+requestdata['screenid']
+                +" and screenname='"+str(requestdata['screenname'])+"' and versionnumber="+str(requestdata['versionnumber']))
+                queryresult = icesession.execute(updatequery)
+                res={'rows':'success'}
+            else:
+                res={'rows':'unsavedObject'}
     except Exception as updateirisobjexc:
         servicesException("updateIrisObjectType",updateirisobjexc)
     return jsonify(res)
