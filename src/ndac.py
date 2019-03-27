@@ -301,6 +301,32 @@ def loadUserInfo_Nineteen68():
         servicesException("loadUserInfo_Nineteen68",loaduserinfoexc)
         return jsonify(res)
 
+#service for loading ci_user information
+@app.route('/login/authenticateUser_Nineteen68_CI',methods=['POST'])
+def authenticateUser_Nineteen68_CI():
+    app.logger.debug("Inside authenticateUser_Nineteen68_CI")
+    res={'rows':'fail'}
+    try:
+        requestdata=json.loads(request.data)
+        if not isemptyrequest(requestdata):
+            authenticateuser = ("select userid from users where username = '"
+                +requestdata["username"]+"' "+" ALLOW FILTERING")
+            queryresult = n68session.execute(authenticateuser)
+            try:
+                authenticateciuser=("select userid,tokenhash,tokenname,deactivated,expiry from ci_users where userid="+str(queryresult.current_rows[0]["userid"])+" and tokenname='"+requestdata["tokenname"]+"' allow filtering")
+                query=n68session.execute(authenticateciuser)
+                checkExpired="UPDATE ci_users SET deactivated = 'expired' WHERE userid="+str(query.current_rows[0]['userid'])+" and tokenhash='"+str(query.current_rows[0]['tokenhash'])+"' if expiry < '"+str(datetime.now().replace(microsecond=0))+"'"
+                query=n68session.execute(checkExpired)
+                query=n68session.execute(authenticateciuser)
+                res= {"rows":query.current_rows}
+            except Exception as e:
+                app.logger.warn(e)
+        else:
+            app.logger.warn('Empty data received. authentication')
+    except Exception as authenticateuserciexc:
+        servicesException('authenticateUser_Nineteen68_CI',authenticateuserciexc)
+    return jsonify(res)
+
 ################################################################################
 # END OF LOGIN SCREEN
 ################################################################################
@@ -1186,16 +1212,24 @@ def updateIrisObjectType():
             result = icesession.execute(selectquery)
             result = result.current_rows[0]
             result = json.loads(result['screendata'])
-            result['mirror'] = str(result['mirror'][0]) + "'" + str(result['mirror'][1:-1]) + "'" + str(result['mirror'][-1:])
+            flag = False
             for i in range(0,len(result['view'])):
-                result['view'][i]['cord'] = str(result['view'][i]['cord'][0]) + "'" + str(result['view'][i]['cord'][1:-1]) + "'" + str(result['view'][i]['cord'][-1:])
                 if(result['view'][i]['xpath'] == requestdata['xpath']):
-                    result['view'][i]['objectType'] = requestdata['type']
-            updatequery = ("update screens set screendata='"+json.dumps(result)+
-            "' where projectid="+requestdata['projectid']+" and screenid="+requestdata['screenid']
-            +" and screenname='"+str(requestdata['screenname'])+"' and versionnumber="+str(requestdata['versionnumber']))
-            queryresult = icesession.execute(updatequery)
-            res={'rows':'success'}
+                    flag = True
+                    break
+            if(flag):
+                result['mirror'] = str(result['mirror'][0]) + "'" + str(result['mirror'][1:-1]) + "'" + str(result['mirror'][-1:])
+                for i in range(0,len(result['view'])):
+                    result['view'][i]['cord'] = str(result['view'][i]['cord'][0]) + "'" + str(result['view'][i]['cord'][1:-1]) + "'" + str(result['view'][i]['cord'][-1:])
+                    if(result['view'][i]['xpath'] == requestdata['xpath']):
+                        result['view'][i]['objectType'] = requestdata['type']
+                updatequery = ("update screens set screendata='"+json.dumps(result)+
+                "' where projectid="+requestdata['projectid']+" and screenid="+requestdata['screenid']
+                +" and screenname='"+str(requestdata['screenname'])+"' and versionnumber="+str(requestdata['versionnumber']))
+                queryresult = icesession.execute(updatequery)
+                res={'rows':'success'}
+            else:
+                res={'rows':'unsavedObject'}
     except Exception as updateirisobjexc:
         servicesException("updateIrisObjectType",updateirisobjexc)
     return jsonify(res)
@@ -2137,6 +2171,92 @@ def getLDAPConfig():
         servicesException("getLDAPConfig",getallusersexc)
     return jsonify(res)
 
+#service for generating token
+@app.route('/admin/generateCIusertokens',methods=['POST'])
+def generateCIusertokens():
+    app.logger.debug("Inside generateCIusertokens")
+    res={'rows':'fail'}
+    try:
+        requestdata=json.loads(request.data)
+        if not isemptyrequest(requestdata):
+            if requestdata.has_key("user_id")and requestdata.has_key("token") and requestdata.has_key("tokenname"):
+                    query=("select tokenname from ci_users where userid= "+requestdata["user_id"]+"and tokenname='"+requestdata["tokenname"]+"'allow filtering")
+                    res=n68session.execute(query)
+                    if(res.current_rows==[]):
+                        try:
+                            queryfetch=("select tokenhash,tokenname from ci_users where userid= "+requestdata["user_id"]+" and deactivated='active' allow filtering;")
+                            result=n68session.execute(queryfetch)
+                            queryfetch=("UPDATE ci_users SET deactivated = 'deactivated' WHERE userid="+requestdata["user_id"]+" and tokenhash='"+result.current_rows[0]['tokenhash']+"';")
+                            result=n68session.execute(queryfetch)
+                        except:
+                            pass
+                        if requestdata['expiry']=='':
+                            tokenquery=("INSERT INTO nineteen68.ci_users (userid,"+
+                            "tokenhash,generated,expiry,deactivated,tokenname) VALUES ("+
+                            requestdata["user_id"]+",'"+requestdata["token"]+"','"+
+                            str(datetime.now().replace(microsecond=0))+"','"+str(datetime.now().replace(microsecond=0)+timedelta(days=30))+"','active','"+requestdata["tokenname"]+"')")
+                        elif(int(datetime.strptime(str(requestdata["expiry"]),'%d-%m-%Y').day)==int(datetime.now().day)):
+                            datetime.strftime(datetime.now(),'%Y-%m-%d %H:%M:%S')
+                            tokenquery=("INSERT INTO nineteen68.ci_users (userid,"+
+                            "tokenhash,generated,expiry,deactivated,tokenname) VALUES ("+
+                            requestdata["user_id"]+",'"+requestdata["token"]+"','"+
+                            str(datetime.now().replace(microsecond=0))+"','"+str(datetime.now().replace(microsecond=0)+timedelta(hours=8))+"','active','"+requestdata["tokenname"]+"')")
+                        else:
+                            tokenquery=("INSERT INTO nineteen68.ci_users (userid,"+
+                            "tokenhash,generated,expiry,deactivated,tokenname) VALUES ("+
+                            requestdata["user_id"]+",'"+requestdata["token"]+"','"+
+                            str(datetime.now().replace(microsecond=0))+"','"+str(datetime.strptime(str(requestdata["expiry"]),'%d-%m-%Y')+timedelta(hours=8))+"','active','"+requestdata["tokenname"]+"')")
+                        queryresulttoken = n68session.execute(tokenquery)
+                        res= {'rows':{'token':requestdata["token"]}}
+                    else:
+                        res={'rows':'duplicate'}
+        return jsonify(res)
+    except Exception as getCITokensexc:
+        servicesException("generateCIusertokens",getCITokensexc)
+        return jsonify(res)
+
+#service to get token details
+@app.route('/admin/getCIUsersDetails',methods=['POST'])
+def getCIUsersDetails():
+    app.logger.debug("Inside getCIUsersDetails")
+    res={'rows':'fail'}
+    try:
+        requestdata=json.loads(request.data)
+        if not isemptyrequest(requestdata):
+            if requestdata.has_key("user_id"):
+                query=("select userid,tokenhash,deactivated,expiry from ci_users where deactivated='active'")
+                queryresult = n68session.execute(query)
+                for i in queryresult:
+                    updatequery=("UPDATE ci_users SET deactivated = 'expired' WHERE userid="+str(i['userid'])+" and tokenhash='"+i['tokenhash']+"' if expiry < '"+str(datetime.now().replace(microsecond=0))+"'")
+                    queryres = n68session.execute(updatequery)
+                fetchquery=("select tokenname,deactivated from ci_users where userid="+requestdata["user_id"])
+                queryresult = n68session.execute(fetchquery)
+                res={'rows':queryresult.current_rows}
+        return jsonify(res)
+    except Exception as getCIUserssexc:
+        servicesException("getCIUsersDetails",getCIUserssexc)
+        return jsonify(res)
+
+#service to deactivate token
+@app.route('/admin/deactivateCIUser',methods=['POST'])
+def deactivateCIUser():
+    app.logger.debug("Inside deactivateCIUser")
+    res={'rows':'fail'}
+    try:
+        requestdata=json.loads(request.data)
+        if not isemptyrequest(requestdata):
+            if requestdata.has_key("tokenname") and requestdata.has_key("user_id"):
+                queryfetch=("select tokenhash from ci_users where userid= "+requestdata["user_id"]+" and tokenname='"+requestdata["tokenname"]+"' allow filtering;")
+                result=n68session.execute(queryfetch)
+                queryfetch=("UPDATE ci_users SET deactivated = 'deactivated' WHERE userid="+requestdata["user_id"]+" and tokenhash='"+result.current_rows[0]['tokenhash']+"';")
+                result=n68session.execute(queryfetch)
+                fetchquery=("select tokenname,deactivated from ci_users where userid="+requestdata["user_id"])
+                queryresult = n68session.execute(fetchquery)
+                res={'rows':queryresult.current_rows}
+        return jsonify(res)
+    except Exception as deactivateTokensexc:
+        servicesException("deactivateCIUser",deactivateTokensexc)
+        return jsonify(res)
 ################################################################################
 # END OF ADMIN SCREEN
 ################################################################################
@@ -2861,7 +2981,8 @@ ecodeServices = {"authenticateUser_Nineteen68":"300","authenticateUser_Nineteen6
     "userAccess_Nineteen68":"364","checkServer":"365","updateActiveIceSessions":"366",
     "counterupdator":"367","getreports_in_day":"368","getsuites_inititated":"369","getscenario_inititated":"370",
     "gettestcases_inititated":"371","modelinfoprocessor":"372","dataprocessor":"373","reportdataprocessor":"374",
-    "getTopMatches_ProfJ": "375", "updateFrequency_ProfJ": "376","updateReportData":"377","updateIrisObjectType":"378"
+    "getTopMatches_ProfJ": "375", "updateFrequency_ProfJ": "376","updateReportData":"377","updateIrisObjectType":"378",
+	"authenticateUser_Nineteen68_CI":"379","generateCIusertokens":"380","getCIUsersDetails":"381","deactivateCIUser":"382"
 }
 
 ################################################################################
