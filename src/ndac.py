@@ -300,7 +300,7 @@ def loadUserInfo_Nineteen68():
     except Exception as loaduserinfoexc:
         servicesException("loadUserInfo_Nineteen68",loaduserinfoexc)
         return jsonify(res)
-		
+
 #service for loading ci_user information
 @app.route('/login/authenticateUser_Nineteen68_CI',methods=['POST'])
 def authenticateUser_Nineteen68_CI():
@@ -325,7 +325,7 @@ def authenticateUser_Nineteen68_CI():
             app.logger.warn('Empty data received. authentication')
     except Exception as authenticateuserciexc:
         servicesException('authenticateUser_Nineteen68_CI',authenticateuserciexc)
-    return jsonify(res)				   
+    return jsonify(res)
 
 ################################################################################
 # END OF LOGIN SCREEN
@@ -2170,15 +2170,11 @@ def generateCIusertokens():
     res={'rows':'fail'}
     try:
         requestdata=json.loads(request.data)
-        print requestdata
         if not isemptyrequest(requestdata):
             if requestdata.has_key("user_id")and requestdata.has_key("token") and requestdata.has_key("tokenname"):
                     query=("select tokenname from ci_users where userid= "+requestdata["user_id"]+"and tokenname='"+requestdata["tokenname"]+"'allow filtering")
-                    print query
                     res=n68session.execute(query)
-                    print res.current_rows
                     if(res.current_rows==[]):
-                        print 'if'
                         try:
                             queryfetch=("select tokenhash,tokenname from ci_users where userid= "+requestdata["user_id"]+" and deactivated='active' allow filtering;")
                             result=n68session.execute(queryfetch)
@@ -2205,9 +2201,7 @@ def generateCIusertokens():
                         queryresulttoken = n68session.execute(tokenquery)
                         res= {'rows':{'token':requestdata["token"]}}
                     else:
-                        print 'else'
                         res={'rows':'duplicate'}
-                        print res
         return jsonify(res)
     except Exception as getCITokensexc:
         servicesException("generateCIusertokens",getCITokensexc)
