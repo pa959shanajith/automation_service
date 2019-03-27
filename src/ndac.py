@@ -320,7 +320,7 @@ def authenticateUser_Nineteen68_CI():
                 query=n68session.execute(authenticateciuser)
                 res= {"rows":query.current_rows}
             except Exception as e:
-                print e
+                app.logger.warn(e)
         else:
             app.logger.warn('Empty data received. authentication')
     except Exception as authenticateuserciexc:
