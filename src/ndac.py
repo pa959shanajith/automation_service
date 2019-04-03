@@ -2224,7 +2224,7 @@ def getCIUsersDetails():
         requestdata=json.loads(request.data)
         if not isemptyrequest(requestdata):
             if requestdata.has_key("user_id"):
-                query=("select userid,tokenhash,deactivated,expiry from ci_users where deactivated='active'")
+                query=("SELECT * FROM ci_users WHERE deactivated='active' ALLOW FILTERING")
                 queryresult = n68session.execute(query)
                 for i in queryresult:
                     updatequery=("UPDATE ci_users SET deactivated = 'expired' WHERE userid="+str(i['userid'])+" and tokenhash='"+i['tokenhash']+"' if expiry < '"+str(datetime.now().replace(microsecond=0))+"'")
