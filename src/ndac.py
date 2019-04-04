@@ -1213,16 +1213,18 @@ def updateIrisObjectType():
             result = result.current_rows[0]
             result = json.loads(result['screendata'])
             flag = False
-            for i in range(0,len(result['view'])):
-                if(result['view'][i]['xpath'] == requestdata['xpath']):
-                    flag = True
-                    break
+            if(result != {}):
+                for i in range(0,len(result['view'])):
+                    if(result['view'][i]['xpath'] == requestdata['xpath']):
+                        flag = True
+                        break
             if(flag):
                 result['mirror'] = str(result['mirror'][0]) + "'" + str(result['mirror'][1:-1]) + "'" + str(result['mirror'][-1:])
                 for i in range(0,len(result['view'])):
-                    result['view'][i]['cord'] = str(result['view'][i]['cord'][0]) + "'" + str(result['view'][i]['cord'][1:-1]) + "'" + str(result['view'][i]['cord'][-1:])
-                    if(result['view'][i]['xpath'] == requestdata['xpath']):
-                        result['view'][i]['objectType'] = requestdata['type']
+                    if('cord' in result['view'][i].keys()):
+                        result['view'][i]['cord'] = str(result['view'][i]['cord'][0]) + "'" + str(result['view'][i]['cord'][1:-1]) + "'" + str(result['view'][i]['cord'][-1:])
+                        if(result['view'][i]['xpath'] == requestdata['xpath']):
+                            result['view'][i]['objectType'] = requestdata['type']
                 updatequery = ("update screens set screendata='"+json.dumps(result)+
                 "' where projectid="+requestdata['projectid']+" and screenid="+requestdata['screenid']
                 +" and screenname='"+str(requestdata['screenname'])+"' and versionnumber="+str(requestdata['versionnumber']))
