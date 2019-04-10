@@ -2303,6 +2303,16 @@ def getAllSuites_ICE():
                     +"from testsuites where cycleid=" + requestdata['id']
                     +" allow filtering;")
                 queryresult = icesession.execute(getallsuitesquery9)
+            elif(requestdata["query"] == 'getAlltestSuites'):
+                getallsuitesquery10=("select testsuiteid,testsuitename "
+                    +"from testsuites where cycleid=" + requestdata['id']
+                    +" allow filtering;")
+                queryresult = icesession.execute(getallsuitesquery10)
+            elif(requestdata["query"] == 'getScenariosPertestSuite'):
+                getallsuitesquery11=("select testscenarioids "
+                    +"from testsuites where cycleid=" + requestdata['cycleId'] + " and testsuiteid="+ requestdata['testsuiteId']
+                    +" allow filtering;")
+                queryresult = icesession.execute(getallsuitesquery11)
 ##            elif(requestdata["query"] == 'projectsUnderDomain'):
 ##                getallsuitesquery2 =("select projectid from projects "
 ##                                +"where domainid="+requestdata['domainid']+";")
@@ -2379,16 +2389,17 @@ def reportStatusScenarios_ICE():
                     +" ALLOW FILTERING")
                     queryresult = icesession.execute(getreportstatusquery3)
                     scnmap[scnid] = queryresult.current_rows[0]["testscenarioname"]
+
                 return jsonify(scnmap)
             elif(requestdata["query"] == 'allreports'):
                 getreportstatusquery4 = ("select reportid,browser,executionid,executedtime,status "
                 +"from reports where testscenarioid="+requestdata['scenarioid']
-                +"and cycleid="+requestdata['cycleid']+"and testsuiteid="+requestdata['suiteid']+"ALLOW FILTERING")
+                +"and cycleid="+requestdata['cycleid']+"ALLOW FILTERING")
                 queryresult = icesession.execute(getreportstatusquery4)
             elif(requestdata["query"] == 'latestreport'):
                 getreportstatusquery5 = ("select reportid,browser,executionid,executedtime,status "
                 +"from reports where testscenarioid="+requestdata['scenarioid']
-                +"and cycleid="+requestdata['cycleid']+"and testsuiteid="+requestdata['suiteid']+"ALLOW FILTERING")
+                +"and cycleid="+requestdata['cycleid']+"ALLOW FILTERING")
                 queryresult = icesession.execute(getreportstatusquery5)
                 if (len(queryresult.current_rows)>0):
                     queryresult.current_rows.sort(key=lambda x:x['executedtime'])
