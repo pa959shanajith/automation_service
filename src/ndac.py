@@ -2185,31 +2185,17 @@ def generateCIusertokens():
                     query=("select tokenname from ci_users where userid= "+requestdata["user_id"]+"and tokenname='"+requestdata["tokenname"]+"'allow filtering")
                     res=n68session.execute(query)
                     if(res.current_rows==[]):
-                        try:
-                            queryfetch=("select tokenhash,tokenname from ci_users where userid= "+requestdata["user_id"]+" and deactivated='active' allow filtering;")
-                            result=n68session.execute(queryfetch)
-                            queryfetch=("UPDATE ci_users SET deactivated = 'deactivated' WHERE userid="+requestdata["user_id"]+" and tokenhash='"+result.current_rows[0]['tokenhash']+"';")
-                            result=n68session.execute(queryfetch)
-                        except:
-                            pass
-                        if requestdata['expiry']=='':
+                        queryfetch=("select tokenhash,tokenname from ci_users where userid= "+requestdata["user_id"]+" and deactivated='active' allow filtering;")
+                        result=n68session.execute(queryfetch)
+                        queryfetch=("UPDATE ci_users SET deactivated = 'deactivated' WHERE userid="+requestdata["user_id"]+" and tokenhash='"+result.current_rows[0]['tokenhash']+"';")
+                        result=n68session.execute(queryfetch)
+                        if requestdata.has_key("expiry"):
                             tokenquery=("INSERT INTO nineteen68.ci_users (userid,"+
-                            "tokenhash,generated,expiry,deactivated,tokenname) VALUES ("+
-                            requestdata["user_id"]+",'"+requestdata["token"]+"','"+
-                            str(datetime.now().replace(microsecond=0))+"','"+str(datetime.now().replace(microsecond=0)+timedelta(days=30))+"','active','"+requestdata["tokenname"]+"')")
-                        elif(int(datetime.strptime(str(requestdata["expiry"]),'%d-%m-%Y').day)==int(datetime.now().day)):
-                            datetime.strftime(datetime.now(),'%Y-%m-%d %H:%M:%S')
-                            tokenquery=("INSERT INTO nineteen68.ci_users (userid,"+
-                            "tokenhash,generated,expiry,deactivated,tokenname) VALUES ("+
-                            requestdata["user_id"]+",'"+requestdata["token"]+"','"+
-                            str(datetime.now().replace(microsecond=0))+"','"+str(datetime.now().replace(microsecond=0)+timedelta(hours=8))+"','active','"+requestdata["tokenname"]+"')")
-                        else:
-                            tokenquery=("INSERT INTO nineteen68.ci_users (userid,"+
-                            "tokenhash,generated,expiry,deactivated,tokenname) VALUES ("+
-                            requestdata["user_id"]+",'"+requestdata["token"]+"','"+
-                            str(datetime.now().replace(microsecond=0))+"','"+str(datetime.strptime(str(requestdata["expiry"]),'%d-%m-%Y')+timedelta(hours=8))+"','active','"+requestdata["tokenname"]+"')")
-                        queryresulttoken = n68session.execute(tokenquery)
-                        res= {'rows':{'token':requestdata["token"]}}
+                                "tokenhash,generated,expiry,deactivated,tokenname) VALUES ("+
+                                requestdata["user_id"]+",'"+requestdata["token"]+"','"+
+                                str(datetime.now().replace(microsecond=0))+"','"+str(datetime.strptime(str(requestdata["expiry"]),'%d-%m-%Y %H:%M'))+"','active','"+requestdata["tokenname"]+"')")
+                            queryresulttoken = n68session.execute(tokenquery)
+                            res= {'rows':{'token':requestdata["token"]}}
                     else:
                         res={'rows':'duplicate'}
         return jsonify(res)
