@@ -1213,16 +1213,18 @@ def updateIrisObjectType():
             result = result.current_rows[0]
             result = json.loads(result['screendata'])
             flag = False
-            for i in range(0,len(result['view'])):
-                if(result['view'][i]['xpath'] == requestdata['xpath']):
-                    flag = True
-                    break
+            if(result != {}):
+                for i in range(0,len(result['view'])):
+                    if(result['view'][i]['xpath'] == requestdata['xpath']):
+                        flag = True
+                        break
             if(flag):
                 result['mirror'] = str(result['mirror'][0]) + "'" + str(result['mirror'][1:-1]) + "'" + str(result['mirror'][-1:])
                 for i in range(0,len(result['view'])):
-                    result['view'][i]['cord'] = str(result['view'][i]['cord'][0]) + "'" + str(result['view'][i]['cord'][1:-1]) + "'" + str(result['view'][i]['cord'][-1:])
-                    if(result['view'][i]['xpath'] == requestdata['xpath']):
-                        result['view'][i]['objectType'] = requestdata['type']
+                    if('cord' in result['view'][i].keys()):
+                        result['view'][i]['cord'] = str(result['view'][i]['cord'][0]) + "'" + str(result['view'][i]['cord'][1:-1]) + "'" + str(result['view'][i]['cord'][-1:])
+                        if(result['view'][i]['xpath'] == requestdata['xpath']):
+                            result['view'][i]['objectType'] = requestdata['type']
                 updatequery = ("update screens set screendata='"+json.dumps(result)+
                 "' where projectid="+requestdata['projectid']+" and screenid="+requestdata['screenid']
                 +" and screenname='"+str(requestdata['screenname'])+"' and versionnumber="+str(requestdata['versionnumber']))
@@ -2301,6 +2303,16 @@ def getAllSuites_ICE():
                     +"from testsuites where cycleid=" + requestdata['id']
                     +" allow filtering;")
                 queryresult = icesession.execute(getallsuitesquery9)
+            elif(requestdata["query"] == 'getAlltestSuites'):
+                getallsuitesquery10=("select testsuiteid,testsuitename "
+                    +"from testsuites where cycleid=" + requestdata['id']
+                    +" allow filtering;")
+                queryresult = icesession.execute(getallsuitesquery10)
+            elif(requestdata["query"] == 'getScenariosPertestSuite'):
+                getallsuitesquery11=("select testscenarioids "
+                    +"from testsuites where cycleid=" + requestdata['cycleId'] + " and testsuiteid="+ requestdata['testsuiteId']
+                    +" allow filtering;")
+                queryresult = icesession.execute(getallsuitesquery11)
 ##            elif(requestdata["query"] == 'projectsUnderDomain'):
 ##                getallsuitesquery2 =("select projectid from projects "
 ##                                +"where domainid="+requestdata['domainid']+";")
@@ -2377,6 +2389,7 @@ def reportStatusScenarios_ICE():
                     +" ALLOW FILTERING")
                     queryresult = icesession.execute(getreportstatusquery3)
                     scnmap[scnid] = queryresult.current_rows[0]["testscenarioname"]
+
                 return jsonify(scnmap)
             elif(requestdata["query"] == 'allreports'):
                 getreportstatusquery4 = ("select reportid,browser,executionid,executedtime,status "
