@@ -2394,12 +2394,12 @@ def reportStatusScenarios_ICE():
             elif(requestdata["query"] == 'allreports'):
                 getreportstatusquery4 = ("select reportid,browser,executionid,executedtime,status "
                 +"from reports where testscenarioid="+requestdata['scenarioid']
-                +"and cycleid="+requestdata['cycleid']+"ALLOW FILTERING")
+                +"and cycleid="+requestdata['cycleid']+"and testsuiteid="+requestdata['suiteid']+"ALLOW FILTERING")
                 queryresult = icesession.execute(getreportstatusquery4)
             elif(requestdata["query"] == 'latestreport'):
                 getreportstatusquery5 = ("select reportid,browser,executionid,executedtime,status "
                 +"from reports where testscenarioid="+requestdata['scenarioid']
-                +"and cycleid="+requestdata['cycleid']+"ALLOW FILTERING")
+                +"and cycleid="+requestdata['cycleid']+"and testsuiteid="+requestdata['suiteid']+"ALLOW FILTERING")
                 queryresult = icesession.execute(getreportstatusquery5)
                 if (len(queryresult.current_rows)>0):
                     queryresult.current_rows.sort(key=lambda x:x['executedtime'])
