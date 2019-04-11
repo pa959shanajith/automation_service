@@ -2217,7 +2217,7 @@ def getCIUsersDetails():
                 for i in queryresult:
                     updatequery=("UPDATE ci_users SET deactivated = 'expired' WHERE userid="+str(i['userid'])+" and tokenhash='"+i['tokenhash']+"' if expiry < '"+str(datetime.now().replace(microsecond=0))+"'")
                     queryres = n68session.execute(updatequery)
-                fetchquery=("select tokenname,deactivated from ci_users where userid="+requestdata["user_id"])
+                fetchquery=("select tokenname,deactivated,expiry from ci_users where userid="+requestdata["user_id"])
                 queryresult = n68session.execute(fetchquery)
                 res={'rows':queryresult.current_rows}
         return jsonify(res)
