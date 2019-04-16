@@ -128,6 +128,10 @@ profj_log_conf_path = assistpath + "/logging_config.conf"
 profj_syn_path = assistpath + "/SYNONYMS.json"
 profj_keywords_path = assistpath+"/keywords_db.txt"
 profj_sqlitedb=None
+ui_plugins = {"alm":"ALM","apg":"APG","dashboard":"Dashboard",
+    "deadcode":"Dead Code Identifier","mindmap":"Mindmap","neurongraphs":"Neuron Graphs",
+    "oxbowcode":"Oxbow Code Identifier","performancetesting":"Performance Testing",
+    "reports":"Reports","utility":"Utility","weboccular":"Webocular"}
 
 #server check
 @app.route('/')
@@ -276,27 +280,20 @@ def loadUserInfo_Nineteen68():
                         'additionalroles':additionalroles
                     })
                 res={'rows':rows}
-                return jsonify(res)
             elif(requestdata["query"] == 'userPlugins'):
-                loaduserinfo2 = ("select alm,apg,dashboard,deadcode,mindmap,"
-                                +"neurongraphs,oxbowcode,reports,weboccular,"
-                                +"utility from userpermissions where roleid = "
-                                +requestdata["roleid"]+" allow filtering")
+                loaduserinfo2 = ("select * from userpermissions where roleid = "
+                    +requestdata["roleid"]+" allow filtering")
                 queryresult = n68session.execute(loaduserinfo2)
-                ui_plugins_list = []
-                for keys in licensedata['plugins']:
-                    if(licensedata['plugins'][keys] == True):
-                        ui_plugins_list.append(keys)
-                for keys in (queryresult.current_rows)[0]:
-                    if(keys not in ui_plugins_list):
-                        (queryresult.current_rows)[0][keys] = False
-            else:
-                return jsonify(res)
-            res= {"rows":queryresult.current_rows}
-            return jsonify(res)
+                plugins = queryresult.current_rows[0]
+                lic_plugins = licensedata['plugins']
+                allowed_plugins = []
+                for keys in ui_plugins:
+                    allowed_plugins.append({ "pluginName": ui_plugins[keys],
+                        "pluginValue": False if lic_plugins[keys] == False else plugins[keys]})
+                res= {"rows":allowed_plugins}
         else:
             app.logger.warn('Empty data received. loadUserInfo')
-            return jsonify(res)
+        return jsonify(res)
     except Exception as loaduserinfoexc:
         servicesException("loadUserInfo_Nineteen68",loaduserinfoexc)
         return jsonify(res)
@@ -1816,7 +1813,7 @@ def manageUserDetails():
                 fetchquery = ("select username from users where username = '"+
                     requestdata["username"]+"' ALLOW FILTERING")
                 queryresult = n68session.execute(fetchquery)
-                if len(queryresult.current_rows) != 0 and requestdata["username"]!="ci_user":
+                if len(queryresult.current_rows) != 0:
                     res["rows"] = "exists"
                     return jsonify(res)
                 requestdata["userid"] = str(uuid.uuid4())
@@ -1890,8 +1887,7 @@ def getUserDetails():
                 userList = []
                 for i in range(len(queryresult.current_rows)):
                     username = queryresult.current_rows[i]["username"]
-                    # Hidden Admin User & Allow multiple CI Users
-                    if not (username in ["support.nineteen68", "ci_user"]):
+                    if username != "support.nineteen68": # Hidden Admin User
                         userList.append(queryresult.current_rows[i])
             res["rows"] = userList
         else:
