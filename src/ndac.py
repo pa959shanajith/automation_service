@@ -128,6 +128,10 @@ profj_log_conf_path = assistpath + "/logging_config.conf"
 profj_syn_path = assistpath + "/SYNONYMS.json"
 profj_keywords_path = assistpath+"/keywords_db.txt"
 profj_sqlitedb=None
+ui_plugins = {"alm":"ALM","apg":"APG","dashboard":"Dashboard",
+    "deadcode":"Dead Code Identifier","mindmap":"Mindmap","neurongraphs":"Neuron Graphs",
+    "oxbowcode":"Oxbow Code Identifier","performancetesting":"Performance Testing",
+    "reports":"Reports","utility":"Utility","weboccular":"Webocular"}
 
 #server check
 @app.route('/')
@@ -276,27 +280,20 @@ def loadUserInfo_Nineteen68():
                         'additionalroles':additionalroles
                     })
                 res={'rows':rows}
-                return jsonify(res)
             elif(requestdata["query"] == 'userPlugins'):
-                loaduserinfo2 = ("select alm,apg,dashboard,deadcode,mindmap,"
-                                +"neurongraphs,oxbowcode,reports,weboccular,"
-                                +"utility from userpermissions where roleid = "
-                                +requestdata["roleid"]+" allow filtering")
+                loaduserinfo2 = ("select * from userpermissions where roleid = "
+                    +requestdata["roleid"]+" allow filtering")
                 queryresult = n68session.execute(loaduserinfo2)
-                ui_plugins_list = []
-                for keys in licensedata['plugins']:
-                    if(licensedata['plugins'][keys] == True):
-                        ui_plugins_list.append(keys)
-                for keys in (queryresult.current_rows)[0]:
-                    if(keys not in ui_plugins_list):
-                        (queryresult.current_rows)[0][keys] = False
-            else:
-                return jsonify(res)
-            res= {"rows":queryresult.current_rows}
-            return jsonify(res)
+                plugins = queryresult.current_rows[0]
+                lic_plugins = licensedata['plugins']
+                allowed_plugins = []
+                for keys in ui_plugins:
+                    allowed_plugins.append({ "pluginName": ui_plugins[keys],
+                        "pluginValue": False if lic_plugins[keys] == False else plugins[keys]})
+                res= {"rows":allowed_plugins}
         else:
             app.logger.warn('Empty data received. loadUserInfo')
-            return jsonify(res)
+        return jsonify(res)
     except Exception as loaduserinfoexc:
         servicesException("loadUserInfo_Nineteen68",loaduserinfoexc)
         return jsonify(res)
@@ -1816,7 +1813,7 @@ def manageUserDetails():
                 fetchquery = ("select username from users where username = '"+
                     requestdata["username"]+"' ALLOW FILTERING")
                 queryresult = n68session.execute(fetchquery)
-                if len(queryresult.current_rows) != 0 and requestdata["username"]!="ci_user":
+                if len(queryresult.current_rows) != 0:
                     res["rows"] = "exists"
                     return jsonify(res)
                 requestdata["userid"] = str(uuid.uuid4())
@@ -1890,8 +1887,7 @@ def getUserDetails():
                 userList = []
                 for i in range(len(queryresult.current_rows)):
                     username = queryresult.current_rows[i]["username"]
-                    # Hidden Admin User & Allow multiple CI Users
-                    if not (username in ["support.nineteen68", "ci_user"]):
+                    if username != "support.nineteen68": # Hidden Admin User
                         userList.append(queryresult.current_rows[i])
             res["rows"] = userList
         else:
@@ -2185,31 +2181,17 @@ def generateCIusertokens():
                     query=("select tokenname from ci_users where userid= "+requestdata["user_id"]+"and tokenname='"+requestdata["tokenname"]+"'allow filtering")
                     res=n68session.execute(query)
                     if(res.current_rows==[]):
-                        try:
-                            queryfetch=("select tokenhash,tokenname from ci_users where userid= "+requestdata["user_id"]+" and deactivated='active' allow filtering;")
-                            result=n68session.execute(queryfetch)
-                            queryfetch=("UPDATE ci_users SET deactivated = 'deactivated' WHERE userid="+requestdata["user_id"]+" and tokenhash='"+result.current_rows[0]['tokenhash']+"';")
-                            result=n68session.execute(queryfetch)
-                        except:
-                            pass
-                        if requestdata['expiry']=='':
+                        queryfetch=("select tokenhash,tokenname from ci_users where userid= "+requestdata["user_id"]+" and deactivated='active' allow filtering;")
+                        result=n68session.execute(queryfetch)
+                        queryfetch=("UPDATE ci_users SET deactivated = 'deactivated' WHERE userid="+requestdata["user_id"]+" and tokenhash='"+result.current_rows[0]['tokenhash']+"';")
+                        result=n68session.execute(queryfetch)
+                        if requestdata.has_key("expiry"):
                             tokenquery=("INSERT INTO nineteen68.ci_users (userid,"+
-                            "tokenhash,generated,expiry,deactivated,tokenname) VALUES ("+
-                            requestdata["user_id"]+",'"+requestdata["token"]+"','"+
-                            str(datetime.now().replace(microsecond=0))+"','"+str(datetime.now().replace(microsecond=0)+timedelta(days=30))+"','active','"+requestdata["tokenname"]+"')")
-                        elif(int(datetime.strptime(str(requestdata["expiry"]),'%d-%m-%Y').day)==int(datetime.now().day)):
-                            datetime.strftime(datetime.now(),'%Y-%m-%d %H:%M:%S')
-                            tokenquery=("INSERT INTO nineteen68.ci_users (userid,"+
-                            "tokenhash,generated,expiry,deactivated,tokenname) VALUES ("+
-                            requestdata["user_id"]+",'"+requestdata["token"]+"','"+
-                            str(datetime.now().replace(microsecond=0))+"','"+str(datetime.now().replace(microsecond=0)+timedelta(hours=8))+"','active','"+requestdata["tokenname"]+"')")
-                        else:
-                            tokenquery=("INSERT INTO nineteen68.ci_users (userid,"+
-                            "tokenhash,generated,expiry,deactivated,tokenname) VALUES ("+
-                            requestdata["user_id"]+",'"+requestdata["token"]+"','"+
-                            str(datetime.now().replace(microsecond=0))+"','"+str(datetime.strptime(str(requestdata["expiry"]),'%d-%m-%Y')+timedelta(hours=8))+"','active','"+requestdata["tokenname"]+"')")
-                        queryresulttoken = n68session.execute(tokenquery)
-                        res= {'rows':{'token':requestdata["token"]}}
+                                "tokenhash,generated,expiry,deactivated,tokenname) VALUES ("+
+                                requestdata["user_id"]+",'"+requestdata["token"]+"','"+
+                                str(datetime.now().replace(microsecond=0))+"','"+str(datetime.strptime(str(requestdata["expiry"]),'%d-%m-%Y %H:%M'))+"','active','"+requestdata["tokenname"]+"')")
+                            queryresulttoken = n68session.execute(tokenquery)
+                            res= {'rows':{'token':requestdata["token"]}}
                     else:
                         res={'rows':'duplicate'}
         return jsonify(res)
@@ -2231,7 +2213,7 @@ def getCIUsersDetails():
                 for i in queryresult:
                     updatequery=("UPDATE ci_users SET deactivated = 'expired' WHERE userid="+str(i['userid'])+" and tokenhash='"+i['tokenhash']+"' if expiry < '"+str(datetime.now().replace(microsecond=0))+"'")
                     queryres = n68session.execute(updatequery)
-                fetchquery=("select tokenname,deactivated from ci_users where userid="+requestdata["user_id"])
+                fetchquery=("select tokenname,deactivated,expiry from ci_users where userid="+requestdata["user_id"])
                 queryresult = n68session.execute(fetchquery)
                 res={'rows':queryresult.current_rows}
         return jsonify(res)
