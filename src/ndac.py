@@ -259,9 +259,8 @@ def loadUserInfo_Nineteen68():
                 global latest_access_time
                 latest_access_time=datetime.now()
                 loaduserinfo1 = ("select userid, emailid, firstname, lastname, "
-                                +"defaultrole, ldapuser, additionalroles, username "
-                                +"from users where username = "+
-                                "'"+requestdata["username"]+"' allow filtering")
+                    +"defaultrole, ldapuser, additionalroles, username from users "
+                    +"where username='"+requestdata["username"]+"' allow filtering")
                 queryresult = n68session.execute(loaduserinfo1)
                 rows=[]
                 for eachkey in queryresult.current_rows:
@@ -1818,28 +1817,20 @@ def manageUserDetails():
                     return jsonify(res)
                 requestdata["userid"] = str(uuid.uuid4())
                 requestdata["password"] = "'"+requestdata["password"]+"'"
-                valueQuery = ""
                 if(requestdata["ldapuser"]):
                     requestdata["password"] = "null"
                 else:
                     requestdata["ldapuser"] = "{}"
                 #history = createHistory("create","users",requestdata)
                 createdon = str(getcurrentdate())
-                if(requestdata["ciuser"]):
-                    valueQuery = (requestdata["userid"]+",'"+requestdata["createdby"]+
-                        "',"+createdon+",null,False,null,null,null,'{}','"+
-                        requestdata["createdby"]+"',"+createdon+","+
-                        requestdata["password"]+",'"+requestdata["username"]+"'")
-                else:
-                    valueQuery = (requestdata["userid"]+",'"+requestdata["createdby"]+
-                        "',"+createdon+","+requestdata['defaultrole']+
-                        ",False,'"+requestdata["emailid"]+"','"+requestdata["firstname"]+
-                        "','"+requestdata["lastname"]+"','"+str(requestdata['ldapuser'])+
-                        "','"+requestdata["createdby"]+"',"+createdon+","+
-                        requestdata['password']+",'"+requestdata['username']+"'")
                 userQuery=("insert into users (userid,createdby,createdon,"+
                     "defaultrole,deactivated,emailid,firstname,lastname,ldapuser"+
-                    ",modifiedby,modifiedon,password,username) values ("+valueQuery+")")
+                    ",modifiedby,modifiedon,password,username) values ("+requestdata["userid"]+
+                    ",'"+requestdata["createdby"]+"',"+createdon+","+requestdata['defaultrole']+
+                    ",False,'"+requestdata["emailid"]+"','"+requestdata["firstname"]+
+                    "','"+requestdata["lastname"]+"','"+str(requestdata['ldapuser'])+
+                    "','"+requestdata["createdby"]+"',"+createdon+","+
+                    requestdata['password']+",'"+requestdata['username']+"')")
             elif (requestdata['action'] == "update"):
                 passwordFeild = "',password='"+requestdata['password']
                 if requestdata['password']=='': passwordFeild = ''
@@ -2177,27 +2168,23 @@ def generateCIusertokens():
     try:
         requestdata=json.loads(request.data)
         if not isemptyrequest(requestdata):
-            if requestdata.has_key("user_id")and requestdata.has_key("token") and requestdata.has_key("tokenname"):
+            if requestdata.has_key("user_id") and requestdata.has_key("token") and requestdata.has_key("tokenname"):
                     query=("select tokenname from ci_users where userid= "+requestdata["user_id"]+"and tokenname='"+requestdata["tokenname"]+"'allow filtering")
                     res=n68session.execute(query)
                     if(res.current_rows==[]):
-                        queryfetch=("select tokenhash,tokenname from ci_users where userid= "+requestdata["user_id"]+" and deactivated='active' allow filtering;")
-                        result=n68session.execute(queryfetch)
-                        queryfetch=("UPDATE ci_users SET deactivated = 'deactivated' WHERE userid="+requestdata["user_id"]+" and tokenhash='"+result.current_rows[0]['tokenhash']+"';")
-                        result=n68session.execute(queryfetch)
-                        if requestdata.has_key("expiry"):
-                            tokenquery=("INSERT INTO nineteen68.ci_users (userid,"+
-                                "tokenhash,generated,expiry,deactivated,tokenname) VALUES ("+
-                                requestdata["user_id"]+",'"+requestdata["token"]+"','"+
-                                str(datetime.now().replace(microsecond=0))+"','"+str(datetime.strptime(str(requestdata["expiry"]),'%d-%m-%Y %H:%M'))+"','active','"+requestdata["tokenname"]+"')")
-                            queryresulttoken = n68session.execute(tokenquery)
-                            res= {'rows':{'token':requestdata["token"]}}
+                        tokenquery=("INSERT INTO nineteen68.ci_users (userid,"+
+                            "tokenhash,generated,expiry,deactivated,tokenname) VALUES ("+
+                            requestdata["user_id"]+",'"+requestdata["token"]+"','"+
+                            str(datetime.now().replace(microsecond=0))+"','"+
+                            str(datetime.strptime(str(requestdata["expiry"]),'%d-%m-%Y %H:%M'))+
+                            "','active','"+requestdata["tokenname"]+"')")
+                        n68session.execute(tokenquery)
+                        res= {'rows':{'token':requestdata["token"]}}
                     else:
                         res={'rows':'duplicate'}
-        return jsonify(res)
     except Exception as getCITokensexc:
         servicesException("generateCIusertokens",getCITokensexc)
-        return jsonify(res)
+    return jsonify(res)
 
 #service to get token details
 @app.route('/admin/getCIUsersDetails',methods=['POST'])
@@ -2208,7 +2195,7 @@ def getCIUsersDetails():
         requestdata=json.loads(request.data)
         if not isemptyrequest(requestdata):
             if requestdata.has_key("user_id"):
-                query=("SELECT * FROM ci_users WHERE deactivated='active' ALLOW FILTERING")
+                query=("SELECT * FROM ci_users WHERE userid= "+requestdata["user_id"]+" and deactivated='active' ALLOW FILTERING")
                 queryresult = n68session.execute(query)
                 for i in queryresult:
                     updatequery=("UPDATE ci_users SET deactivated = 'expired' WHERE userid="+str(i['userid'])+" and tokenhash='"+i['tokenhash']+"' if expiry < '"+str(datetime.now().replace(microsecond=0))+"'")
