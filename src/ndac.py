@@ -3507,7 +3507,7 @@ def setLastDumpTime():
 def dashboardCompleteDataDump():
     app.logger.debug("Inside dashboardCompleteDataDump")
     # app.logger.critical("Dashboard Data Dump started..."+str(time.time()))
-    data = {"projecttype":['*'],"projects":['*'],"releases":['*'],"cycles":['*'],"testsuites":['*'],"reports":['*'],"testscenarios":['*']}
+    data = {"reports":['*'], "projecttype":['*'], "projects":['*'], "releases":['*'], "cycles":['*'], "testsuites":['*'], "testscenarios":['*']}
     if not os.path.exists(dashboardDataDumpPath):
         os.mkdir(dashboardDataDumpPath)
     try:
@@ -3522,7 +3522,7 @@ def dashboardCompleteDataDump():
 
 def dashboardDeltaDataDump():
     app.logger.debug("Inside dashboardDeltaDataDump")
-    data = {"projects_view":['*'],"releases_view":['*'],"cycles_view":['*'],"testsuites_view":['*'],"reports_view":['*'],"testscenarios_view":['*']}
+    data = {"reports_view":['*'], "projects_view":['*'],"releases_view":['*'],"cycles_view":['*'], "testsuites_view":['*'],"testscenarios_view":['*']}
 
     if not os.path.exists(dashboardDataDumpPath):
         os.mkdir(dashboardDataDumpPath)
@@ -3550,7 +3550,10 @@ def fetchCompleteTableData(tableName,cols):
     app.logger.info("Inside fetchCompleteTableData tablename: "+str(tableName))
     query = ("select count(*)"+" FROM icetestautomation." + tableName)
     data = icesession.execute(query)
-    if(data.current_rows[0]["count"]<=20000):
+    """ Default timeout Set from 10secs to 120secs """
+    icesession.default_timeout = 120
+    if(data.current_rows[0]["count"]<=5000):
+        app.logger.info("Count less than 5000")
         query = ("select * FROM icetestautomation." + tableName)
         executequery = SimpleStatement(query, fetch_size=data.current_rows[0]["count"])
         data = icesession.execute(executequery)
@@ -3561,7 +3564,8 @@ def fetchCompleteTableData(tableName,cols):
         f.close()
     else:
         query1 = ("select * FROM icetestautomation." + tableName)
-        executequery1 = SimpleStatement(query1, fetch_size=5000)
+        app.logger.info("Count more than 5000")
+        executequery1 = SimpleStatement(query1, fetch_size=2000)
         rep = []
         for page in icesession.execute(executequery1):
             rep.append(page)
@@ -3577,14 +3581,18 @@ def fetchCompleteTableData(tableName,cols):
             f.write("\n")
             f.close()
             count +=1
+    """ Default timeout set back from 120secs to 10secs """
+    icesession.default_timeout = 10
 
 #Function to Dump Data from the Materialized Views for the passed table name Data with specified Column Names:Tiggered at dashboard dumplag interval
 def fetchDeltaTableData(tableName,cols,dumpTime):
     app.logger.info("Inside fetchDeltaTableData tablename: "+str(tableName))
     query = ("select count(*) FROM icetestautomation." + tableName + " where modifiedon >'"+dumpTime+"' ALLOW FILTERING")
     data = icesession.execute(query)
+    """ Default timeout Set from 10secs to 120secs """
+    icesession.default_timeout = 120
     app.logger.info("query1: ")
-    if(data.current_rows[0]["count"]<=20000):
+    if(data.current_rows[0]["count"]<=5000):
         query = ("select * FROM icetestautomation." + tableName + " where modifiedon >'"+dumpTime+"' ALLOW FILTERING")
         app.logger.info(query)
         executequery = SimpleStatement(query, fetch_size=data.current_rows[0]["count"])
@@ -3597,7 +3605,7 @@ def fetchDeltaTableData(tableName,cols,dumpTime):
     else:
         query1 = ("select * FROM icetestautomation." + tableName + " where modifiedon >'"+dumpTime+"' ALLOW FILTERING")
         app.logger.info(query1)
-        executequery1 = SimpleStatement(query1, fetch_size=5000)
+        executequery1 = SimpleStatement(query1, fetch_size=2000)
         rep = []
         for page in icesession.execute(executequery1):
             rep.append(page)
@@ -3613,6 +3621,8 @@ def fetchDeltaTableData(tableName,cols,dumpTime):
             f.write("\n")
             f.close()
             count +=1
+    """ Default timeout set back from 120secs to 10secs """
+    icesession.default_timeout = 10
 
 ##################################
 # END DASHBORAD DUMP COMPONENTS
