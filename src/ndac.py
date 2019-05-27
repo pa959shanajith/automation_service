@@ -132,6 +132,10 @@ profj_log_conf_path = assistpath + "/logging_config.conf"
 profj_syn_path = assistpath + "/SYNONYMS.json"
 profj_keywords_path = assistpath+"/keywords_db.txt"
 profj_sqlitedb=None
+ui_plugins = {"alm":"ALM","apg":"APG","dashboard":"Dashboard",
+    "deadcode":"Dead Code Identifier","mindmap":"Mindmap","neurongraphs":"Neuron Graphs",
+    "oxbowcode":"Oxbow Code Identifier","performancetesting":"Performance Testing",
+    "reports":"Reports","utility":"Utility","weboccular":"Webocular"}
 
 #server check
 @app.route('/')
@@ -259,9 +263,8 @@ def loadUserInfo_Nineteen68():
                 global latest_access_time
                 latest_access_time=datetime.now()
                 loaduserinfo1 = ("select userid, emailid, firstname, lastname, "
-                                +"defaultrole, ldapuser, additionalroles, username "
-                                +"from users where username = "+
-                                "'"+requestdata["username"]+"' allow filtering")
+                    +"defaultrole, ldapuser, additionalroles, username from users "
+                    +"where username='"+requestdata["username"]+"' allow filtering")
                 queryresult = n68session.execute(loaduserinfo1)
                 rows=[]
                 for eachkey in queryresult.current_rows:
@@ -280,30 +283,49 @@ def loadUserInfo_Nineteen68():
                         'additionalroles':additionalroles
                     })
                 res={'rows':rows}
-                return jsonify(res)
             elif(requestdata["query"] == 'userPlugins'):
-                loaduserinfo2 = ("select alm,apg,dashboard,deadcode,mindmap,"
-                                +"neurongraphs,oxbowcode,reports,weboccular,"
-                                +"utility from userpermissions where roleid = "
-                                +requestdata["roleid"]+" allow filtering")
+                loaduserinfo2 = ("select * from userpermissions where roleid = "
+                    +requestdata["roleid"]+" allow filtering")
                 queryresult = n68session.execute(loaduserinfo2)
-                ui_plugins_list = []
-                for keys in licensedata['plugins']:
-                    if(licensedata['plugins'][keys] == True):
-                        ui_plugins_list.append(keys)
-                for keys in (queryresult.current_rows)[0]:
-                    if(keys not in ui_plugins_list):
-                        (queryresult.current_rows)[0][keys] = False
-            else:
-                return jsonify(res)
-            res= {"rows":queryresult.current_rows}
-            return jsonify(res)
+                plugins = queryresult.current_rows[0]
+                lic_plugins = licensedata['plugins']
+                allowed_plugins = []
+                for keys in ui_plugins:
+                    allowed_plugins.append({ "pluginName": ui_plugins[keys],
+                        "pluginValue": False if lic_plugins[keys] == False else plugins[keys]})
+                res= {"rows":allowed_plugins}
         else:
             app.logger.warn('Empty data received. loadUserInfo')
-            return jsonify(res)
+        return jsonify(res)
     except Exception as loaduserinfoexc:
         servicesException("loadUserInfo_Nineteen68",loaduserinfoexc)
         return jsonify(res)
+
+#service for loading ci_user information
+@app.route('/login/authenticateUser_Nineteen68_CI',methods=['POST'])
+def authenticateUser_Nineteen68_CI():
+    app.logger.debug("Inside authenticateUser_Nineteen68_CI")
+    res={'rows':'fail'}
+    try:
+        requestdata=json.loads(request.data)
+        if not isemptyrequest(requestdata):
+            authenticateuser = ("select userid from users where username = '"
+                +requestdata["username"]+"' "+" ALLOW FILTERING")
+            queryresult = n68session.execute(authenticateuser)
+            try:
+                authenticateciuser=("select userid,tokenhash,tokenname,deactivated,expiry from ci_users where userid="+str(queryresult.current_rows[0]["userid"])+" and tokenname='"+requestdata["tokenname"]+"' allow filtering")
+                query=n68session.execute(authenticateciuser)
+                checkExpired="UPDATE ci_users SET deactivated = 'expired' WHERE userid="+str(query.current_rows[0]['userid'])+" and tokenhash='"+str(query.current_rows[0]['tokenhash'])+"' if expiry < '"+str(datetime.now().replace(microsecond=0))+"'"
+                query=n68session.execute(checkExpired)
+                query=n68session.execute(authenticateciuser)
+                res= {"rows":query.current_rows}
+            except Exception as e:
+                app.logger.warn(e)
+        else:
+            app.logger.warn('Empty data received. authentication')
+    except Exception as authenticateuserciexc:
+        servicesException('authenticateUser_Nineteen68_CI',authenticateuserciexc)
+    return jsonify(res)
 
 ################################################################################
 # END OF LOGIN SCREEN
@@ -1177,6 +1199,43 @@ def getTestcaseDetailsForScenario_ICE():
         servicesException("getTestcaseDetailsForScenario_ICE",userrolesexc)
     return jsonify(res)
 
+@app.route('/design/updateIrisObjectType',methods=['POST'])
+def updateIrisObjectType():
+    res={'rows':'fail'}
+    try:
+        requestdata = json.loads(request.data)
+        app.logger.debug("Inside updateIrisObjectType")
+        if not isemptyrequest(requestdata):
+            selectquery = ("select screendata from screens where projectid="+requestdata['projectid']+
+            " and screenid="+requestdata['screenid']+" and screenname='"+str(requestdata['screenname'])+
+            "' and versionnumber="+str(requestdata['versionnumber']))
+            result = icesession.execute(selectquery)
+            result = result.current_rows[0]
+            result = json.loads(result['screendata'])
+            flag = False
+            if(result != {}):
+                for i in range(0,len(result['view'])):
+                    if(result['view'][i]['xpath'] == requestdata['xpath']):
+                        flag = True
+                        break
+            if(flag):
+                result['mirror'] = str(result['mirror'][0]) + "'" + str(result['mirror'][1:-1]) + "'" + str(result['mirror'][-1:])
+                for i in range(0,len(result['view'])):
+                    if('cord' in result['view'][i].keys()):
+                        result['view'][i]['cord'] = str(result['view'][i]['cord'][0]) + "'" + str(result['view'][i]['cord'][1:-1]) + "'" + str(result['view'][i]['cord'][-1:])
+                        if(result['view'][i]['xpath'] == requestdata['xpath']):
+                            result['view'][i]['objectType'] = requestdata['type']
+                updatequery = ("update screens set screendata='"+json.dumps(result)+
+                "' where projectid="+requestdata['projectid']+" and screenid="+requestdata['screenid']
+                +" and screenname='"+str(requestdata['screenname'])+"' and versionnumber="+str(requestdata['versionnumber']))
+                queryresult = icesession.execute(updatequery)
+                res={'rows':'success'}
+            else:
+                res={'rows':'unsavedObject'}
+    except Exception as updateirisobjexc:
+        servicesException("updateIrisObjectType",updateirisobjexc)
+    return jsonify(res)
+
 ################################################################################
 # END OF DESIGN SCREEN
 ################################################################################
@@ -1757,33 +1816,25 @@ def manageUserDetails():
                 fetchquery = ("select username from users where username = '"+
                     requestdata["username"]+"' ALLOW FILTERING")
                 queryresult = n68session.execute(fetchquery)
-                if len(queryresult.current_rows) != 0 and requestdata["username"]!="ci_user":
+                if len(queryresult.current_rows) != 0:
                     res["rows"] = "exists"
                     return jsonify(res)
                 requestdata["userid"] = str(uuid.uuid4())
                 requestdata["password"] = "'"+requestdata["password"]+"'"
-                valueQuery = ""
                 if(requestdata["ldapuser"]):
                     requestdata["password"] = "null"
                 else:
                     requestdata["ldapuser"] = "{}"
                 #history = createHistory("create","users",requestdata)
                 createdon = str(getcurrentdate())
-                if(requestdata["ciuser"]):
-                    valueQuery = (requestdata["userid"]+",'"+requestdata["createdby"]+
-                        "',"+createdon+",null,False,null,null,null,'{}','"+
-                        requestdata["createdby"]+"',"+createdon+","+
-                        requestdata["password"]+",'"+requestdata["username"]+"'")
-                else:
-                    valueQuery = (requestdata["userid"]+",'"+requestdata["createdby"]+
-                        "',"+createdon+","+requestdata['defaultrole']+
-                        ",False,'"+requestdata["emailid"]+"','"+requestdata["firstname"]+
-                        "','"+requestdata["lastname"]+"','"+str(requestdata['ldapuser'])+
-                        "','"+requestdata["createdby"]+"',"+createdon+","+
-                        requestdata['password']+",'"+requestdata['username']+"'")
                 userQuery=("insert into users (userid,createdby,createdon,"+
                     "defaultrole,deactivated,emailid,firstname,lastname,ldapuser"+
-                    ",modifiedby,modifiedon,password,username) values ("+valueQuery+")")
+                    ",modifiedby,modifiedon,password,username) values ("+requestdata["userid"]+
+                    ",'"+requestdata["createdby"]+"',"+createdon+","+requestdata['defaultrole']+
+                    ",False,'"+requestdata["emailid"]+"','"+requestdata["firstname"]+
+                    "','"+requestdata["lastname"]+"','"+str(requestdata['ldapuser'])+
+                    "','"+requestdata["createdby"]+"',"+createdon+","+
+                    requestdata['password']+",'"+requestdata['username']+"')")
             elif (requestdata['action'] == "update"):
                 passwordFeild = "',password='"+requestdata['password']
                 if requestdata['password']=='': passwordFeild = ''
@@ -1831,8 +1882,7 @@ def getUserDetails():
                 userList = []
                 for i in range(len(queryresult.current_rows)):
                     username = queryresult.current_rows[i]["username"]
-                    # Hidden Admin User & Allow multiple CI Users
-                    if not (username in ["support.nineteen68", "ci_user"]):
+                    if username != "support.nineteen68": # Hidden Admin User
                         userList.append(queryresult.current_rows[i])
             res["rows"] = userList
         else:
@@ -2114,6 +2164,74 @@ def getLDAPConfig():
         servicesException("getLDAPConfig",getallusersexc)
     return jsonify(res)
 
+#service for generating token
+@app.route('/admin/generateCIusertokens',methods=['POST'])
+def generateCIusertokens():
+    app.logger.debug("Inside generateCIusertokens")
+    res={'rows':'fail'}
+    try:
+        requestdata=json.loads(request.data)
+        if not isemptyrequest(requestdata):
+            if requestdata.has_key("user_id") and requestdata.has_key("token") and requestdata.has_key("tokenname"):
+                    query=("select tokenname from ci_users where userid= "+requestdata["user_id"]+"and tokenname='"+requestdata["tokenname"]+"'allow filtering")
+                    res=n68session.execute(query)
+                    if(res.current_rows==[]):
+                        tokenquery=("INSERT INTO nineteen68.ci_users (userid,"+
+                            "tokenhash,generated,expiry,deactivated,tokenname) VALUES ("+
+                            requestdata["user_id"]+",'"+requestdata["token"]+"','"+
+                            str(datetime.now().replace(microsecond=0))+"','"+
+                            str(datetime.strptime(str(requestdata["expiry"]),'%d-%m-%Y %H:%M'))+
+                            "','active','"+requestdata["tokenname"]+"')")
+                        n68session.execute(tokenquery)
+                        res= {'rows':{'token':requestdata["token"]}}
+                    else:
+                        res={'rows':'duplicate'}
+    except Exception as getCITokensexc:
+        servicesException("generateCIusertokens",getCITokensexc)
+    return jsonify(res)
+
+#service to get token details
+@app.route('/admin/getCIUsersDetails',methods=['POST'])
+def getCIUsersDetails():
+    app.logger.debug("Inside getCIUsersDetails")
+    res={'rows':'fail'}
+    try:
+        requestdata=json.loads(request.data)
+        if not isemptyrequest(requestdata):
+            if requestdata.has_key("user_id"):
+                query=("SELECT * FROM ci_users WHERE userid= "+requestdata["user_id"]+" and deactivated='active' ALLOW FILTERING")
+                queryresult = n68session.execute(query)
+                for i in queryresult:
+                    updatequery=("UPDATE ci_users SET deactivated = 'expired' WHERE userid="+str(i['userid'])+" and tokenhash='"+i['tokenhash']+"' if expiry < '"+str(datetime.now().replace(microsecond=0))+"'")
+                    queryres = n68session.execute(updatequery)
+                fetchquery=("select tokenname,deactivated,expiry from ci_users where userid="+requestdata["user_id"])
+                queryresult = n68session.execute(fetchquery)
+                res={'rows':queryresult.current_rows}
+        return jsonify(res)
+    except Exception as getCIUserssexc:
+        servicesException("getCIUsersDetails",getCIUserssexc)
+        return jsonify(res)
+
+#service to deactivate token
+@app.route('/admin/deactivateCIUser',methods=['POST'])
+def deactivateCIUser():
+    app.logger.debug("Inside deactivateCIUser")
+    res={'rows':'fail'}
+    try:
+        requestdata=json.loads(request.data)
+        if not isemptyrequest(requestdata):
+            if requestdata.has_key("tokenname") and requestdata.has_key("user_id"):
+                queryfetch=("select tokenhash from ci_users where userid= "+requestdata["user_id"]+" and tokenname='"+requestdata["tokenname"]+"' allow filtering;")
+                result=n68session.execute(queryfetch)
+                queryfetch=("UPDATE ci_users SET deactivated = 'deactivated' WHERE userid="+requestdata["user_id"]+" and tokenhash='"+result.current_rows[0]['tokenhash']+"';")
+                result=n68session.execute(queryfetch)
+                fetchquery=("select tokenname,deactivated from ci_users where userid="+requestdata["user_id"])
+                queryresult = n68session.execute(fetchquery)
+                res={'rows':queryresult.current_rows}
+        return jsonify(res)
+    except Exception as deactivateTokensexc:
+        servicesException("deactivateCIUser",deactivateTokensexc)
+        return jsonify(res)
 ################################################################################
 # END OF ADMIN SCREEN
 ################################################################################
@@ -2158,6 +2276,16 @@ def getAllSuites_ICE():
                     +"from testsuites where cycleid=" + requestdata['id']
                     +" allow filtering;")
                 queryresult = icesession.execute(getallsuitesquery9)
+            elif(requestdata["query"] == 'getAlltestSuites'):
+                getallsuitesquery10=("select testsuiteid,testsuitename "
+                    +"from testsuites where cycleid=" + requestdata['id']
+                    +" allow filtering;")
+                queryresult = icesession.execute(getallsuitesquery10)
+            elif(requestdata["query"] == 'getScenariosPertestSuite'):
+                getallsuitesquery11=("select testscenarioids "
+                    +"from testsuites where cycleid=" + requestdata['cycleId'] + " and testsuiteid="+ requestdata['testsuiteId']
+                    +" allow filtering;")
+                queryresult = icesession.execute(getallsuitesquery11)
 ##            elif(requestdata["query"] == 'projectsUnderDomain'):
 ##                getallsuitesquery2 =("select projectid from projects "
 ##                                +"where domainid="+requestdata['domainid']+";")
@@ -2234,16 +2362,17 @@ def reportStatusScenarios_ICE():
                     +" ALLOW FILTERING")
                     queryresult = icesession.execute(getreportstatusquery3)
                     scnmap[scnid] = queryresult.current_rows[0]["testscenarioname"]
+
                 return jsonify(scnmap)
             elif(requestdata["query"] == 'allreports'):
                 getreportstatusquery4 = ("select reportid,browser,executionid,executedtime,status "
                 +"from reports where testscenarioid="+requestdata['scenarioid']
-                +"and cycleid="+requestdata['cycleid']+"ALLOW FILTERING")
+                +"and cycleid="+requestdata['cycleid']+"and testsuiteid="+requestdata['suiteid']+"ALLOW FILTERING")
                 queryresult = icesession.execute(getreportstatusquery4)
             elif(requestdata["query"] == 'latestreport'):
                 getreportstatusquery5 = ("select reportid,browser,executionid,executedtime,status "
                 +"from reports where testscenarioid="+requestdata['scenarioid']
-                +"and cycleid="+requestdata['cycleid']+"ALLOW FILTERING")
+                +"and cycleid="+requestdata['cycleid']+"and testsuiteid="+requestdata['suiteid']+"ALLOW FILTERING")
                 queryresult = icesession.execute(getreportstatusquery5)
                 if (len(queryresult.current_rows)>0):
                     queryresult.current_rows.sort(key=lambda x:x['executedtime'])
@@ -2838,7 +2967,9 @@ ecodeServices = {"authenticateUser_Nineteen68":"300","authenticateUser_Nineteen6
     "userAccess_Nineteen68":"364","checkServer":"365","updateActiveIceSessions":"366",
     "counterupdator":"367","getreports_in_day":"368","getsuites_inititated":"369","getscenario_inititated":"370",
     "gettestcases_inititated":"371","modelinfoprocessor":"372","dataprocessor":"373","reportdataprocessor":"374",
-    "getTopMatches_ProfJ": "375", "updateFrequency_ProfJ": "376","updateReportData":"377", "dashboardDataDump":"378"
+    "getTopMatches_ProfJ":"375", "updateFrequency_ProfJ":"376","updateReportData":"377", "updateIrisObjectType":"378",
+	"authenticateUser_Nineteen68_CI":"379","generateCIusertokens":"380","getCIUsersDetails":"381","deactivateCIUser":"382",
+    "dashboardDataDump":"383"
 }
 
 ################################################################################
