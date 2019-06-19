@@ -3568,7 +3568,7 @@ def stopserver():
     onlineuser = False
     app.logger.error(printErrorCodes('205'))
 
-def startTwoDaysTimer():-
+def startTwoDaysTimer():
     global twoDayTimer,gracePeriodTimer
     twoDayTimer = Timer(grace_period, stopserver)
     twoDayTimer.start()
