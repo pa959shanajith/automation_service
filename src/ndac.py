@@ -3554,7 +3554,7 @@ def beginserver():
         app.logger.critical(printErrorCodes('207'))
 
 def stopserver():
-    global onlineuser, gracePeriodTimer
+    global onlineuser, gracePeriodTimer, dashboardDumpTimer
     if(gracePeriodTimer != None and gracePeriodTimer.isAlive()):
         gracePeriodTimer.cancel()
         gracePeriodTimer = None
@@ -3564,7 +3564,6 @@ def stopserver():
     if(dashboardDumpTimer != None and dashboardDumpTimer.isAlive()):
         dashboardDumpTimer.cancel()
         dashboardDumpTimer = None
-        dashboardDataDump()
     onlineuser = False
     app.logger.error(printErrorCodes('205'))
 
