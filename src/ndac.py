@@ -3564,7 +3564,7 @@ def stopserver():
     if(dashboardDumpTimer != None and dashboardDumpTimer.isAlive()):
         dashboardDumpTimer.cancel()
         dashboardDumpTimer = None
-        dashboardCompleteDataDump()
+        dashboardDeltaDataDump()
     onlineuser = False
     app.logger.error(printErrorCodes('205'))
 
