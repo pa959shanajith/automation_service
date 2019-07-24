@@ -26,7 +26,7 @@ from logging.handlers import TimedRotatingFileHandler
 import cassandra
 from cassandra.cluster import Cluster
 from cassandra.auth import PlainTextAuthProvider
-from cassandra.query import dict_factory
+from cassandra.query import dict_factory, SimpleStatement
 from nltk.stem import PorterStemmer
 from threading import Timer
 import argparse
@@ -62,6 +62,8 @@ currdir=os.getcwd()
 config_path = currdir+'/server_config.json'
 assistpath = currdir + "/ndac_internals/assist"
 logspath= currdir + "/ndac_internals/logs"
+dashboardDataDumpPath = currdir + "/DashboardDataDump" # Directory to Store Cassnadra Data Dump
+dashboardTimeStorageFile = currdir + "/datadumptime.txt" # File to Store last Dump time Stamp
 
 lsip="127.0.0.1"
 lsport="5000"
@@ -77,6 +79,8 @@ LS_CRITICAL_ERR_CODE=['199','120','121','123','124','125']
 lsRetryCount=0
 sysMAC=None
 chronographTimer=None
+dashboardDumpLag = 86400 #Default Value: 1 day in seconds
+dashboardDumpTimer = None
 ERR_CODE={
     "201":"Error while registration with LS",
     "202":"Error while pushing update to LS",
@@ -2155,8 +2159,6 @@ def getLDAPConfig():
         else:
             app.logger.warn('Empty data received. LDAP config fetch.')
     except Exception as getallusersexc:
-        import traceback
-        traceback.print_exc()
         servicesException("getLDAPConfig",getallusersexc)
     return jsonify(res)
 
@@ -2963,8 +2965,9 @@ ecodeServices = {"authenticateUser_Nineteen68":"300","authenticateUser_Nineteen6
     "userAccess_Nineteen68":"364","checkServer":"365","updateActiveIceSessions":"366",
     "counterupdator":"367","getreports_in_day":"368","getsuites_inititated":"369","getscenario_inititated":"370",
     "gettestcases_inititated":"371","modelinfoprocessor":"372","dataprocessor":"373","reportdataprocessor":"374",
-    "getTopMatches_ProfJ": "375", "updateFrequency_ProfJ": "376","updateReportData":"377","updateIrisObjectType":"378",
-	"authenticateUser_Nineteen68_CI":"379","generateCIusertokens":"380","getCIUsersDetails":"381","deactivateCIUser":"382"
+    "getTopMatches_ProfJ":"375", "updateFrequency_ProfJ":"376","updateReportData":"377", "updateIrisObjectType":"378",
+	"authenticateUser_Nineteen68_CI":"379","generateCIusertokens":"380","getCIUsersDetails":"381","deactivateCIUser":"382",
+    "dashboardDataDump":"383"
 }
 
 ################################################################################
@@ -3549,13 +3552,16 @@ def beginserver():
         app.logger.critical(printErrorCodes('207'))
 
 def stopserver():
-    global onlineuser, gracePeriodTimer
+    global onlineuser, gracePeriodTimer, dashboardDumpTimer
     if(gracePeriodTimer != None and gracePeriodTimer.isAlive()):
         gracePeriodTimer.cancel()
         gracePeriodTimer = None
         dbdata = dataholder('select')
         dbdata['grace_period']=0
         dataholder('update',dbdata)
+    if(dashboardDumpTimer != None and dashboardDumpTimer.isAlive()):
+        dashboardDumpTimer.cancel()
+        dashboardDumpTimer = None
     onlineuser = False
     app.logger.error(printErrorCodes('205'))
 
@@ -3579,6 +3585,8 @@ def saveGracePeriod():
         gracePeriodTimer = Timer(3600,saveGracePeriod)
         gracePeriodTimer.start()
 
+
+
 def pad(data):
     BS = 16
     padding = BS - len(data) % BS
@@ -3601,6 +3609,148 @@ def wrap(data, key, iv=b'0'*16):
 # END LICENSING SERVER COMPONENTS
 ##################################
 
+####################################
+#Begin DASHBORAD DUMP COMPONENTS
+####################################
+
+def startDashboardChronoGraph():
+    global dashboardDumpTimer
+    dashboardDumpTimer = Timer(dashboardDumpLag,dashboardDeltaDataDump)
+    dashboardDumpTimer.start()
+    app.logger.debug("Dashboard timer begins...")
+
+#Gets Last Data Dump Time
+def getLastDumpTime():
+    f = open(dashboardTimeStorageFile, 'r')
+    dumpTime = f.read()
+    f.close()
+    return dumpTime
+
+#Sets Last Data Dump Time: Overwrites the dumptime.txt file
+def setLastDumpTime():
+    f = open(dashboardTimeStorageFile, 'w')
+    f.write(str(getcurrentdate()))
+    f.close()
+
+def dashboardCompleteDataDump():
+    app.logger.debug("Inside dashboardCompleteDataDump")
+    # app.logger.critical("Dashboard Data Dump started..."+str(time.time()))
+    data = {"reports":['*'], "projecttype":['*'], "projects":['*'], "releases":['*'], "cycles":['*'], "testsuites":['*'], "testscenarios":['*']}
+    if not os.path.exists(dashboardDataDumpPath):
+        os.mkdir(dashboardDataDumpPath)
+    try:
+        for table in data:
+            fetchCompleteTableData(table, ",".join(data[table]))
+        setLastDumpTime()
+        startDashboardChronoGraph()
+    except Exception as e:
+        servicesException("dashboardCompleteDataDump",e)
+
+def dashboardDeltaDataDump():
+    app.logger.debug("Inside dashboardDeltaDataDump")
+    data = {"reports_view":['*'], "projects_view":['*'],"releases_view":['*'],"cycles_view":['*'], "testsuites_view":['*'],"testscenarios_view":['*']}
+
+    if not os.path.exists(dashboardDataDumpPath):
+        os.mkdir(dashboardDataDumpPath)
+    try:
+        dumpTime = getLastDumpTime()
+        for table in data:
+            fetchDeltaTableData(table, ",".join(data[table]),dumpTime)
+        setLastDumpTime()
+        startDashboardChronoGraph()
+    except Exception as e:
+        servicesException("dashboardDeltaDataDump",e)
+
+class UUIDEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, uuid.UUID):
+            return str(obj)
+        if isinstance(obj, datetime):
+            return str(obj)
+        return json.JSONEncoder.default(self, obj)
+
+#Function to Dump complete passed table name Data with specified Column Names:Called at the NDAC Start
+def fetchCompleteTableData(tableName,cols):
+    app.logger.info("Inside fetchCompleteTableData tablename: "+str(tableName))
+    query = ("select count(*)"+" FROM icetestautomation." + tableName)
+    data = icesession.execute(query)
+    """ Default timeout Set from 10secs to 120secs """
+    icesession.default_timeout = 120
+    if(data.current_rows[0]["count"]<=5000):
+        app.logger.info("Count less than 5000")
+        query = ("select * FROM icetestautomation." + tableName)
+        executequery = SimpleStatement(query, fetch_size=data.current_rows[0]["count"])
+        data = icesession.execute(executequery)
+        dumpData = data.current_rows
+        f = open(dashboardDataDumpPath+ '/'+tableName+'_'+str(datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))+'.json',"w")
+        json.dump(dumpData, f, cls=UUIDEncoder)
+        f.write("\n")
+        f.close()
+    else:
+        query1 = ("select * FROM icetestautomation." + tableName)
+        app.logger.info("Count more than 5000")
+        executequery1 = SimpleStatement(query1, fetch_size=2000)
+        rep = []
+        for page in icesession.execute(executequery1):
+            rep.append(page)
+        app.logger.critical("Length of the rep: "+str(len(rep)))
+        dumpData = rep
+        n = 10000
+        final = [rep[i * n:(i + 1) * n] for i in range((len(rep) + n - 1) // n )]
+        del rep
+        count = 1
+        for list_n in final:
+            f = open(dashboardDataDumpPath+ '/'+tableName+str(count)+'_'+str(datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))+'.json',"w")
+            json.dump(list_n, f, cls=UUIDEncoder)
+            f.write("\n")
+            f.close()
+            count +=1
+    """ Default timeout set back from 120secs to 10secs """
+    icesession.default_timeout = 10
+
+#Function to Dump Data from the Materialized Views for the passed table name Data with specified Column Names:Tiggered at dashboard dumplag interval
+def fetchDeltaTableData(tableName,cols,dumpTime):
+    app.logger.info("Inside fetchDeltaTableData tablename: "+str(tableName))
+    query = ("select count(*) FROM icetestautomation." + tableName + " where modifiedon >'"+dumpTime+"' ALLOW FILTERING")
+    data = icesession.execute(query)
+    """ Default timeout Set from 10secs to 120secs """
+    icesession.default_timeout = 120
+    app.logger.info("query1: ")
+    if(data.current_rows[0]["count"]<=5000):
+        query = ("select * FROM icetestautomation." + tableName + " where modifiedon >'"+dumpTime+"' ALLOW FILTERING")
+        app.logger.info(query)
+        executequery = SimpleStatement(query, fetch_size=data.current_rows[0]["count"])
+        data = icesession.execute(executequery)
+        dumpData = data.current_rows
+        f = open(dashboardDataDumpPath+ '/'+tableName+'_'+str(datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))+'.json',"w")
+        json.dump(dumpData, f, cls=UUIDEncoder)
+        f.write("\n")
+        f.close()
+    else:
+        query1 = ("select * FROM icetestautomation." + tableName + " where modifiedon >'"+dumpTime+"' ALLOW FILTERING")
+        app.logger.info(query1)
+        executequery1 = SimpleStatement(query1, fetch_size=2000)
+        rep = []
+        for page in icesession.execute(executequery1):
+            rep.append(page)
+        app.logger.critical("Length of the rep: "+str(len(rep)))
+        dumpData = rep
+        n = 10000
+        final = [rep[i * n:(i + 1) * n] for i in range((len(rep) + n - 1) // n )]
+        del rep
+        count = 1
+        for list_n in final:
+            f = open(dashboardDataDumpPath+ '/'+tableName+str(count)+'_'+str(datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))+'.json',"w")
+            json.dump(list_n, f, cls=UUIDEncoder)
+            f.write("\n")
+            f.close()
+            count +=1
+    """ Default timeout set back from 120secs to 10secs """
+    icesession.default_timeout = 10
+
+##################################
+# END DASHBORAD DUMP COMPONENTS
+##################################
 
 ####################################
 #Begining of ProfJ assist Components
@@ -3801,7 +3951,8 @@ class ProfJ():
 ################################################################################
 
 def main():
-    global lsip,lsport,ndacport,cass_dbup,redis_dbup,icesession,n68session,redisSession,chronographTimer
+    global lsip,lsport,ndacport,cass_dbup,redis_dbup,icesession,n68session,redisSession,chronographTimer,dashboardDataDumpPath,dashboardDataDumpFlag,dashboardDumpLag
+    dashboardDataDumpFlag = False
     cleanndac = checkSetup()
     if not cleanndac:
         app.logger.critical(printErrorCodes('214'))
@@ -3843,6 +3994,43 @@ def main():
         app.logger.debug(e)
         app.logger.critical(printErrorCodes('206'))
         return False
+
+    try:
+        dashboard_conf=ndac_conf['dashboard']
+        if dashboard_conf.has_key('datadump'):
+            dump_val = dashboard_conf['datadump']
+            if(dump_val.lower() == 'true'):
+                dashboardDataDumpFlag = True
+                if dashboard_conf.has_key('dashboarddatadumppath'):
+                    dataDumpPath = os.path.normpath(dashboard_conf['dashboarddatadumppath'])
+                    if not os.path.exists(os.path.dirname(dataDumpPath)):
+                        app.logger.error("Invalid path in 'dashboarddatadumppath'")
+                    else:
+                        dashboardDataDumpPath = dataDumpPath
+                app.logger.debug("Dashboard datadump path set to:  " + str(dashboardDataDumpPath))
+                if (dashboard_conf.has_key('dumplaginseconds')):
+                    try:
+                        num = int(dashboard_conf['dumplaginseconds'])
+                        dashboardDumpLag = num
+                    except ValueError as e:
+                        app.logger.error("Invalid Dashboard dumplag value "+ str(dashboard_conf['dumplaginseconds']))
+                app.logger.error("Current Dashboard dumplag value: "+ str(dashboardDumpLag))
+                exists = os.path.isfile(os.path.normpath(dashboardTimeStorageFile))
+                if exists:
+                    f = open(dashboardTimeStorageFile, 'r')
+                    dumpTime = f.read()
+                    f.close()
+                    if(len(dumpTime) >0):
+                        dashboardDeltaDataDump()
+                    elif (len(dumpTime) ==0):
+                        dashboardCompleteDataDump()
+                else:
+                    f = open(dashboardTimeStorageFile, 'w').close()
+                    dashboardCompleteDataDump()
+    except Exception as e:
+        app.logger.debug(e)
+        app.logger.info("Dashboard Dump Not Configured.")
+
 
     try:
         redisdb_conf = ndac_conf['redis']
