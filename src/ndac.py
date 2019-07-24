@@ -2159,8 +2159,6 @@ def getLDAPConfig():
         else:
             app.logger.warn('Empty data received. LDAP config fetch.')
     except Exception as getallusersexc:
-        import traceback
-        traceback.print_exc()
         servicesException("getLDAPConfig",getallusersexc)
     return jsonify(res)
 
@@ -3646,8 +3644,6 @@ def dashboardCompleteDataDump():
         setLastDumpTime()
         startDashboardChronoGraph()
     except Exception as e:
-        import traceback
-        traceback.print_exc()
         servicesException("dashboardCompleteDataDump",e)
 
 def dashboardDeltaDataDump():
@@ -3663,8 +3659,6 @@ def dashboardDeltaDataDump():
         setLastDumpTime()
         startDashboardChronoGraph()
     except Exception as e:
-        import traceback
-        traceback.print_exc()
         servicesException("dashboardDeltaDataDump",e)
 
 class UUIDEncoder(json.JSONEncoder):
