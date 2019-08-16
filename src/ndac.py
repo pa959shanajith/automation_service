@@ -106,7 +106,8 @@ ERR_CODE={
     "222":"Unable to contact storage areas: Assist Components",
     "223":"Critical error in storage areas: Assist Components",
     "224":"Another instance of NDAC is already running",
-    "225":"Port "+ndacport+" already in use"
+    "225":"Port "+ndacport+" already in use",
+    "226":"Error while establishing connection to Mongodb"
 }
 
 #counters for License
@@ -2503,6 +2504,25 @@ def updateReportData():
         res={'rows':'fail'}
         return jsonify(res)
 
+@app.route('/reports/getWebocularData_ICE',methods=['POST'])
+def getWebocularData_ICE():
+    res={'rows':'fail'}
+    try:
+        requestdata=json.loads(request.data)
+        from bson.json_util import dumps as mongo_dumps
+        from bson.objectid import ObjectId
+        weboculardb=mongoSession.webocular
+        if(requestdata["query"] == 'moduledata'):
+            reports_data=json.loads(mongo_dumps(weboculardb.reports.find({},{"_id":1,"modulename":1})))
+        elif(requestdata["query"] == 'reportdata'):
+            reports_data=json.loads(mongo_dumps(weboculardb.reports.find({"_id":ObjectId(requestdata["id"])})))
+        res={'rows':reports_data}
+        return jsonify(res)
+    except Exception as getweboculardataexec:
+        print getweboculardataexec
+        servicesException("getWebocularData_ICE",getweboculardataexec)
+        res={'rows':'fail'}
+        return jsonify(res)
 ################################################################################
 # END OF REPORTS
 ################################################################################
@@ -2967,7 +2987,7 @@ ecodeServices = {"authenticateUser_Nineteen68":"300","authenticateUser_Nineteen6
     "gettestcases_inititated":"371","modelinfoprocessor":"372","dataprocessor":"373","reportdataprocessor":"374",
     "getTopMatches_ProfJ":"375", "updateFrequency_ProfJ":"376","updateReportData":"377", "updateIrisObjectType":"378",
 	"authenticateUser_Nineteen68_CI":"379","generateCIusertokens":"380","getCIUsersDetails":"381","deactivateCIUser":"382",
-    "dashboardDataDump":"383"
+    "dashboardDataDump":"383","getWebocularData_ICE":"384"
 }
 
 ################################################################################
@@ -3951,7 +3971,7 @@ class ProfJ():
 ################################################################################
 
 def main():
-    global lsip,lsport,ndacport,cass_dbup,redis_dbup,icesession,n68session,redisSession,chronographTimer,dashboardDataDumpPath,dashboardDataDumpFlag,dashboardDumpLag
+    global lsip,lsport,ndacport,cass_dbup,redis_dbup,icesession,n68session,redisSession,chronographTimer,dashboardDataDumpPath,dashboardDataDumpFlag,dashboardDumpLag,mongoSession
     dashboardDataDumpFlag = False
     cleanndac = checkSetup()
     if not cleanndac:
@@ -4043,6 +4063,19 @@ def main():
         redis_dbup = False
         app.logger.debug(e)
         app.logger.critical(printErrorCodes('217'))
+        return False
+
+    try:
+        from pymongo import MongoClient
+        mongodb_conf = ndac_conf['mongo']
+        mongoSession = MongoClient('mongodb://%s:%s/' % (mongodb_conf["databaseip"],mongodb_conf["dbport"]))
+        if mongoSession.server_info():
+            app.logger.info("Connected to Mongo DB")
+        else:
+            return False
+    except Exception as e:
+        app.logger.debug(e)
+        app.logger.critical(printErrorCodes('226'))
         return False
 
     if (basecheckonls()):

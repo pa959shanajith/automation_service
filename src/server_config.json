@@ -14,5 +14,9 @@
     "dashboard":{
         "datadump": "true",
         "dumplaginseconds":"600"
+    },
+	"mongo":{
+        "databaseip": "127.0.0.1",
+        "dbport": "27017"
     }
 }
