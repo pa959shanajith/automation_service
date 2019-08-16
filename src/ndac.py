@@ -2514,9 +2514,13 @@ def getWebocularData_ICE():
         weboculardb=mongoSession.webocular
         if(requestdata["query"] == 'moduledata'):
             reports_data=json.loads(mongo_dumps(weboculardb.reports.find({},{"_id":1,"modulename":1})))
+            res={'rows':reports_data}
         elif(requestdata["query"] == 'reportdata'):
             reports_data=json.loads(mongo_dumps(weboculardb.reports.find({"_id":ObjectId(requestdata["id"])})))
-        res={'rows':reports_data}
+            res={'rows':reports_data}
+        elif(requestdata["query"] == 'insertdata'):
+            weboculardb.reports.insert_one(requestdata['data'])
+            res={'rows':'success'}
         return jsonify(res)
     except Exception as getweboculardataexec:
         print getweboculardataexec
