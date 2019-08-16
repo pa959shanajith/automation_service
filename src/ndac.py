@@ -2523,7 +2523,7 @@ def getWebocularData_ICE():
             res={'rows':'success'}
         return jsonify(res)
     except Exception as getweboculardataexec:
-        print getweboculardataexec
+        app.logger.debug(getweboculardataexec)
         servicesException("getWebocularData_ICE",getweboculardataexec)
         res={'rows':'fail'}
         return jsonify(res)
@@ -4071,8 +4071,8 @@ def main():
 
     try:
         from pymongo import MongoClient
-        mongodb_conf = ndac_conf['mongo']
-        mongoSession = MongoClient('mongodb://%s:%s/' % (mongodb_conf["databaseip"],mongodb_conf["dbport"]))
+        mongodb_conf = ndac_conf['plugins']
+        mongoSession = MongoClient('mongodb://%s:%s/' % (mongodb_conf["databaseip"],mongodb_conf["dbport"]),username=mongodb_conf["dbusername"],password=mongodb_conf["dbpassword"],authSource='webocular',authMechanism='SCRAM-SHA-1')
         if mongoSession.server_info():
             app.logger.info("Connected to Mongo DB")
         else:
