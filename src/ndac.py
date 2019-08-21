@@ -96,7 +96,7 @@ ERR_CODE={
     "212":"Unable to contact storage areas",
     "213":"Critical error in storage areas",
     "214":"Please contact Team - Nineteen68. Setup is corrupted",
-    "215":"Error establishing connection to Licensing Server. Retrying to establish connection",
+    "215":"Error while establishing connection to Licensing Server. Retrying to establish connection",
     "216":"Connection to Licensing Server failed. Maximum retries exceeded. Hence, Shutting down server",
     "217":"Error while establishing connection to Redis",
     "218":"Invalid configuration file",
@@ -107,7 +107,7 @@ ERR_CODE={
     "223":"Critical error in storage areas: Assist Components",
     "224":"Another instance of NDAC is already running",
     "225":"Port "+ndacport+" already in use",
-    "226":"Unable to establishing connection to Pluginsdb"
+    "226":"Error while establishing connection to Pluginsdb"
 }
 
 #counters for License
