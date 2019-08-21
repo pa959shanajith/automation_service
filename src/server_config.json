@@ -17,8 +17,8 @@
     },
 	"plugins":{
         "databaseip": "127.0.0.1",
-        "dbport": "27017"
-		"dbusername":"c07adb85b280adad3cd78a2e25c6a9f6"
+        "dbport": "27017",
+		"dbusername":"c07adb85b280adad3cd78a2e25c6a9f6",
 		"dbpassword":"7b66b62edcf8a8f74a4d4108a513f565"
     }
 }
