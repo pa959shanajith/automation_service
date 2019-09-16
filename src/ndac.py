@@ -96,7 +96,7 @@ ERR_CODE={
     "212":"Unable to contact storage areas",
     "213":"Critical error in storage areas",
     "214":"Please contact Team - Nineteen68. Setup is corrupted",
-    "215":"Error establishing connection to Licensing Server. Retrying to establish connection",
+    "215":"Error while establishing connection to Licensing Server. Retrying to establish connection",
     "216":"Connection to Licensing Server failed. Maximum retries exceeded. Hence, Shutting down server",
     "217":"Error while establishing connection to Redis",
     "218":"Invalid configuration file",
@@ -107,7 +107,7 @@ ERR_CODE={
     "223":"Critical error in storage areas: Assist Components",
     "224":"Another instance of NDAC is already running",
     "225":"Port "+ndacport+" already in use",
-    "226":"Error while establishing connection to Mongodb"
+    "226":"Error while establishing connection to Pluginsdb"
 }
 
 #counters for License
@@ -2511,16 +2511,17 @@ def getWebocularData_ICE():
         requestdata=json.loads(request.data)
         from bson.json_util import dumps as mongo_dumps
         from bson.objectid import ObjectId
-        weboculardb=mongoSession.webocular
-        if(requestdata["query"] == 'moduledata'):
-            reports_data=json.loads(mongo_dumps(weboculardb.reports.find({},{"_id":1,"modulename":1})))
-            res={'rows':reports_data}
-        elif(requestdata["query"] == 'reportdata'):
-            reports_data=json.loads(mongo_dumps(weboculardb.reports.find({"_id":ObjectId(requestdata["id"])})))
-            res={'rows':reports_data}
-        elif(requestdata["query"] == 'insertdata'):
-            weboculardb.reports.insert_one(requestdata['data'])
-            res={'rows':'success'}
+        if mongoSession.server_info():
+            weboculardb=mongoSession.webocular
+            if(requestdata["query"] == 'moduledata'):
+                reports_data=json.loads(mongo_dumps(weboculardb.reports.find({},{"_id":1,"modulename":1})))
+                res={'rows':reports_data}
+            elif(requestdata["query"] == 'reportdata'):
+                reports_data=json.loads(mongo_dumps(weboculardb.reports.find({"_id":ObjectId(requestdata["id"])})))
+                res={'rows':reports_data}
+            elif(requestdata["query"] == 'insertdata'):
+                weboculardb.reports.insert_one(requestdata['data'])
+                res={'rows':'success'}
         return jsonify(res)
     except Exception as getweboculardataexec:
         app.logger.debug(getweboculardataexec)
@@ -4072,15 +4073,14 @@ def main():
     try:
         from pymongo import MongoClient
         mongodb_conf = ndac_conf['plugins']
-        mongoSession = MongoClient('mongodb://%s:%s/' % (mongodb_conf["databaseip"],mongodb_conf["dbport"]),username=mongodb_conf["dbusername"],password=mongodb_conf["dbpassword"],authSource='webocular',authMechanism='SCRAM-SHA-1')
+        plugin_user=unwrap(mongodb_conf["dbusername"],db_keys)
+        plugin_pass=unwrap(mongodb_conf['dbpassword'],db_keys)
+        mongoSession = MongoClient('mongodb://%s:%s/' % (mongodb_conf["databaseip"],mongodb_conf["dbport"]),username=plugin_user,password=plugin_pass,authSource='webocular',authMechanism='SCRAM-SHA-1',serverSelectionTimeoutMS=30)
         if mongoSession.server_info():
             app.logger.info("Connected to Mongo DB")
-        else:
-            return False
     except Exception as e:
         app.logger.debug(e)
         app.logger.critical(printErrorCodes('226'))
-        return False
 
     if (basecheckonls()):
         err_msg = None
