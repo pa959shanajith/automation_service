@@ -2399,7 +2399,7 @@ def getReport_Nineteen68():
         app.logger.debug("Inside getReport_Nineteen68. Query: "+str(requestdata["query"]))
         if not isemptyrequest(requestdata):
             if(requestdata["query"] == 'projectsUnderDomain'):
-                getreportquery1 =("select report,executedtime,testscenarioid "
+                getreportquery1 =("select executionid,report,executedtime,testscenarioid "
                 +"from reports where reportid=" +requestdata['reportid']
                 +" ALLOW FILTERING")
                 queryresult = icesession.execute(getreportquery1)
