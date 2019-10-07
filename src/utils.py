@@ -121,9 +121,10 @@ ecodeServices = {
 }
 
 
-def setenv(flaskapp):
-    global app
-    app = flaskapp
+def setenv(flaskapp=None, licactive=None):
+    global app, onlineuser
+    if flaskapp is not None: app = flaskapp
+    if licactive is not None: onlineuser = licactive
 
 def printErrorCodes(ecode):
     msg = "[ECODE: " + ecode + "] " + ERR_CODE[ecode]

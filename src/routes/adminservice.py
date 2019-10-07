@@ -3,11 +3,8 @@
 ################################################################################
 #----------DEFAULT METHODS AND IMPORTS------------DO NOT EDIT-------------------
 from utils import *
-app = None
 
-def LoadServices(flaskapp):
-    global app
-    app = flaskapp
+def LoadServices(app, redissession, n68session):
     setenv(app)
 
 ################################################################################

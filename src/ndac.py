@@ -23,7 +23,7 @@ from waitress import serve
 import logging
 import logging.config
 from logging.handlers import TimedRotatingFileHandler
-#from pymongo import MongoClient
+from pymongo import MongoClient
 import cassandra
 from cassandra.cluster import Cluster
 from cassandra.auth import PlainTextAuthProvider
@@ -80,6 +80,7 @@ LS_CRITICAL_ERR_CODE=['199','120','121','123','124','125']
 lsRetryCount=0
 sysMAC=None
 chronographTimer=None
+icesession=n68session=redissession=n68session2=webocularsession=None
 
 #counters for License
 debugcounter = 0
@@ -124,47 +125,47 @@ def server_ready():
 ################################################################################
 
 from utils import *
-setenv(app)
+setenv(flaskapp=app)
 sys.path.append(currdir+'/ndac/src/routes')
 
 import loginservice
-loginservice.LoadServices(app)
+loginservice.LoadServices(app, redissession, n68session2)
 
 import adminservice
-adminservice.LoadServices(app)
+adminservice.LoadServices(app, redissession, n68session2)
 
 ##import mindmapsservice
-##mindmapsservice.LoadServices(app)
+##mindmapsservice.LoadServices(app, redissession, n68session2)
 
 ##import designscreenservice
-##designscreenservice.LoadServices(app)
+##designscreenservice.LoadServices(app, redissession, n68session2)
 
 ##import designtestcaseservice
-##designtestcaseservice.LoadServices(app)
+##designtestcaseservice.LoadServices(app, redissession, n68session2)
 
 ##import executionservice
-##executionservice.LoadServices(app)
+##executionservice.LoadServices(app, redissession, n68session2)
 
 ##import thirdpartyservice
-##thirdpartyservice.LoadServices(app)
+##thirdpartyservice.LoadServices(app, redissession, n68session2)
 
 ##import reportsservice
-##reportsservice.LoadServices(app)
+##reportsservice.LoadServices(app, redissession, n68session2)
 
 ##import utilitiesservice
-##utilitiesservice.LoadServices(app)
+##utilitiesservice.LoadServices(app, redissession, n68session2)
 
 ##import apgservice
-##apgservice.LoadServices(app)
+##apgservice.LoadServices(app, redissession, n68session2)
 
 ##import webocularservice
-##webocularservice.LoadServices(app)
+##webocularservice.LoadServices(app, redissession, n68session2)
 
 ##import neurongraphsservice
-##neurongraphsservice.LoadServices(app)
+##neurongraphsservice.LoadServices(app, redissession, n68session2)
 
 ##import chatbotservice
-##chatbotservice.LoadServices(app)
+##chatbotservice.LoadServices(app, redissession, n68session2)
 
 ################################################################################
 # END OF SERVICES IMPORT
@@ -180,16 +181,16 @@ adminservice.LoadServices(app)
 ##        history={}
 ##        createclone=False
 ##        requestdata=dict(request_data)
-##        if(requestdata.has_key('history') and requestdata['history'] != None):
+##        if('history' in requestdata and requestdata['history'] != None):
 ##            req_history=requestdata['history']
 ##            for keys in req_history:
 ##                history[keys.encode('utf-8')]=req_history[keys].encode('utf-8')
-##        if(requestdata.has_key("query")):
+##        if("query" in requestdata):
 ##            del requestdata["query"]
-##        if(requestdata.has_key("subquery")):
+##        if("subquery" in requestdata):
 ##            createclone=True
 ##            del requestdata["subquery"]
-##        if(requestdata.has_key("modifiedflag")):
+##        if("modifiedflag" in requestdata):
 ##            del requestdata["modifiedflag"]
 ##        primary_keys={'users':['userid'],
 ##                    'projects':['projectid','domainid','projectname'],
@@ -392,15 +393,15 @@ def updateActiveIceSessions():
         requestdata=json.loads(request.data)
         app.logger.debug("Inside updateActiveIceSessions. Query: "+str(requestdata["query"]))
         if not isemptyrequest(requestdata):
-            activeicesessions=json.loads(unwrap(redisSession.get('icesessions'),db_keys))
+            activeicesessions=json.loads(unwrap(redissession.get('icesessions'),db_keys))
             if(requestdata['query']=='disconnect'):
                 username=requestdata['username'].lower()
-                if(activeicesessions.has_key(username)):
+                if(username in activeicesessions):
                     del activeicesessions[username]
-                    redisSession.set('icesessions',wrap(json.dumps(activeicesessions),db_keys))
+                    redissession.set('icesessions',wrap(json.dumps(activeicesessions),db_keys))
                 res['res']="success"
 
-            elif(requestdata['query']=='connect' and requestdata.has_key('icesession')):
+            elif(requestdata['query']=='connect' and 'icesession' in requestdata):
                 icesession = unwrap(requestdata['icesession'],ice_ndac_key)
                 icesession = json.loads(icesession)
                 ice_uuid=icesession['ice_id']
@@ -411,7 +412,7 @@ def updateActiveIceSessions():
                 latest_access_time=datetime.strptime(ice_ts, '%Y-%m-%d %H:%M:%S.%f')
                 res['id']=ice_uuid
                 res['connect_time']=ice_ts
-                app.logger.debug("Connected clients: "+str(activeicesessions.keys()))
+                app.logger.debug("Connected clients: "+str(list(activeicesessions.keys())))
 
                 #To check whether user exists in db or not
                 authenticateuser = "select userid from users where username='"+username+"' ALLOW FILTERING"
@@ -421,11 +422,11 @@ def updateActiveIceSessions():
                     response = {"node_check":"userNotValid","ice_check":wrap(json.dumps(res),ice_ndac_key)}
                 else:
                     #To reject connection with same usernames
-                    user_channel=redisSession.pubsub_numsub("ICE1_normal_"+username,"ICE1_scheduling_"+username)
+                    user_channel=redissession.pubsub_numsub("ICE1_normal_"+username,"ICE1_scheduling_"+username)
                     user_channel_cnt=int(user_channel[0][1]+user_channel[1][1])
-                    if(user_channel_cnt == 0 and activeicesessions.has_key(username)):
+                    if(user_channel_cnt == 0 and username in activeicesessions):
                         del activeicesessions[username]
-                    if(activeicesessions.has_key(username) and activeicesessions[username] != ice_uuid):
+                    if(username in activeicesessions and activeicesessions[username] != ice_uuid):
                         res['err_msg'] = "Connection exists with same username"
                         response["ice_check"]=wrap(json.dumps(res),ice_ndac_key)
                     #To check if license is available
@@ -434,9 +435,9 @@ def updateActiveIceSessions():
                         response["ice_check"]=wrap(json.dumps(res),ice_ndac_key)
                     #To add in active ice sessions
                     else:
-                        activeicesessions=json.loads(unwrap(redisSession.get('icesessions'),db_keys))
+                        activeicesessions=json.loads(unwrap(redissession.get('icesessions'),db_keys))
                         activeicesessions[username] = ice_uuid
-                        redisSession.set('icesessions',wrap(json.dumps(activeicesessions),db_keys))
+                        redissession.set('icesessions',wrap(json.dumps(activeicesessions),db_keys))
                         res['res']="success"
                         response = {"node_check":"allow","ice_check":wrap(json.dumps(res),ice_ndac_key)}
         else:
@@ -701,7 +702,7 @@ def basecheckonls():
         baserequest=wrap(json.dumps(baserequest),omgall)
         connectresponse = connectingls(baserequest)
         if connectresponse != False:
-            actresp = unwrap(str(connectresponse),omgall)
+            actresp = unwrap(connectresponse,omgall)
             actresp = json.loads(actresp)
             if actresp['ots']==EXPECTING_RESPONSE:
                 EXPECTING_RESPONSE=''
@@ -721,6 +722,7 @@ def basecheckonls():
                         dbdata['tkn']=actresp['token']
                         basecheckstatus=dataholder('update',dbdata)
                     onlineuser = True
+                    setenv(licactive=onlineuser)
         else:
             if lsRetryCount<3:
                 app.logger.info(printErrorCodes('215'))
@@ -740,7 +742,7 @@ def updateonls():
         dbdata=dataholder('select')
         EXPECTING_RESPONSE=str(int(time.time()*24150))
         modelinfores = modelinfoprocessor()
-        if(dbdata.has_key('mdlinfo')):
+        if('mdlinfo' in dbdata):
             modelinfores.extend(dbdata['mdlinfo'])
             del dbdata['mdlinfo']
             dataholder('update',dbdata)
@@ -755,7 +757,7 @@ def updateonls():
         updateresponse = connectingls(datatols)
         if updateresponse != False:
             chronograph()
-            res = json.loads(unwrap(str(updateresponse),omgall))
+            res = json.loads(unwrap(updateresponse,omgall))
             if res['res'] == 'F':
                 emsg="[ECODE: "+res['ecode']+"] "+res['message']
                 if (res['ecode'] in LS_CRITICAL_ERR_CODE):
@@ -766,7 +768,7 @@ def updateonls():
                 else:
                     app.logger.error(emsg)
             elif res['res'] == 'S':
-                if(res.has_key('ldata')):
+                if('ldata' in res):
                     licensedata = res['ldata']
         else:
             if lsRetryCount<3:
@@ -825,7 +827,7 @@ def connectingls(data):
         lsresponse = requests.post('http://'+lsip+":"+lsport+"/ndacrequest",data=data)
         if lsresponse.status_code == 200:
             dbdata=dataholder('select')
-            if(dbdata.has_key('grace_period')):
+            if('grace_period' in dbdata):
                 del dbdata['grace_period']
                 dataholder('update',dbdata)
             lsRetryCount=0
@@ -868,7 +870,7 @@ def dataholder(ops,*args):
                 cursor1 = conn.execute("SELECT intrtkndt FROM clndls WHERE sysid='ndackey'")
                 for row in cursor1:
                     data = row[0]
-                data=unwrap(str(data),mine)
+                data=unwrap(data,mine)
                 data=json.loads(data)
             elif ops=='update':
                 #Encrypt data and update in db
@@ -930,7 +932,7 @@ def checkSetup():
     if dbexists:
         dbdata=dataholder('select')
         if dbdata:
-            if(dbdata.has_key('grace_period')):
+            if('grace_period' in dbdata):
                 grace_period = dbdata['grace_period']
             dbmacid=dbdata['macid']
             sysmacid=sysMAC
@@ -990,7 +992,7 @@ def saveGracePeriod():
     global gracePeriodTimer,twoDayTimer
     if (twoDayTimer.isAlive()):
         dbdata = dataholder('select')
-        if(dbdata.has_key('grace_period')):
+        if('grace_period' in dbdata):
             dbdata['grace_period']=dbdata['grace_period'] - 3600
         else:
             dbdata['grace_period']=169200
@@ -1014,15 +1016,15 @@ def unwrap(hex_data, key, iv=b'0'*16):
 def wrap(data, key, iv=b'0'*16):
     aes = AES.new(key.encode('utf-8'), AES.MODE_CBC, iv)
     hex_data = aes.encrypt(pad(data.encode('utf-8')))
-    return codecs.encode(hex_data, 'hex')
+    return codecs.encode(hex_data, 'hex').decode('utf-8')
 
-##################################
+################################################################################
 # END LICENSING SERVER COMPONENTS
-##################################
+################################################################################
 
-####################################
+################################################################################
 #Begining of ProfJ assist Components
-####################################
+################################################################################
 
 class SQLite_DataSetup():
     def __init__(self):
@@ -1210,16 +1212,17 @@ class ProfJ():
         return response, self.newQuesInfo, self.savedQueries
 
 
-################################################
-#End of ProfJ assist components
-################################################
+################################################################################
+# End of ProfJ assist components
+################################################################################
 
 ################################################################################
 # END OF INTERNAL COMPONENTS
 ################################################################################
 
 def main():
-    global lsip,lsport,ndacport,cass_dbup,mongo_dbup,redis_dbup,icesession,n68session,redisSession,chronographTimer,dbSession
+    global lsip,lsport,ndacport,cass_dbup,mongo_dbup,redis_dbup,chronographTimer
+    global icesession,n68session2,redissession,n68session,webocularsession
     cleanndac = checkSetup()
     if not cleanndac:
         app.logger.critical(printErrorCodes('214'))
@@ -1230,12 +1233,12 @@ def main():
         ndac_conf = json.load(ndac_conf_obj)
         ndac_conf_obj.close()
         lsip = ndac_conf['licenseserverip']
-        if ndac_conf.has_key('licenseserverport'):
+        if 'licenseserverport' in ndac_conf:
             lsport = ndac_conf['licenseserverport']
-        if ndac_conf.has_key('ndacserverport'):
+        if 'ndacserverport' in ndac_conf:
             ndacport = ndac_conf['ndacserverport']
             ERR_CODE["225"] = "Port "+ndacport+" already in use"
-        if (ndac_conf.has_key('custChronographTimer')):
+        if 'custChronographTimer' in ndac_conf:
             chronographTimer = int(ndac_conf['custChronographTimer'])
             app.logger.debug("'custChronographTimer' detected.")
     except Exception as e:
@@ -1265,9 +1268,9 @@ def main():
     try:
         redisdb_conf = ndac_conf['cachedb']
         redisdb_pass = unwrap(redisdb_conf['password'],db_keys)
-        redisSession = redis.StrictRedis(host=redisdb_conf['host'], port=int(redisdb_conf['port']), password=redisdb_pass, db=3)
-        if redisSession.get('icesessions') is None:
-            redisSession.set('icesessions',wrap('{}',db_keys))
+        redissession = redis.StrictRedis(host=redisdb_conf['host'], port=int(redisdb_conf['port']), password=redisdb_pass, db=3)
+        if redissession.get('icesessions') is None:
+            redissession.set('icesessions',wrap('{}',db_keys))
         redis_dbup = True
     except Exception as e:
         redis_dbup = False
@@ -1277,20 +1280,20 @@ def main():
 
     try:
         mongodb_conf = ndac_conf['nineteen68db']
-        plugin_user=unwrap(mongodb_conf["username"],db_keys)
-        plugin_pass=unwrap(mongodb_conf['password'],db_keys)
-        dbSession = MongoClient('mongodb://%s:%s/' % (mongodb_conf["host"],mongodb_conf["port"]),
-            username = plugin_user, password = plugin_pass, authSource = 'webocular',
-            authMechanism = 'SCRAM-SHA-1', serverSelectionTimeoutMS = 30)
-        if not dbSession.server_info():
-            raise ConnectionError("Unable to connect to Nineteen68 Database")
-        else:
+        mongo_user=unwrap(mongodb_conf["username"],db_keys)
+        mongo_pass=unwrap(mongodb_conf['password'],db_keys)
+        n68session2 = MongoClient('mongodb://%s:%s/' % (mongodb_conf["host"],mongodb_conf["port"]),
+            username = mongo_user, password = mongo_pass, authSource = 'Nineteen68',
+            authMechanism = 'SCRAM-SHA-1')
+        if n68session2.server_info():
             mongo_dbup = True
+        webocularsession = MongoClient('mongodb://%s:%s/' % (mongodb_conf["host"],mongodb_conf["port"]),
+            username = mongo_user, password = mongo_pass, authSource = 'webocular',
+            authMechanism = 'SCRAM-SHA-1')
     except Exception as e:
         app.logger.debug(e)
         app.logger.critical(printErrorCodes('226'))
-        #return False
-    mongo_dbup = True
+        return False
 
 
     if (basecheckonls()):
