@@ -1,8 +1,9 @@
 from flask import jsonify, request, make_response
+from bson.objectid import ObjectId
 import traceback
-import json
 onlineuser = False
 ndacport = "1990"
+
 
 ERR_CODE={
     "201":"Error while registration with LS",
@@ -30,7 +31,7 @@ ERR_CODE={
     "223":"Critical error in storage areas: Assist Components",
     "224":"Another instance of NDAC is already running",
     "225":"Port "+ndacport+" already in use",
-    "226":"Error while establishing connection to Pluginsdb"
+    "226":"Error while establishing connection to Nineteen68 Database"
 }
 
 

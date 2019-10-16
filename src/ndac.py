@@ -18,7 +18,9 @@ from datetime import datetime, timedelta
 import time
 import uuid
 import redis
+import flask
 from flask import Flask, request, jsonify, Response
+from bson.objectid import ObjectId
 from waitress import serve
 import logging
 import logging.config
@@ -110,6 +112,12 @@ ui_plugins = {"alm":"ALM","apg":"APG","dashboard":"Dashboard",
     "oxbowcode":"Oxbow Code Identifier","performancetesting":"Performance Testing",
     "reports":"Reports","utility":"Utility","weboccular":"Webocular"}
 
+def _jsonencoder_default(self, obj):
+    if isinstance(obj, ObjectId):
+        return str(obj)
+    return flask.json.JSONEncoder._default(self, obj)
+flask.json.JSONEncoder._default = flask.json.JSONEncoder.default
+flask.json.JSONEncoder.default = _jsonencoder_default
 
 #server check
 @app.route('/')
@@ -128,44 +136,45 @@ from utils import *
 setenv(flaskapp=app)
 sys.path.append(currdir+'/ndac/src/routes')
 
-import loginservice
-loginservice.LoadServices(app, redissession, n68session2)
+def addroutes():
+    import loginservice
+    loginservice.LoadServices(app, redissession, n68session2)
 
-import adminservice
-adminservice.LoadServices(app, redissession, n68session2)
+    import adminservice
+    adminservice.LoadServices(app, redissession, n68session2)
 
-##import mindmapsservice
-##mindmapsservice.LoadServices(app, redissession, n68session2)
+    ##import mindmapsservice
+    ##mindmapsservice.LoadServices(app, redissession, n68session2)
 
-##import designscreenservice
-##designscreenservice.LoadServices(app, redissession, n68session2)
+    ##import designscreenservice
+    ##designscreenservice.LoadServices(app, redissession, n68session2)
 
-##import designtestcaseservice
-##designtestcaseservice.LoadServices(app, redissession, n68session2)
+    ##import designtestcaseservice
+    ##designtestcaseservice.LoadServices(app, redissession, n68session2)
 
-##import executionservice
-##executionservice.LoadServices(app, redissession, n68session2)
+    ##import executionservice
+    ##executionservice.LoadServices(app, redissession, n68session2)
 
-##import thirdpartyservice
-##thirdpartyservice.LoadServices(app, redissession, n68session2)
+    ##import thirdpartyservice
+    ##thirdpartyservice.LoadServices(app, redissession, n68session2)
 
-##import reportsservice
-##reportsservice.LoadServices(app, redissession, n68session2)
+    ##import reportsservice
+    ##reportsservice.LoadServices(app, redissession, n68session2)
 
-##import utilitiesservice
-##utilitiesservice.LoadServices(app, redissession, n68session2)
+    ##import utilitiesservice
+    ##utilitiesservice.LoadServices(app, redissession, n68session2)
 
-##import apgservice
-##apgservice.LoadServices(app, redissession, n68session2)
+    ##import apgservice
+    ##apgservice.LoadServices(app, redissession, n68session2)
 
-##import webocularservice
-##webocularservice.LoadServices(app, redissession, n68session2)
+    ##import webocularservice
+    ##webocularservice.LoadServices(app, redissession, n68session2)
 
-##import neurongraphsservice
-##neurongraphsservice.LoadServices(app, redissession, n68session2)
+    ##import neurongraphsservice
+    ##neurongraphsservice.LoadServices(app, redissession, n68session2)
 
-##import chatbotservice
-##chatbotservice.LoadServices(app, redissession, n68session2)
+    ##import chatbotservice
+    ##chatbotservice.LoadServices(app, redissession, n68session2)
 
 ################################################################################
 # END OF SERVICES IMPORT
@@ -454,59 +463,6 @@ def updateActiveIceSessions():
 ################################################################################
 
 ################################################################################
-# BEGIN OF GENERIC FUNCTIONS
-################################################################################
-def initLoggers(level):
-    logLevel = logging.INFO
-    consoleFormat = "[%(asctime)s] %(levelname)s in %(module)s:%(lineno)d: %(message)s"
-    if level.debug:
-        logLevel = logging.DEBUG
-    elif level.info:
-        logLevel = logging.INFO
-    elif level.warn:
-        logLevel = logging.WARNING
-    elif level.error:
-        logLevel = logging.ERROR
-    elif level.critical:
-        logLevel = logging.CRITICAL
-    app.debug = True
-    consoleFormatter = logging.Formatter(consoleFormat)
-    consoleHandler = app.logger.handlers[0]
-    consoleHandler.setFormatter(consoleFormatter)
-    fileFormatter = logging.Formatter('''{"timestamp": "%(asctime)s", "file": "%(module)s", "lineno.": %(lineno)d, "level": "%(levelname)s", "message": "%(message)s"}''')
-    fileHandler = TimedRotatingFileHandler(logspath+'/ndac/ndac'+datetime.now().strftime("_%Y%m%d-%H%M%S")+'.log',when='d', encoding='utf-8', backupCount=1)
-    fileHandler.setFormatter(fileFormatter)
-    app.logger.addHandler(fileHandler)
-    if level.test:
-        consoleHandler.setLevel(logging.WARNING)
-        fileHandler.setLevel(logging.DEBUG)
-    else:
-        app.logger.setLevel(logLevel)
-    app.logger.propagate = False
-    cassandra.cluster.log.setLevel(50) # Set cassanda's log level to critical
-    cassandra.connection.log.setLevel(50) # Set cassanda's log level to critical
-    cassandra.pool.log.setLevel(50) # Set cassanda's log level to critical
-    app.logger.debug("Inside initLoggers")
-
-def getcurrentdate():
-    currentdate= datetime.now()
-    beginingoftime = datetime.utcfromtimestamp(0)
-    differencedate= currentdate - beginingoftime
-    return long(differencedate.total_seconds() * 1000.0)
-
-class UUIDEncoder(json.JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, uuid.UUID):
-            return str(obj)
-        if isinstance(obj, datetime):
-            return str(obj)
-        return json.JSONEncoder.default(self, obj)
-
-################################################################################
-# END OF GENERIC FUNCTIONS
-################################################################################
-
-################################################################################
 # BEGIN OF COUNTERS
 ################################################################################
 def counterupdator(updatortype,userid,count):
@@ -659,8 +615,9 @@ def reportdataprocessor(resultset,fromdate,todate):
 ################################################################################
 # END OF COUNTERS
 ################################################################################
+
 ################################################################################
-# START LICENSING COMPONENTS
+# START OF LICENSING COMPONENTS
 ################################################################################
 def getMacAddress():
     app.logger.debug("Inside getMacAddress")
@@ -1000,6 +957,59 @@ def saveGracePeriod():
         gracePeriodTimer = Timer(3600,saveGracePeriod)
         gracePeriodTimer.start()
 
+################################################################################
+# END OF LICENSING SERVER COMPONENTS
+################################################################################
+
+################################################################################
+# BEGIN OF GENERIC FUNCTIONS
+################################################################################
+
+def initLoggers(level):
+    logLevel = logging.INFO
+    consoleFormat = "[%(asctime)s] %(levelname)s in %(module)s:%(lineno)d: %(message)s"
+    if level.debug:
+        logLevel = logging.DEBUG
+    elif level.info:
+        logLevel = logging.INFO
+    elif level.warn:
+        logLevel = logging.WARNING
+    elif level.error:
+        logLevel = logging.ERROR
+    elif level.critical:
+        logLevel = logging.CRITICAL
+    app.debug = True
+    consoleFormatter = logging.Formatter(consoleFormat)
+    consoleHandler = app.logger.handlers[0]
+    consoleHandler.setFormatter(consoleFormatter)
+    fileFormatter = logging.Formatter('''{"timestamp": "%(asctime)s", "file": "%(module)s", "lineno.": %(lineno)d, "level": "%(levelname)s", "message": "%(message)s"}''')
+    fileHandler = TimedRotatingFileHandler(logspath+'/ndac/ndac'+datetime.now().strftime("_%Y%m%d-%H%M%S")+'.log',when='d', encoding='utf-8', backupCount=1)
+    fileHandler.setFormatter(fileFormatter)
+    app.logger.addHandler(fileHandler)
+    if level.test:
+        consoleHandler.setLevel(logging.WARNING)
+        fileHandler.setLevel(logging.DEBUG)
+    else:
+        app.logger.setLevel(logLevel)
+    app.logger.propagate = False
+    cassandra.cluster.log.setLevel(50) # Set cassanda's log level to critical
+    cassandra.connection.log.setLevel(50) # Set cassanda's log level to critical
+    cassandra.pool.log.setLevel(50) # Set cassanda's log level to critical
+    app.logger.debug("Inside initLoggers")
+
+def getcurrentdate():
+    currentdate= datetime.now()
+    beginingoftime = datetime.utcfromtimestamp(0)
+    differencedate= currentdate - beginingoftime
+    return long(differencedate.total_seconds() * 1000.0)
+
+class CustomJSONEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, uuid.UUID): return str(obj)
+        if isinstance(obj, datetime): return str(obj)
+        if isinstance(obj, ObjectId): return str(obj)
+        return json.JSONEncoder.default(self, obj)
+
 def pad(data):
     BS = 16
     padding = BS - len(data) % BS
@@ -1019,11 +1029,11 @@ def wrap(data, key, iv=b'0'*16):
     return codecs.encode(hex_data, 'hex').decode('utf-8')
 
 ################################################################################
-# END LICENSING SERVER COMPONENTS
+# END OF GENERIC FUNCTIONS
 ################################################################################
 
 ################################################################################
-#Begining of ProfJ assist Components
+# Begining of ProfJ assist Components
 ################################################################################
 
 class SQLite_DataSetup():
@@ -1211,7 +1221,6 @@ class ProfJ():
             response = [-1, "Invalid Input...Please try again", -1]
         return response, self.newQuesInfo, self.savedQueries
 
-
 ################################################################################
 # End of ProfJ assist components
 ################################################################################
@@ -1282,20 +1291,22 @@ def main():
         mongodb_conf = ndac_conf['nineteen68db']
         mongo_user=unwrap(mongodb_conf["username"],db_keys)
         mongo_pass=unwrap(mongodb_conf['password'],db_keys)
-        n68session2 = MongoClient('mongodb://%s:%s/' % (mongodb_conf["host"],mongodb_conf["port"]),
+        client = MongoClient('mongodb://%s:%s/' % (mongodb_conf["host"],mongodb_conf["port"]),
             username = mongo_user, password = mongo_pass, authSource = 'Nineteen68',
             authMechanism = 'SCRAM-SHA-1')
-        if n68session2.server_info():
+        if client.server_info():
             mongo_dbup = True
-        webocularsession = MongoClient('mongodb://%s:%s/' % (mongodb_conf["host"],mongodb_conf["port"]),
+        n68session2 = client.Nineten68
+        client = MongoClient('mongodb://%s:%s/' % (mongodb_conf["host"],mongodb_conf["port"]),
             username = mongo_user, password = mongo_pass, authSource = 'webocular',
             authMechanism = 'SCRAM-SHA-1')
+        webocularsession = client.webocular
     except Exception as e:
         app.logger.debug(e)
         app.logger.critical(printErrorCodes('226'))
         return False
 
-
+    addroutes()
     if (basecheckonls()):
         err_msg = None
         try:
