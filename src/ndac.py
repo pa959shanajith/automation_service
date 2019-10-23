@@ -1296,7 +1296,7 @@ def main():
             authMechanism = 'SCRAM-SHA-1')
         if client.server_info():
             mongo_dbup = True
-        n68session2 = client.Nineten68
+        n68session2 = client.Nineeten68
         client = MongoClient('mongodb://%s:%s/' % (mongodb_conf["host"],mongodb_conf["port"]),
             username = mongo_user, password = mongo_pass, authSource = 'webocular',
             authMechanism = 'SCRAM-SHA-1')
