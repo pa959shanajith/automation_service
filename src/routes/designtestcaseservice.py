@@ -139,7 +139,7 @@ def LoadServices(app, redissession, n68session2):
                         for j in queryresult[0]['steps']:
                             if 'dataObject' in j.keys():
                                 if j['dataObject'] != '':
-                                    if ObjectId(j['dataObject']) in dataObjects.keys():
+                                    if j['dataObject'] in dataObjects.keys():
                                         j['objectName'] = dataObjects[j['dataObject']]['xpath']
                                         j['url'] = dataObjects[j['dataObject']]['url']
                                         j['custname'] = dataObjects[j['dataObject']]['custname']
@@ -164,7 +164,7 @@ def LoadServices(app, redissession, n68session2):
                             for j in queryresult[k]['steps']:
                                 if 'dataObject' in j.keys():
                                     if j['dataObject'] != '':
-                                        if ObjectId(j['dataObject']) in dataObjects.keys():
+                                        if j['dataObject'] in dataObjects.keys():
                                             j['objectName'] = dataObjects[j['dataObject']]['xpath']
                                             j['url'] = dataObjects[j['dataObject']]['url']
                                             j['custname'] = dataObjects[j['dataObject']]['custname']
@@ -188,7 +188,7 @@ def LoadServices(app, redissession, n68session2):
                             for j in queryresult[k]['steps']:
                                 if 'dataObject' in j.keys():
                                     if j['dataObject'] != '':
-                                        if ObjectId(j['dataObject']) in dataObjects.keys():
+                                        if j['dataObject'] in dataObjects.keys():
                                             j['objectName'] = dataObjects[j['dataObject']]['xpath']
                                             j['url'] = dataObjects[j['dataObject']]['url']
                                             j['custname'] = dataObjects[j['dataObject']]['custname']
