@@ -39,6 +39,13 @@ from Crypto.Cipher import AES
 import codecs
 app = Flask(__name__)
 
+
+
+
+
+
+
+
 parser = argparse.ArgumentParser()
 log_group = parser.add_mutually_exclusive_group()
 log_group.add_argument("-T", "--test", action="store_true", help="Set logger level to Test Environment")
@@ -137,29 +144,29 @@ setenv(flaskapp=app)
 sys.path.append(currdir+'/ndac/src/routes')
 
 def addroutes():
-    import loginservice
+    from routes import loginservice
     loginservice.LoadServices(app, redissession, n68session2)
 
-    import adminservice
+    from routes import adminservice
     adminservice.LoadServices(app, redissession, n68session2)
 
     ##import mindmapsservice
     ##mindmapsservice.LoadServices(app, redissession, n68session2)
 
-    ##import designscreenservice
-    ##designscreenservice.LoadServices(app, redissession, n68session2)
+    from routes import designscreenservice
+    designscreenservice.LoadServices(app, redissession, n68session2)
 
-    ##import designtestcaseservice
-    ##designtestcaseservice.LoadServices(app, redissession, n68session2)
+    from routes import designtestcaseservice
+    designtestcaseservice.LoadServices(app, redissession, n68session2)
 
-    ##import executionservice
-    ##executionservice.LoadServices(app, redissession, n68session2)
+    from routes import executionservice
+    executionservice.LoadServices(app, redissession, n68session2)
 
     ##import thirdpartyservice
     ##thirdpartyservice.LoadServices(app, redissession, n68session2)
 
-    ##import reportsservice
-    ##reportsservice.LoadServices(app, redissession, n68session2)
+    from routes import reportsservice
+    reportsservice.LoadServices(app, redissession, n68session2, webocularsession)
 
     ##import utilitiesservice
     ##utilitiesservice.LoadServices(app, redissession, n68session2)
@@ -1296,7 +1303,7 @@ def main():
             authMechanism = 'SCRAM-SHA-1')
         if client.server_info():
             mongo_dbup = True
-        n68session2 = client.Nineeten68
+        n68session2 = client.Nineeteen68
         client = MongoClient('mongodb://%s:%s/' % (mongodb_conf["host"],mongodb_conf["port"]),
             username = mongo_user, password = mongo_pass, authSource = 'webocular',
             authMechanism = 'SCRAM-SHA-1')
