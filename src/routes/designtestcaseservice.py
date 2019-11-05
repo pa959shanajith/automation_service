@@ -54,6 +54,8 @@ def LoadServices(app, redissession, n68session2):
 
 
 
+    def object_dict(key, queryresult):
+        return {i[key]:i for i in queryresult}
 
     #test case updating service
     @app.route('/design/updateTestCase_ICE',methods=['POST'])
@@ -119,6 +121,13 @@ def LoadServices(app, redissession, n68session2):
 
 
 
+    def update_steps(steps,dataObjects):
+        for j in steps:
+            j['objectName'], j['url'] = '', ''
+            if 'dataObject' in j.keys():
+                if j['dataObject'] != '':
+                    if j['dataObject'] in dataObjects.keys():
+                        j['objectName'], j['url'], j['custname'] = dataObjects[j['dataObject']]['xpath'], dataObjects[j['dataObject']]['url'], dataObjects[j['dataObject']]['custname']
 
     #test case reading service
     @app.route('/design/readTestCase_ICE',methods=['POST'])
@@ -133,19 +142,9 @@ def LoadServices(app, redissession, n68session2):
                     queryresult1 = list(n68session2.dataobjects.find({'parent':ObjectId(requestdata['screenid'])},{'parent':0}))
                     dataObjects = {}
                     if (queryresult1 != []):
-                        for i in queryresult1:
-                            dataObjects[i['_id']] = i
+                        dataObjects = object_dict('_id', queryresult1)
                     if (queryresult != []):
-                        for j in queryresult[0]['steps']:
-                            if 'dataObject' in j.keys():
-                                if j['dataObject'] != '':
-                                    if j['dataObject'] in dataObjects.keys():
-                                        j['objectName'] = dataObjects[j['dataObject']]['xpath']
-                                        j['url'] = dataObjects[j['dataObject']]['url']
-                                        j['custname'] = dataObjects[j['dataObject']]['custname']
-                            if 'objectName' not in j.keys():
-                                j['objectName'] = ''
-                                j['url'] = ''
+                        update_steps(queryresult[0]['steps'],dataObjects)
                     res= {'rows': queryresult}
                 elif(requestdata['query'] == 'testcaseid'):
                     tc_id_list=[]
@@ -158,19 +157,9 @@ def LoadServices(app, redissession, n68session2):
                         queryresult1 = list(n68session2.dataobjects.find({'parent':ObjectId(queryresult[k]['parent'][0])},{'parent':0}))
                         dataObjects = {}
                         if (queryresult1 != []):
-                            for i in queryresult1:
-                                dataObjects[i['_id']] = i
+                            dataObjects = object_dict('_id', queryresult1)
                         if (queryresult != []):
-                            for j in queryresult[k]['steps']:
-                                if 'dataObject' in j.keys():
-                                    if j['dataObject'] != '':
-                                        if j['dataObject'] in dataObjects.keys():
-                                            j['objectName'] = dataObjects[j['dataObject']]['xpath']
-                                            j['url'] = dataObjects[j['dataObject']]['url']
-                                            j['custname'] = dataObjects[j['dataObject']]['custname']
-                                if 'objectName' not in j.keys():
-                                    j['objectName'] = ''
-                                    j['url'] = ''
+                            update_steps(queryresult[k]['steps'],dataObjects)
                     res= {'rows': queryresult}
                     #if (not requestdata.has_key('readonly')):
                     #    count = debugcounter + 1
@@ -181,20 +170,10 @@ def LoadServices(app, redissession, n68session2):
                     queryresult1 = list(n68session2.dataobjects.find({'parent':ObjectId(requestdata['screenid'])}))
                     dataObjects = {}
                     if (queryresult1 != []):
-                        for i in queryresult1:
-                            dataObjects[i['_id']] = i
+                        dataObjects = object_dict('_id', queryresult1)
                     if (queryresult != []):
                         for k in range(len(queryresult)):
-                            for j in queryresult[k]['steps']:
-                                if 'dataObject' in j.keys():
-                                    if j['dataObject'] != '':
-                                        if j['dataObject'] in dataObjects.keys():
-                                            j['objectName'] = dataObjects[j['dataObject']]['xpath']
-                                            j['url'] = dataObjects[j['dataObject']]['url']
-                                            j['custname'] = dataObjects[j['dataObject']]['custname']
-                                if 'objectName' not in j.keys():
-                                    j['objectName'] = ''
-                                    j['url'] = ''
+                            update_steps(queryresult[k]['steps'],dataObjects)
                     res= {'rows': queryresult}
             else:
                 app.logger.warn('Empty data received. reading Testcase')
