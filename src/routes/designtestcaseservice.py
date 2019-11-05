@@ -42,7 +42,7 @@ def LoadServices(app, redissession, n68session2):
                 if(requestdata['query'] == 'gettestcasedetails'):
                     ids = list(n68session2.testscenarios.find({'_id':ObjectId(requestdata['testscenarioid'])},{'testcaseids':1,'_id':0}))
                     if (ids != []):
-                        queryresult = list(n68session2.testcases.find({'_id':{'$in':ids[0]['testcaseids']}},{'name':1}))#,'_id':1}))
+                        queryresult = list(n68session2.testcases.find({'_id':{'$in':ids[0]['testcaseids']}},{'name':1}))
                         res= {'rows':queryresult}
                 else:
                     res={'rows':'fail'}
@@ -65,14 +65,17 @@ def LoadServices(app, redissession, n68session2):
             if not isemptyrequest(requestdata):
                 if not (requestdata['import_status']):
                     for i in requestdata['testcasesteps']:
-                        i['dataObject'] = ObjectId(i['dataObject'])
-                        queryresult1 = list(n68session2.dataobjects.find({'_id':i['dataObject']},{'custname':1,'_id':0}))
-                        i['custname'] = queryresult1[0]['custname']
+                        if 'dataObject' in i.keys():
+                            if i['dataObject'] != '':
+                                i['dataObject'] = ObjectId(i['dataObject'])
+                                queryresult1 = list(n68session2.dataobjects.find({'_id':i['dataObject']},{'custname':1,'_id':0}))
+                                i['custname'] = queryresult1[0]['custname']
                         if 'objectName' in i.keys():
                             del i['objectName']
                         if 'url' in i.keys():
                             del i['url']
                 else:
+                    #Import testcase
                     queryresult1 = list(n68session2.dataobjects.find({'parent':ObjectId(requestdata['screenid'])},{'parent':0}))
                     custnames = {}
                     added=[]
@@ -135,10 +138,11 @@ def LoadServices(app, redissession, n68session2):
                     if (queryresult != []):
                         for j in queryresult[0]['steps']:
                             if 'dataObject' in j.keys():
-                                if ObjectId(j['dataObject']) in dataObjects.keys():
-                                    j['objectName'] = dataObjects[j['dataObject']]['xpath']
-                                    j['url'] = dataObjects[j['dataObject']]['url']
-                                    j['custname'] = dataObjects[j['dataObject']]['custname']
+                                if j['dataObject'] != '':
+                                    if ObjectId(j['dataObject']) in dataObjects.keys():
+                                        j['objectName'] = dataObjects[j['dataObject']]['xpath']
+                                        j['url'] = dataObjects[j['dataObject']]['url']
+                                        j['custname'] = dataObjects[j['dataObject']]['custname']
                             if 'objectName' not in j.keys():
                                 j['objectName'] = ''
                                 j['url'] = ''
@@ -159,10 +163,11 @@ def LoadServices(app, redissession, n68session2):
                         if (queryresult != []):
                             for j in queryresult[k]['steps']:
                                 if 'dataObject' in j.keys():
-                                    if ObjectId(j['dataObject']) in dataObjects.keys():
-                                        j['objectName'] = dataObjects[j['dataObjects']]['xpath']
-                                        j['url'] = dataObjects[j['dataObjects']]['url']
-                                        j['custname'] = dataObjects[j['dataObject']]['custname']
+                                    if j['dataObject'] != '':
+                                        if ObjectId(j['dataObject']) in dataObjects.keys():
+                                            j['objectName'] = dataObjects[j['dataObject']]['xpath']
+                                            j['url'] = dataObjects[j['dataObject']]['url']
+                                            j['custname'] = dataObjects[j['dataObject']]['custname']
                                 if 'objectName' not in j.keys():
                                     j['objectName'] = ''
                                     j['url'] = ''
@@ -182,10 +187,11 @@ def LoadServices(app, redissession, n68session2):
                         for k in range(len(queryresult)):
                             for j in queryresult[k]['steps']:
                                 if 'dataObject' in j.keys():
-                                    if ObjectId(j['dataObject']) in dataObjects.keys():
-                                        j['objectName'] = dataObjects[j['dataObject']]['xpath']
-                                        j['url'] = dataObjects[j['dataObject']]['url']
-                                        j['custname'] = dataObjects[j['dataObject']]['custname']
+                                    if j['dataObject'] != '':
+                                        if ObjectId(j['dataObject']) in dataObjects.keys():
+                                            j['objectName'] = dataObjects[j['dataObject']]['xpath']
+                                            j['url'] = dataObjects[j['dataObject']]['url']
+                                            j['custname'] = dataObjects[j['dataObject']]['custname']
                                 if 'objectName' not in j.keys():
                                     j['objectName'] = ''
                                     j['url'] = ''
