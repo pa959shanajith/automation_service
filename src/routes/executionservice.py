@@ -16,16 +16,8 @@
 #----------DEFAULT METHODS AND IMPORTS-------------------------------
 from utils import *
 
-from bson.json_util import dumps as mongo_dumps
-from bson.objectid import ObjectId
 from datetime import datetime, timedelta
 import time
-
-def getcurrentdate():
-    currentdate= datetime.now()
-    beginingoftime = datetime.utcfromtimestamp(0)
-    differencedate= currentdate - beginingoftime
-    return long(differencedate.total_seconds() * 1000.0)
 
 def LoadServices(app, redissession, n68session):
     setenv(app)
