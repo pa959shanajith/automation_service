@@ -20,7 +20,7 @@ def LoadServices(app, redissession, n68session2):
             app.logger.debug("Inside getScrapeDataScreenLevel_ICE. Query: "+str(requestdata["query"]))
             if not isemptyrequest(requestdata):
                 if (requestdata['query'] == 'getscrapedata'):
-                    screen_query=list(n68session2.screens.find({"_id":ObjectId(requestdata['screenid'])},"projectid":ObjectId(requestdata['projectid']),"deleted":False}))
+                    screen_query=list(n68session2.screens.find({"_id":ObjectId(requestdata['screenid']),"projectid":ObjectId(requestdata['projectid']),"deleted":False}))
                     if (screen_query != []):
                         dataobj_query = list(n68session2.dataobjects.find({"parent" :{"$in":[ObjectId(requestdata['screenid'])]}}))
                         res["rows"] = {"view":dataobj_query,"scrapedurl":screen_query[0]["scrapedurl"],"mirror":screen_query[0]["screenshot"],"name":screen_query[0]["name"]}
@@ -79,7 +79,7 @@ def LoadServices(app, redissession, n68session2):
                             data_id=ObjectId(data_obj[i]["_id"])
                             del data_obj[i]["_id"]
                             n68session2.dataobjects.update({"_id": data_id},{"$set":data_obj[i]})
-                        res = {"rows":"Success"} 
+                        res = {"rows":"Success"}
                     if "modobj" in data["scrapedata"]:
                         data_obj=data["scrapedata"]["modobj"]
                         for i in range(len(data_obj)):

@@ -75,7 +75,7 @@ def LoadServices(app, redissession, n68session):
             elif (not emptyRequestCheck) and (requestdata['roleid']=="ignore"):
                 res={'rows':'True'}
             elif not emptyRequestCheck:
-                result=n68session.permissions.find_one({"_id":ObjectId(requestdata["roleid"]))},{"servicelist":1,"_id":1})
+                result=n68session.permissions.find_one({"_id":ObjectId(requestdata["roleid"])},{"servicelist":1,"_id":1})
                 servicename=requestdata['servicename']
                 statusflag = False
                 for each in result['servicelist']:
