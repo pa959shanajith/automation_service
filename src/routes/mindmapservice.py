@@ -5,6 +5,7 @@
 from utils import *
 from bson.objectid import ObjectId
 import json
+from datetime import datetime
 
 def LoadServices(app, redissession, n68session):
     setenv(app)
@@ -1040,8 +1041,21 @@ def LoadServices(app, redissession, n68session):
                 elif action == "modify":
                     tasks_update=requestdata["update"]
                     for i in tasks_update:
-                        n68session.tasks.update({"_id":ObjectId(requestdata["taskid"]),"cycle":ObjectId(requestdata["cycleid"])},{"$set":{"assignedtime":requestdata["assignedtime"],"startdate":requestdata["startdate"],"enddate":requestdata["enddate"],"assignedto":requestdata["assignedto"],"reviewer":requestdata["reviewer"],"status":requestdata["status"],"reestimation":requestdata["reestimation"],"complexity":requestdata["complexity"],"history":requestdata["history"]}})
+                        i["assignedtime"]=datetime.now()
+                        i["startdate"]=datetime.strptime(i["startdate"],"%d/%m/%Y")
+                        i["enddate"]=datetime.strptime(i["enddate"],"%d/%m/%Y")
+                        n68session.tasks.update({"_id":ObjectId(i["taskid"]),"cycle":ObjectId(i["cycleid"])},{"$set":{"assignedtime":i["assignedtime"],"startdate":i["startdate"],"enddate":i["enddate"],"assignedto":ObjectId(i["assignedto"]),"reviewer":ObjectId(i["reviewer"]),"status":i["status"],"reestimation":i["reestimation"],"complexity":i["complexity"],"history":i["history"]}})
                     tasks_insert=requestdata["insert"]
+                    for i in tasks_insert:
+                        i["startdate"]=datetime.strptime(i["startdate"],"%d/%m/%Y")
+                        i["enddate"]=datetime.strptime(i["enddate"],"%d/%m/%Y")
+                        i["assignedtime"]=datetime.now()
+                        i["createdon"]=datetime.now()
+                        i["owner"]=ObjectId(i["owner"])
+                        i["assignedto"]=ObjectId(i["assignedto"])
+                        i["nodeid"]=ObjectId(i["nodeid"])
+                        i["parent"]=ObjectId(i["parent"])
+                        i["reviewer"]=ObjectId(i["reviewer"])
                     n68session.tasks.insert_many(tasks_insert)
                     res={"rows":"success"}
             else:
