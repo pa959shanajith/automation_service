@@ -78,7 +78,7 @@ def LoadServices(app, redissession, n68session2):
                         for i in range(len(data_obj)):
                             data_id=ObjectId(data_obj[i]["_id"])
                             del data_obj[i]["_id"]
-                            mongoSession.Nineteen68.dataobjects.update({"_id": data_id},{"$set":data_obj[i]})
+                            n68session2.dataobjects.update({"_id": data_id},{"$set":data_obj[i]})
                         res = {"rows":"Success"} 
                     if "modobj" in data["scrapedata"]:
                         data_obj=data["scrapedata"]["modobj"]
