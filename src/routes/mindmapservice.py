@@ -68,7 +68,6 @@ def LoadServices(app, redissession, n68session):
         res={'rows':'fail'}
         try:
            requestdata=json.loads(request.data)
-           print("req",requestdata)
            if not isemptyrequest(requestdata):
                 projectid=requestdata['projectid']
                 dbconn=n68session["projects"]
@@ -89,7 +88,6 @@ def LoadServices(app, redissession, n68session):
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
-            print("req",requestdata)
             app.logger.debug("Inside getProjectIDs_Nineteen68. Query: "+str(requestdata["query"]))
             if not isemptyrequest(requestdata):
                 prjDetails={
@@ -99,7 +97,6 @@ def LoadServices(app, redissession, n68session):
                     'releases':[]
                 }
                 userid=requestdata['userid']
-                # userid="5da8670ff87fdec084ae4993"
                 dbconn=n68session["users"]
                 projectIDResult=list(dbconn.find({"_id":ObjectId(userid)},{"projects":1}))
                 if(len(projectIDResult)!=0):
@@ -171,7 +168,6 @@ def LoadServices(app, redissession, n68session):
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
-            print("req",requestdata)
             app.logger.debug("Inside get_node_details_ICE. Name: "+str(requestdata["name"]))
             if not isemptyrequest(requestdata):
                 name=requestdata['name']
@@ -199,7 +195,6 @@ def LoadServices(app, redissession, n68session):
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
-            print("req",requestdata)
             app.logger.debug("Inside testsuiteid_exists_ICE. Query: "+str(requestdata["name"]))
             if not isemptyrequest(requestdata):
                 query_name=requestdata['name']
@@ -221,7 +216,6 @@ def LoadServices(app, redissession, n68session):
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
-            print("req",requestdata)
             app.logger.debug("Inside testscenariosid_exists_ICE. Query: "+str(requestdata["name"]))
             if not isemptyrequest(requestdata):
                 query_name=requestdata['name']
@@ -243,7 +237,6 @@ def LoadServices(app, redissession, n68session):
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
-            print("req",requestdata)
             app.logger.debug("Inside testscreenid_exists_ICE. Query: "+str(requestdata["name"]))
             if not isemptyrequest(requestdata):
                 query_name=requestdata['name']
@@ -265,7 +258,6 @@ def LoadServices(app, redissession, n68session):
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
-            print("req",requestdata)
             app.logger.debug("Inside testcaseid_exists_ICE. Query: "+str(requestdata["name"]))
             if not isemptyrequest(requestdata):
                 query_name=requestdata['name']
@@ -286,7 +278,6 @@ def LoadServices(app, redissession, n68session):
         try:
             wrong_operation=False
             requestdata=json.loads(request.data)
-            print("req",requestdata)
             app.logger.debug("Inside delete_node_ICE. Name: "+str(requestdata["name"]))
             if not isemptyrequest(requestdata):
                 query_name=requestdata['name']
@@ -313,7 +304,6 @@ def LoadServices(app, redissession, n68session):
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
-            print("req",requestdata)
             app.logger.debug("Inside insertInSuite_ICE. Query: "+str(requestdata["query"]))
             if not isemptyrequest(requestdata):
                 createdon = datetime.datetime.now()
@@ -350,7 +340,6 @@ def LoadServices(app, redissession, n68session):
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
-            print("req",requestdata)
             app.logger.debug("Inside insertInScenarios_ICE. Query: "+str(requestdata["query"]))
             if not isemptyrequest(requestdata):
                 if(requestdata["query"] == 'notflagscenarios'):
@@ -385,7 +374,6 @@ def LoadServices(app, redissession, n68session):
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
-            print("req",requestdata)
             app.logger.debug("Inside insertInScreen_ICE. Query: "+str(requestdata["query"]))
             if not isemptyrequest(requestdata):
                 if(requestdata["query"] == 'notflagscreen'):
@@ -426,7 +414,6 @@ def LoadServices(app, redissession, n68session):
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
-            print("req",requestdata)
             app.logger.debug("Inside insertInTestcase_ICE. Query: "+str(requestdata["query"]))
             if not isemptyrequest(requestdata):
                 if(requestdata["query"] == 'notflagtestcase'):
@@ -462,7 +449,6 @@ def LoadServices(app, redissession, n68session):
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
-            print("req",requestdata)
             app.logger.debug("Inside updateTestScenario_ICE. Modified_flag: "+str(requestdata["modifiedflag"]))
             if not isemptyrequest(requestdata):
                 modifiedon=getcurrentdate()
@@ -485,7 +471,6 @@ def LoadServices(app, redissession, n68session):
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
-            print("req",requestdata)
             app.logger.debug("Inside updateModule_ICE. Modified_flag: "+str(requestdata["modifiedflag"]))
             if not isemptyrequest(requestdata):
                 dbconn=n68session["mindmaps"]
@@ -509,7 +494,6 @@ def LoadServices(app, redissession, n68session):
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
-            print("req",requestdata)
             dbconn=n68session["mindmaps"]
             modifiedon=getcurrentdate()
             if not isemptyrequest(requestdata):
@@ -528,7 +512,6 @@ def LoadServices(app, redissession, n68session):
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
-            print("req",requestdata)
             dbconn=n68session["testscenarios"]
             if not isemptyrequest(requestdata):
                 modifiedon=getcurrentdate()
@@ -547,7 +530,6 @@ def LoadServices(app, redissession, n68session):
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
-            print("req",requestdata)
             dbconn=n68session["screens"]
             if not isemptyrequest(requestdata):
                 modifiedon=getcurrentdate()
@@ -566,7 +548,6 @@ def LoadServices(app, redissession, n68session):
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
-            print("req",requestdata)
             dbconn=n68session["screens"]
             if not isemptyrequest(requestdata):
                 modifiedon=getcurrentdate()
@@ -586,7 +567,6 @@ def LoadServices(app, redissession, n68session):
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
-            print("req",requestdata)
             app.logger.debug("Inside node_reuse_ICE. Query: "+str(requestdata["name"]))
             if not isemptyrequest(requestdata):
                 # Queries for reuse
@@ -603,7 +583,6 @@ def LoadServices(app, redissession, n68session):
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
-            print("req",requestdata)
             app.logger.debug("Inside getModules. Query: "+str(requestdata["name"]))
             if 'moduleid' in requestdata and requestdata['moduleid']!=None:
                 mindmapdata=list(n68session.mindmaps.find({"_id":ObjectId(requestdata["moduleid"])},{"testscenarios":1,"_id":1,"name":1,"projectid":1}))
@@ -763,15 +742,13 @@ def LoadServices(app, redissession, n68session):
             print("req",requestdata)
             app.logger.debug("Inside getTasksJSON.")
             if not isemptyrequest(requestdata):
-                # Queries for getting TaskJSON
-                userid="5dafea661935b9f663881bf6"
-                # userid=requestdata["userid"]
+                userid=requestdata["userid"]
                 tasks=list(n68session.tasks.find({"$or":[{"assignedto":ObjectId(userid)},{"reviewer":ObjectId(userid)}]}))
                 res={'rows':tasks}
             else:
-                app.logger.warn("Empty data received. node_reuse_ICE")
+                app.logger.warn("Empty data received. getTasksJSON")
         except Exception as e:
-            servicesException("node_reuse_ICE",e)
+            servicesException("getTasksJSON",e)
         return jsonify(res)
 
     @app.route('/mindmap/getScenarios',methods=['POST'])
@@ -779,12 +756,10 @@ def LoadServices(app, redissession, n68session):
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
-            print("req",requestdata)
             app.logger.debug("Inside getScenarios.")
             if not isemptyrequest(requestdata):
                 moduleid=requestdata["moduleid"]
                 moduledetails=list(n68session.mindmaps.find({"_id":ObjectId(moduleid)},{"testscenarios":1}))
-                print("moduledetails ",moduledetails)
                 scenarioids=[]
                 for mod in moduledetails:
                     for sce in mod["testscenarios"]:
@@ -805,21 +780,12 @@ def LoadServices(app, redissession, n68session):
         try:
            requestdata=json.loads(request.data)
            requestdata=requestdata["data"]
-           # print("Requestdata: ",requestdata)
            projectid=requestdata['projectid']
-
-           # userid=requestdata['userid']
-           # userroleid=requestdata['userroleid']
-           # versionnumber=requestdata['versionnumber']
-           # createdthrough=requestdata['createdthrough']
-           # type=requestdata['type']
-
-           # Hardcoded:
-           createdby="5da8670ff87fdec084ae4993"
-           createdbyrole="5da865d4f87fdec084ae497d"
-           versionnumber=0
-           createdthrough="Web"
-           type="basic"
+           userid=requestdata['userid']
+           userroleid=requestdata['userroleid']
+           versionnumber=requestdata['versionnumber']
+           createdthrough=requestdata['createdthrough']
+           type=requestdata['type']
 
            for moduledata in requestdata['testsuiteDetails']:
                if moduledata["state"]=="created":
@@ -853,7 +819,6 @@ def LoadServices(app, redissession, n68session):
                n68session.mindmaps.update_one({"_id":ObjectId(currentmoduleid)},{'$set':{'testscenarios':idsforModule}})
 
            res={'rows':currentmoduleid}
-           print("res",res)
         except Exception as e:
             servicesException("saveMindmap",e)
         return jsonify(res)
@@ -1043,6 +1008,5 @@ def LoadServices(app, redissession, n68session):
             else:
                 app.logger.warn('Empty data received. manage users.')
         except Exception as e:
-            #app.logger.debug(traceback.format_exc())
-            servicesException("manageUserDetails",e)
+            servicesException("manageTaskDetails",e)
         return jsonify(res)
