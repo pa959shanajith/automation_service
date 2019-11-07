@@ -5,6 +5,7 @@
 from utils import *
 from bson.objectid import ObjectId
 import json
+import datetime
 
 def LoadServices(app, redissession, n68session):
     setenv(app)
@@ -17,7 +18,6 @@ def LoadServices(app, redissession, n68session):
 ################################################################################
 # ADD YOUR ROUTES BELOW
 ################################################################################
-
 
     # API to get the Release IDs related to a particular ProjectID
     # @app.route('/create_ice/getReleaseIDs_Nineteen68',methods=['GET','POST'])
@@ -72,7 +72,7 @@ def LoadServices(app, redissession, n68session):
                 projectid=requestdata['projectid']
                 dbconn=n68session["projects"]
                 getProjectType=list(dbconn.find({"_id":ObjectId(projectid)},{"type._id":1}))
-                # print(getProjectType)
+                print(getProjectType)
                 dbconn=n68session["projecttypekeywords"]
                 getProjectTypeName= list(dbconn.find({"_id":ObjectId(getProjectType[0]["type"]["_id"])},{"name":1}))
                 res={'rows':getProjectType,'projecttype':getProjectTypeName}
@@ -97,7 +97,6 @@ def LoadServices(app, redissession, n68session):
                     'releases':[]
                 }
                 userid=requestdata['userid']
-                # userid="5da8670ff87fdec084ae4993"
                 dbconn=n68session["users"]
                 projectIDResult=list(dbconn.find({"_id":ObjectId(userid)},{"projects":1}))
                 if(len(projectIDResult)!=0):
@@ -138,7 +137,7 @@ def LoadServices(app, redissession, n68session):
     #     app.logger.debug("Inside getAllNames_ICE")
     #     res={'rows':'fail'}
     #     try:
-    #        requestdata=json.loads(request.data)
+    #        requestdata=json.loads(request.data)print("req",requestdata)
     #        if not isemptyrequest(requestdata):
     #             name=requestdata['name']
     #             nodeid=requestdata['id']
@@ -307,9 +306,9 @@ def LoadServices(app, redissession, n68session):
             requestdata=json.loads(request.data)
             app.logger.debug("Inside insertInSuite_ICE. Query: "+str(requestdata["query"]))
             if not isemptyrequest(requestdata):
-                createdon = str(getcurrentdate())
+                createdon = datetime.datetime.now()
                 if(requestdata["query"] == 'notflagsuite'):
-                    createdon = str(getcurrentdate())
+                    # createdon = str(getcurrentdate())
                     data={
                     "projectid":ObjectId(requestdata['projectid']),
                     "name":requestdata['modulename'],
@@ -344,7 +343,7 @@ def LoadServices(app, redissession, n68session):
             app.logger.debug("Inside insertInScenarios_ICE. Query: "+str(requestdata["query"]))
             if not isemptyrequest(requestdata):
                 if(requestdata["query"] == 'notflagscenarios'):
-                    createdon = str(getcurrentdate())
+                    createdon = datetime.datetime.now()
                     data={
                         "name":requestdata['testscenarioname'],
                         "projectid":ObjectId(requestdata['projectid']),
@@ -379,7 +378,7 @@ def LoadServices(app, redissession, n68session):
             if not isemptyrequest(requestdata):
                 if(requestdata["query"] == 'notflagscreen'):
                     if(requestdata.has_key('subquery') and requestdata["subquery"]=="clonenode"):
-                        createdon = str(getcurrentdate())
+                        createdon = datetime.datetime.now()
                         data={
                         "projectid":ObjectId(requestdata['projectid']),
                         "name":requestdata['screenname'],
@@ -418,7 +417,7 @@ def LoadServices(app, redissession, n68session):
             app.logger.debug("Inside insertInTestcase_ICE. Query: "+str(requestdata["query"]))
             if not isemptyrequest(requestdata):
                 if(requestdata["query"] == 'notflagtestcase'):
-                    createdon = str(getcurrentdate())
+                    createdon = datetime.datetime.now()
                     if(requestdata.has_key('subquery') and requestdata["subquery"]=="clonenode"):
                         data={
                             "screenid": ObjectId(requestdata['screenid']),
@@ -625,49 +624,9 @@ def LoadServices(app, redissession, n68session):
                 taskdata={}
                 for i in range(len(taskdetails)):
                     if taskdetails[i]["nodeid"] not in taskdata:
-                        taskdata[taskdetails[i]["nodeid"]]=[{
-                        "_id":taskdetails[i]["_id"],
-                        "name":taskdetails[i]["name"],
-                        "type":taskdetails[i]["type"],
-                        "nodeid":taskdetails[i]["nodeid"],
-                        "cycle":taskdetails[i]["cycle"],
-                        "parent":taskdetails[i]["parent"],
-                        "createdon":taskdetails[i]["createdon"],
-                        "assignedtime":taskdetails[i]["assignedtime"],
-                        "startdate":taskdetails[i]["startdate"],
-                        "enddate":taskdetails[i]["enddate"],
-                        "assignedto":taskdetails[i]["assignedto"],
-                        "reviewer":taskdetails[i]["reviewer"],
-                        "owner":taskdetails[i]["owner"],
-                        "batchname":taskdetails[i]["batchname"],
-                        "status":taskdetails[i]["status"],
-                        "details":taskdetails[i]["details"],
-                        "reestimation":taskdetails[i]["reestimation"],
-                        "complexity":taskdetails[i]["complexity"],
-                        "history":taskdetails[i]["history"]
-                        }]
+                        taskdata[taskdetails[i]["nodeid"]]=[taskdetails[i]]
                     else:
-                        taskdata[taskdetails[i]["nodeid"]].append({
-                        "_id":taskdetails[i]["_id"],
-                        "name":taskdetails[i]["name"],
-                        "type":taskdetails[i]["type"],
-                        "nodeid":taskdetails[i]["nodeid"],
-                        "cycle":taskdetails[i]["cycle"],
-                        "parent":taskdetails[i]["parent"],
-                        "createdon":taskdetails[i]["createdon"],
-                        "assignedtime":taskdetails[i]["assignedtime"],
-                        "startdate":taskdetails[i]["startdate"],
-                        "enddate":taskdetails[i]["enddate"],
-                        "assignedto":taskdetails[i]["assignedto"],
-                        "reviewer":taskdetails[i]["reviewer"],
-                        "owner":taskdetails[i]["owner"],
-                        "batchname":taskdetails[i]["batchname"],
-                        "status":taskdetails[i]["status"],
-                        "details":taskdetails[i]["details"],
-                        "reestimation":taskdetails[i]["reestimation"],
-                        "complexity":taskdetails[i]["complexity"],
-                        "history":taskdetails[i]["history"]
-                        })
+                        taskdata[taskdetails[i]["nodeid"]].append(taskdetails[i])
 
                 scenariodata={}
                 for i in range(len(scenariodetails)):
@@ -780,17 +739,16 @@ def LoadServices(app, redissession, n68session):
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
+            print("req",requestdata)
             app.logger.debug("Inside getTasksJSON.")
             if not isemptyrequest(requestdata):
-                # Queries for getting TaskJSON
-                # userid="5dafea661935b9f663881bf6"
                 userid=requestdata["userid"]
                 tasks=list(n68session.tasks.find({"$or":[{"assignedto":ObjectId(userid)},{"reviewer":ObjectId(userid)}]}))
                 res={'rows':tasks}
             else:
-                app.logger.warn("Empty data received. node_reuse_ICE")
+                app.logger.warn("Empty data received. getTasksJSON")
         except Exception as e:
-            servicesException("node_reuse_ICE",e)
+            servicesException("getTasksJSON",e)
         return jsonify(res)
 
     @app.route('/mindmap/getScenarios',methods=['POST'])
@@ -822,21 +780,12 @@ def LoadServices(app, redissession, n68session):
         try:
            requestdata=json.loads(request.data)
            requestdata=requestdata["data"]
-           # print("Requestdata: ",requestdata)
            projectid=requestdata['projectid']
-
            userid=requestdata['userid']
            userroleid=requestdata['userroleid']
            versionnumber=requestdata['versionnumber']
            createdthrough=requestdata['createdthrough']
            type=requestdata['type']
-
-           # Hardcoded:
-           # createdby="5da8670ff87fdec084ae4993"
-           # createdbyrole="5da865d4f87fdec084ae497d"
-           # versionnumber=0
-           # createdthrough="Web"
-           # type="basic"
 
            for moduledata in requestdata['testsuiteDetails']:
                if moduledata["state"]=="created":
@@ -870,7 +819,6 @@ def LoadServices(app, redissession, n68session):
                n68session.mindmaps.update_one({"_id":ObjectId(currentmoduleid)},{'$set':{'testscenarios':idsforModule}})
 
            res={'rows':currentmoduleid}
-           print("res",res)
         except Exception as e:
             servicesException("saveMindmap",e)
         return jsonify(res)
@@ -946,7 +894,7 @@ def LoadServices(app, redissession, n68session):
 
     def saveTestSuite(projectid,modulename,versionnumber,createdthrough,createdby,createdbyrole,type,testscenarios=[]):
         app.logger.debug("Inside saveTestSuite.")
-        createdon = str(getcurrentdate())
+        createdon = datetime.datetime.now()
         data={
         "projectid":ObjectId(projectid),
         "name":modulename,
@@ -967,7 +915,7 @@ def LoadServices(app, redissession, n68session):
 
     def saveTestScenario(projectid,testscenarioname,versionnumber,createdby,createdbyrole,testcaseids=[]):
         app.logger.debug("Inside saveTestScenario.")
-        createdon = str(getcurrentdate())
+        createdon = datetime.datetime.now()
         data={
             "name":testscenarioname,
             "projectid":ObjectId(projectid),
@@ -987,7 +935,7 @@ def LoadServices(app, redissession, n68session):
 
     def saveScreen(projectid,screenname,versionnumber,createdby,createdbyrole,scenarioid=None):
         app.logger.debug("Inside saveScreen.")
-        createdon = str(getcurrentdate())
+        createdon = datetime.datetime.now()
         data={
         "projectid":ObjectId(projectid),
         "name":screenname,
@@ -1008,7 +956,7 @@ def LoadServices(app, redissession, n68session):
 
     def saveTestcase(screenid,testcasename,versionnumber,createdby,createdbyrole):
         app.logger.debug("Inside saveTestcase.")
-        createdon = str(getcurrentdate())
+        createdon = datetime.datetime.now()
         data={
             "screenid": ObjectId(screenid),
             "name":testcasename,
@@ -1040,13 +988,25 @@ def LoadServices(app, redissession, n68session):
                 elif action == "modify":
                     tasks_update=requestdata["update"]
                     for i in tasks_update:
-                        n68session.tasks.update({"_id":ObjectId(requestdata["taskid"]),"cycle":ObjectId(requestdata["cycleid"])},{"$set":{"assignedtime":requestdata["assignedtime"],"startdate":requestdata["startdate"],"enddate":requestdata["enddate"],"assignedto":requestdata["assignedto"],"reviewer":requestdata["reviewer"],"status":requestdata["status"],"reestimation":requestdata["reestimation"],"complexity":requestdata["complexity"],"history":requestdata["history"]}})
+                        i["assignedtime"]=datetime.now()
+                        i["startdate"]=datetime.strptime(i["startdate"],"%d/%m/%Y")
+                        i["enddate"]=datetime.strptime(i["enddate"],"%d/%m/%Y")
+                        n68session.tasks.update({"_id":ObjectId(i["taskid"]),"cycle":ObjectId(i["cycleid"])},{"$set":{"assignedtime":i["assignedtime"],"startdate":i["startdate"],"enddate":i["enddate"],"assignedto":ObjectId(i["assignedto"]),"reviewer":ObjectId(i["reviewer"]),"status":i["status"],"reestimation":i["reestimation"],"complexity":i["complexity"],"history":i["history"]}})
                     tasks_insert=requestdata["insert"]
+                    for i in tasks_insert:
+                        i["startdate"]=datetime.strptime(i["startdate"],"%d/%m/%Y")
+                        i["enddate"]=datetime.strptime(i["enddate"],"%d/%m/%Y")
+                        i["assignedtime"]=datetime.now()
+                        i["createdon"]=datetime.now()
+                        i["owner"]=ObjectId(i["owner"])
+                        i["assignedto"]=ObjectId(i["assignedto"])
+                        i["nodeid"]=ObjectId(i["nodeid"])
+                        i["parent"]=ObjectId(i["parent"])
+                        i["reviewer"]=ObjectId(i["reviewer"])
                     n68session.tasks.insert_many(tasks_insert)
                     res={"rows":"success"}
             else:
                 app.logger.warn('Empty data received. manage users.')
         except Exception as e:
-            #app.logger.debug(traceback.format_exc())
-            servicesException("manageUserDetails",e)
+            servicesException("manageTaskDetails",e)
         return jsonify(res)

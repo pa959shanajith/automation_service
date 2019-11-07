@@ -162,14 +162,14 @@ def addroutes():
     from routes import executionservice
     executionservice.LoadServices(app, redissession, n68session2)
 
-    ##import thirdpartyservice
-    ##thirdpartyservice.LoadServices(app, redissession, n68session2)
+    from routes import thirdpartyservice
+    thirdpartyservice.LoadServices(app, redissession, n68session2)
 
     from routes import reportsservice
     reportsservice.LoadServices(app, redissession, n68session2, webocularsession)
 
-    ##import utilitiesservice
-    ##utilitiesservice.LoadServices(app, redissession, n68session2)
+    from routes import utilitiesservice
+    utilitiesservice.LoadServices(app, redissession, n68session2)
 
     ##import apgservice
     ##apgservice.LoadServices(app, redissession, n68session2)
