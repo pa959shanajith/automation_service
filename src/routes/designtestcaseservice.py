@@ -42,7 +42,14 @@ def LoadServices(app, redissession, n68session2):
                 if(requestdata['query'] == 'gettestcasedetails'):
                     ids = list(n68session2.testscenarios.find({'_id':ObjectId(requestdata['testscenarioid'])},{'testcaseids':1,'_id':0}))
                     if (ids != []):
-                        queryresult = list(n68session2.testcases.find({'_id':{'$in':ids[0]['testcaseids']}},{'name':1}))
+                        tc_ids = ids[0]['testcaseids']
+                        query = [
+                            {"$match":{"_id":{"$in":tc_ids}}},
+                            {"$addFields":{"__order":{"$indexOfArray":[tc_ids,"$_id"]}}},
+                            {"$sort":{"__order":1}},
+                            {"$project":{"name":1}}
+                        ]
+                        queryresult = list(n68session2.testcases.aggregate(query))
                         res= {'rows':queryresult}
                 else:
                     res={'rows':'fail'}
@@ -136,22 +143,19 @@ def LoadServices(app, redissession, n68session2):
             requestdata=json.loads(request.data)
             app.logger.debug('Inside readTestCase_ICE. Query: '+str(requestdata['query']))
             if not isemptyrequest(requestdata):
-                if(requestdata['query'] == 'readtestcase'):
-                    queryresult = list(n68session2.testcases.find({'_id':ObjectId(requestdata['testcaseid']),'parent':ObjectId(requestdata['screenid']),'versionnumber':requestdata['versionnumber']},{'steps':1,'name':1,'_id':0}))
-                    queryresult1 = list(n68session2.dataobjects.find({'parent':ObjectId(requestdata['screenid'])},{'parent':0}))
-                    dataObjects = {}
-                    if (queryresult1 != []):
-                        dataObjects = object_dict('_id', queryresult1)
-                    if (queryresult != []):
-                        update_steps(queryresult[0]['steps'],dataObjects)
-                    res= {'rows': queryresult}
-                elif(requestdata['query'] == 'testcaseid'):
+                if(requestdata['query'] == 'testcaseids'):
                     tc_id_list=[]
                     if not isinstance(requestdata['testcaseid'],list):
                         requestdata['testcaseid'] = [requestdata['testcaseid']]
                     for i in requestdata['testcaseid']:
                         tc_id_list.append(ObjectId(i))
-                    queryresult = list(n68session2.testcases.find({'_id':{'$in':tc_id_list}},{'steps':1,'name':1,'parent':1,'_id':0}))
+                    query = [
+                        {"$match":{"_id":{"$in":tc_id_list}}},
+                        {"$addFields":{"__order":{"$indexOfArray":[tc_id_list,"$_id"]}}},
+                        {"$sort":{"__order":1}},
+                        {"$project":{'steps':1,'name':1,'parent':1,'_id':0}}
+                    ]
+                    queryresult = list(n68session2.testcases.aggregate(query))
                     for k in range(len(queryresult)):
                         queryresult1 = list(n68session2.dataobjects.find({'parent':ObjectId(queryresult[k]['parent'][0])},{'parent':0}))
                         dataObjects = {}
@@ -160,20 +164,24 @@ def LoadServices(app, redissession, n68session2):
                         if (queryresult != []):
                             update_steps(queryresult[k]['steps'],dataObjects)
                     res= {'rows': queryresult}
-                    #if (not requestdata.has_key('readonly')):
-                    #    count = debugcounter + 1
-                    #    userid = requestdata['userid']
-                    #    counterupdator('testcases',userid,count)
-                elif(requestdata['query'] == 'screenid'):
-                    queryresult = list(n68session2.testcases.find({'parent':ObjectId(requestdata['screenid'])},{'steps':1,'name':1,'_id':0}))
-                    queryresult1 = list(n68session2.dataobjects.find({'parent':ObjectId(requestdata['screenid'])}))
+                else:
+                    if(requestdata['query'] == 'readtestcase'):
+                        queryresult = list(n68session2.testcases.find({'_id':ObjectId(requestdata['testcaseid']),'parent':ObjectId(requestdata['screenid']),'versionnumber':requestdata['versionnumber']},{'steps':1,'name':1,'_id':0}))
+                        queryresult1 = list(n68session2.dataobjects.find({'parent':ObjectId(requestdata['screenid'])},{'parent':0}))
+                    elif(requestdata['query'] == 'testcaseid'):
+                        #condition where screenid is empty
+                        queryresult = list(n68session2.testcases.find({'_id':ObjectId(requestdata['testcaseid']),'versionnumber':requestdata['versionnumber']},{'steps':1,'name':1,'_id':0}))
+                        queryresult1 = list(n68session2.dataobjects.find({'parent':queryresult[0]['parent'][0]},{'parent':0}))
                     dataObjects = {}
                     if (queryresult1 != []):
                         dataObjects = object_dict('_id', queryresult1)
                     if (queryresult != []):
-                        for k in range(len(queryresult)):
-                            update_steps(queryresult[k]['steps'],dataObjects)
+                        update_steps(queryresult[0]['steps'],dataObjects)
                     res= {'rows': queryresult}
+                    # if (not requestdata.has_key('readonly')):
+                    #     count = debugcounter + 1
+                    #     userid = requestdata['userid']
+                    #     counterupdator('testcases',userid,count)
             else:
                 app.logger.warn('Empty data received. reading Testcase')
         except Exception as readtestcaseexc:
