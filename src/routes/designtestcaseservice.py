@@ -82,8 +82,7 @@ def LoadServices(app, redissession, n68session2):
                     custnames = {}
                     added=[]
                     if (queryresult1 != []):
-                        for i in queryresult1:
-                            custnames[i['custname']] = i
+                        custnames = object_dict('custname', queryresult1)
                     for i in requestdata['testcasesteps']:
                         data_obj = {}
                         if i["custname"] not in custnames.keys():
