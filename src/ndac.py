@@ -150,8 +150,8 @@ def addroutes():
     from routes import adminservice
     adminservice.LoadServices(app, redissession, n68session2)
 
-    ##import mindmapsservice
-    ##mindmapsservice.LoadServices(app, redissession, n68session2)
+    from routes import mindmapsservice
+    mindmapsservice.LoadServices(app, redissession, n68session2)
 
     from routes import designscreenservice
     designscreenservice.LoadServices(app, redissession, n68session2)
