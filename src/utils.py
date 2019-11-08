@@ -122,7 +122,10 @@ ecodeServices = {
     "authenticateUser_Nineteen68_CI": "379",
     "generateCIusertokens": "380",
     "getCIUsersDetails": "381",
-    "deactivateCIUser": "382"
+    "deactivateCIUser": "382",
+    "saveMindmap":"383",
+    "getModules":"384",
+    "manageTaskDetails":"385"
 }
 
 

@@ -5,7 +5,7 @@
 from utils import *
 from bson.objectid import ObjectId
 import json
-import datetime
+from datetime import datetime
 
 def LoadServices(app, redissession, n68session):
     setenv(app)
@@ -71,10 +71,9 @@ def LoadServices(app, redissession, n68session):
            if not isemptyrequest(requestdata):
                 projectid=requestdata['projectid']
                 dbconn=n68session["projects"]
-                getProjectType=list(dbconn.find({"_id":ObjectId(projectid)},{"type._id":1}))
-                print(getProjectType)
+                getProjectType=list(dbconn.find({"_id":ObjectId(projectid)},{"type":1}))
                 dbconn=n68session["projecttypekeywords"]
-                getProjectTypeName= list(dbconn.find({"_id":ObjectId(getProjectType[0]["type"]["_id"])},{"name":1}))
+                getProjectTypeName= list(dbconn.find({"_id":ObjectId(getProjectType[0]["type"])},{"name":1}))             
                 res={'rows':getProjectType,'projecttype':getProjectTypeName}
            else:
                 app.logger.warn("Empty data received. getProjectType_Nineteen68")
@@ -117,12 +116,12 @@ def LoadServices(app, redissession, n68session):
                         prjids=emppid
                     for pid in prjids:
                         dbconn=n68session["projects"]
-                        prjDetail=list(dbconn.find({"_id":ObjectId(pid)},{"_id":1,"name":1,"type._id":1,"releases.name":1,"releases.cycles.name":1,"releases.cycles._id":1}))
-                        print(prjDetail)
+                        prjDetail=list(dbconn.find({"_id":ObjectId(pid)},{"_id":1,"name":1,"type":1,"releases.name":1,"releases.cycles.name":1,"releases.cycles._id":1}))
+                        # print(prjDetail)
                         if(len(prjDetail)!=0):
                             prjDetails['projectId'].append(str(prjDetail[0]['_id']))
                             prjDetails['projectName'].append(prjDetail[0]['name'])
-                            prjDetails['appType'].append(str(prjDetail[0]['type']["_id"]))
+                            prjDetails['appType'].append(str(prjDetail[0]['type']))
                             prjDetails['releases'].append(prjDetail[0]["releases"])
                 res={'rows':prjDetails}
             else:
@@ -306,7 +305,7 @@ def LoadServices(app, redissession, n68session):
             requestdata=json.loads(request.data)
             app.logger.debug("Inside insertInSuite_ICE. Query: "+str(requestdata["query"]))
             if not isemptyrequest(requestdata):
-                createdon = datetime.datetime.now()
+                createdon = datetime.now()
                 if(requestdata["query"] == 'notflagsuite'):
                     # createdon = str(getcurrentdate())
                     data={
@@ -343,7 +342,7 @@ def LoadServices(app, redissession, n68session):
             app.logger.debug("Inside insertInScenarios_ICE. Query: "+str(requestdata["query"]))
             if not isemptyrequest(requestdata):
                 if(requestdata["query"] == 'notflagscenarios'):
-                    createdon = datetime.datetime.now()
+                    createdon = datetime.now()
                     data={
                         "name":requestdata['testscenarioname'],
                         "projectid":ObjectId(requestdata['projectid']),
@@ -378,7 +377,7 @@ def LoadServices(app, redissession, n68session):
             if not isemptyrequest(requestdata):
                 if(requestdata["query"] == 'notflagscreen'):
                     if(requestdata.has_key('subquery') and requestdata["subquery"]=="clonenode"):
-                        createdon = datetime.datetime.now()
+                        createdon = datetime.now()
                         data={
                         "projectid":ObjectId(requestdata['projectid']),
                         "name":requestdata['screenname'],
@@ -417,7 +416,7 @@ def LoadServices(app, redissession, n68session):
             app.logger.debug("Inside insertInTestcase_ICE. Query: "+str(requestdata["query"]))
             if not isemptyrequest(requestdata):
                 if(requestdata["query"] == 'notflagtestcase'):
-                    createdon = datetime.datetime.now()
+                    createdon = datetime.now()
                     if(requestdata.has_key('subquery') and requestdata["subquery"]=="clonenode"):
                         data={
                             "screenid": ObjectId(requestdata['screenid']),
@@ -615,8 +614,8 @@ def LoadServices(app, redissession, n68session):
                 taskids.extend(scenarioids)
                 taskids.extend(screenids)
                 taskids.extend(testcaseids)
-                taskids.append(requestdata['moduleid'])
-                taskdetails=list(n68session.tasks.find({"nodeid":{"$in":taskids}},{}))
+                taskids.append(ObjectId(requestdata['moduleid']))
+                taskdetails=list(n68session.tasks.find({"nodeid":{"$in":taskids}}))
 
                 scenariodetails=list(n68session.testscenarios.find({"_id":{"$in":scenarioids}},{"_id":1,"name":1,"parent":1}))
                 screendetails=list(n68session.screens.find({"_id":{"$in":screenids}},{"_id":1,"name":1,"parent":1}))
@@ -780,16 +779,17 @@ def LoadServices(app, redissession, n68session):
         try:
            requestdata=json.loads(request.data)
            requestdata=requestdata["data"]
+           print(requestdata)
            projectid=requestdata['projectid']
-           userid=requestdata['userid']
-           userroleid=requestdata['userroleid']
+           createdby=requestdata['userid']
+           createdbyrole=requestdata['userroleid']
            versionnumber=requestdata['versionnumber']
            createdthrough=requestdata['createdthrough']
-           type=requestdata['type']
+           module_type="basic"
 
            for moduledata in requestdata['testsuiteDetails']:
                if moduledata["state"]=="created":
-                   currentmoduleid=saveTestSuite(projectid,moduledata['testsuiteName'],versionnumber,createdthrough,createdby,createdbyrole,type)
+                   currentmoduleid=saveTestSuite(projectid,moduledata['testsuiteName'],versionnumber,createdthrough,createdby,createdbyrole,module_type)
                else:
                    currentmoduleid=moduledata['testsuiteId']
                idsforModule=[]
@@ -894,7 +894,7 @@ def LoadServices(app, redissession, n68session):
 
     def saveTestSuite(projectid,modulename,versionnumber,createdthrough,createdby,createdbyrole,type,testscenarios=[]):
         app.logger.debug("Inside saveTestSuite.")
-        createdon = datetime.datetime.now()
+        createdon = datetime.now()
         data={
         "projectid":ObjectId(projectid),
         "name":modulename,
@@ -915,7 +915,7 @@ def LoadServices(app, redissession, n68session):
 
     def saveTestScenario(projectid,testscenarioname,versionnumber,createdby,createdbyrole,testcaseids=[]):
         app.logger.debug("Inside saveTestScenario.")
-        createdon = datetime.datetime.now()
+        createdon = datetime.now()
         data={
             "name":testscenarioname,
             "projectid":ObjectId(projectid),
@@ -928,14 +928,15 @@ def LoadServices(app, redissession, n68session):
             "modifiedby":ObjectId(createdby),
             "modifiedbyrole":ObjectId(createdbyrole),
             "modifiedon":createdon,
-            "testcaseids":testcaseids
+            "testcaseids":testcaseids,
+            "screens":[]
         }
         queryresult=n68session.testscenarios.insert_one(data).inserted_id
         return queryresult
 
     def saveScreen(projectid,screenname,versionnumber,createdby,createdbyrole,scenarioid=None):
         app.logger.debug("Inside saveScreen.")
-        createdon = datetime.datetime.now()
+        createdon = datetime.now()
         data={
         "projectid":ObjectId(projectid),
         "name":screenname,
@@ -949,14 +950,15 @@ def LoadServices(app, redissession, n68session):
         "modifiedbyrole":ObjectId(createdbyrole),
         "modifiedon":createdon,
         "screenshot":"",
-        "scrapedurl":""
+        "scrapedurl":"",
+        "testcases":[]
         }
         queryresult=n68session.screens.insert_one(data).inserted_id
         return queryresult
 
     def saveTestcase(screenid,testcasename,versionnumber,createdby,createdbyrole):
         app.logger.debug("Inside saveTestcase.")
-        createdon = datetime.datetime.now()
+        createdon = datetime.now()
         data={
             "screenid": ObjectId(screenid),
             "name":testcasename,
@@ -1001,9 +1003,11 @@ def LoadServices(app, redissession, n68session):
                         i["owner"]=ObjectId(i["owner"])
                         i["assignedto"]=ObjectId(i["assignedto"])
                         i["nodeid"]=ObjectId(i["nodeid"])
-                        i["parent"]=ObjectId(i["parent"])
+                        if i["parent"] != "":    
+                            i["parent"]=ObjectId(i["parent"])
                         i["reviewer"]=ObjectId(i["reviewer"])
-                    n68session.tasks.insert_many(tasks_insert)
+                    if len(tasks_insert)>0:
+                        n68session.tasks.insert_many(tasks_insert)
                     res={"rows":"success"}
             else:
                 app.logger.warn('Empty data received. manage users.')
