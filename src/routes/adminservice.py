@@ -31,7 +31,7 @@ def unwrap(hex_data, key, iv=b'0'*16):
     aes = AES.new(key.encode('utf-8'), AES.MODE_CBC, iv)
     return unpad(aes.decrypt(data).decode('utf-8'))
 
-def LoadServices(app, redissession, n68session):
+def LoadServices(app, redissession, n68session,licensedata):
     setenv(app)
 
 ################################################################################
@@ -43,9 +43,35 @@ def LoadServices(app, redissession, n68session):
 # ADD YOUR ROUTES BELOW
 ################################################################################
 
-    @app.route('/admin')
-    def print_hey_admin():
-        return "Hey Admin!"
+    @app.route('/admin/getAvailablePlugins',methods=['POST'])
+    def getAvailablePlugins():
+        app.logger.debug("Inside getAvailablePlugins")
+        res={'rows':'fail'}
+        try:
+            ice_plugins_list = []
+            for keys in licensedata['platforms']:
+                if(licensedata['platforms'][keys] == True):
+                    ice_plugins_list.append(keys)
+            res={'rows':ice_plugins_list}
+            return jsonify(res)
+        except Exception as getallusersexc:
+            servicesException("getAvailablePlugins",getallusersexc)
+            return jsonify(res)
+
+    @app.route('/admin/getAvailablePlugins',methods=['POST'])
+    def getAvailablePlugins():
+        app.logger.debug("Inside getAvailablePlugins")
+        res={'rows':'fail'}
+        try:
+            ice_plugins_list = []
+            for keys in licensedata['platforms']:
+                if(licensedata['platforms'][keys] == True):
+                    ice_plugins_list.append(keys)
+            res={'rows':ice_plugins_list}
+            return jsonify(res)
+        except Exception as getallusersexc:
+            servicesException("getAvailablePlugins",getallusersexc)
+            return jsonify(res)
 
     # Service to create/edit/delete users in Nineteen68
     @app.route('/admin/manageUserDetails',methods=['POST'])
@@ -439,7 +465,6 @@ def LoadServices(app, redissession, n68session):
             requestdata=json.loads(request.data)
             if not isemptyrequest(requestdata):
                 userroles = requestdata['userroles']
-                requestdata["projectid"]="5dc11dd9af166c2d71a2eaa7"
                 result=list(n68session.users.find({"projects":{"$in":[ObjectId(requestdata["projectid"])]}},{"name":1,"defaultrole":1,"addroles":1}))
                 res={"rows":result}
                 return jsonify(res)
