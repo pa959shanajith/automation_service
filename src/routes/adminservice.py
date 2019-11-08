@@ -31,7 +31,7 @@ def unwrap(hex_data, key, iv=b'0'*16):
     aes = AES.new(key.encode('utf-8'), AES.MODE_CBC, iv)
     return unpad(aes.decrypt(data).decode('utf-8'))
 
-def LoadServices(app, redissession, n68session):
+def LoadServices(app, redissession, n68session,licensedata):
     setenv(app)
 
 ################################################################################
@@ -46,6 +46,21 @@ def LoadServices(app, redissession, n68session):
     @app.route('/admin')
     def print_hey_admin():
         return "Hey Admin!"
+
+    @app.route('/admin/getAvailablePlugins',methods=['POST'])
+    def getAvailablePlugins():
+        app.logger.debug("Inside getAvailablePlugins")
+        res={'rows':'fail'}
+        try:
+            ice_plugins_list = []
+            for keys in licensedata['platforms']:
+                if(licensedata['platforms'][keys] == True):
+                    ice_plugins_list.append(keys)
+            res={'rows':ice_plugins_list}
+            return jsonify(res)
+        except Exception as getallusersexc:
+            servicesException("getAvailablePlugins",getallusersexc)
+            return jsonify(res)
 
     # Service to create/edit/delete users in Nineteen68
     @app.route('/admin/manageUserDetails',methods=['POST'])
