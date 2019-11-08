@@ -58,20 +58,6 @@ def LoadServices(app, redissession, n68session,licensedata):
             servicesException("getAvailablePlugins",getallusersexc)
             return jsonify(res)
 
-    @app.route('/admin/getAvailablePlugins',methods=['POST'])
-    def getAvailablePlugins():
-        app.logger.debug("Inside getAvailablePlugins")
-        res={'rows':'fail'}
-        try:
-            ice_plugins_list = []
-            for keys in licensedata['platforms']:
-                if(licensedata['platforms'][keys] == True):
-                    ice_plugins_list.append(keys)
-            res={'rows':ice_plugins_list}
-            return jsonify(res)
-        except Exception as getallusersexc:
-            servicesException("getAvailablePlugins",getallusersexc)
-            return jsonify(res)
 
     # Service to create/edit/delete users in Nineteen68
     @app.route('/admin/manageUserDetails',methods=['POST'])
