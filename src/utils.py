@@ -5,6 +5,9 @@ import traceback
 onlineuser = False
 ndacport = "1990"
 
+ui_plugins = {"alm":"ALM","apg":"APG","dashboard":"Dashboard",
+    "mindmap":"Mindmap","neurongraphs":"Neuron Graphs","performancetesting":"Performance Testing",
+    "reports":"Reports","utility":"Utility","weboccular":"Webocular"}
 
 ERR_CODE={
     "201":"Error while registration with LS",

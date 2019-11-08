@@ -144,10 +144,10 @@ sys.path.append(currdir+'/ndac/src/routes')
 
 def addroutes():
     from routes import loginservice
-    loginservice.LoadServices(app, redissession, n68session2)
+    loginservice.LoadServices(app, redissession, n68session2,licensedata)
 
     from routes import adminservice
-    adminservice.LoadServices(app, redissession, n68session2)
+    adminservice.LoadServices(app, redissession, n68session2,licensedata)
 
     from routes import mindmapservice
     mindmapservice.LoadServices(app, redissession, n68session2)
@@ -1261,25 +1261,6 @@ def main():
         app.logger.critical(printErrorCodes('218'))
         return False
 
-##    try:
-##        cass_conf=ndac_conf['nineteen68db_secondary']
-##        cass_user=unwrap(cass_conf['username'],db_keys)
-##        cass_pass=unwrap(cass_conf['password'],db_keys)
-##        cass_auth = PlainTextAuthProvider(username=cass_user, password=cass_pass)
-##        cluster = Cluster([cass_conf['host']],port=int(cass_conf['port']),auth_provider=cass_auth)
-##        icesession = cluster.connect()
-##        n68session = cluster.connect()
-##        icesession.row_factory = dict_factory
-##        icesession.set_keyspace('icetestautomation')
-##        n68session.row_factory = dict_factory
-##        n68session.set_keyspace('nineteen68')
-##        cass_dbup = True
-##    except Exception as e:
-##        cass_dbup = False
-##        app.logger.debug(e)
-##        app.logger.critical(printErrorCodes('206'))
-##        return False
-
     try:
         redisdb_conf = ndac_conf['cachedb']
         redisdb_pass = unwrap(redisdb_conf['password'],db_keys)
@@ -1302,6 +1283,7 @@ def main():
             authMechanism = 'SCRAM-SHA-1')
         if client.server_info():
             mongo_dbup = True
+
         n68session2 = client.Nineteen68
         client = MongoClient('mongodb://%s:%s/' % (mongodb_conf["host"],mongodb_conf["port"]),
             username = mongo_user, password = mongo_pass, authSource = 'webocular',
@@ -1312,8 +1294,9 @@ def main():
         app.logger.critical(printErrorCodes('226'))
         return False
 
-    addroutes()
+
     if (basecheckonls()):
+        addroutes()
         err_msg = None
         try:
             resp = requests.get("http://127.0.0.1:"+ndacport)
