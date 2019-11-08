@@ -121,6 +121,16 @@ ecodeServices = {
     "deactivateCIUser": "382"
 }
 
+ui_plugins = {
+            "alm":"ALM",
+            "dashboard":"Dashboard",
+            "mindmap":"Mindmap",
+            "neurongraphs":"Neuron Graphs",
+            "performancetesting":"Performance Testing",
+            "reports":"Reports",
+            "utility":"Utility",
+            "weboccular":"Webocular"
+}
 
 def setenv(flaskapp=None, licactive=None):
     global app, onlineuser

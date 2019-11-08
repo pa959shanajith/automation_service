@@ -114,10 +114,6 @@ profj_log_conf_path = assistpath + "/logging_config.conf"
 profj_syn_path = assistpath + "/SYNONYMS.json"
 profj_keywords_path = assistpath+"/keywords_db.txt"
 profj_sqlitedb=None
-ui_plugins = {"alm":"ALM","apg":"APG","dashboard":"Dashboard",
-    "deadcode":"Dead Code Identifier","mindmap":"Mindmap","neurongraphs":"Neuron Graphs",
-    "oxbowcode":"Oxbow Code Identifier","performancetesting":"Performance Testing",
-    "reports":"Reports","utility":"Utility","weboccular":"Webocular"}
 
 def _jsonencoder_default(self, obj):
     if isinstance(obj, ObjectId):

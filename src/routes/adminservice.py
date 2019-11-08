@@ -231,6 +231,12 @@ def LoadServices(app, redissession, n68session):
             app.logger.debug("Inside createProject_ICE. Query: create Project")
             if not isemptyrequest(requestdata):
                 requestdata["createdon"]=requestdata["modifiedon"]=datetime.now()
+                requestdata["type"]=n68session.projecttypekeywords.find({"name":requestdata["type"]},{"_id":1})[0]["_id"]
+                requestdata["createdon"]=requestdata["modifiedon"]=datetime.now()
+                requestdata["createdbyrole"]=ObjectId(requestdata["createdbyrole"])
+                requestdata["createdby"]=ObjectId(requestdata["createdby"])
+                requestdata["modifiedby"]=ObjectId(requestdata["modifiedby"])
+                requestdata["modifiedbyrole"]=ObjectId(requestdata["modifiedbyrole"])
                 for i in requestdata["releases"]: 
                     i["createdon"]=requestdata["createdon"]
                     i["modifiedon"]=requestdata["modifiedon"]
@@ -332,7 +338,7 @@ def LoadServices(app, redissession, n68session):
                 elif (requestdata['action'] == "update"):
                     if requestdata["authKey"] == "": 
                         authKeyFeild = ''
-                    n68session.thirdpartyintegration.update_one({"name":requestdata["name"]},{"url":requestdata["ldapURL"],"bind_credentials":requestdata["authKey"],"base_dn":requestdata["baseDN"],"authtype":requestdata["authType"],"bind_dn":requestdata["authUser"],"fieldmap":requestdata["fieldMap"]})
+                    n68session.thirdpartyintegration.update_one({"name":requestdata["name"]},{"$set":{"url":requestdata["ldapURL"],"bind_credentials":requestdata["authKey"],"base_dn":requestdata["baseDN"],"authtype":requestdata["authType"],"bind_dn":requestdata["authUser"],"fieldmap":requestdata["fieldMap"]}})
                     res = {"rows":"success"}
                 else:
                     res={'rows':'fail'}
