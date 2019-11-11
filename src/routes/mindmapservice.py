@@ -655,7 +655,7 @@ def LoadServices(app, redissession, n68session):
                 finaldata["state"]="saved"
                 finaldata["children"]=[]
                 finaldata["completeFlow"]=True
-
+                finaldata["task"]=taskdata[mindmapdata[0]["_id"]] if mindmapdata[0]["_id"] in taskdata else None
                 projectid=mindmapdata[0]["projectid"]
 
                 # Preparing final data in format needed
@@ -1006,6 +1006,7 @@ def LoadServices(app, redissession, n68session):
                         if i["parent"] != "":    
                             i["parent"]=ObjectId(i["parent"])
                         i["reviewer"]=ObjectId(i["reviewer"])
+                        i["projectid"]=ObjectId(i["projectid"])
                     if len(tasks_insert)>0:
                         n68session.tasks.insert_many(tasks_insert)
                     res={"rows":"success"}

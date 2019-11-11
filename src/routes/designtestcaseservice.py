@@ -72,6 +72,7 @@ def LoadServices(app, redissession, n68session2):
             requestdata=json.loads(request.data)
             app.logger.debug('Inside updateTestCase_ICE. Query: '+str(requestdata['query']))
             if not isemptyrequest(requestdata):
+                query_screen = n68session2.testcases.find_one({'_id':ObjectId(requestdata['testcaseid']),'versionnumber':requestdata['versionnumber']},{'screenid':1})
                 if not (requestdata['import_status']):
                     for i in requestdata['testcasesteps']:
                         if 'dataObject' in i.keys():
@@ -85,7 +86,7 @@ def LoadServices(app, redissession, n68session2):
                             del i['url']
                 else:
                     #Import testcase
-                    queryresult1 = list(n68session2.dataobjects.find({'parent':ObjectId(requestdata['screenid'])},{'parent':0}))
+                    queryresult1 = list(n68session2.dataobjects.find({'parent':query_screen['screenid']},{'parent':0}))
                     custnames = {}
                     added=[]
                     if (queryresult1 != []):
@@ -107,7 +108,7 @@ def LoadServices(app, redissession, n68session2):
                                 data_obj['xpath'] = i['objectName']
                             if 'url' in i.keys():
                                 data_obj['url'] = i['url']
-                            data_obj["parent"] = [ObjectId(requestdata["screenid"])]
+                            data_obj["parent"] = [query_screen["screenid"]]
                             newObj = n68session2.dataobjects.insert_one(data_obj)
                             i['dataObject'] = newObj.inserted_id
                         if 'objectName' in i.keys():
@@ -115,7 +116,7 @@ def LoadServices(app, redissession, n68session2):
                         if 'url' in i.keys():
                             del i['url']
                 if(requestdata['query'] == 'updatetestcasedata'):
-                    queryresult = n68session2.testcases.update_many({'_id':ObjectId(requestdata['testcaseid']),'versionnumber':requestdata['versionnumber'],'parent':ObjectId(requestdata['screenid'])},
+                    queryresult = n68session2.testcases.update_many({'_id':ObjectId(requestdata['testcaseid']),'versionnumber':requestdata['versionnumber']},
                                 {'$set':{'modifiedby':requestdata['modifiedby'],'steps':requestdata['testcasesteps']},"$currentDate":{'modifiedon':True}}).matched_count
                     if queryresult > 0:
                         res= {'rows': 'success'}
@@ -165,13 +166,9 @@ def LoadServices(app, redissession, n68session2):
                             update_steps(queryresult[k]['steps'],dataObjects)
                     res= {'rows': queryresult}
                 else:
-                    if(requestdata['query'] == 'readtestcase'):
-                        queryresult = list(n68session2.testcases.find({'_id':ObjectId(requestdata['testcaseid']),'parent':ObjectId(requestdata['screenid']),'versionnumber':requestdata['versionnumber']},{'steps':1,'name':1,'_id':0}))
-                        queryresult1 = list(n68session2.dataobjects.find({'parent':ObjectId(requestdata['screenid'])},{'parent':0}))
-                    elif(requestdata['query'] == 'testcaseid'):
-                        #condition where screenid is empty
-                        queryresult = list(n68session2.testcases.find({'_id':ObjectId(requestdata['testcaseid']),'versionnumber':requestdata['versionnumber']},{'steps':1,'name':1,'_id':0}))
-                        queryresult1 = list(n68session2.dataobjects.find({'parent':queryresult[0]['parent'][0]},{'parent':0}))
+                    queryresult = list(n68session2.testcases.find({'_id':ObjectId(requestdata['testcaseid']),'versionnumber':requestdata['versionnumber']},{'screenid':1,'steps':1,'name':1,'_id':0}))
+                    queryresult1 = list(n68session2.dataobjects.find({'parent':queryresult[0]['screenid']},{'parent':0}))
+
                     dataObjects = {}
                     if (queryresult1 != []):
                         dataObjects = object_dict('_id', queryresult1)
