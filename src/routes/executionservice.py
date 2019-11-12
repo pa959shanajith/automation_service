@@ -224,7 +224,7 @@ def LoadServices(app, redissession, n68session):
                     scenarioscounter = 0
                     userid=requestdata['userid']
                     scenarioscounter = scenarioscounter + 1
-                    counterupdator('testscenarios',userid,scenarioscounter)
+                    #counterupdator('testscenarios',userid,scenarioscounter)
                     app.logger.debug("Executed ExecuteTestSuite_ICE. Query: "+str(requestdata["query"]))
 
                 elif(requestdata['query'] == 'testcasesteps'):
