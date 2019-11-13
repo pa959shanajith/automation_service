@@ -154,11 +154,11 @@ def LoadServices(app, redissession, n68session2):
                         {"$match":{"_id":{"$in":tc_id_list}}},
                         {"$addFields":{"__order":{"$indexOfArray":[tc_id_list,"$_id"]}}},
                         {"$sort":{"__order":1}},
-                        {"$project":{'steps':1,'name':1,'parent':1,'_id':0}}
+                        {"$project":{'steps':1,'name':1,'screenid':1,'_id':0}}
                     ]
                     queryresult = list(n68session2.testcases.aggregate(query))
                     for k in range(len(queryresult)):
-                        queryresult1 = list(n68session2.dataobjects.find({'parent':ObjectId(queryresult[k]['parent'][0])},{'parent':0}))
+                        queryresult1 = list(n68session2.dataobjects.find({'parent':queryresult[k]['screenid']},{'parent':0}))
                         dataObjects = {}
                         if (queryresult1 != []):
                             dataObjects = object_dict('_id', queryresult1)
