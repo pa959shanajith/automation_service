@@ -2,8 +2,6 @@
 # Name:        ndac.py
 # Purpose:     Security Aspects, Licensing components and ProfJ
 #
-# Author:      vishvas.a
-#
 # Created:     10/07/2017
 # Copyright:   (c) vishvas.a 2017
 # Licence:     <your licence>
@@ -426,9 +424,8 @@ def updateActiveIceSessions():
                 app.logger.debug("Connected clients: "+str(list(activeicesessions.keys())))
 
                 #To check whether user exists in db or not
-                authenticateuser = "select userid from users where username='"+username+"' ALLOW FILTERING"
-                queryresult = n68session.execute(authenticateuser)
-                if len(queryresult.current_rows) == 0:
+                queryresult = n68session2.users.find_one({"name":username})
+                if queryresult is None:
                     res['err_msg'] = "Unauthorized: Access denied, user is not registered with Nineteen68"
                     response = {"node_check":"userNotValid","ice_check":wrap(json.dumps(res),ice_ndac_key)}
                 else:

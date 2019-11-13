@@ -250,13 +250,14 @@ def LoadServices(app, redissession, n68session,licensedata):
                 requestdata["modifiedby"]=ObjectId(requestdata["modifiedby"])
                 requestdata["modifiedbyrole"]=ObjectId(requestdata["modifiedbyrole"])
                 for i in requestdata["releases"]: 
-                    i["name"]=requestdata["releaseName"]
+                    i["name"]=i["releaseName"]
                     i["createdon"]=requestdata["createdon"]
                     i["modifiedon"]=requestdata["modifiedon"]
                     i["createdbyrole"]=requestdata["createdbyrole"]
                     i["createdby"]=requestdata["createdby"]
                     i["modifiedby"]=requestdata["modifiedby"]
                     i["modifiedbyrole"]=requestdata["modifiedbyrole"]
+                    del i["releaseName"]
                     for j in i["cycles"]:
                         j["_id"]=ObjectId()
                         j["createdon"]=requestdata["createdon"]
