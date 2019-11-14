@@ -49,8 +49,7 @@ def LoadServices(app, redissession, n68session2, webocularsession):
         try:
             requestdata=json.loads(request.data)
             if not isemptyrequest(requestdata):
-                queryresult1=n68session2.testsuites.find_one({"_id": ObjectId(requestdata["suiteid"])},{"testscenarioids":1})
-                queryresult=list(n68session2.executions.find({"_id":{"$in":queryresult1["testscenarioids"]}},{"_id":1,"starttime":1,"endtime":1,"status":1}))
+                queryresult=list(n68session2.executions.find({"parent":ObjectId(requestdata["suiteid"])},{"_id":1,"starttime":1,"endtime":1,"status":1}))
                 res= {"rows":queryresult}
             else:
                 app.logger.warn('Empty data received. report suites details execution.')
@@ -89,13 +88,19 @@ def LoadServices(app, redissession, n68session2, webocularsession):
             app.logger.debug("Inside getReport_Nineteen68. Query: "+str(requestdata["query"]))
             if not isemptyrequest(requestdata):
                 if(requestdata["query"] == 'projectsUnderDomain'):
-                    queryresult = list(n68session2.reports.find({"_id":ObjectId(requestdata["reportid"])},{"executionid":1,"executedtime":1,"report":1,"testscenarioid":1,"cycle":1}))
+                    queryresult = list(n68session2.reports.find({"_id":ObjectId(requestdata["reportid"])},{"executionid":1,"executedtime":1,"report":1,"testscenarioid":1,"cycleid":1}))
                     res= {"rows":queryresult}
                 elif(requestdata["query"] == 'scenariodetails'):
                     queryresult = list(n68session2.testscenarios.find({"_id":ObjectId(requestdata["scenarioid"]),"deleted":False},{"name":1,"projectid":1}))
                     res= {"rows":queryresult}
                 elif(requestdata["query"] == 'cycledetails'):
-                    queryresult = list(n68session2.projects.aggregate([{"$match":{"_id":ObjectId(requestdata["projectid"]), "deleted":False}},{"$unwind":'$releases'},{"$unwind":'$releases.cycles'},{"$match":{"releases.cycles._id":ObjectId(requestdata["cycleid"])}},{"$project":{"name":1,"releases.name":1,"releases.cycles.name":1,"domain":1}}]))
+                    queryresult = list(n68session2.projects.aggregate([
+                        {"$match":{"_id":ObjectId(requestdata["projectid"]), "deleted":False}},
+                        {"$unwind":'$releases'},
+                        {"$unwind":'$releases.cycles'},
+                        {"$match":{"releases.cycles._id":ObjectId(requestdata["cycleid"])}},
+                        {"$project":{"name":1,"releases.name":1,"releases.cycles.name":1,"domain":1}}
+                    ]))
                     res= {"rows":queryresult}
             else:
                 app.logger.warn('Empty data received. report.')
