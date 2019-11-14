@@ -93,7 +93,8 @@ def LoadServices(app, redissession, n68session):
                     'projectId':[],
                     'projectName':[],
                     'appType':[],
-                    'releases':[]
+                    'releases':[],
+                    'cycles':{}
                 }
                 userid=requestdata['userid']
                 dbconn=n68session["users"]
@@ -123,6 +124,11 @@ def LoadServices(app, redissession, n68session):
                             prjDetails['projectName'].append(prjDetail[0]['name'])
                             prjDetails['appType'].append(str(prjDetail[0]['type']))
                             prjDetails['releases'].append(prjDetail[0]["releases"])
+                            for rel in prjDetail[0]["releases"]:
+                                for cyc in rel['cycles']:
+                                    prjDetails['cycles'][str(cyc['_id'])]=[str(cyc['_id']),rel['name']]
+
+
                 res={'rows':prjDetails}
             else:
                 app.logger.warn("Empty data received. getProjectIDs_Nineteen68")

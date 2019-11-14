@@ -95,7 +95,7 @@ def LoadServices(app, redissession, n68session2, webocularsession):
                     res= {"rows":queryresult}
                 elif(requestdata["query"] == 'cycledetails'):
                     queryresult = list(n68session2.projects.aggregate([
-                        {"$match":{"_id":ObjectId(requestdata["projectid"]), "deleted":False}},
+                        {"$match":{"_id":ObjectId(requestdata["projectid"])}},
                         {"$unwind":'$releases'},
                         {"$unwind":'$releases.cycles'},
                         {"$match":{"releases.cycles._id":ObjectId(requestdata["cycleid"])}},
