@@ -9,6 +9,8 @@ ui_plugins = {"alm":"ALM","apg":"APG","dashboard":"Dashboard",
     "mindmap":"Mindmap","neurongraphs":"Neuron Graphs","performancetesting":"Performance Testing",
     "reports":"Reports","utility":"Utility","weboccular":"Webocular"}
 
+projecttype_names={}
+
 ERR_CODE={
     "201":"Error while registration with LS",
     "202":"Error while pushing update to LS",
