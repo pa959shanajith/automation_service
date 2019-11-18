@@ -71,8 +71,11 @@ def LoadServices(app, redissession, n68session,licensedata):
             if not isemptyrequest(requestdata):
                 # if n68session.server_info():
                     if(action=="delete"):
+                        userid=n68session.users.find_one({"name":requestdata['name']},{"_id":1})
                         result=n68session.users.delete_one({"name":requestdata['name']})
-                        n68.tasks.update({"name"})
+                        n68session.tasks.update_many({"assignedto":userid["_id"]},{"$set":{"assignedto":""}})
+                        n68session.tasks.update_many({"assignedto":userid["_id"]},{"$set":{"reviewer":""}})
+                        n68session.tasks.update_many({"owner":userid["_id"]},{"$set":{"owner":""}})
                         res={"rows":"success"}
                     elif(action=="create"):
                         result=n68session.users.find_one({"name":requestdata['name']},{"name":1})

@@ -993,7 +993,7 @@ def LoadServices(app, redissession, n68session):
                         i["assignedtime"]=datetime.now()
                         i["startdate"]=datetime.strptime(i["startdate"],"%d/%m/%Y")
                         i["enddate"]=datetime.strptime(i["enddate"],"%d/%m/%Y")
-                        n68session.tasks.update({"_id":ObjectId(i["taskid"]),"cycle":ObjectId(i["cycleid"])},{"$set":{"assignedtime":i["assignedtime"],"startdate":i["startdate"],"enddate":i["enddate"],"assignedto":ObjectId(i["assignedto"]),"reviewer":ObjectId(i["reviewer"]),"status":i["status"],"reestimation":i["reestimation"],"complexity":i["complexity"],"history":i["history"]}})
+                        n68session.tasks.update({"_id":ObjectId(i["taskid"]),"cycle":ObjectId(i["cycleid"])},{"$set":{"owner":ObjectId(i["assignedto"]),"assignedtime":i["assignedtime"],"startdate":i["startdate"],"enddate":i["enddate"],"assignedto":ObjectId(i["assignedto"]),"reviewer":ObjectId(i["reviewer"]),"status":i["status"],"reestimation":i["reestimation"],"complexity":i["complexity"],"history":i["history"]}})
                     tasks_insert=requestdata["insert"]
                     for i in tasks_insert:
                         i["startdate"]=datetime.strptime(i["startdate"],"%d/%m/%Y")
