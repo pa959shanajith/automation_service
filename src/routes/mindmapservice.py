@@ -73,7 +73,7 @@ def LoadServices(app, redissession, n68session):
                 dbconn=n68session["projects"]
                 getProjectType=list(dbconn.find({"_id":ObjectId(projectid)},{"type":1}))
                 dbconn=n68session["projecttypekeywords"]
-                getProjectTypeName= list(dbconn.find({"_id":ObjectId(getProjectType[0]["type"])},{"name":1}))             
+                getProjectTypeName= list(dbconn.find({"_id":ObjectId(getProjectType[0]["type"])},{"name":1}))
                 res={'rows':getProjectType,'projecttype':getProjectTypeName}
            else:
                 app.logger.warn("Empty data received. getProjectType_Nineteen68")
@@ -507,7 +507,7 @@ def LoadServices(app, redissession, n68session):
                     if assignTab and cycleid==str(t['cycleid']):
                         #taskdata[t["nodeid"]]=t
                         data_dict[t['nodetype']][t['nodeid']]={'task':t}
-                    elif t['nodetype']=='screens' or t['nodetype']=='testcases' :
+                    else:
                         data_dict[t['nodetype']][t['nodeid']]={'taskexists':t}
 
                 # scenariodata={}
@@ -520,7 +520,7 @@ def LoadServices(app, redissession, n68session):
                             'name':ts["name"],
                             'reuse': True if len(ts["parent"])>1 else False
                         }
-                        
+
                 # screendata={}
                 for sc in screendetails:
                     if sc["_id"] in screendata:
@@ -554,9 +554,9 @@ def LoadServices(app, redissession, n68session):
                 finaldata["completeFlow"]=True
                 finaldata["type"]="modules" if mindmaptype=="basic" else "endtoend"
                 finaldata["task"]=moduledata[mindmapdata["_id"]]["task"] if mindmapdata["_id"] in moduledata else None
-                
 
-                
+
+
                 #finaldata["task"]=taskdata[mindmapdata["_id"]] if mindmapdata["_id"] in taskdata else None
                 projectid=mindmapdata["projectid"]
 
@@ -882,7 +882,7 @@ def LoadServices(app, redissession, n68session):
         queryresult=n68session.testcases.insert_one(data).inserted_id
         return queryresult
 
-    @app.route('/mindmap/manageTaskDetails',methods=['POST'])
+    @app.route('/mindmap/manageTask',methods=['POST'])
     def manageTaskDetails():
         res={'rows':'fail'}
         try:
@@ -890,16 +890,16 @@ def LoadServices(app, redissession, n68session):
             action=requestdata["action"]
             del requestdata["action"]
             if not isemptyrequest(requestdata):
-                if action == "delete":
-                    n68session.tasks.delete({"_id":ObjectId(requestdata["taskid"]),"cycle":ObjectId(requestdata["cycleid"])})
-                    res={"rows":"success"}
-                elif action == "modify":
+
+                if action == "modify":
                     tasks_update=requestdata["update"]
                     tasks_remove=requestdata["delete"]
                     for i in tasks_update:
                         i["assignedtime"]=datetime.now()
-                        i["startdate"]=datetime.strptime(i["startdate"],"%d/%m/%Y")
-                        i["enddate"]=datetime.strptime(i["enddate"],"%d/%m/%Y")
+                        if i['startdate'].find('/') > -1:
+                            i["startdate"]=datetime.strptime(i["startdate"],"%d/%m/%Y")
+                        if i['enddate'].find('/') > -1:
+                            i["enddate"]=datetime.strptime(i["enddate"],"%d/%m/%Y")
                         n68session.tasks.update({"_id":ObjectId(i["taskid"]),"cycle":ObjectId(i["cycleid"])},{"$set":{"owner":ObjectId(i["assignedto"]),"assignedtime":i["assignedtime"],"startdate":i["startdate"],"enddate":i["enddate"],"assignedto":ObjectId(i["assignedto"]),"reviewer":ObjectId(i["reviewer"]),"status":i["status"],"reestimation":i["reestimation"],"complexity":i["complexity"],"history":i["history"]}})
                     tasks_insert=requestdata["insert"]
                     for i in tasks_insert:
@@ -911,7 +911,7 @@ def LoadServices(app, redissession, n68session):
                         i['cycleid']=ObjectId(i["cycleid"])
                         i["assignedto"]=ObjectId(i["assignedto"])
                         i["nodeid"]=ObjectId(i["nodeid"])
-                        if i["parent"] != "":    
+                        if i["parent"] != "":
                             i["parent"]=ObjectId(i["parent"])
                         i["reviewer"]=ObjectId(i["reviewer"])
                         i["projectid"]=ObjectId(i["projectid"])
@@ -920,6 +920,13 @@ def LoadServices(app, redissession, n68session):
                     if len(tasks_remove)>0:
                         tasks_remove=[ObjectId(t) for t in tasks_remove]
                         n68session.tasks.delete_many({"nodeid":{"$in":tasks_remove}})
+                    res={"rows":"success"}
+                elif action=="updatestatus":
+                    status=requestdata['status']
+                    n68session.tasks.update({"_id":ObjectId(requestdata["id"])},{"$set":{"status":status}})
+                    res={"rows":"success"}
+                elif action == "delete":
+                    n68session.tasks.delete({"_id":ObjectId(requestdata["id"]),"cycle":ObjectId(requestdata["cycleid"])})
                     res={"rows":"success"}
             else:
                 app.logger.warn('Empty data received. manage users.')
