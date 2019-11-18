@@ -118,7 +118,7 @@ def LoadServices(app, redissession, n68session2):
                             del i['url']
                 if(requestdata['query'] == 'updatetestcasedata'):
                     queryresult = n68session2.testcases.update_many({'_id':ObjectId(requestdata['testcaseid']),'versionnumber':requestdata['versionnumber']},
-                                {'$set':{'modifiedby':requestdata['modifiedby'],'steps':requestdata['testcasesteps']},"$currentDate":{'modifiedon':True}}).matched_count
+                                {'$set':{'modifiedby':ObjectId(requestdata['modifiedby']),'modifiedbyrole':ObjectId(requestdata['modifiedbyrole']),'steps':requestdata['testcasesteps']},"$currentDate":{'modifiedon':True}}).matched_count
                     if queryresult > 0:
                         res= {'rows': 'success'}
             else:
