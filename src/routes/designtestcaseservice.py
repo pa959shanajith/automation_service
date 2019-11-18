@@ -79,7 +79,8 @@ def LoadServices(app, redissession, n68session2):
                             if i['dataObject'] != '':
                                 i['dataObject'] = ObjectId(i['dataObject'])
                                 queryresult1 = list(n68session2.dataobjects.find({'_id':i['dataObject']},{'custname':1,'_id':0}))
-                                i['custname'] = queryresult1[0]['custname']
+                                if (queryresult1 != []):
+                                    i['custname'] = queryresult1[0]['custname']
                         if 'objectName' in i.keys():
                             del i['objectName']
                         if 'url' in i.keys():
@@ -158,18 +159,17 @@ def LoadServices(app, redissession, n68session2):
                         {"$project":{'steps':1,'name':1,'screenid':1,'_id':0}}
                     ]
                     queryresult = list(n68session2.testcases.aggregate(query))
-                    for k in range(len(queryresult)):
-                        queryresult1 = list(n68session2.dataobjects.find({'parent':queryresult[k]['screenid']},{'parent':0}))
-                        dataObjects = {}
-                        if (queryresult1 != []):
-                            dataObjects = object_dict('_id', queryresult1)
-                        if (queryresult != []):
-                            update_steps(queryresult[k]['steps'],dataObjects)
+                    if (queryresult != []):
+                        for k in queryresult:
+                            queryresult1 = list(n68session2.dataobjects.find({'parent':k['screenid']},{'parent':0}))
+                            dataObjects = {}
+                            if (queryresult1 != []):
+                                dataObjects = object_dict('_id', queryresult1)
+                            update_steps(k['steps'],dataObjects)
                     res= {'rows': queryresult}
                 else:
                     queryresult = list(n68session2.testcases.find({'_id':ObjectId(requestdata['testcaseid']),'versionnumber':requestdata['versionnumber']},{'screenid':1,'steps':1,'name':1,'_id':0}))
                     queryresult1 = list(n68session2.dataobjects.find({'parent':queryresult[0]['screenid']},{'parent':0}))
-
                     dataObjects = {}
                     if (queryresult1 != []):
                         dataObjects = object_dict('_id', queryresult1)
