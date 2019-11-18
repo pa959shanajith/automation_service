@@ -20,12 +20,16 @@ def LoadServices(app, redissession, n68session2):
             app.logger.debug("Inside getScrapeDataScreenLevel_ICE. Query: "+str(requestdata["query"]))
             if not isemptyrequest(requestdata):
                 if (requestdata['query'] == 'getscrapedata'):
-                    screen_query=list(n68session2.screens.find({"_id":ObjectId(requestdata['screenid']),"projectid":ObjectId(requestdata['projectid']),"deleted":False}))
+                    if ('testcaseid' in requestdata and requestdata['testcaseid']):
+                        screen_id = n68session2.testcases.find_one({'_id':ObjectId(requestdata['testcaseid'])},{'screenid':1})['screenid'] ##add versionnumber in condition if needed
+                    else :
+                        screen_id = ObjectId(requestdata['screenid'])
+                    screen_query=list(n68session2.screens.find({"_id":screen_id,"deleted":False}))
                     if (screen_query != []):
-                        dataobj_query = list(n68session2.dataobjects.find({"parent" :{"$in":[ObjectId(requestdata['screenid'])]}}))
+                        dataobj_query = list(n68session2.dataobjects.find({"parent" :{"$in":[screen_id]}}))
                         res["rows"] = {"view":dataobj_query,"scrapedurl":screen_query[0]["scrapedurl"],"mirror":screen_query[0]["screenshot"],"name":screen_query[0]["name"]}
                 if (requestdata['query']=="getWSscrapedata"):
-                        dataobj_query = list(n68session2.dataobjects.find({"parent" :{"$in":[ObjectId(requestdata['screenid'])]}}))#ADD objid()
+                        dataobj_query = list(n68session2.dataobjects.find({"parent" :{"$in":[screen_id]}}))
                         res = {"rows":dataobj_query}
             else:
                 app.logger.warn('Empty data received. reading Testcase')

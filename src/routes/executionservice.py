@@ -31,10 +31,6 @@ def LoadServices(app, redissession, n68session):
 # ADD YOUR ROUTES BELOW
 ################################################################################
 
-    @app.route('/execute',methods=['POST'])
-    def print_hey_admin2():
-        return "Hey Execution!"
-
     @app.route('/suite/readTestSuite_ICE',methods=['POST'])
     def readTestSuite_ICE():
         res={'rows':'fail'}
@@ -46,7 +42,7 @@ def LoadServices(app, redissession, n68session):
                 if(requestdata["query"] == 'testsuitecheck'):
 
                     res["rows"]=list(n68session.testsuites.find({"_id":ObjectId(requestdata["id"]),
-                    "cycle":ObjectId(requestdata["cycle"]),"deleted":query['delete_flag']}))
+                    "cycleid":ObjectId(requestdata["cycleid"]),"deleted":query['delete_flag']}))
                     app.logger.info("Executed readTestSuite_ICE. Query: "+str(requestdata["query"]))
 
                 elif(requestdata["query"] == 'testcasesteps'):
@@ -65,7 +61,7 @@ def LoadServices(app, redissession, n68session):
                         donotexecute.append(1)
                     querydata = {}
                     querydata["_id"] = ObjectId(requestdata['id'])
-                    querydata["cycle"] = ObjectId(requestdata['cycle'])
+                    querydata["cycleid"] = ObjectId(requestdata['cycleid'])
                     querydata["name"] = requestdata['name']
                     querydata["versionnumber"] = mindmaps['versionnumber']
                     querydata["createdby"] = ObjectId(requestdata['createdby'])
@@ -126,9 +122,10 @@ def LoadServices(app, redissession, n68session):
                     querydata["modifiedbyrole"] = ObjectId(requestdata["modifiedbyrole"])
                     querydata["modifiedon"] = datetime.now()
 
-
+                    if requestdata['name']=='testsuitename':
+                        requestdata['name'] = n68session.mindmaps.find_one({"_id":ObjectId(requestdata["id"])},{"name":1,"_id":0})['name']
                     response = n68session.testsuites.update_one({"_id":ObjectId(requestdata["id"]),"name":requestdata["name"],
-                    "cycle":ObjectId(requestdata["cycle"]),"deleted":query['delete_flag'],"versionnumber":versionnumber},{'$set':querydata})
+                    "cycleid":ObjectId(requestdata["cycleid"]),"deleted":query['delete_flag'],"versionnumber":versionnumber},{'$set':querydata})
                     res={'rows':'Success'}
                     app.logger.info("Executed readTestSuite_ICE. Query: "+str(requestdata["query"]))
 
@@ -149,9 +146,10 @@ def LoadServices(app, redissession, n68session):
                     querydata["getparampaths"] = 1
                     querydata["testscenarioids"] = 1
                     querydata['_id'] = 0
-
+                    if requestdata['testsuitename']=='testsuitename':
+                        requestdata['testsuitename'] = n68session.mindmaps.find_one({"_id":ObjectId(requestdata["id"])},{"name":1,"_id":0})['name']
                     res['rows'] = list(n68session.testsuites.find({"_id":ObjectId(requestdata["id"]),"name":requestdata["testsuitename"],
-                    "cycle":ObjectId(requestdata["cycle"]),"deleted":query['delete_flag'],"versionnumber":requestdata["versionnumber"]},querydata))
+                    "cycleid":ObjectId(requestdata["cycleid"]),"deleted":query['delete_flag'],"versionnumber":requestdata["versionnumber"]},querydata))
                     app.logger.info("Executed readTestSuite_ICE. Query: "+str(requestdata["query"]))
 
                 else:
@@ -190,7 +188,7 @@ def LoadServices(app, redissession, n68session):
                 querydata["modifiedon"]= datetime.now()
                 querydata["testscenarioids"] = [ObjectId(i) for i in requestdata['testscenarioids']]
                 setdata ={"$set":querydata}
-                querytoupdate = {"_id":ObjectId(requestdata['id']),"cycle":ObjectId(requestdata['cycleid']),
+                querytoupdate = {"_id":ObjectId(requestdata['id']),"cycleid":ObjectId(requestdata['cycleid']),
                 "versionnumber":requestdata["versionnumber"]}
 
                 reports_data=n68session.testsuites.update_one(querytoupdate,setdata)
@@ -244,7 +242,7 @@ def LoadServices(app, redissession, n68session):
                     querydata = {}
                     querydata["executedon"] = requestdata['browser']
                     querydata["executionid"] = ObjectId(requestdata['executionid'])
-                    querydata["cycleid"] = ObjectId(requestdata['cycle'])
+                    querydata["cycleid"] = ObjectId(requestdata['cycleid'])
                     querydata["testscenarioid"] = ObjectId(requestdata['testscenarioid'])
                     querydata["testsuiteid"] = ObjectId(requestdata['testsuiteid'])
                     querydata["status"] = requestdata['status']
@@ -300,18 +298,17 @@ def LoadServices(app, redissession, n68session):
                     requestdata1["target"]=requestdata["clientipaddress"]
                     requestdata1["scheduledby"]=ObjectId(requestdata['userid'])
                     requestdata1["testsuiteids"]=requestdata['testsuiteids']
-                    requestdata1["cycle"]=requestdata["cycleid"]
                     requestdata1["scenariodetails"]=requestdata["scenariodetails"]
                     requestdata1["status"]=requestdata["schedulestatus"]
                     requestdata1["testsuiteids"]=requestdata["testsuiteids"]
                     res["rows"] =  n68session.scheduledexecution.insert(requestdata1)
 
                 elif(requestdata['query'] == 'getscheduledata'):
-                    res["rows"]= list(n68session.scheduledexecution.find({"cycle":ObjectId(requestdata["cycleid"]),
+                    res["rows"]= list(n68session.scheduledexecution.find({"cycleid":ObjectId(requestdata["cycleid"]),
                     "scheduledon":requestdata['scheduledatetime'],"_id":ObjectId(requestdata['scheduleid'])}))
 
                 elif(requestdata['query'] == 'updatescheduledstatus'):
-                    res["rows"] = list(n68session.scheduledexecution.update({"cycle":ObjectId(requestdata["cycleid"])
+                    res["rows"] = list(n68session.scheduledexecution.update({"cycleid":ObjectId(requestdata["cycleid"])
                     ,"scheduledon":requestdata['scheduledatetime'],"_id":ObjectId(requestdata['scheduleid'])},{"$set":{"schedulestatus":requestdate["schedulestatus"]}}))
 
 
@@ -328,7 +325,7 @@ def LoadServices(app, redissession, n68session):
                         "target":requestdata["clientipaddress"]}))
 
                 elif(requestdata['query'] == 'getscheduledstatus'):
-                    res["rows"]=list(n68session.scheduledexecution.find({"cycle":ObjectId(requestdata["cycleid"]),
+                    res["rows"]=list(n68session.scheduledexecution.find({"cycleid":ObjectId(requestdata["cycleid"]),
                     "scheduledon":requestdata["scheduledatetime"],"_id":ObjectId(requestdata["scheduleid"])},{"schedulestatus":1,"_id":0}))
 
                 else:
