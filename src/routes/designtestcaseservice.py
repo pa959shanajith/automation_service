@@ -93,24 +93,25 @@ def LoadServices(app, redissession, n68session2):
                         custnames = object_dict('custname', queryresult1)
                     for i in requestdata['testcasesteps']:
                         data_obj = {}
-                        if i["custname"] not in custnames.keys():
-                            data_obj["custname"] = i["custname"]
-                        else:
-                            if i['objectName'] == custnames[i['custname']]['xpath'] and i['url'] == custnames[i['custname']]['url']:
-                                added.append(i["custname"])
-                                i['dataObject'] = custnames[i['custname']]['_id']
+                        if not i["custname"].startswith("@"):
+                            if i["custname"] not in custnames.keys():
+                                data_obj["custname"] = i["custname"]
                             else:
-                                data_obj["custname"] = i["custname"] + "_new"
-                                i["custname"] = data_obj["custname"]
-                        if i["custname"] not in added:
-                            added.append(i["custname"])
-                            if 'objectName' in i.keys():
-                                data_obj['xpath'] = i['objectName']
-                            if 'url' in i.keys():
-                                data_obj['url'] = i['url']
-                            data_obj["parent"] = [query_screen["screenid"]]
-                            newObj = n68session2.dataobjects.insert_one(data_obj)
-                            i['dataObject'] = newObj.inserted_id
+                                if i['objectName'] == custnames[i['custname']]['xpath'] and i['url'] == custnames[i['custname']]['url']:
+                                    added.append(i["custname"])
+                                    i['dataObject'] = custnames[i['custname']]['_id']
+                                else:
+                                    data_obj["custname"] = i["custname"] + "_new"
+                                    i["custname"] = data_obj["custname"]
+                            if i["custname"] not in added:
+                                added.append(i["custname"])
+                                if 'objectName' in i.keys():
+                                    data_obj['xpath'] = i['objectName']
+                                if 'url' in i.keys():
+                                    data_obj['url'] = i['url']
+                                data_obj["parent"] = [query_screen["screenid"]]
+                                newObj = n68session2.dataobjects.insert_one(data_obj)
+                                i['dataObject'] = newObj.inserted_id
                         if 'objectName' in i.keys():
                             del i['objectName']
                         if 'url' in i.keys():
