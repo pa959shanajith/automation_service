@@ -73,7 +73,7 @@ def LoadServices(app, redissession, n68session):
                 dbconn=n68session["projects"]
                 getProjectType=list(dbconn.find({"_id":ObjectId(projectid)},{"type":1}))
                 dbconn=n68session["projecttypekeywords"]
-                getProjectTypeName= list(dbconn.find({"_id":ObjectId(getProjectType[0]["type"])},{"name":1}))
+                getProjectTypeName= list(dbconn.find({"_id":ObjectId(getProjectType[0]["type"])},{"name":1}))             
                 res={'rows':getProjectType,'projecttype':getProjectTypeName}
            else:
                 app.logger.warn("Empty data received. getProjectType_Nineteen68")
@@ -520,7 +520,7 @@ def LoadServices(app, redissession, n68session):
                             'name':ts["name"],
                             'reuse': True if len(ts["parent"])>1 else False
                         }
-
+                        
                 # screendata={}
                 for sc in screendetails:
                     if sc["_id"] in screendata:
@@ -553,10 +553,11 @@ def LoadServices(app, redissession, n68session):
                 finaldata["children"]=[]
                 finaldata["completeFlow"]=True
                 finaldata["type"]="modules" if mindmaptype=="basic" else "endtoend"
-                finaldata["task"]=moduledata[mindmapdata["_id"]]["task"] if mindmapdata["_id"] in moduledata else None
+                finaldata["task"]=moduledata[mindmapdata["_id"]]["task"] if mindmapdata["_id"] in moduledata and 'task' in moduledata[mindmapdata["_id"]] else None
+                finaldata["taskexists"]=moduledata[mindmapdata["_id"]]["taskexists"] if mindmapdata["_id"] in moduledata and 'taskexists' in moduledata[mindmapdata["_id"]] else None
+                
 
-
-
+                
                 #finaldata["task"]=taskdata[mindmapdata["_id"]] if mindmapdata["_id"] in taskdata else None
                 projectid=mindmapdata["projectid"]
 
@@ -576,6 +577,7 @@ def LoadServices(app, redissession, n68session):
                     finalscenariodata["state"]="saved"
                     finalscenariodata["reuse"]=scenariodata[ts["_id"]]["reuse"]
                     finalscenariodata["task"]=scenariodata[ts["_id"]]['task'] if 'task' in scenariodata[ts["_id"]] else None
+                    finalscenariodata["taskexists"]=scenariodata[ts["_id"]]['taskexists'] if 'taskexists' in scenariodata[ts["_id"]] else None
                     if len(ts["screens"])==0  and mindmaptype=="basic":
                         finaldata["completeFlow"]=False
                     for sc in ts["screens"]:
@@ -591,6 +593,7 @@ def LoadServices(app, redissession, n68session):
                         finalscreendata["reuse"]=screendata[sc["_id"]]["reuse"]
                         finalscreendata["state"]="saved"
                         finalscreendata["task"]=screendata[sc["_id"]]['task'] if 'task' in screendata[sc["_id"]] else None
+                        finalscreendata["taskexists"]=screendata[sc["_id"]]['taskexists'] if 'taskexists' in screendata[sc["_id"]] else None
 
                         if len(sc["testcases"])==0 and mindmaptype=="basic":
                             finaldata["completeFlow"]=False
@@ -606,6 +609,7 @@ def LoadServices(app, redissession, n68session):
                             finaltestcasedata["reuse"]=testcasedata[tc]["reuse"]
                             finaltestcasedata["state"]="saved"
                             finaltestcasedata["task"]=testcasedata[tc]['task'] if 'task' in testcasedata[tc] else None
+                            finaltestcasedata["taskexists"]=testcasedata[tc]['taskexists'] if 'taskexists' in testcasedata[tc] else None
                             finalscreendata["children"].append(finaltestcasedata)
                         finalscenariodata["children"].append(finalscreendata)
                     finaldata["children"].append(finalscenariodata)
@@ -890,7 +894,7 @@ def LoadServices(app, redissession, n68session):
             action=requestdata["action"]
             del requestdata["action"]
             if not isemptyrequest(requestdata):
-
+                
                 if action == "modify":
                     tasks_update=requestdata["update"]
                     tasks_remove=requestdata["delete"]
@@ -900,7 +904,7 @@ def LoadServices(app, redissession, n68session):
                             i["startdate"]=datetime.strptime(i["startdate"],"%d/%m/%Y")
                         if i['enddate'].find('/') > -1:
                             i["enddate"]=datetime.strptime(i["enddate"],"%d/%m/%Y")
-                        n68session.tasks.update({"_id":ObjectId(i["taskid"]),"cycle":ObjectId(i["cycleid"])},{"$set":{"owner":ObjectId(i["assignedto"]),"assignedtime":i["assignedtime"],"startdate":i["startdate"],"enddate":i["enddate"],"assignedto":ObjectId(i["assignedto"]),"reviewer":ObjectId(i["reviewer"]),"status":i["status"],"reestimation":i["reestimation"],"complexity":i["complexity"],"history":i["history"]}})
+                        n68session.tasks.update({"_id":ObjectId(i["id"]),"cycleid":ObjectId(i["cycleid"])},{"$set":{"assignedtime":i["assignedtime"],"startdate":i["startdate"],"enddate":i["enddate"],"assignedto":ObjectId(i["assignedto"]),"reviewer":ObjectId(i["reviewer"]),"status":i["status"],"reestimation":i["reestimation"],"complexity":i["complexity"],"history":i["history"]}})
                     tasks_insert=requestdata["insert"]
                     for i in tasks_insert:
                         i["startdate"]=datetime.strptime(i["startdate"],"%d/%m/%Y")
@@ -911,7 +915,7 @@ def LoadServices(app, redissession, n68session):
                         i['cycleid']=ObjectId(i["cycleid"])
                         i["assignedto"]=ObjectId(i["assignedto"])
                         i["nodeid"]=ObjectId(i["nodeid"])
-                        if i["parent"] != "":
+                        if i["parent"] != "":    
                             i["parent"]=ObjectId(i["parent"])
                         i["reviewer"]=ObjectId(i["reviewer"])
                         i["projectid"]=ObjectId(i["projectid"])
