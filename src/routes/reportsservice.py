@@ -33,7 +33,7 @@ def LoadServices(app, redissession, n68session2, webocularsession):
                     queryresult=list(n68session2.projects.find({"_id":{"$in":queryresult1["projects"]}},{"name":1,"releases":1}))
                     res= {"rows":queryresult}
                 elif(requestdata["query"] == 'getAlltestSuites'):
-                    queryresult=list(n68session2.testsuites.find({"cycle": ObjectId(requestdata["id"])},{"_id":1,"name":1}))
+                    queryresult=list(n68session2.testsuites.find({"cycleid": ObjectId(requestdata["id"])},{"_id":1,"name":1}))
                     res= {"rows":queryresult}
             else:
                 app.logger.warn('Empty data received. report suites details.')
