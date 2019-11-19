@@ -246,7 +246,7 @@ def LoadServices(app, redissession, n68session,licensedata):
             app.logger.debug("Inside createProject_ICE. Query: create Project")
             if not isemptyrequest(requestdata):
                 requestdata["createdon"]=requestdata["modifiedon"]=datetime.now()
-                requestdata["type"]=n68session.projecttypekeywords.find({"name":requestdata["type"]},{"_id":1})[0]["_id"]
+                requestdata["type"]=n68session.projecttypekeywords.find_one({"name":requestdata["type"]},{"_id":1})[0]["_id"]
                 requestdata["createdon"]=requestdata["modifiedon"]=datetime.now()
                 requestdata["createdbyrole"]=ObjectId(requestdata["createdbyrole"])
                 requestdata["createdby"]=ObjectId(requestdata["createdby"])

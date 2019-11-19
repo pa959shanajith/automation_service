@@ -3,6 +3,8 @@
 ################################################################################
 #----------DEFAULT METHODS AND IMPORTS------------DO NOT EDIT-------------------
 from utils import *
+from Crypto.Cipher import AES
+import base64
 
 def LoadServices(app, redissession, n68session):
     setenv(app)
@@ -25,11 +27,11 @@ def LoadServices(app, redissession, n68session):
             BS = 16
             pad = lambda s: s + (BS - len(s) % BS) * chr(BS - len(s) % BS)
             key = b'\x74\x68\x69\x73\x49\x73\x41\x53\x65\x63\x72\x65\x74\x4b\x65\x79'
-            raw=request.data
+            raw=request.data.decode()
             if not (raw is None and raw is ''):
                 raw = pad(raw)
                 cipher = AES.new( key, AES.MODE_ECB)
-                res={'rows':base64.b64encode(cipher.encrypt( raw ))}
+                res={'rows':base64.b64encode(cipher.encrypt( raw.encode() )).decode()}
                 return jsonify(res)
             else:
                 app.logger.error("Invalid input")
