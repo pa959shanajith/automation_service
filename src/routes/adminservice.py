@@ -125,7 +125,7 @@ def LoadServices(app, redissession, n68session,licensedata):
                         result=list(n68session.users.find({"_id":ObjectId(requestdata["userid"])},{"name":1,"firstname":1,"lastname":1,"emailid":1,"ldapuser":1,"defaultrole":1,"addroles":1}))
                         res={'rows':result}
                     else:
-                        result=list(n68session.users.find({"name":{"$nin":["admin","demouser"]}},{"_id":1,"name":1,"defaultrole":1}))
+                        result=list(n68session.users.find({"name":{"$nin":["Admin","demouser"]}},{"_id":1,"name":1,"defaultrole":1}))
                         res={'rows':result}
             else:
                 app.logger.warn('Empty data received. users fetch.')
@@ -295,8 +295,19 @@ def LoadServices(app, redissession, n68session,licensedata):
                     n68session.projects.update({"id":ObjectId(requestdata["projectid"])},{"$pull":{"releases.cycles._id":ObjectId(requestdata["cycleid"]),"releases.cycles.name":requestdata["name"]}})
                     res={'rows':'success'}
                 elif(requestdata['query'] == 'createcycle'):
-                    n68session.projects.update({"id":ObjectId(requestdata["projectid"])},{"$pull":{"releases.cycles._id":ObjectId(requestdata["cycleid"]),"releases.cycles.name":requestdata["name"]}})
+                    result=n68session.projects.find_one({"_id":ObjectId(requestdata["projectid"])},{"releases":1})["releases"]
+                    for i in result:
+                        if i["name"]== requestdata["releaseid"]:
+                            cycles={}
+                            cycles["modifiedby"]=cycles["createdby"]=ObjectId(requestdata["createdby"])
+                            cycles["modifiedon"]=cycles["createdon"]=datetime.now()
+                            cycles["modifiedbyrole"]=cycles["createdbyrole"]=ObjectId(requestdata["createdbyrole"])
+                            cycleid=cycles["_id"]=ObjectId()
+                            cycles["name"]=requestdata["cyclename"]
+                            i["cycles"].append(cycles)
+                    n68session.projects.update({"_id":ObjectId(requestdata["projectid"])},{"$set":{"releases":result}})
                     res={'rows':'success'}
+
                     
                     
                 else:
