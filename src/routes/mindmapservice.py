@@ -427,22 +427,6 @@ def LoadServices(app, redissession, n68session):
             servicesException("updateTestcasename_ICE",e)
         return jsonify(res)
 
-    #New API to checkReuse of a Node migration from Neo4j to MongoDB
-    #  Incomplete
-    @app.route('/create_ice/node_reuse_ICE',methods=['POST'])
-    def node_reuse_ICE():
-        res={'rows':'fail'}
-        try:
-            requestdata=json.loads(request.data)
-            app.logger.debug("Inside node_reuse_ICE. Query: "+str(requestdata["name"]))
-            if not isemptyrequest(requestdata):
-                # Queries for reuse
-                print("Do something")
-            else:
-                app.logger.warn("Empty data received. node_reuse_ICE")
-        except Exception as e:
-            servicesException("node_reuse_ICE",e)
-        return jsonify(res)
 
     # New API for getting Module Details.
     @app.route('/mindmap/getModules',methods=['POST'])
@@ -627,21 +611,6 @@ def LoadServices(app, redissession, n68session):
             servicesException("getModules",e)
         return jsonify(res)
 
-    # #New API to checkReuse of a Node migration from Neo4j to MongoDB
-    # #  Incomplete
-    # @app.route('/create_ice/node_reuse_ICE',methods=['POST'])
-    # def node_reuse_ICE():
-    #     res={'rows':'fail'}
-    #     try:
-    #         requestdata=json.loads(request.data)
-    #         app.logger.debug("Inside node_reuse_ICE. Query: "+str(requestdata["name"]))
-    #         if not isemptyrequest(requestdata):
-    #             print("Do something")
-    #         else:
-    #             app.logger.warn("Empty data received. node_reuse_ICE")
-    #     except Exception as e:
-    #         servicesException("node_reuse_ICE",e)
-    #     return jsonify(res)
 
     @app.route('/plugins/getTasksJSON',methods=['POST'])
     def getTasksJSON():
@@ -687,122 +656,77 @@ def LoadServices(app, redissession, n68session):
         app.logger.debug("Inside saveMindmap")
         res={'rows':'fail'}
         try:
-           requestdata=json.loads(request.data)
-           requestdata=requestdata["data"]
-           print(requestdata)
-           projectid=requestdata['projectid']
-           createdby=requestdata['userid']
-           createdbyrole=requestdata['userroleid']
-           versionnumber=requestdata['versionnumber']
-           createdthrough=requestdata['createdthrough']
-           module_type="basic"
+            requestdata=json.loads(request.data)
+            requestdata=requestdata["data"]
+            projectid=requestdata['projectid']
+            createdby=requestdata['userid']
+            createdbyrole=requestdata['userroleid']
+            versionnumber=requestdata['versionnumber']
+            createdthrough=requestdata['createdthrough']
+            module_type="basic"
+        
+            error=checkReuse(requestdata)
 
-           for moduledata in requestdata['testsuiteDetails']:
-               if moduledata["state"]=="created":
-                   currentmoduleid=saveTestSuite(projectid,moduledata['testsuiteName'],versionnumber,createdthrough,createdby,createdbyrole,module_type)
-               else:
-                   currentmoduleid=moduledata['testsuiteId']
-               idsforModule=[]
-               for scenariodata in moduledata['testscenarioDetails']:
-                   testcaseidsforscenario=[]
-                   if scenariodata["state"]=="created":
-                       currentscenarioid=saveTestScenario(projectid,scenariodata['testscenarioName'],versionnumber,createdby,createdbyrole)
-                   else:
-                       currentscenarioid=scenariodata['testscenarioid']
-                   iddata1={"_id":ObjectId(currentscenarioid),"screens":[]}
-                   for screendata in scenariodata['screenDetails']:
-                       if screendata["state"]=="created":
-                           currentscreenid=saveScreen(projectid,screendata["screenName"],versionnumber,createdby,createdbyrole,currentscenarioid)
-                       else:
-                           currentscreenid=screendata["screenid"]
-                       iddata2={"_id":ObjectId(currentscreenid),"testcases":[]}
-                       for testcasedata in screendata['testcaseDetails']:
-                           if testcasedata["state"]=="created":
-                               currenttestcaseid=saveTestcase(currentscreenid,testcasedata['testcaseName'],versionnumber,createdby,createdbyrole)
-                           else:
-                               currenttestcaseid=testcasedata['testcaseid']
-                           testcaseidsforscenario.append(ObjectId(currenttestcaseid))
-                           iddata2["testcases"].append(ObjectId(currenttestcaseid))
-                       iddata1["screens"].append(iddata2)
-                   idsforModule.append(iddata1)
-                   n68session.testscenarios.update_one({'_id':ObjectId(currentscenarioid)},{'$set':{'testcaseids':testcaseidsforscenario}})
-               n68session.mindmaps.update_one({"_id":ObjectId(currentmoduleid)},{'$set':{'testscenarios':idsforModule}})
-
-           res={'rows':currentmoduleid}
+            if error is None:
+           
+                for moduledata in requestdata['testsuiteDetails']:
+                    if moduledata["testsuiteId"] is None:
+                        currentmoduleid=saveTestSuite(projectid,moduledata['testsuiteName'],versionnumber,createdthrough,createdby,createdbyrole,module_type)
+                    else:
+                        if moduledata['state']=="renamed":
+                            updateModuleName(moduledata['testsuiteName'],projectid,moduledata["testsuiteId"],createdby,createdbyrole)
+                        currentmoduleid=moduledata['testsuiteId']
+                    idsforModule=[]
+                    for scenariodata in moduledata['testscenarioDetails']:
+                        testcaseidsforscenario=[]
+                        if scenariodata['testscenarioid'] is None:
+                            currentscenarioid=saveTestScenario(projectid,scenariodata['testscenarioName'],versionnumber,createdby,createdbyrole,currentmoduleid)
+                        else:
+                            if scenariodata['state']=="renamed":
+                                updateScenarioName(scenariodata['testscenarioName'],projectid,scenariodata['testscenarioid'],createdby,createdbyrole)
+                            currentscenarioid=scenariodata['testscenarioid']
+                        iddata1={"_id":ObjectId(currentscenarioid),"screens":[]}
+                        for screendata in scenariodata['screenDetails']:
+                            if screendata["screenid"] is None:
+                                if "newreuse" in screendata:
+                                    currentscreenid=getScreenID(screendata["screenName"],projectid)
+                                    updateparent("screens",currentscreenid,currentscenarioid)
+                                else:
+                                    currentscreenid=saveScreen(projectid,screendata["screenName"],versionnumber,createdby,createdbyrole,currentscenarioid)
+                            else:
+                                if screendata["state"]=="renamed":
+                                    updateScreenName(screendata['screenName'],projectid,screendata['screenid'],createdby,createdbyrole)
+                                currentscreenid=screendata["screenid"]
+                                if "reuse" in screendata and screendata["reuse"]:
+                                    updateparent("screens",currentscreenid,currentscenarioid)
+                            iddata2={"_id":ObjectId(currentscreenid),"testcases":[]}
+                            for testcasedata in screendata['testcaseDetails']:
+                                if testcasedata["testcaseid"] is None:
+                                    if "newreuse" in testcasedata:
+                                        testcasedata["testcaseid"]=getTestcaseID(currentscreenid,testcasedata['testcaseName'])
+                                        updateparent("testcases",currenttestcaseid,currentscreenid)
+                                    else:
+                                        currenttestcaseid=saveTestcase(currentscreenid,testcasedata['testcaseName'],versionnumber,createdby,createdbyrole)
+                                else:
+                                    if testcasedata['state']=="renamed":
+                                        updateTestcaseName(testcasedata['testcaseName'],projectid,testcasedata['testcaseid'],createdby,createdbyrole)
+                                    currenttestcaseid=testcasedata['testcaseid']
+                                    if "reuse" in testcasedata and testcasedata["reuse"]:
+                                        updateparent("testcases",currenttestcaseid,currentscreenid)
+                                testcaseidsforscenario.append(ObjectId(currenttestcaseid))
+                                iddata2["testcases"].append(ObjectId(currenttestcaseid))
+                            iddata1["screens"].append(iddata2)
+                        idsforModule.append(iddata1)
+                        updateTestcaseIDsInScenario(currentscenarioid,testcaseidsforscenario)
+                    updateTestScenariosInModule(currentmoduleid,idsforModule)
+                res={'rows':currentmoduleid}
+            else:
+                res={'rows':'fail',"error":error}
         except Exception as e:
             servicesException("saveMindmap",e)
         return jsonify(res)
 
-    # @app.route('/reports/getAllSuites_ICE',methods=['POST'])
-    # def getAllSuites_ICE():
-    #     res={'rows':'fail'}
-    #     try:
-    #         requestdata=json.loads(request.data)
-    #         app.logger.debug("Inside getAllSuites_ICE. Query: "+str(requestdata["query"]))
-    #         if not isemptyrequest(requestdata):
-    #             if(requestdata["query"] == 'projects'):
-    #                 #requestdata["userid"]="5da058104f9e97ecf683306e"
-    #                 queryresult1=n68session.users.find_one({"_id": ObjectId(requestdata["userid"])},{"projects":1,"_id":0})
-    #                 queryresult=list(n68session.projects.find({"_id":{"$in":queryresult1["projects"]}},{"name":1,"releases":1}))
-    #             elif(requestdata["query"] == 'getAlltestSuites'):
-    #                 queryresult=list(n68session.testsuites.find({"cycle": ObjectId(requestdata["id"])},{"_id":1,"name":1}))
-    #             else:
-    #                 return jsonify(res)
-    #             res= {"rows":queryresult}
-    #             return jsonify(res)
-    #         else:
-    #             app.logger.warn('Empty data received. report suites details.')
-    #             return jsonify(res)
-    #     except Exception as getAllSuitesexc:
-    #         print (getAllSuitesexc)
-    #         servicesException("getAllSuites_ICE",getAllSuitesexc)
-    #         res={'rows':'fail'}
-    #         return jsonify(res)
-
-    # Under Development
-
-    # @app.route('/create_ice/saveMindmapE2E',methods=['POST'])
-    # def saveMindmapEndtoEnd():
-    #     res={'rows':'fail'}
-    #     try:
-    #         requestdata=json.loads(request.data)
-    #         print("req",requestdata["data"])
-    #         requestdata=requestdata["data"]
-    #         app.logger.debug("Inside saveMindmapE2E.")
-    #         if not isemptyrequest(requestdata):
-    #             projectid=requestdata['projectid']
-    #
-    #             # userid=requestdata['userid']
-    #             # userroleid=requestdata['userroleid']
-    #             # versionnumber=requestdata['versionnumber']
-    #             # createdthrough=requestdata['createdthrough']
-    #             # type=requestdata['type']
-    #
-    #             # Hardcoded:
-    #             createdby="5da8670ff87fdec084ae4993"
-    #             createdbyrole="5da865d4f87fdec084ae497d"
-    #             versionnumber=0
-    #             createdthrough="Web"
-    #             type="endtoend"
-    #
-    #             for moduledata in requestdata['testsuiteDetails']:
-    #                 if moduledata["state"]=="created":
-    #                     currentmoduleid=saveTestSuite(projectid,moduledata['testsuiteName'],versionnumber,createdthrough,createdby,createdbyrole,type)
-    #                 else:
-    #                     currentmoduleid=moduledata['testsuiteId']
-    #             currentmoduleid=saveTestSuite(projectid,moduledata['testsuiteName'],versionnumber,createdthrough,createdby,createdbyrole,type)
-    #
-    #
-    #         else:
-    #             app.logger.warn("Empty data received. saveMindmapE2E")
-    #     except Exception as e:
-    #         servicesException("saveMindmapE2E",e)
-    #     return jsonify(res)
-
-    def checkReuse():
-        pass
-
-    def saveTestSuite(projectid,modulename,versionnumber,createdthrough,createdby,createdbyrole,type,testscenarios=[]):
+    def saveTestSuite(projectid,modulename,versionnumber,createdthrough,createdby,createdbyrole,moduletype,testscenarios=[]):
         app.logger.debug("Inside saveTestSuite.")
         createdon = datetime.now()
         data={
@@ -812,24 +736,25 @@ def LoadServices(app, redissession, n68session):
         "createdon":createdon,
         "createdthrough":createdthrough,
         "createdby":ObjectId(createdby),
-        "createdbyrole":ObjectId(createdbyrole), #extra to be sent from the UI
+        "createdbyrole":ObjectId(createdbyrole),
         "deleted":False,
         "modifiedby": ObjectId(createdby),
         "modifiedon": createdon,
-        "modifiedbyrole": ObjectId(createdbyrole), #extra to be sent through UI.
-        "type": type, #extra parameter to be sent
+        "modifiedbyrole": ObjectId(createdbyrole),
+        "type": moduletype,
         "testscenarios":[]
         }
         queryresult=n68session.mindmaps.insert_one(data).inserted_id
+        print("Save Test Suite",queryresult)
         return queryresult
 
-    def saveTestScenario(projectid,testscenarioname,versionnumber,createdby,createdbyrole,testcaseids=[]):
+    def saveTestScenario(projectid,testscenarioname,versionnumber,createdby,createdbyrole,moduleid,testcaseids=[]):
         app.logger.debug("Inside saveTestScenario.")
         createdon = datetime.now()
         data={
             "name":testscenarioname,
             "projectid":ObjectId(projectid),
-            "parent":[] ,# ModuleID to be passed here.
+            "parent":[ObjectId(moduleid)] ,
             "versionnumber":versionnumber,
             "createdby":ObjectId(createdby),
             "createdbyrole":ObjectId(createdbyrole),
@@ -842,18 +767,19 @@ def LoadServices(app, redissession, n68session):
             "screens":[]
         }
         queryresult=n68session.testscenarios.insert_one(data).inserted_id
+        print("Save Secenario",queryresult)
         return queryresult
 
-    def saveScreen(projectid,screenname,versionnumber,createdby,createdbyrole,scenarioid=None):
+    def saveScreen(projectid,screenname,versionnumber,createdby,createdbyrole,scenarioid):
         app.logger.debug("Inside saveScreen.")
         createdon = datetime.now()
         data={
         "projectid":ObjectId(projectid),
         "name":screenname,
         "versionnumber":versionnumber,
-        "parent":[ObjectId(scenarioid)], #New property added #scenarioid to be send here.
+        "parent":[ObjectId(scenarioid)], 
         "createdby":ObjectId(createdby),
-        "createdbyrole":ObjectId(createdbyrole), # New parameter to be passed in service
+        "createdbyrole":ObjectId(createdbyrole),
         "createdon":createdon,
         "deleted":False,
         "modifiedby":ObjectId(createdby),
@@ -864,6 +790,7 @@ def LoadServices(app, redissession, n68session):
         "testcases":[]
         }
         queryresult=n68session.screens.insert_one(data).inserted_id
+        print("Save Screen",queryresult)
         return queryresult
 
     def saveTestcase(screenid,testcasename,versionnumber,createdby,createdbyrole):
@@ -884,6 +811,7 @@ def LoadServices(app, redissession, n68session):
             "deleted":False
         }
         queryresult=n68session.testcases.insert_one(data).inserted_id
+        print("Save Testcase",queryresult)
         return queryresult
 
     @app.route('/mindmap/manageTask',methods=['POST'])
@@ -940,29 +868,104 @@ def LoadServices(app, redissession, n68session):
 
     def checkReuse(requestdata):
         scenarionames=set()
+        # screennameset=set()
+        testcasenameset=set()
+        screen_testcase={}
+        error=None
+        projectid=projectid=requestdata['projectid']
         for moduledata in requestdata['testsuiteDetails']:
-            if moduledata["state"]=="created" or moduledata["state"]=="modified":
-                if checkModuleNameExists(moduledata["testsuiteName"],moduledata["projectid"]):
+            if moduledata['testsuiteId'] is None:
+                # If the the Module does not have an ID then we will check if the target name has conflict.
+                if checkModuleNameExists(moduledata["testsuiteName"],projectid):
                     error="A project cannot have similar module name"
                     break
+            else:
+                # If the the Module has an ID then we will check if the target name has conflict if not then rename will be allowed.
+                name=getModuleName(moduledata['testsuiteId'])
+                if name!=moduledata["testsuiteName"]:
+                    if checkModuleNameExists(moduledata["testsuiteName"],projectid):
+                        error="Module cannot be renamed to an existing module name"
+                        break
+                    else:
+                        moduledata["state"]=="renamed"
             for scenariodata in moduledata['testscenarioDetails']:
+                # This check for similar scenario name within the same module.
                 if scenariodata['testscenarioName'] in scenarionames:
-                    error="A project cannot have similar scenario name"
+                    error="A project cannot have similar scenario names: "+scenariodata['testscenarioName']
                     break
                 else:
                     scenarionames.add(scenariodata['testscenarioName'])
-                if scenariodata["state"]=="created" or scenariodata["state"]=="modified":
+
+                # If the the Scenario does not have an ID then we will check if the target name has conflict.
+                if scenariodata['testscenarioid'] is None:
                     if checkScenarioNameExists(projectid,scenariodata['testscenarioName']):
                         error="A project cannot have similar scenario names: change "+scenariodata['testscenarioName']+" name"
                         break
+                else:
+                    # If the the Scenario has an ID then we will check if the target name has conflict if not then rename will be allowed.
+                    scenarioname=getScenarioName(scenariodata['testscenarioid'])
+                    if scenarioname!=scenariodata['testscenarioName']:
+                        if checkScenarioNameExists(projectid,scenariodata['testscenarioName']):
+                            error="A project cannot have similar scenario names: change "+scenariodata['testscenarioName']+" name"
+                            break
+                        else:
+                            scenariodata['state']="renamed"
                 for screendata in scenariodata['screenDetails']:
-                    checkScreenName
-                    if screendata["_id"] is not None:
-                        pass
+                    
+                    if screendata["screenid"] is None:
+                        # If ScreenID is none then we will check if a screen with that name exists then we will give this screen the ID of the existing screen else it will be None only.
+                        screendata["screenid"]=getScreenID(screendata["screenName"],projectid)
+                        if screendata["screenid"] is not None:
+                            screendata["reuse"]=True
+                        elif screendata["screenName"] in screen_testcase:
+                            screendata["newreuse"]=True
+                        else:
+                            screendata["reuse"]=False
+                    else:
+                        screenname = getScreenName(screendata["screenid"])
+                        if screenname != screendata["screenName"]:
+                            if checkScreenNameExists(screendata["screenName"], projectid):
+                                error = "Cannot rename screen to an existing screen name: " + screendata["screenName"]
+                                break
+                            else:
+                                screendata['state']="renamed"  
+                    if screendata["screenName"] not in screen_testcase:
+                        screen_testcase[screendata["screenName"]]=set()
+                        for testcasedata in screendata['testcaseDetails']:
+                            if testcasedata["testcaseName"] not in screen_testcase[screendata["screenName"]]:
+                                screen_testcase[screendata["screenName"]].add(testcasedata["testcaseName"])
+                            else:
+                                tescasedata["newreuse"]=True
+                    else:
+                        for testcasedata in screendata['testcaseDetails']:
+                            if testcasedata["testcaseName"] not in screen_testcase[screendata["screenName"]]:
+                                screen_testcase[screendata["screenName"]].add(testcasedata["testcaseName"])
+                            else:
+                                testcasedata["newreuse"]=True
+                    # Checking of Reuse in Testcases is done only when the screen has a valid ID.
 
-                    for testcasedata in screendata['testcaseDetails']:
-                        # Do something
-                        pass
+                    if screendata["screenid"] is not None:
+                        for testcasedata in screendata['testcaseDetails']:
+                            if testcasedata['testcaseid'] is None:
+                                testcasedata['testcaseid']=getTestcaseID(screendata["screenid"],testcasedata["testcaseName"])
+                                if testcasedata["testcaseid"] is not None:
+                                    testcasedata["reuse"]=True
+                                else:
+                                    testcasedata["reuse"]=False
+                            else:
+                                testcasename=getTestcaseName(testcasedata['testcaseid'])
+                                if testcasename!= testcasedata["testcaseName"]:
+                                    testcaseid=getTestcaseID(screendata["screenid"],testcasedata["testcaseName"])
+                                    if testcaseid is not None:
+                                        testcasedata['testcaseid']=testcaseid
+                                        testcasedata["reuse"]=True
+                                    else:
+                                        testcasedata["state"]="renamed"
+                                        testcasedata["reuse"]=False
+        if error is None:
+            return None
+        else:
+            return error
 
     def checkModuleNameExists(name,projectid):
         res=list(n68session.mindmaps.find({"projectid":ObjectId(projectid),"name":name},{"_id":1}))
@@ -971,16 +974,38 @@ def LoadServices(app, redissession, n68session):
         else:
             return False
 
-    def updateparent(type,parentid,nodeid):
+    def checkScreenNameExists(name,projectid):
+        res = list(n68session.screens.find({"projectid": ObjectId(projectid), "name": name}, {"_id": 1}))
+        if len(res) > 0:
+            return True
+        else:
+            return False
+
+    def updateparent(type,nodeid,parentid):
         if type=="scenarios":
             parentlist=list(n68session.testscenarios.find({"_id":ObjectId(nodeid)},{"parent":1}))
-            print("parentlist ",parentlist)
+            updateparentlist=parentlist[0]['parent']
+            updateparentlist.append(ObjectId(parentid))
+            n68session.testscenarios.update_one({'_id':ObjectId(nodeid)},{'$set':{'parent':updateparentlist}})
         elif type=="screens":
             parentlist=list(n68session.screens.find({"_id":ObjectId(nodeid)},{"parent":1}))
-            print("parentlist ",parentlist)
+            updateparentlist=parentlist[0]['parent']
+            updateparentlist.append(ObjectId(parentid))
+            n68session.screens.update_one({'_id':ObjectId(nodeid)},{'$set':{'parent':updateparentlist}})
         elif type=="testcases":
             parentlist=list(n68session.testcases.find({"_id":ObjectId(nodeid)},{"parent":1}))
-            print("parentlist ",parentlist)
+            updateparentlist=parentlist[0]['parent']
+            updateparentlist+=1
+            n68session.testcases.update_one({'_id':ObjectId(nodeid)},{'$set':{'parent':updateparentlist}})
+            
+        
+    def updateTestcaseIDsInScenario(currentscenarioid,testcaseidsforscenario):
+        n68session.testscenarios.update_one({'_id':ObjectId(currentscenarioid)},{'$set':{'testcaseids':testcaseidsforscenario}})
+        return
+
+    def updateTestScenariosInModule(currentmoduleid,idsforModule):
+        n68session.mindmaps.update_one({"_id":ObjectId(currentmoduleid)},{'$set':{'testscenarios':idsforModule}})
+        return
 
 
     @app.route('/mindmap/getScreens',methods=['POST'])
@@ -1098,10 +1123,33 @@ def LoadServices(app, redissession, n68session):
             queryresult=n68session.mindmaps.update_one({"_id":ObjectId(moduleid)},{"$set":{"name":modulename,"modifiedby":userid,"modifedon":modifiedon,"modifiedbyrole":userroleid}})
             return
 
+    def updateScenarioName(scenarioname,projectid,scenarioid,userid,userroleid):
+        modifiedon=datetime.now()
+        queryresult=n68session.testscenarios.update_one({"_id":ObjectId(scenarioid)},{"$set":{"name":scenarioname,"modifiedby":userid,"modifedon":modifiedon,"modifiedbyrole":userroleid}})
+        return
+
+    def updateScreenName(screenname,projectid,screenid,userid,userroleid):
+        modifiedon=datetime.now()
+        queryresult=n68session.screens.update_one({"_id":ObjectId(screenid)},{"$set":{"name":screenname,"modifiedby":userid,"modifedon":modifiedon,"modifiedbyrole":userroleid}})
+        return
+
+    def updateTestcaseName(testcasename,projectid,testcaseid,userid,userroleid):
+        modifiedon=datetime.now()
+        queryresult=n68session.testcases.update_one({"_id":ObjectId(testcaseid)},{"$set":{"name":testcasename,"modifiedby":userid,"modifedon":modifiedon,"modifiedbyrole":userroleid}})
+        return
+    
     def getModuleName(moduleid):
         modulename=list(n68session.mindmaps.find({"_id":ObjectId(moduleid),"deleted":False},{"name":1}))
         if len(modulename)!=0:
             res=modulename[0]["name"]
+        else:
+            res=None
+        return res
+    
+    def getScenarioName(scenarioid):
+        scenarioname=list(n68session.testscenarios.find({"_id":ObjectId(scenarioid),"deleted":False},{"name":1}))
+        if len(scenarioname)!=0:
+            res=scenarioname[0]["name"]
         else:
             res=None
         return res
@@ -1115,9 +1163,24 @@ def LoadServices(app, redissession, n68session):
         return res
 
     def getTestcaseName(testcaseid):
-        testcasename=list(n68session.screens.find({"_id":ObjectId(testcaseid),"deleted":False},{"name":1}))
+        testcasename=list(n68session.testcases.find({"_id":ObjectId(testcaseid),"deleted":False},{"name":1}))
         if len(testcasename)!=0:
             res=testcasename[0]["name"]
         else:
             res=None
         return res
+
+    def getTestcaseID(screenid,testcasename):
+        testcaseid = list(n68session.testcases.find({"screenid": ObjectId(screenid),"name": testcasename,"deleted": False}, {"_id": 1}))
+        if len(testcaseid) != 0:
+            res = str(testcaseid[0]["_id"])
+        else:
+            res = None
+        return res
+
+    def getScreenID(screenname,projectid):
+        screenname=list(n68session.screens.find({"name":screenname,"projectid":ObjectId(projectid),"deleted":False},{"_id":1}))
+        if len(screenname)==1:
+            return str(screenname[0]["_id"])
+        else:   
+            return None
