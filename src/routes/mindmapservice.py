@@ -654,7 +654,7 @@ def LoadServices(app, redissession, n68session):
     @app.route('/create_ice/saveMindmap',methods=['POST'])
     def saveMindmap():
         app.logger.debug("Inside saveMindmap")
-        res={'rows':'fail'}
+        res={'rows':'fail','error':'Failed to save structure.'}
         try:
             requestdata=json.loads(request.data)
             requestdata=requestdata["data"]
@@ -703,7 +703,7 @@ def LoadServices(app, redissession, n68session):
                             for testcasedata in screendata['testcaseDetails']:
                                 if testcasedata["testcaseid"] is None:
                                     if "newreuse" in testcasedata:
-                                        testcasedata["testcaseid"]=getTestcaseID(currentscreenid,testcasedata['testcaseName'])
+                                        currenttestcaseid=getTestcaseID(currentscreenid,testcasedata['testcaseName'])
                                         updateparent("testcases",currenttestcaseid,currentscreenid)
                                     else:
                                         currenttestcaseid=saveTestcase(currentscreenid,testcasedata['testcaseName'],versionnumber,createdby,createdbyrole)
@@ -935,7 +935,7 @@ def LoadServices(app, redissession, n68session):
                             if testcasedata["testcaseName"] not in screen_testcase[screendata["screenName"]]:
                                 screen_testcase[screendata["screenName"]].add(testcasedata["testcaseName"])
                             else:
-                                tescasedata["newreuse"]=True
+                                testcasedata["newreuse"]=True
                     else:
                         for testcasedata in screendata['testcaseDetails']:
                             if testcasedata["testcaseName"] not in screen_testcase[screendata["screenName"]]:
