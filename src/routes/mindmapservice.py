@@ -654,7 +654,7 @@ def LoadServices(app, redissession, n68session):
     @app.route('/create_ice/saveMindmap',methods=['POST'])
     def saveMindmap():
         app.logger.debug("Inside saveMindmap")
-        res={'rows':'fail'}
+        res={'rows':'fail','error':'Failed to save structure.'}
         try:
             requestdata=json.loads(request.data)
             requestdata=requestdata["data"]
@@ -690,7 +690,7 @@ def LoadServices(app, redissession, n68session):
                             if screendata["screenid"] is None:
                                 if "newreuse" in screendata:
                                     currentscreenid=getScreenID(screendata["screenName"],projectid)
-                                    updateparent("screens",currentscreenid,currentscenarioid)
+                                    updateparent("screens",currentscreenid,currentscenarioid,"add")
                                 else:
                                     currentscreenid=saveScreen(projectid,screendata["screenName"],versionnumber,createdby,createdbyrole,currentscenarioid)
                             else:
@@ -698,13 +698,13 @@ def LoadServices(app, redissession, n68session):
                                     updateScreenName(screendata['screenName'],projectid,screendata['screenid'],createdby,createdbyrole)
                                 currentscreenid=screendata["screenid"]
                                 if "reuse" in screendata and screendata["reuse"]:
-                                    updateparent("screens",currentscreenid,currentscenarioid)
+                                    updateparent("screens",currentscreenid,currentscenarioid,"add")
                             iddata2={"_id":ObjectId(currentscreenid),"testcases":[]}
                             for testcasedata in screendata['testcaseDetails']:
                                 if testcasedata["testcaseid"] is None:
                                     if "newreuse" in testcasedata:
-                                        testcasedata["testcaseid"]=getTestcaseID(currentscreenid,testcasedata['testcaseName'])
-                                        updateparent("testcases",currenttestcaseid,currentscreenid)
+                                        currenttestcaseid=getTestcaseID(currentscreenid,testcasedata['testcaseName'])
+                                        updateparent("testcases",currenttestcaseid,currentscreenid,"add")
                                     else:
                                         currenttestcaseid=saveTestcase(currentscreenid,testcasedata['testcaseName'],versionnumber,createdby,createdbyrole)
                                 else:
@@ -712,13 +712,15 @@ def LoadServices(app, redissession, n68session):
                                         updateTestcaseName(testcasedata['testcaseName'],projectid,testcasedata['testcaseid'],createdby,createdbyrole)
                                     currenttestcaseid=testcasedata['testcaseid']
                                     if "reuse" in testcasedata and testcasedata["reuse"]:
-                                        updateparent("testcases",currenttestcaseid,currentscreenid)
+                                        updateparent("testcases",currenttestcaseid,currentscreenid,"add")
                                 testcaseidsforscenario.append(ObjectId(currenttestcaseid))
                                 iddata2["testcases"].append(ObjectId(currenttestcaseid))
                             iddata1["screens"].append(iddata2)
                         idsforModule.append(iddata1)
                         updateTestcaseIDsInScenario(currentscenarioid,testcaseidsforscenario)
                     updateTestScenariosInModule(currentmoduleid,idsforModule)
+                for node in requestdata['deletednodes']:
+                    updateparent(node[1],node[0],node[2],"delete")
                 res={'rows':currentmoduleid}
             else:
                 res={'rows':'fail',"error":error}
@@ -935,7 +937,7 @@ def LoadServices(app, redissession, n68session):
                             if testcasedata["testcaseName"] not in screen_testcase[screendata["screenName"]]:
                                 screen_testcase[screendata["screenName"]].add(testcasedata["testcaseName"])
                             else:
-                                tescasedata["newreuse"]=True
+                                testcasedata["newreuse"]=True
                     else:
                         for testcasedata in screendata['testcaseDetails']:
                             if testcasedata["testcaseName"] not in screen_testcase[screendata["screenName"]]:
@@ -981,23 +983,52 @@ def LoadServices(app, redissession, n68session):
         else:
             return False
 
-    def updateparent(type,nodeid,parentid):
-        if type=="scenarios":
-            parentlist=list(n68session.testscenarios.find({"_id":ObjectId(nodeid)},{"parent":1}))
-            updateparentlist=parentlist[0]['parent']
-            updateparentlist.append(ObjectId(parentid))
-            n68session.testscenarios.update_one({'_id':ObjectId(nodeid)},{'$set':{'parent':updateparentlist}})
-        elif type=="screens":
-            parentlist=list(n68session.screens.find({"_id":ObjectId(nodeid)},{"parent":1}))
-            updateparentlist=parentlist[0]['parent']
-            updateparentlist.append(ObjectId(parentid))
-            n68session.screens.update_one({'_id':ObjectId(nodeid)},{'$set':{'parent':updateparentlist}})
-        elif type=="testcases":
-            parentlist=list(n68session.testcases.find({"_id":ObjectId(nodeid)},{"parent":1}))
-            updateparentlist=parentlist[0]['parent']
-            updateparentlist+=1
-            n68session.testcases.update_one({'_id':ObjectId(nodeid)},{'$set':{'parent':updateparentlist}})
-            
+    def updateparent(type,nodeid,parentid,action):
+        if action=="add":
+            if type=="scenarios":
+                parentlist=list(n68session.testscenarios.find({"_id":ObjectId(nodeid)},{"parent":1}))
+                updateparentlist=parentlist[0]['parent']
+                updateparentlist.append(ObjectId(parentid))
+                n68session.testscenarios.update_one({'_id':ObjectId(nodeid)},{'$set':{'parent':updateparentlist}})
+            elif type=="screens":
+                parentlist=list(n68session.screens.find({"_id":ObjectId(nodeid)},{"parent":1}))
+                updateparentlist=parentlist[0]['parent']
+                updateparentlist.append(ObjectId(parentid))
+                n68session.screens.update_one({'_id':ObjectId(nodeid)},{'$set':{'parent':updateparentlist}})
+            elif type=="testcases":
+                parentlist=list(n68session.testcases.find({"_id":ObjectId(nodeid)},{"parent":1}))
+                updateparentlist=parentlist[0]['parent']
+                updateparentlist+=1
+                n68session.testcases.update_one({'_id':ObjectId(nodeid)},{'$set':{'parent':updateparentlist}})
+        elif action=="delete":
+            if type=="scenarios":
+                parentlist=list(n68session.testscenarios.find({"_id":ObjectId(nodeid)},{"parent":1}))
+                oldparentlist=parentlist[0]['parent']
+                newparentlist=[]
+                flag=False
+                for pid in oldparentlist:
+                    if flag or str(pid)!=parentid:
+                        newparentlist.append(pid)
+                    else:
+                        flag=False
+                n68session.testscenarios.update_one({'_id':ObjectId(nodeid)},{'$set':{'parent':newparentlist}})
+            elif type=="screens":
+                parentlist=list(n68session.screens.find({"_id":ObjectId(nodeid)},{"parent":1}))
+                oldparentlist=parentlist[0]['parent']
+                newparentlist=[]
+                flag=False
+                for pid in oldparentlist:
+                    if flag or str(pid)!=parentid:
+                        newparentlist.append(pid)
+                    else:
+                        flag=False
+                n68session.screens.update_one({'_id':ObjectId(nodeid)},{'$set':{'parent':newparentlist}})
+            elif type=="testcases":
+                parentlist=list(n68session.testcases.find({"_id":ObjectId(nodeid)},{"parent":1}))
+                updateparentlist=parentlist[0]['parent']
+                updateparentlist-=1
+                n68session.testcases.update_one({'_id':ObjectId(nodeid)},{'$set':{'parent':updateparentlist}})
+
         
     def updateTestcaseIDsInScenario(currentscenarioid,testcaseidsforscenario):
         n68session.testscenarios.update_one({'_id':ObjectId(currentscenarioid)},{'$set':{'testcaseids':testcaseidsforscenario}})
@@ -1058,7 +1089,6 @@ def LoadServices(app, redissession, n68session):
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
-            print("req",requestdata["data"])
             requestdata=requestdata["data"]
             app.logger.debug("Inside saveMindmapE2E.")
             if not isemptyrequest(requestdata):
@@ -1093,7 +1123,7 @@ def LoadServices(app, redissession, n68session):
                         if scenariodata["state"]=="created":
                             if( checkScenarioIDexists(scenariodata["testscenarioName"],scenariodata["testscenarioid"]) ):
                                 scenarioids.append({"_id":ObjectId(scenariodata["testscenarioid"]),"screens":[]})
-                                updateparent("scenarios",scenariodata["testscenarioid"],currentmoduleid)
+                                updateparent("scenarios",scenariodata["testscenarioid"],currentmoduleid,"add")
                             else:
                                 error="fail"
                                 break
@@ -1101,6 +1131,8 @@ def LoadServices(app, redissession, n68session):
                             scenarioids.append({"_id":ObjectId(scenariodata["testscenarioid"]),"screens":[]})
                 if currentmoduleid is not None:
                     n68session.mindmaps.update_one({"_id":ObjectId(currentmoduleid)},{'$set':{'testscenarios':scenarioids}})
+                for node in requestdata['deletednodes']:
+                    updateparent(node[1],node[0],node[2],"delete")
                 if error==None:
                     res={'rows':currentmoduleid}
                 else:
