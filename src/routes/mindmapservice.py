@@ -548,6 +548,7 @@ def LoadServices(app, redissession, n68session):
                 # Preparing final data in format needed
                 if len(mindmapdata["testscenarios"])==0 and mindmaptype=="basic":
                     finaldata["completeFlow"]=False
+                i=1
                 for ts in mindmapdata["testscenarios"]:
 
                     finalscenariodata={}
@@ -556,14 +557,16 @@ def LoadServices(app, redissession, n68session):
                     finalscenariodata["_id"]=ts["_id"]
                     finalscenariodata["name"]=scenariodata[ts["_id"]]["name"]
                     finalscenariodata["type"]="scenarios"
-                    finalscenariodata["childIndex"]=str(mindmapdata["testscenarios"].index(ts) + 1)
+                    finalscenariodata["childIndex"]=i
                     finalscenariodata["children"]=[]
                     finalscenariodata["state"]="saved"
                     finalscenariodata["reuse"]=scenariodata[ts["_id"]]["reuse"]
                     finalscenariodata["task"]=scenariodata[ts["_id"]]['task'] if 'task' in scenariodata[ts["_id"]] else None
                     finalscenariodata["taskexists"]=scenariodata[ts["_id"]]['taskexists'] if 'taskexists' in scenariodata[ts["_id"]] else None
+                    i=i+1
                     if len(ts["screens"])==0  and mindmaptype=="basic":
                         finaldata["completeFlow"]=False
+                    j=1
                     for sc in ts["screens"]:
 
                         finalscreendata={}
@@ -572,15 +575,16 @@ def LoadServices(app, redissession, n68session):
                         finalscreendata["_id"]=sc["_id"]
                         finalscreendata["name"]=screendata[sc["_id"]]["name"]
                         finalscreendata["type"]="screens"
-                        finalscreendata["childIndex"]=str(ts["screens"].index(sc) + 1)
+                        finalscreendata["childIndex"]=j
                         finalscreendata["children"]=[]
                         finalscreendata["reuse"]=screendata[sc["_id"]]["reuse"]
                         finalscreendata["state"]="saved"
                         finalscreendata["task"]=screendata[sc["_id"]]['task'] if 'task' in screendata[sc["_id"]] else None
                         finalscreendata["taskexists"]=screendata[sc["_id"]]['taskexists'] if 'taskexists' in screendata[sc["_id"]] else None
-
+                        j=j+1
                         if len(sc["testcases"])==0 and mindmaptype=="basic":
                             finaldata["completeFlow"]=False
+                        k=1
                         for tc in sc["testcases"]:
                             # testcase=sc["testcases"][k]
                             finaltestcasedata={}
@@ -588,12 +592,13 @@ def LoadServices(app, redissession, n68session):
                             finaltestcasedata["_id"]=tc
                             finaltestcasedata["name"]=testcasedata[tc]["name"]
                             finaltestcasedata["type"]="testcases"
-                            finaltestcasedata["childIndex"]=str(ts["screens"].index(sc) + 1)
+                            finaltestcasedata["childIndex"]=k
                             finaltestcasedata["children"]=[]
                             finaltestcasedata["reuse"]=testcasedata[tc]["reuse"]
                             finaltestcasedata["state"]="saved"
                             finaltestcasedata["task"]=testcasedata[tc]['task'] if 'task' in testcasedata[tc] else None
                             finaltestcasedata["taskexists"]=testcasedata[tc]['taskexists'] if 'taskexists' in testcasedata[tc] else None
+                            k=k+1
                             finalscreendata["children"].append(finaltestcasedata)
                         finalscenariodata["children"].append(finalscreendata)
                     finaldata["children"].append(finalscenariodata)
@@ -1104,7 +1109,7 @@ def LoadServices(app, redissession, n68session):
                 error=None
                 currentmoduleid=None
                 for moduledata in requestdata['testsuiteDetails']:
-                    if moduledata["state"]=="created":
+                    if moduledata['testsuiteId'] is None:
                         if( checkModuleNameExists(moduledata["testsuiteName"],projectid) ):
                             error="Module name cannot be reused"
                             break
@@ -1130,7 +1135,8 @@ def LoadServices(app, redissession, n68session):
                         else:
                             scenarioids.append({"_id":ObjectId(scenariodata["testscenarioid"]),"screens":[]})
                 if currentmoduleid is not None:
-                    n68session.mindmaps.update_one({"_id":ObjectId(currentmoduleid)},{'$set':{'testscenarios':scenarioids}})
+                    updateTestScenariosInModule(currentmoduleid,scenarioids)
+                    # n68session.mindmaps.update_one({"_id":ObjectId(currentmoduleid)},{'$set':{'testscenarios':scenarioids}})
                 for node in requestdata['deletednodes']:
                     updateparent(node[1],node[0],node[2],"delete")
                 if error==None:
