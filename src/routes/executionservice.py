@@ -126,7 +126,7 @@ def LoadServices(app, redissession, n68session):
 
                     if requestdata['name']=='testsuitename':
                         querydata['name'] = n68session.mindmaps.find_one({"_id":ObjectId(requestdata["id"])},{"name":1,"_id":0})['name']
-                    response = n68session.testsuites.update_one({"_id":ObjectId(requestdata["id"]),"name":requestdata["name"],
+                    response = n68session.testsuites.update_one({"_id":ObjectId(requestdata["id"]),
                     "cycleid":ObjectId(requestdata["cycleid"]),"deleted":query['delete_flag'],"versionnumber":versionnumber},{'$set':querydata})
                     res={'rows':'Success'}
                     app.logger.info("Executed readTestSuite_ICE. Query: "+str(requestdata["query"]))
@@ -152,9 +152,6 @@ def LoadServices(app, redissession, n68session):
                         requestdata['testsuitename'] = n68session.mindmaps.find_one({"_id":ObjectId(requestdata["id"])},{"name":1,"_id":0})['name']
                     res['rows'] = list(n68session.testsuites.find({"_id":ObjectId(requestdata["id"]),"name":requestdata["testsuitename"],
                     "cycleid":ObjectId(requestdata["cycleid"]),"deleted":query['delete_flag'],"versionnumber":requestdata["versionnumber"]},querydata))
-                    print ("query :   ",{"_id":ObjectId(requestdata["id"]),"name":requestdata["testsuitename"],
-                    "cycleid":ObjectId(requestdata["cycleid"]),"deleted":query['delete_flag'],"versionnumber":requestdata["versionnumber"]})
-                    print (querydata)
                     app.logger.info("Executed readTestSuite_ICE. Query: "+str(requestdata["query"]))
 
                 else:
