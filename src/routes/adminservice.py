@@ -386,8 +386,7 @@ def LoadServices(app, redissession, n68session,licensedata):
                         n68session.thirdpartyintegration.insert_one(requestdata)
                         res = {"rows":"success"}
                 elif (requestdata['action'] == "update"):
-                    if requestdata["bindcredentials"] == "":
-                        bindcredentialsFeild = ''
+                    requestdata["fieldmap"]=json.loads(requestdata["fieldmap"])
                     n68session.thirdpartyintegration.update_one({"name":requestdata["name"]},{"$set":{"url":requestdata["url"],"bindcredentials":requestdata["bindcredentials"],"basedn":requestdata["basedn"],"auth":requestdata["auth"],"binddn":requestdata["binddn"],"fieldmap":requestdata["fieldmap"]}})
                     res = {"rows":"success"}
                 else:
@@ -406,12 +405,12 @@ def LoadServices(app, redissession, n68session,licensedata):
             requestdata=json.loads(request.data)
             if not isemptyrequest(requestdata):
                 if "name" in requestdata:
-                    result=n68session.thirdpartyintegration.find_one({"name":requestdata["name"]})
+                    result = n68session.thirdpartyintegration.find_one({"name":requestdata["name"]})
                     password = result["bindcredentials"]
                     if len(password) > 0:
                         password = unwrap(password, ldap_key)
                         result["bindcredentials"] = password
-                    res={"rows":result}
+                    res = {"rows":result}
                 else:
                     result=list(n68session.thirdpartyintegration.find({"type":"LDAP"},{"name":1}))
                     res={"rows":result}
