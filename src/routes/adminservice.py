@@ -122,10 +122,12 @@ def LoadServices(app, redissession, n68session,licensedata):
             if not isemptyrequest(requestdata):
                 # if n68session.server_info():
                     if "userid" in requestdata:
-                        result=list(n68session.users.find({"_id":ObjectId(requestdata["userid"])},{"name":1,"firstname":1,"lastname":1,"emailid":1,"ldapuser":1,"defaultrole":1,"addroles":1}))
+                        result=list(n68session.users.find({"_id":ObjectId(requestdata["userid"])},{"name":1,"firstname":1,"lastname":1,"email":1,"ldapuser":1,"defaultrole":1,"addroles":1}))
                         res={'rows':result}
                     else:
                         result=list(n68session.users.find({"name":{"$nin":["admin","demouser"]}},{"_id":1,"name":1,"defaultrole":1}))
+                        for i in result:
+                            i["rolename"]=n68session.permissions.find_one({"_id":i["defaultrole"]})["name"]
                         res={'rows':result}
             else:
                 app.logger.warn('Empty data received. users fetch.')
@@ -246,21 +248,19 @@ def LoadServices(app, redissession, n68session,licensedata):
             app.logger.debug("Inside createProject_ICE. Query: create Project")
             if not isemptyrequest(requestdata):
                 requestdata["createdon"]=requestdata["modifiedon"]=datetime.now()
-                requestdata["type"]=n68session.projecttypekeywords.find_one({"name":requestdata["type"]},{"_id":1})[0]["_id"]
+                requestdata["type"]=n68session.projecttypekeywords.find_one({"name":requestdata["type"]},{"_id":1})["_id"]
                 requestdata["createdon"]=requestdata["modifiedon"]=datetime.now()
                 requestdata["createdbyrole"]=ObjectId(requestdata["createdbyrole"])
                 requestdata["createdby"]=ObjectId(requestdata["createdby"])
                 requestdata["modifiedby"]=ObjectId(requestdata["modifiedby"])
                 requestdata["modifiedbyrole"]=ObjectId(requestdata["modifiedbyrole"])
-                for i in requestdata["releases"]: 
-                    i["name"]=i["releaseName"]
+                for i in requestdata["releases"]:
                     i["createdon"]=requestdata["createdon"]
                     i["modifiedon"]=requestdata["modifiedon"]
                     i["createdbyrole"]=requestdata["createdbyrole"]
                     i["createdby"]=requestdata["createdby"]
                     i["modifiedby"]=requestdata["modifiedby"]
                     i["modifiedbyrole"]=requestdata["modifiedbyrole"]
-                    del i["releaseName"]
                     for j in i["cycles"]:
                         j["_id"]=ObjectId()
                         j["createdon"]=requestdata["createdon"]
@@ -331,19 +331,15 @@ def LoadServices(app, redissession, n68session,licensedata):
             app.logger.info("Inside manageLDAPConfig. Action is "+str(requestdata['action']))
             if not isemptyrequest(requestdata):
                 configquery = ''
-                if "authKey" in requestdata: requestdata["authKey"]=wrap(requestdata["authKey"],ldap_key)
-                else: requestdata["authKey"] = ""
+                if "bindcredentials" in requestdata: requestdata["bindcredentials"]=wrap(requestdata["bindcredentials"],ldap_key)
+                else: requestdata["bindcredentials"] = ""
                 # else: requestdata["authKey"] = wrap(requestdata["authKey"],ldap_key)
-                if "authUser" in requestdata: 
-                    requestdata["binddn"]=requestdata["authUser"]
-                    del requestdata["authUser"]
-                else: requestdata["binddn"] = ""
                 if (requestdata['action'] == "delete"):
                     n68session.thirdpartyintegration.delete_one({"type":"LDAP","name":requestdata["name"]})
                     res={"rows":"success"}
                 elif (requestdata['action'] == "create"):
                     del requestdata["action"]
-                    requestdata["fieldMap"]=json.loads(requestdata["fieldMap"])
+                    requestdata["fieldmap"]=json.loads(requestdata["fieldmap"])
                     result=n68session.thirdpartyintegration.find_one({"type":"LDAP","name":requestdata["name"]})
                     if result != None:
                         res = {"rows":"exists"}
@@ -353,9 +349,9 @@ def LoadServices(app, redissession, n68session,licensedata):
                         n68session.thirdpartyintegration.insert_one(requestdata)
                         res = {"rows":"success"}
                 elif (requestdata['action'] == "update"):
-                    if requestdata["authKey"] == "": 
+                    if requestdata["bindcredentials"] == "": 
                         authKeyFeild = ''
-                    n68session.thirdpartyintegration.update_one({"name":requestdata["name"]},{"$set":{"url":requestdata["ldapURL"],"bind_credentials":requestdata["authKey"],"base_dn":requestdata["baseDN"],"authtype":requestdata["authType"],"bind_dn":requestdata["authUser"],"fieldmap":requestdata["fieldMap"]}})
+                    n68session.thirdpartyintegration.update_one({"name":requestdata["name"]},{"$set":{"url":requestdata["ldapURL"],"bind_credentials":requestdata["bindcredentials"],"base_dn":requestdata["baseDN"],"authtype":requestdata["authType"],"bind_dn":requestdata["authUser"],"fieldmap":requestdata["fieldmap"]}})
                     res = {"rows":"success"}
                 else:
                     res={'rows':'fail'}
@@ -374,11 +370,10 @@ def LoadServices(app, redissession, n68session,licensedata):
             if not isemptyrequest(requestdata):
                 if "name" in requestdata:
                     result=n68session.thirdpartyintegration.find_one({"name":requestdata["name"]})
-                    password = result["authKey"]
+                    password = result["bindcredentials"]
                     if len(password) > 0:
                         password = unwrap(password, ldap_key)
                         result["bind_credentials"] = password
-                        del result["authKey"]
                     res={"rows":result}
                 else:
                     result=list(n68session.thirdpartyintegration.find({"type":"LDAP"},{"name":1}))
