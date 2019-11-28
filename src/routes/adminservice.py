@@ -289,10 +289,24 @@ def LoadServices(app, redissession, n68session,licensedata):
                     n68session.projects.update({"id":ObjectId(requestdata["projectid"])},{"$pull":{"releases.name":requestdata["releasename"]}})
                     res={"rows":"success"}
                 elif(requestdata['query'] == 'deletecycle'):
-                    n68session.projects.update({"id":ObjectId(requestdata["projectid"])},{"$pull":{"releases.cycles._id":ObjectId(requestdata["cycleid"]),"releases.cycles.name":requestdata["name"]}})
+                    n68session.projects.update({"_id":ObjectId(requestdata["projectid"])},{"$pull":{"releases.cycles._id":ObjectId(requestdata["cycleid"]),"releases.cycles.name":requestdata["name"]}})
                     res={'rows':'success'}
                 elif(requestdata['query'] == 'createrelease'):
-                    n68session.projects.update({"id":ObjectId(requestdata["projectid"])},{"$pull":{"releases.cycles._id":ObjectId(requestdata["cycleid"]),"releases.cycles.name":requestdata["name"]}})
+                    releases=n68session.projects.find_one({"_id":ObjectId(requestdata["projectid"])})["releases"]
+                    a={}
+                    a["createdby"]=a["modifiedby"]=ObjectId(requestdata["createdby"])
+                    a["createdbyrole"]=a["modifiedbyrole"]=ObjectId(requestdata["createdbyrole"])
+                    a["createdon"]=a["modifiedon"]=datetime.now()
+                    for j in requestdata["cycles"]:
+                        j["_id"]=ObjectId()
+                        j["createdby"]=j["modifiedby"]=ObjectId(requestdata["createdby"])
+                        j["createdbyrole"]=j["modifiedbyrole"]=ObjectId(requestdata["createdbyrole"])
+                        j["createdon"]=j["modifiedon"]=datetime.now()
+                        del j["newStatus"]
+                    a["cycles"]=requestdata["cycles"]
+                    a["name"]=requestdata["releasename"]
+                    releases.append(a)
+                    n68session.projects.update({"_id":ObjectId(requestdata["projectid"])},{"$set":{"releases":releases}})
                     res={'rows':'success'}
                 elif(requestdata['query'] == 'createcycle'):
                     result=n68session.projects.find_one({"_id":ObjectId(requestdata["projectid"])},{"releases":1})["releases"]
@@ -371,7 +385,7 @@ def LoadServices(app, redissession, n68session,licensedata):
                 elif (requestdata['action'] == "update"):
                     if requestdata["bindcredentials"] == "": 
                         authKeyFeild = ''
-                    n68session.thirdpartyintegration.update_one({"name":requestdata["name"]},{"$set":{"url":requestdata["ldapURL"],"bind_credentials":requestdata["bindcredentials"],"base_dn":requestdata["baseDN"],"authtype":requestdata["authType"],"bind_dn":requestdata["authUser"],"fieldmap":requestdata["fieldmap"]}})
+                    n68session.thirdpartyintegration.update_one({"name":requestdata["name"]},{"$set":{"url":requestdata["url"],"bind_credentials":requestdata["bindcredentials"],"base_dn":requestdata["basedn"],"authtype":requestdata["auth"],"binddn":requestdata["binddn"],"fieldmap":json.loads(requestdata["fieldmap"])}})
                     res = {"rows":"success"}
                 else:
                     res={'rows':'fail'}
