@@ -22,7 +22,7 @@ def pad(data):
     BS = 16
     padding = BS - len(data) % BS
     return data + padding * chr(padding).encode('utf-8')
-    
+
 def unpad(data):
     return data[0:-ord(data[-1])]
 
@@ -88,21 +88,25 @@ def LoadServices(app, redissession, n68session,licensedata):
                             requestdata["modifiedby"]=ObjectId(requestdata["createdby"])
                             requestdata["modifiedbyrole"]=ObjectId(requestdata["createdbyrole"])
                             requestdata["createdon"]=datetime.now()
+                            requestdata["modifiedon"]=datetime.now()
                             requestdata["deactivated"]="false"
                             requestdata["addroles"]=[]
                             requestdata["projects"]=[]
+                            if not (requestdata["ldapuser"]):requestdata["ldapuser"]={}
+                            else : requestdata["ldapuser"]=json.loads(requestdata["ldapuser"])
                             n68session.users.insert_one(requestdata)
                             res={"rows":"success"}
                     elif (action=="update"):
                         requestdata["modifiedby"]=ObjectId(requestdata["createdby"])
                         requestdata["modifiedbyrole"]=ObjectId(requestdata["createdbyrole"])
+                        requestdata["modifiedon"]=datetime.now()
                         addroles=[]
                         for i in requestdata["additionalroles"]:
                             addroles.append(ObjectId(i))
                         if "password" in requestdata:
-                            n68session.users.update_one({"_id":ObjectId(requestdata["userid"])},{"$set":{"name":requestdata["name"],"firstname":requestdata["firstname"],"lastname":requestdata["lastname"],"emailid":requestdata["emailid"],"password":requestdata["password"],"addroles":addroles}})
+                            n68session.users.update_one({"_id":ObjectId(requestdata["userid"])},{"$set":{"name":requestdata["name"],"firstname":requestdata["firstname"],"lastname":requestdata["lastname"],"email":requestdata["email"],"password":requestdata["password"],"addroles":addroles,"modifiedby":requestdata["modifiedby"],"modifiedbyrole":requestdata["modifiedbyrole"],"modifiedon":requestdata["modifiedon"]}})
                         else:
-                            n68session.users.update_one({"_id":ObjectId(requestdata["userid"])},{"$set":{"name":requestdata["name"],"firstname":requestdata["firstname"],"lastname":requestdata["lastname"],"emailid":requestdata["emailid"],"addroles":addroles}})
+                            n68session.users.update_one({"_id":ObjectId(requestdata["userid"])},{"$set":{"name":requestdata["name"],"firstname":requestdata["firstname"],"lastname":requestdata["lastname"],"email":requestdata["email"],"addroles":addroles,"modifiedby":requestdata["modifiedby"],"modifiedbyrole":requestdata["modifiedbyrole"],"modifiedon":requestdata["modifiedon"]}})
                         res={"rows":"success"}
             else:
                 app.logger.warn('Empty data received. manage users.')
@@ -135,7 +139,7 @@ def LoadServices(app, redissession, n68session,licensedata):
             #app.logger.debug(traceback.format_exc())
             servicesException("getUserDetails",e)
         return jsonify(res)
-           
+
     @app.route('/admin/getUserRoles_Nineteen68',methods=['POST'])
     def getUserRoles_Nineteen68():
         app.logger.debug("Inside getUserRoles_Nineteen68")
@@ -238,7 +242,7 @@ def LoadServices(app, redissession, n68session,licensedata):
         except Exception as getnamesexc:
             servicesException("getNames_ICE",getnamesexc)
         return jsonify(res)
-    
+
     #service creates a complete project structure into ICE keyspace
     @app.route('/admin/createProject_ICE',methods=['POST'])
     def createProject_ICE():
@@ -322,8 +326,8 @@ def LoadServices(app, redissession, n68session,licensedata):
                     n68session.projects.update({"_id":ObjectId(requestdata["projectid"])},{"$set":{"releases":result}})
                     res={'rows':'success'}
 
-                    
-                    
+
+
                 else:
                     res={'rows':'fail'}
             else:
@@ -347,7 +351,7 @@ def LoadServices(app, redissession, n68session,licensedata):
                     res={"rows":result}
                 elif requestdata["type"] == "projectsdetails":
                     result=n68session.projects.find_one({"_id":ObjectId(requestdata["id"])},{"releases":1,"domain":1,"name":1,"type":1})
-                    result["type"]=n68session.projecttypekeywords.find_one({"_id":result["type"]},{"name":1})["name"] 
+                    result["type"]=n68session.projecttypekeywords.find_one({"_id":result["type"]},{"name":1})["name"]
                     res={"rows":result}
                 else:
                     res={'rows':'fail'}
@@ -367,7 +371,6 @@ def LoadServices(app, redissession, n68session,licensedata):
                 configquery = ''
                 if "bindcredentials" in requestdata: requestdata["bindcredentials"]=wrap(requestdata["bindcredentials"],ldap_key)
                 else: requestdata["bindcredentials"] = ""
-                # else: requestdata["authKey"] = wrap(requestdata["authKey"],ldap_key)
                 if (requestdata['action'] == "delete"):
                     n68session.thirdpartyintegration.delete_one({"type":"LDAP","name":requestdata["name"]})
                     res={"rows":"success"}
@@ -383,9 +386,9 @@ def LoadServices(app, redissession, n68session,licensedata):
                         n68session.thirdpartyintegration.insert_one(requestdata)
                         res = {"rows":"success"}
                 elif (requestdata['action'] == "update"):
-                    if requestdata["bindcredentials"] == "": 
-                        authKeyFeild = ''
-                    n68session.thirdpartyintegration.update_one({"name":requestdata["name"]},{"$set":{"url":requestdata["url"],"bind_credentials":requestdata["bindcredentials"],"base_dn":requestdata["basedn"],"authtype":requestdata["auth"],"binddn":requestdata["binddn"],"fieldmap":json.loads(requestdata["fieldmap"])}})
+                    if requestdata["bindcredentials"] == "":
+                        bindcredentialsFeild = ''
+                    n68session.thirdpartyintegration.update_one({"name":requestdata["name"]},{"$set":{"url":requestdata["url"],"bindcredentials":requestdata["bindcredentials"],"basedn":requestdata["basedn"],"auth":requestdata["auth"],"binddn":requestdata["binddn"],"fieldmap":requestdata["fieldmap"]}})
                     res = {"rows":"success"}
                 else:
                     res={'rows':'fail'}
@@ -407,7 +410,7 @@ def LoadServices(app, redissession, n68session,licensedata):
                     password = result["bindcredentials"]
                     if len(password) > 0:
                         password = unwrap(password, ldap_key)
-                        result["bind_credentials"] = password
+                        result["bindcredentials"] = password
                     res={"rows":result}
                 else:
                     result=list(n68session.thirdpartyintegration.find({"type":"LDAP"},{"name":1}))
