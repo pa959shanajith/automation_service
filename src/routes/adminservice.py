@@ -291,6 +291,25 @@ def LoadServices(app, redissession, n68session,licensedata):
                 elif(requestdata['query'] == 'deletecycle'):
                     n68session.projects.update({"id":ObjectId(requestdata["projectid"])},{"$pull":{"releases.cycles._id":ObjectId(requestdata["cycleid"]),"releases.cycles.name":requestdata["name"]}})
                     res={'rows':'success'}
+                elif(requestdata['query'] == 'createrelease'):
+                    n68session.projects.update({"id":ObjectId(requestdata["projectid"])},{"$pull":{"releases.cycles._id":ObjectId(requestdata["cycleid"]),"releases.cycles.name":requestdata["name"]}})
+                    res={'rows':'success'}
+                elif(requestdata['query'] == 'createcycle'):
+                    result=n68session.projects.find_one({"_id":ObjectId(requestdata["projectid"])},{"releases":1})["releases"]
+                    for i in result:
+                        if i["name"]== requestdata["releaseid"]:
+                            cycles={}
+                            cycles["modifiedby"]=cycles["createdby"]=ObjectId(requestdata["createdby"])
+                            cycles["modifiedon"]=cycles["createdon"]=datetime.now()
+                            cycles["modifiedbyrole"]=cycles["createdbyrole"]=ObjectId(requestdata["createdbyrole"])
+                            cycleid=cycles["_id"]=ObjectId()
+                            cycles["name"]=requestdata["cyclename"]
+                            i["cycles"].append(cycles)
+                    n68session.projects.update({"_id":ObjectId(requestdata["projectid"])},{"$set":{"releases":result}})
+                    res={'rows':'success'}
+
+                    
+                    
                 else:
                     res={'rows':'fail'}
             else:
@@ -314,6 +333,7 @@ def LoadServices(app, redissession, n68session,licensedata):
                     res={"rows":result}
                 elif requestdata["type"] == "projectsdetails":
                     result=n68session.projects.find_one({"_id":ObjectId(requestdata["id"])},{"releases":1,"domain":1,"name":1,"type":1})
+                    result["type"]=n68session.projecttypekeywords.find_one({"_id":result["type"]},{"name":1})["name"] 
                     res={"rows":result}
                 else:
                     res={'rows':'fail'}
