@@ -385,7 +385,7 @@ def LoadServices(app, redissession, n68session,licensedata):
                 elif (requestdata['action'] == "update"):
                     if requestdata["bindcredentials"] == "": 
                         authKeyFeild = ''
-                    n68session.thirdpartyintegration.update_one({"name":requestdata["name"]},{"$set":{"url":requestdata["url"],"bind_credentials":requestdata["bindcredentials"],"base_dn":requestdata["basedn"],"authtype":requestdata["auth"],"binddn":requestdata["binddn"],"fieldmap":json.loads(requestdata["fieldmap"])}})
+                    n68session.thirdpartyintegration.update_one({"name":requestdata["name"]},{"$set":{"url":requestdata["url"],"bindcredentials":requestdata["bindcredentials"],"base_dn":requestdata["basedn"],"authtype":requestdata["auth"],"binddn":requestdata["binddn"],"fieldmap":json.loads(requestdata["fieldmap"])}})
                     res = {"rows":"success"}
                 else:
                     res={'rows':'fail'}
