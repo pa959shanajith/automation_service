@@ -3,6 +3,8 @@
 ################################################################################
 #----------DEFAULT METHODS AND IMPORTS------------DO NOT EDIT-------------------
 from utils import *
+from Crypto.Cipher import AES
+import codecs
 
 def LoadServices(app, redissession, n68session2):
     setenv(app)
@@ -27,7 +29,6 @@ def LoadServices(app, redissession, n68session2):
         except Exception as keywordsexc:
             servicesException('getKeywordDetails',keywordsexc)
         return jsonify(res)
-
 
 
     #get dependant testcases by scenario ids for add dependent testcases
@@ -60,9 +61,83 @@ def LoadServices(app, redissession, n68session2):
         return jsonify(res)
 
 
+    def getScrapeData(hex_data):
+        try:
+            data = codecs.decode(hex_data, 'hex')
+            aes = AES.new(b"Nineeteen68@SecureScrapeDataPath", AES.MODE_CBC, b'0'*16)
+            data = aes.decrypt(data).decode('utf-8')
+            return data[0:-ord(data[-1])]
+        except:
+            return hex_data
 
-    def object_dict(key, queryresult):
-        return {i[key]:i for i in queryresult}
+    def adddataobjects(self, pid, d):
+        if len(d) == 0: return False
+        req = []
+        custname = {}
+        for row in d:
+            row["parent"] = [pid]
+            req.append(InsertOne(row))
+        n68session2.dataobjects.bulk_write(req)
+
+    def createdataobjects(self, scrid, objs):
+        custnameToAdd = []
+        for e in objs:
+            so = objs[e]
+            obn = so["objectName"]
+            dodata = {
+                "_id": e,
+                "custname": so["custname"],
+                "xpath": obn
+            }
+            if obn.strip() == '' :
+                custnameToAdd.append(dodata)
+                continue
+            elif obn.startswith("iris;"):
+                ob = obn.split(';')[2:]
+                legend = ['left', 'top', 'width', 'height', 'tag']
+                for i in range(len(legend)):
+                    if i < 4: dodata[legend[i]] = int(ob[i])
+                    else: dodata[legend[i]] = ob[i]
+                dodata["height"] = dodata["top"] - dodata["height"]
+                dodata["width"] = dodata["left"] - dodata["width"]
+                dodata["tag"] = dodata["tag"].split("[")[0]
+                dodata["url"] = so["url"]
+                dodata["cord"] = so["cord"]
+            elif so["appType"] in ["Web", "MobileWeb"]:
+                ob=[]
+                legend = ['id', 'name', 'tag', 'class', 'left', 'top', 'height', 'width', 'text']
+                for i in obn.split(';'): ob.append(getScrapeData(i))
+                ob = ";".join(ob).split(';')
+                ob = ob[1:2] + ob[3:]
+                if len(ob) < 4:
+                    custnameToAdd.append(dodata)
+                    continue
+                elif len(ob) == 4: legend = legend[:4]
+                elif len(ob) == 8: del legend[3]
+                try:
+                    for i in range(len(legend)):
+                        if (i>=4 and i<=7):
+                            if ob[i].isnumeric(): dodata[legend[i]] = int(ob[i])
+                        else:
+                            if ob[i] != "null": dodata[legend[i]] = ob[i]
+                except: pass
+                dodata["url"] = so["url"]
+                dodata["cord"] = so["cord"]
+            elif so["appType"] == "MobileApp":
+                ob = obn.split(';')
+                if len(ob) == 2 and ob[0].strip() != "": dodata["id"] = ob[0]
+            elif so["appType"] == "Desktop":
+                gettag = {"btn":"button","txtbox":"input","radiobtn":"radiobutton","select":"select","chkbox":"checkbox","lst":"list","tab":"tab","tree":"tree","dtp":"datepicker","table":"table","elmnt":"label"}
+                tag = so["custname"].split("_")[-1]
+                if tag in gettag: dodata["tag"] = gettag[tag]
+                dodata["control_id"] = obn.split(';')[2]
+                dodata["url"] = so["url"]
+            elif so["appType"] == "pdf":
+                dodata["tag"] = "_".join(so["custname"].split("_")[0:2])
+            elif so["appType"] == ["Generic", "SAP", "Webservice", "Mainframe", "System"]: pass
+            custnameToAdd.append(dodata)
+        adddataobjects(scrid, custnameToAdd)
+
 
     #test case updating service
     @app.route('/design/updateTestCase_ICE',methods=['POST'])
@@ -73,53 +148,58 @@ def LoadServices(app, redissession, n68session2):
             app.logger.debug('Inside updateTestCase_ICE. Query: '+str(requestdata['query']))
             if not isemptyrequest(requestdata):
                 query_screen = n68session2.testcases.find_one({'_id':ObjectId(requestdata['testcaseid']),'versionnumber':requestdata['versionnumber']},{'screenid':1})
+                queryresult1 = list(n68session2.dataobjects.find({'parent':query_screen['screenid']},{"custname": 1}))
+                custnames = {}
+                if (queryresult1 != []):
+                        for doc in queryresult1:
+                            custnames[doc["custname"]] = doc["_id"]
+                steps = []
                 if not (requestdata['import_status']):
-                    for i in requestdata['testcasesteps']:
-                        if 'dataObject' in i.keys():
-                            if i['dataObject'] != '':
-                                i['dataObject'] = ObjectId(i['dataObject'])
-                                queryresult1 = list(n68session2.dataobjects.find({'_id':i['dataObject']},{'custname':1,'_id':0}))
-                                if (queryresult1 != []):
-                                    i['custname'] = queryresult1[0]['custname']
-                        if 'objectName' in i.keys():
-                            del i['objectName']
-                        if 'url' in i.keys():
-                            del i['url']
+                    for so in requestdata['testcasesteps']:
+                        cid = cname = so["custname"]
+                        if cname in custnames: cid = custnames[cname]
+                        steps.append({
+                            "stepNo": so["stepNo"],
+                            "custname": cid,
+                            "keywordVal": so["keywordVal"],
+                            "inputVal": so["inputVal"],
+                            "outputVal": so["outputVal"],
+                            "appType": so["appType"],
+                            "remarks": so["remarks"] if ("remarks" in so) else "",
+                            "addDetails": so["addTestCaseDetailsInfo"] if ("addTestCaseDetailsInfo" in so) else "",
+                            "cord": so["cord"] if ("cord" in so) else ""
+                        })
+                    del requestdata['testcasesteps']
                 else:
                     #Import testcase
-                    queryresult1 = list(n68session2.dataobjects.find({'parent':query_screen['screenid']},{'parent':0}))
-                    custnames = {}
-                    added=[]
-                    if (queryresult1 != []):
-                        custnames = object_dict('custname', queryresult1)
-                    for i in requestdata['testcasesteps']:
-                        data_obj = {}
-                        if not i["custname"].startswith("@"):
-                            if i["custname"] not in custnames.keys():
-                                data_obj["custname"] = i["custname"]
-                            else:
-                                if i['objectName'] == custnames[i['custname']]['xpath'] and i['url'] == custnames[i['custname']]['url']:
-                                    added.append(i["custname"])
-                                    i['dataObject'] = custnames[i['custname']]['_id']
-                                else:
-                                    data_obj["custname"] = i["custname"] + "_new"
-                                    i["custname"] = data_obj["custname"]
-                            if i["custname"] not in added:
-                                added.append(i["custname"])
-                                if 'objectName' in i.keys():
-                                    data_obj['xpath'] = i['objectName']
-                                if 'url' in i.keys():
-                                    data_obj['url'] = i['url']
-                                data_obj["parent"] = [query_screen["screenid"]]
-                                newObj = n68session2.dataobjects.insert_one(data_obj)
-                                i['dataObject'] = newObj.inserted_id
-                        if 'objectName' in i.keys():
-                            del i['objectName']
-                        if 'url' in i.keys():
-                            del i['url']
+                    defcn = ['@Window', '@Object', '@System', '@Excel', '@Mobile', '@Android_Custom', '@Word', '@Custom', '@CustomiOS',
+                                '@Generic', '@Browser', '@Action', '@Email', '@BrowserPopUp', '@Sap', 'WebService List', 'Mainframe List']
+                    missingCustname = {}
+                    for so in requestdata['testcasesteps']:
+                        cid = cname = so["custname"]
+                        if cname in custnames: cid = custnames[cname]
+                        elif (cname not in custnames) and (cname not in defcn):
+                            cid = ObjectId()
+                            custnames[cname] = cid
+                            missingCustname[cid] = so
+                        steps.append({
+                            "stepNo": so["stepNo"],
+                            "custname": cid,
+                            "keywordVal": so["keywordVal"],
+                            "inputVal": so["inputVal"],
+                            "outputVal": so["outputVal"],
+                            "appType": so["appType"],
+                            "remarks": so["remarks"] if ("remarks" in so) else "",
+                            "addDetails": so["addTestCaseDetailsInfo"] if ("addTestCaseDetailsInfo" in so) else "",
+                            "cord": so["cord"] if ("cord" in so) else ""
+                        })
+                    del requestdata['testcasesteps']
+                    createdataobjects(query_screen['screenid'], missingCustname)
+
+                #query to update tescase
                 if(requestdata['query'] == 'updatetestcasedata'):
                     queryresult = n68session2.testcases.update_many({'_id':ObjectId(requestdata['testcaseid']),'versionnumber':requestdata['versionnumber']},
-                                {'$set':{'modifiedby':ObjectId(requestdata['modifiedby']),'modifiedbyrole':ObjectId(requestdata['modifiedbyrole']),'steps':requestdata['testcasesteps']},"$currentDate":{'modifiedon':True}}).matched_count
+                                {'$set':{'modifiedby':ObjectId(requestdata['modifiedby']),'modifiedbyrole':ObjectId(requestdata['modifiedbyrole']),'steps':steps},"$currentDate":{'modifiedon':True}}).matched_count
                     if queryresult > 0:
                         res= {'rows': 'success'}
             else:
@@ -129,14 +209,19 @@ def LoadServices(app, redissession, n68session2):
         return jsonify(res)
 
 
-
     def update_steps(steps,dataObjects):
         for j in steps:
             j['objectName'], j['url'] = '', ''
-            if 'dataObject' in j.keys():
-                if j['dataObject'] != '':
-                    if j['dataObject'] in dataObjects.keys():
-                        j['objectName'], j['url'], j['custname'] = dataObjects[j['dataObject']]['xpath'], dataObjects[j['dataObject']]['url'], dataObjects[j['dataObject']]['custname']
+            if j['custname'] == "@Custom":
+                j['objectName'] = "@Custom"
+                continue
+            if 'custname' in j.keys():
+                if j['custname'] in dataObjects.keys():
+                    j['custname'] = dataObjects[j['custname']]['custname']
+                    j['objectName'] = dataObjects[j['custname']]['xpath']
+                    j['url'] = dataObjects[j['custname']]['url'] if 'url' in dataObjects[j['custname']] else ""
+                    j['cord'] = dataObjects[j['custname']]['cord'] if 'cord' in dataObjects[j['custname']] else ""
+
 
     #test case reading service
     @app.route('/design/readTestCase_ICE',methods=['POST'])
@@ -164,7 +249,7 @@ def LoadServices(app, redissession, n68session2):
                             queryresult1 = list(n68session2.dataobjects.find({'parent':k['screenid']},{'parent':0}))
                             dataObjects = {}
                             if (queryresult1 != []):
-                                dataObjects = object_dict('_id', queryresult1)
+                                dataObjects = {i['_id']:i for i in queryresult1}
                             update_steps(k['steps'],dataObjects)
                     res= {'rows': queryresult}
                 else:
@@ -172,7 +257,7 @@ def LoadServices(app, redissession, n68session2):
                     queryresult1 = list(n68session2.dataobjects.find({'parent':queryresult[0]['screenid']},{'parent':0}))
                     dataObjects = {}
                     if (queryresult1 != []):
-                        dataObjects = object_dict('_id', queryresult1)
+                        dataObjects = {i['_id']:i for i in queryresult1}
                     if (queryresult != []):
                         update_steps(queryresult[0]['steps'],dataObjects)
                     res= {'rows': queryresult}

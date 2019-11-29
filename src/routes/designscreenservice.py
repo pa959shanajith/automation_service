@@ -27,7 +27,7 @@ def LoadServices(app, redissession, n68session2):
                     screen_query=list(n68session2.screens.find({"_id":screen_id,"deleted":False}))
                     if (screen_query != []):
                         dataobj_query = list(n68session2.dataobjects.find({"parent" :{"$in":[screen_id]}}))
-                        res["rows"] = {"view":dataobj_query,"scrapedurl":screen_query[0]["scrapedurl"],"mirror":screen_query[0]["screenshot"],"name":screen_query[0]["name"]}
+                        res["rows"] = {"view":dataobj_query,"scrapedurl":(screen_query[0]["scrapedurl"] if ("scrapedurl" in screen_query[0]) else ""),"mirror":(screen_query[0]["screenshot"] if ("screenshot" in screen_query[0]) else ""),"name":screen_query[0]["name"]}
                 if (requestdata['query']=="getWSscrapedata"):
                         dataobj_query = list(n68session2.dataobjects.find({"parent" :{"$in":[screen_id]}}))
                         res = {"rows":dataobj_query}
