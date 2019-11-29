@@ -19,48 +19,6 @@ def LoadServices(app, redissession, n68session):
 # ADD YOUR ROUTES BELOW
 ################################################################################
 
-    # API to get the Release IDs related to a particular ProjectID
-    # @app.route('/create_ice/getReleaseIDs_Nineteen68',methods=['GET','POST'])
-    # def getReleaseIDs_Nineteen68():
-    #     app.logger.debug("Inside getReleaseIDs_Nineteen68")
-    #     res={'rows':'fail'}
-    #     try:
-    #        requestdata= {"projectid":"fla"}# json.loads(request.data)
-    #        # dbconn=n68session["projects"]
-    #        if not isemptyrequest(requestdata):
-    #             app.logger.critical("aaya idhar")
-    #             projectid=requestdata['projectid']
-    #             query_result=n68session.users.find({})
-    #             for q in query_result:
-    #                 app.logger.critical(q)
-    #             query_result=n68session.reports.find({})
-    #             res={'rows':list(query_result)}
-    #             app.logger.critical(list(n68session.users.find({})))
-    #        else:
-    #             app.logger.warn("Empty data received. getReleaseIDs_Nineteen68")
-    #     except Exception as e:
-    #         servicesException("getReleaseIDs_Nineteen68",e)
-    #     return jsonify(res)
-
-    # API to get the Cycle IDs related to a particular ReleaseID
-    # (Can be deprecated as in Releases only we will get the list of cycles.)
-    # @app.route('/create_ice/getCycleIDs_Nineteen68',methods=['POST'])
-    # def getCycleIDs_Nineteen68():
-    #     app.logger.debug("Inside getCycleIDs_Nineteen68")
-    #     res={'rows':'fail'}
-    #     try:
-    #        requestdata=json.loads(request.data)
-    #        dbconn=n68session["projects"]
-    #        if not isemptyrequest(requestdata):
-    #             releaseid=requestdata['releaseid']
-    #             query_result=dbconn.find({"releases._id":ObjectId(releaseid),"deleted":False},{"releases.cycles":1,"releases._id":1})
-    #             res={'rows':query_result}
-    #        else:
-    #             app.logger.warn("Empty data received. getCycleIDs_Nineteen68")
-    #     except Exception as e:
-    #         servicesException("getCycleIDs_Nineteen68",e)
-    #     return jsonify(res)
-
     # API to get the project type name using the ProjectID
     @app.route('/create_ice/getProjectType_Nineteen68',methods=['POST'])
     def getProjectType_Nineteen68():
@@ -142,290 +100,260 @@ def LoadServices(app, redissession, n68session):
             servicesException("getProjectIDs_Nineteen68",e)
         return jsonify(res)
 
-    #API to get names of Module/Scenario/Screen/Testcase name with given ID.
-    # @app.route('/create_ice/getNames_Nineteen68',methods=['POST'])
-    # def getAllNames_ICE():
-    #     app.logger.debug("Inside getAllNames_ICE")
+
+    #API to get Node Details of Module/Scenario/Screen/Testcase with given ID
+    # @app.route('/create_ice/get_node_details_ICE',methods=['POST'])
+    # def get_node_details_ICE():
     #     res={'rows':'fail'}
     #     try:
-    #        requestdata=json.loads(request.data)print("req",requestdata)
-    #        if not isemptyrequest(requestdata):
+    #         requestdata=json.loads(request.data)
+    #         app.logger.debug("Inside get_node_details_ICE. Name: "+str(requestdata["name"]))
+    #         if not isemptyrequest(requestdata):
     #             name=requestdata['name']
     #             nodeid=requestdata['id']
-    #             if name=='module':
-    #                 dbconn=n68session["mindmaps"]
-    #                 queryresult= dbconn.find({"_id":ObjectId(nodeid),"deleted":False},{"name":1,"testscenarios":1})
-    #             elif name=='scenario':
-    #                 dbconn=n68session["testscenarios"]
-    #                 queryresult= dbconn.find({"_id":ObjectId(nodeid),"deleted":False},{"name":1})
-    #             elif name=='screen':
-    #                 dbconn=n68session["screens"]
-    #                 queryresult= dbconn.find({"_id":ObjectId(nodeid),"deleted":False},{"name":1})
-    #             elif name=='testcase':
-    #                 dbconn=n68session["testcases"]
-    #                 queryresult= dbconn.find({"_id":ObjectId(nodeid),"deleted":False},{"name":1} )
+    #             if name=='module_details':
+    #                 queryresult= list(n68session.mindmaps.find({"_id":ObjectId(nodeid),"deleted":False}))
+    #             elif name=='testscenario_details':
+    #                 queryresult= list(n68session.testscenarios.find({"_id":ObjectId(nodeid),"deleted":False}))
+    #             elif name=='screen_details':
+    #                 queryresult= list(n68session.screens.find({"_id":ObjectId(nodeid),"deleted":False}))
+    #             elif name=='testcase_details':
+    #                 queryresult= list(n68session.testcases.find({"_id":ObjectId(nodeid),"deleted":False}))
     #             else:
     #                 queryresult='fail'
     #             res={'rows':queryresult}
-    #        else:
-    #             app.logger.warn("Empty data received. getAllNames_ICE")
+    #         else:
+    #             app.logger.warn("Empty data received. get_node_details_ICE")
     #     except Exception as e:
-    #         servicesException("getAllNames_ICE",e)
+    #         servicesException("get_node_details_ICE",e)
     #     return jsonify(res)
 
-    #API to get Node Details of Module/Scenario/Screen/Testcase with given ID
-    @app.route('/create_ice/get_node_details_ICE',methods=['POST'])
-    def get_node_details_ICE():
-        res={'rows':'fail'}
-        try:
-            requestdata=json.loads(request.data)
-            app.logger.debug("Inside get_node_details_ICE. Name: "+str(requestdata["name"]))
-            if not isemptyrequest(requestdata):
-                name=requestdata['name']
-                nodeid=requestdata['id']
-                if name=='module_details':
-                    queryresult= list(n68session.mindmaps.find({"_id":ObjectId(nodeid),"deleted":False}))
-                elif name=='testscenario_details':
-                    queryresult= list(n68session.testscenarios.find({"_id":ObjectId(nodeid),"deleted":False}))
-                elif name=='screen_details':
-                    queryresult= list(n68session.screens.find({"_id":ObjectId(nodeid),"deleted":False}))
-                elif name=='testcase_details':
-                    queryresult= list(n68session.testcases.find({"_id":ObjectId(nodeid),"deleted":False}))
-                else:
-                    queryresult='fail'
-                res={'rows':queryresult}
-            else:
-                app.logger.warn("Empty data received. get_node_details_ICE")
-        except Exception as e:
-            servicesException("get_node_details_ICE",e)
-        return jsonify(res)
-
     #API to check if a Test Suite exists
-    @app.route('/create_ice/testsuiteid_exists_ICE',methods=['POST'])
-    def testsuiteid_exists_ICE():
-        res={'rows':'fail'}
-        try:
-            requestdata=json.loads(request.data)
-            app.logger.debug("Inside testsuiteid_exists_ICE. Query: "+str(requestdata["name"]))
-            if not isemptyrequest(requestdata):
-                query_name=requestdata['name']
-                dbconn=n68session["mindmaps"]
-                if query_name=='suite_check':
-                    queryresult= list(dbconn.find({"projectid":ObjectId(requestdata['project_id']),"name":requestdata['module_name'],"versionnumber":requestdata['versionnumber'],"deleted":False},{"_id":1}))
-                elif query_name=='suite_check_id':
-                    queryresult= list(dbconn.find({"_id":ObjectId(requestdata['module_id']),"projectid":ObjectId(requestdata['project_id']),"name":requestdata['module_name'],"versionnumber":requestdata['versionnumber'],"deleted":False},{"_id":1}))
-                res={'rows':queryresult}
-            else:
-                app.logger.warn("Empty data received. testsuiteid_exists_ICE")
-        except Exception as e:
-            servicesException("testsuiteid_exists_ICE",e)
-        return jsonify(res)
+    # @app.route('/create_ice/testsuiteid_exists_ICE',methods=['POST'])
+    # def testsuiteid_exists_ICE():
+    #     res={'rows':'fail'}
+    #     try:
+    #         requestdata=json.loads(request.data)
+    #         app.logger.debug("Inside testsuiteid_exists_ICE. Query: "+str(requestdata["name"]))
+    #         if not isemptyrequest(requestdata):
+    #             query_name=requestdata['name']
+    #             dbconn=n68session["mindmaps"]
+    #             if query_name=='suite_check':
+    #                 queryresult= list(dbconn.find({"projectid":ObjectId(requestdata['project_id']),"name":requestdata['module_name'],"versionnumber":requestdata['versionnumber'],"deleted":False},{"_id":1}))
+    #             elif query_name=='suite_check_id':
+    #                 queryresult= list(dbconn.find({"_id":ObjectId(requestdata['module_id']),"projectid":ObjectId(requestdata['project_id']),"name":requestdata['module_name'],"versionnumber":requestdata['versionnumber'],"deleted":False},{"_id":1}))
+    #             res={'rows':queryresult}
+    #         else:
+    #             app.logger.warn("Empty data received. testsuiteid_exists_ICE")
+    #     except Exception as e:
+    #         servicesException("testsuiteid_exists_ICE",e)
+    #     return jsonify(res)
 
     #API to check if a Test Scenario exists
-    @app.route('/create_ice/testscenariosid_exists_ICE',methods=['POST'])
-    def testscenariosid_exists_ICE():
-        res={'rows':'fail'}
-        try:
-            requestdata=json.loads(request.data)
-            app.logger.debug("Inside testscenariosid_exists_ICE. Query: "+str(requestdata["name"]))
-            if not isemptyrequest(requestdata):
-                query_name=requestdata['name']
-                dbconn=n68session["testscenarios"]
-                if query_name=='scenario_check':
-                    queryresult= list(dbconn.find({"projectid":ObjectId(requestdata['project_id']),"name":requestdata['scenario_name'],"versionnumber":requestdata['versionnumber'],"deleted":False},{"_id":1}))
-                elif query_name=='scenario_check_id':
-                    queryresult= list(dbconn.find({"_id":ObjectId(requestdata['scenario_id']),"projectid":ObjectId(requestdata['project_id']),"name":requestdata['scenario_name'],"versionnumber":requestdata['versionnumber'],"deleted":False},{"_id":1}))
-                res={'rows':queryresult}
-            else:
-                app.logger.warn("Empty data received. testscenariosid_exists_ICE")
-        except Exception as e:
-            servicesException("testscenariosid_exists_ICE",e)
-        return jsonify(res)
+    # @app.route('/create_ice/testscenariosid_exists_ICE',methods=['POST'])
+    # def testscenariosid_exists_ICE():
+    #     res={'rows':'fail'}
+    #     try:
+    #         requestdata=json.loads(request.data)
+    #         app.logger.debug("Inside testscenariosid_exists_ICE. Query: "+str(requestdata["name"]))
+    #         if not isemptyrequest(requestdata):
+    #             query_name=requestdata['name']
+    #             dbconn=n68session["testscenarios"]
+    #             if query_name=='scenario_check':
+    #                 queryresult= list(dbconn.find({"projectid":ObjectId(requestdata['project_id']),"name":requestdata['scenario_name'],"versionnumber":requestdata['versionnumber'],"deleted":False},{"_id":1}))
+    #             elif query_name=='scenario_check_id':
+    #                 queryresult= list(dbconn.find({"_id":ObjectId(requestdata['scenario_id']),"projectid":ObjectId(requestdata['project_id']),"name":requestdata['scenario_name'],"versionnumber":requestdata['versionnumber'],"deleted":False},{"_id":1}))
+    #             res={'rows':queryresult}
+    #         else:
+    #             app.logger.warn("Empty data received. testscenariosid_exists_ICE")
+    #     except Exception as e:
+    #         servicesException("testscenariosid_exists_ICE",e)
+    #     return jsonify(res)
 
     #API to check if a Test Screen exists
-    @app.route('/create_ice/testscreenid_exists_ICE',methods=['POST'])
-    def testscreenid_exists_ICE():
-        res={'rows':'fail'}
-        try:
-            requestdata=json.loads(request.data)
-            app.logger.debug("Inside testscreenid_exists_ICE. Query: "+str(requestdata["name"]))
-            if not isemptyrequest(requestdata):
-                query_name=requestdata['name']
-                dbconn=n68session["screens"]
-                if query_name=='screen_check':
-                    queryresult= list(dbconn.find({"projectid":ObjectId(requestdata['project_id']),"name":requestdata['screen_name'],"versionnumber":requestdata['versionnumber'],"deleted":False},{"_id":1}))
-                elif query_name=='screen_check_id':
-                    queryresult= list(dbconn.find({"_id":ObjectId(requestdata['screen_id']),"projectid":ObjectId(requestdata['project_id']),"name":requestdata['screen_name'],"versionnumber":requestdata['versionnumber'],"deleted":False},{"_id":1}))
-                res={'rows':queryresult}
-            else:
-                app.logger.warn("Empty data received. testscreenid_exists_ICE")
-        except Exception as e:
-            servicesException("testscreenid_exists_ICE",e)
-        return jsonify(res)
+    # @app.route('/create_ice/testscreenid_exists_ICE',methods=['POST'])
+    # def testscreenid_exists_ICE():
+    #     res={'rows':'fail'}
+    #     try:
+    #         requestdata=json.loads(request.data)
+    #         app.logger.debug("Inside testscreenid_exists_ICE. Query: "+str(requestdata["name"]))
+    #         if not isemptyrequest(requestdata):
+    #             query_name=requestdata['name']
+    #             dbconn=n68session["screens"]
+    #             if query_name=='screen_check':
+    #                 queryresult= list(dbconn.find({"projectid":ObjectId(requestdata['project_id']),"name":requestdata['screen_name'],"versionnumber":requestdata['versionnumber'],"deleted":False},{"_id":1}))
+    #             elif query_name=='screen_check_id':
+    #                 queryresult= list(dbconn.find({"_id":ObjectId(requestdata['screen_id']),"projectid":ObjectId(requestdata['project_id']),"name":requestdata['screen_name'],"versionnumber":requestdata['versionnumber'],"deleted":False},{"_id":1}))
+    #             res={'rows':queryresult}
+    #         else:
+    #             app.logger.warn("Empty data received. testscreenid_exists_ICE")
+    #     except Exception as e:
+    #         servicesException("testscreenid_exists_ICE",e)
+    #     return jsonify(res)
 
     #API to check if a Testcase exists
-    @app.route('/create_ice/testcaseid_exists_ICE',methods=['POST'])
-    def testcaseid_exists_ICE():
-        res={'rows':'fail'}
-        try:
-            requestdata=json.loads(request.data)
-            app.logger.debug("Inside testcaseid_exists_ICE. Query: "+str(requestdata["name"]))
-            if not isemptyrequest(requestdata):
-                query_name=requestdata['name']
-                if query_name=='testcase_check':
-                    queryresult=list(n68session.testcases.find({"screenid":ObjectId(requestdata['screen_id']),"name":requestdata['testcase_name'],"versionnumber":requestdata['versionnumber'],"deleted":False},{"_id":1}))
-                elif query_name=='testcase_check_id':
-                    queryresult= list(n68session.testcases.find({"_id":ObjectId(requestdata['testcase_id']),"screenid":ObjectId(requestdata['screen_id']),"name":requestdata['testcase_name'],"versionnumber":requestdata['versionnumber'],"deleted":False},{"_id":1}))
-                res={'rows':queryresult}
-            else:
-                app.logger.warn("Empty data received. testcaseid_exists_ICE")
-        except Exception as e:
-            servicesException("testcaseid_exists_ICE",e)
-        return jsonify(res)
+    # @app.route('/create_ice/testcaseid_exists_ICE',methods=['POST'])
+    # def testcaseid_exists_ICE():
+    #     res={'rows':'fail'}
+    #     try:
+    #         requestdata=json.loads(request.data)
+    #         app.logger.debug("Inside testcaseid_exists_ICE. Query: "+str(requestdata["name"]))
+    #         if not isemptyrequest(requestdata):
+    #             query_name=requestdata['name']
+    #             if query_name=='testcase_check':
+    #                 queryresult=list(n68session.testcases.find({"screenid":ObjectId(requestdata['screen_id']),"name":requestdata['testcase_name'],"versionnumber":requestdata['versionnumber'],"deleted":False},{"_id":1}))
+    #             elif query_name=='testcase_check_id':
+    #                 queryresult= list(n68session.testcases.find({"_id":ObjectId(requestdata['testcase_id']),"screenid":ObjectId(requestdata['screen_id']),"name":requestdata['testcase_name'],"versionnumber":requestdata['versionnumber'],"deleted":False},{"_id":1}))
+    #             res={'rows':queryresult}
+    #         else:
+    #             app.logger.warn("Empty data received. testcaseid_exists_ICE")
+    #     except Exception as e:
+    #         servicesException("testcaseid_exists_ICE",e)
+    #     return jsonify(res)
 
-    @app.route('/create_ice/delete_node_ICE',methods=['POST'])
-    def delete_node_ICE():
-        res={'rows':'fail'}
-        try:
-            wrong_operation=False
-            requestdata=json.loads(request.data)
-            app.logger.debug("Inside delete_node_ICE. Name: "+str(requestdata["name"]))
-            if not isemptyrequest(requestdata):
-                query_name=requestdata['name']
-                if query_name=='delete_module':
-                    resp=n68session.mindmaps.update_one({'_id':ObjectId(requestdata['id']),'name':requestdata["node_name"],'versionnumber':requestdata['version_number'],'projectid':ObjectId(requestdata['parent_node_id']),'deleted':False},{'$set':{'deleted': True}},upsert=False)
-                elif query_name=='delete_testscenario':
-                    resp=n68session.testscenarios.update_one({'_id':ObjectId(requestdata['id']),'name':requestdata["node_name"],'versionnumber':requestdata['version_number'],'projectid':ObjectId(requestdata['parent_node_id']),'deleted':False},{'$set':{'deleted': True}},upsert=False)
-                elif query_name=='delete_screen':
-                    resp=n68session.screens.update_one({'_id':ObjectId(requestdata['id']),'name':requestdata["node_name"],'versionnumber':requestdata['version_number'],'projectid':ObjectId(requestdata['parent_node_id']),'deleted':False},{'$set':{'deleted': True}},upsert=False)
-                elif query_name=='delete_testcase':
-                    resp=n68session.testcases.update_one({'_id':ObjectId(requestdata['id']),'name':requestdata["node_name"],'versionnumber':requestdata['version_number'],'screenid':ObjectId(requestdata['parent_node_id']),'deleted':False},{'$set':{'deleted': True}},upsert=False)
-                else:
-                    wrong_operation=True
-                if not wrong_operation:
-                    res={'rows':'Success'}
-            else:
-                app.logger.warn("Empty data received. delete_node_ICE")
-        except Exception as e:
-            servicesException("delete_node_ICE",e)
-        return jsonify(res)
+    # @app.route('/create_ice/delete_node_ICE',methods=['POST'])
+    # def delete_node_ICE():
+    #     res={'rows':'fail'}
+    #     try:
+    #         wrong_operation=False
+    #         requestdata=json.loads(request.data)
+    #         app.logger.debug("Inside delete_node_ICE. Name: "+str(requestdata["name"]))
+    #         if not isemptyrequest(requestdata):
+    #             query_name=requestdata['name']
+    #             if query_name=='delete_module':
+    #                 resp=n68session.mindmaps.update_one({'_id':ObjectId(requestdata['id']),'name':requestdata["node_name"],'versionnumber':requestdata['version_number'],'projectid':ObjectId(requestdata['parent_node_id']),'deleted':False},{'$set':{'deleted': True}},upsert=False)
+    #             elif query_name=='delete_testscenario':
+    #                 resp=n68session.testscenarios.update_one({'_id':ObjectId(requestdata['id']),'name':requestdata["node_name"],'versionnumber':requestdata['version_number'],'projectid':ObjectId(requestdata['parent_node_id']),'deleted':False},{'$set':{'deleted': True}},upsert=False)
+    #             elif query_name=='delete_screen':
+    #                 resp=n68session.screens.update_one({'_id':ObjectId(requestdata['id']),'name':requestdata["node_name"],'versionnumber':requestdata['version_number'],'projectid':ObjectId(requestdata['parent_node_id']),'deleted':False},{'$set':{'deleted': True}},upsert=False)
+    #             elif query_name=='delete_testcase':
+    #                 resp=n68session.testcases.update_one({'_id':ObjectId(requestdata['id']),'name':requestdata["node_name"],'versionnumber':requestdata['version_number'],'screenid':ObjectId(requestdata['parent_node_id']),'deleted':False},{'$set':{'deleted': True}},upsert=False)
+    #             else:
+    #                 wrong_operation=True
+    #             if not wrong_operation:
+    #                 res={'rows':'Success'}
+    #         else:
+    #             app.logger.warn("Empty data received. delete_node_ICE")
+    #     except Exception as e:
+    #         servicesException("delete_node_ICE",e)
+    #     return jsonify(res)
 
 
-    @app.route('/create_ice/updateTestScenario_ICE',methods=['POST'])
-    def updateTestScenario_ICE():
-        res={'rows':'fail'}
-        try:
-            requestdata=json.loads(request.data)
-            app.logger.debug("Inside updateTestScenario_ICE. Modified_flag: "+str(requestdata["modifiedflag"]))
-            if not isemptyrequest(requestdata):
-                modifiedon=datetime.now()
-                if(requestdata['modifiedflag']):
-                    # queryresult=n68session.testscenarios.update_one({"projectid":ObjectId(requestdata['projectid']),"_id":ObjectId(requestdata['testscenarioid']),"versionnumber":requestdata["versionnumber"],"name":requestdata["testscenarioname"]},{"$set":"testcaseids":requestdata['testcaseid'],"modifiedby":requestdata['modifiedby'],"modifedon":modifiedon,"modifiedbyrole":requestdata['modifiedbyrole']})
-                    queryresult=n68session.testscenarios.update_one({"_id":ObjectId(requestdata['testscenarioid'])},{"$set":{"testcaseids":requestdata['testcaseid'],"modifiedby":requestdata['modifiedby'],"modifedon":modifiedon,"modifiedbyrole":requestdata['modifiedbyrole']}},upsert=False)
-                else:
-                    # queryresult=n68session.testscenarios.update_one({"projectid":ObjectId(requestdata['projectid']),"_id":ObjectId(requestdata['testscenarioid']),"versionnumber":requestdata["versionnumber"],"name":requestdata["testscenarioname"]},{"$set":"testcaseids":requestdata['testcaseid']})
-                    queryresult=n68session.testscenarios.update_one({"_id":ObjectId(requestdata['testscenarioid'])},{"$set":{"testcaseids":requestdata['testcaseid']}},upsert=False)
+    # @app.route('/create_ice/updateTestScenario_ICE',methods=['POST'])
+    # def updateTestScenario_ICE():
+    #     res={'rows':'fail'}
+    #     try:
+    #         requestdata=json.loads(request.data)
+    #         app.logger.debug("Inside updateTestScenario_ICE. Modified_flag: "+str(requestdata["modifiedflag"]))
+    #         if not isemptyrequest(requestdata):
+    #             modifiedon=datetime.now()
+    #             if(requestdata['modifiedflag']):
+    #                 # queryresult=n68session.testscenarios.update_one({"projectid":ObjectId(requestdata['projectid']),"_id":ObjectId(requestdata['testscenarioid']),"versionnumber":requestdata["versionnumber"],"name":requestdata["testscenarioname"]},{"$set":"testcaseids":requestdata['testcaseid'],"modifiedby":requestdata['modifiedby'],"modifedon":modifiedon,"modifiedbyrole":requestdata['modifiedbyrole']})
+    #                 queryresult=n68session.testscenarios.update_one({"_id":ObjectId(requestdata['testscenarioid'])},{"$set":{"testcaseids":requestdata['testcaseid'],"modifiedby":requestdata['modifiedby'],"modifedon":modifiedon,"modifiedbyrole":requestdata['modifiedbyrole']}},upsert=False)
+    #             else:
+    #                 # queryresult=n68session.testscenarios.update_one({"projectid":ObjectId(requestdata['projectid']),"_id":ObjectId(requestdata['testscenarioid']),"versionnumber":requestdata["versionnumber"],"name":requestdata["testscenarioname"]},{"$set":"testcaseids":requestdata['testcaseid']})
+    #                 queryresult=n68session.testscenarios.update_one({"_id":ObjectId(requestdata['testscenarioid'])},{"$set":{"testcaseids":requestdata['testcaseid']}},upsert=False)
 
-                res={'rows':'Success','data':queryresult}
-            else:
-                app.logger.warn("Empty data received. updateTestScenario_ICE")
-        except Exception as e:
-            servicesException("updateTestScenario_ICE",e)
-        return jsonify(res)
+    #             res={'rows':'Success','data':queryresult}
+    #         else:
+    #             app.logger.warn("Empty data received. updateTestScenario_ICE")
+    #     except Exception as e:
+    #         servicesException("updateTestScenario_ICE",e)
+    #     return jsonify(res)
 
-    @app.route('/create_ice/updateModule_ICE',methods=['POST'])
-    def updateModule_ICE():
-        res={'rows':'fail'}
-        try:
-            requestdata=json.loads(request.data)
-            app.logger.debug("Inside updateModule_ICE. Modified_flag: "+str(requestdata["modifiedflag"]))
-            if not isemptyrequest(requestdata):
-                dbconn=n68session["mindmaps"]
-                modifiedon=datetime.now()
-                if(requestdata['modifiedflag']):
-                    # queryresult=dbconn.update_one({"projectid":ObjectId(requestdata['projectid']),"_id":ObjectId(requestdata['moduleid']),"versionnumber":requestdata["versionnumber"],"name":requestdata["modulename"]},{"$set":"testscenarios":requestdata['testscenarioids'],"modifiedby":requestdata['modifiedby'],"modifedon":modifiedon,"modifiedbyrole":requestdata['modifiedbyrole']})
-                    queryresult=n68session.mindmaps.update_one({"_id":ObjectId(requestdata['moduleid'])},{"$set":{"testscenarios":requestdata['testscenarioids'],"modifiedby":requestdata['modifiedby'],"modifedon":modifiedon,"modifiedbyrole":requestdata['modifiedbyrole']}},upsert=False)
-                else:
-                    # queryresult=dbconn.update_one({"projectid":ObjectId(requestdata['projectid']),"_id":ObjectId(requestdata['moduleid']),"versionnumber":requestdata["versionnumber"],"name":requestdata["modulename"]},{"$set":"testscenarios":requestdata['testscenarioids']})
-                    queryresult=n68session.mindmaps.update_one({"_id":ObjectId(requestdata['moduleid'])},{"$set":{"testscenarios":requestdata['testscenarioids']}},upsert=False)
-                res={'rows':'Success'}
-            else:
-                app.logger.warn("Empty data received. updateModule_ICE")
-        except Exception as e:
-            servicesException("updateModule_ICE",e)
-        return jsonify(res)
+    # @app.route('/create_ice/updateModule_ICE',methods=['POST'])
+    # def updateModule_ICE():
+    #     res={'rows':'fail'}
+    #     try:
+    #         requestdata=json.loads(request.data)
+    #         app.logger.debug("Inside updateModule_ICE. Modified_flag: "+str(requestdata["modifiedflag"]))
+    #         if not isemptyrequest(requestdata):
+    #             dbconn=n68session["mindmaps"]
+    #             modifiedon=datetime.now()
+    #             if(requestdata['modifiedflag']):
+    #                 # queryresult=dbconn.update_one({"projectid":ObjectId(requestdata['projectid']),"_id":ObjectId(requestdata['moduleid']),"versionnumber":requestdata["versionnumber"],"name":requestdata["modulename"]},{"$set":"testscenarios":requestdata['testscenarioids'],"modifiedby":requestdata['modifiedby'],"modifedon":modifiedon,"modifiedbyrole":requestdata['modifiedbyrole']})
+    #                 queryresult=n68session.mindmaps.update_one({"_id":ObjectId(requestdata['moduleid'])},{"$set":{"testscenarios":requestdata['testscenarioids'],"modifiedby":requestdata['modifiedby'],"modifedon":modifiedon,"modifiedbyrole":requestdata['modifiedbyrole']}},upsert=False)
+    #             else:
+    #                 # queryresult=dbconn.update_one({"projectid":ObjectId(requestdata['projectid']),"_id":ObjectId(requestdata['moduleid']),"versionnumber":requestdata["versionnumber"],"name":requestdata["modulename"]},{"$set":"testscenarios":requestdata['testscenarioids']})
+    #                 queryresult=n68session.mindmaps.update_one({"_id":ObjectId(requestdata['moduleid'])},{"$set":{"testscenarios":requestdata['testscenarioids']}},upsert=False)
+    #             res={'rows':'Success'}
+    #         else:
+    #             app.logger.warn("Empty data received. updateModule_ICE")
+    #     except Exception as e:
+    #         servicesException("updateModule_ICE",e)
+    #     return jsonify(res)
 
-    @app.route('/create_ice/updateModulename_ICE',methods=['POST'])
-    def updateModulename_ICE():
-        app.logger.debug("Inside updateModulename_ICE")
-        res={'rows':'fail'}
-        try:
-            requestdata=json.loads(request.data)
-            dbconn=n68session["mindmaps"]
-            modifiedon=datetime.now()
-            if not isemptyrequest(requestdata):
-                # queryresult=dbconn.update_one({"projectid":ObjectId(requestdata['projectid']),"_id":ObjectId(requestdata['moduleid']),"versionnumber":requestdata["versionnumber"]},{"$set":"name":requestdata['modulename'],"modifiedby":requestdata['modifiedby'],"modifedon":modifiedon,"modifiedbyrole":requestdata['modifiedbyrole']})
-                queryresult=dbconn.update_one({"_id":ObjectId(requestdata['moduleid'])},{"$set":{"name":requestdata['modulename'],"modifiedby":requestdata['modifiedby'],"modifedon":modifiedon,"modifiedbyrole":requestdata['modifiedbyrole']}})
-                res={'rows':'Success'}
-            else:
-                app.logger.warn("Empty data received. updateModulename_ICE")
-        except Exception as e:
-            servicesException("updateModulename_ICE",e)
-        return jsonify(res)
+    # @app.route('/create_ice/updateModulename_ICE',methods=['POST'])
+    # def updateModulename_ICE():
+    #     app.logger.debug("Inside updateModulename_ICE")
+    #     res={'rows':'fail'}
+    #     try:
+    #         requestdata=json.loads(request.data)
+    #         dbconn=n68session["mindmaps"]
+    #         modifiedon=datetime.now()
+    #         if not isemptyrequest(requestdata):
+    #             # queryresult=dbconn.update_one({"projectid":ObjectId(requestdata['projectid']),"_id":ObjectId(requestdata['moduleid']),"versionnumber":requestdata["versionnumber"]},{"$set":"name":requestdata['modulename'],"modifiedby":requestdata['modifiedby'],"modifedon":modifiedon,"modifiedbyrole":requestdata['modifiedbyrole']})
+    #             queryresult=dbconn.update_one({"_id":ObjectId(requestdata['moduleid'])},{"$set":{"name":requestdata['modulename'],"modifiedby":requestdata['modifiedby'],"modifedon":modifiedon,"modifiedbyrole":requestdata['modifiedbyrole']}})
+    #             res={'rows':'Success'}
+    #         else:
+    #             app.logger.warn("Empty data received. updateModulename_ICE")
+    #     except Exception as e:
+    #         servicesException("updateModulename_ICE",e)
+    #     return jsonify(res)
 
-    @app.route('/create_ice/updateTestscenarioname_ICE',methods=['POST'])
-    def updateTestscenarioname_ICE():
-        app.logger.debug("Inside updateTestscenarioname_ICE")
-        res={'rows':'fail'}
-        try:
-            requestdata=json.loads(request.data)
-            dbconn=n68session["testscenarios"]
-            if not isemptyrequest(requestdata):
-                modifiedon=datetime.now()
-                # queryresult=dbconn.update_one({"projectid":ObjectId(requestdata['projectid']),"_id":ObjectId(requestdata['testscenarioid']),"versionnumber":requestdata["versionnumber"]},{"$set":"name":requestdata['testscenarioname'],"modifiedby":requestdata['modifiedby'],"modifedon":modifiedon,"modifiedbyrole":requestdata['modifiedbyrole']})
-                queryresult=dbconn.update_one({"_id":ObjectId(requestdata['testscenarioid'])},{"$set":{"name":requestdata['testscenarioname'],"modifiedby":requestdata['modifiedby'],"modifedon":modifiedon,"modifiedbyrole":requestdata['modifiedbyrole']}})
-                res={'rows':'Success'}
-            else:
-                app.logger.warn("Empty data received. updateTestscenarioname_ICE")
-        except Exception as e:
-            servicesException("updateTestscenarioname_ICE",e)
-        return jsonify(res)
+    # @app.route('/create_ice/updateTestscenarioname_ICE',methods=['POST'])
+    # def updateTestscenarioname_ICE():
+    #     app.logger.debug("Inside updateTestscenarioname_ICE")
+    #     res={'rows':'fail'}
+    #     try:
+    #         requestdata=json.loads(request.data)
+    #         dbconn=n68session["testscenarios"]
+    #         if not isemptyrequest(requestdata):
+    #             modifiedon=datetime.now()
+    #             # queryresult=dbconn.update_one({"projectid":ObjectId(requestdata['projectid']),"_id":ObjectId(requestdata['testscenarioid']),"versionnumber":requestdata["versionnumber"]},{"$set":"name":requestdata['testscenarioname'],"modifiedby":requestdata['modifiedby'],"modifedon":modifiedon,"modifiedbyrole":requestdata['modifiedbyrole']})
+    #             queryresult=dbconn.update_one({"_id":ObjectId(requestdata['testscenarioid'])},{"$set":{"name":requestdata['testscenarioname'],"modifiedby":requestdata['modifiedby'],"modifedon":modifiedon,"modifiedbyrole":requestdata['modifiedbyrole']}})
+    #             res={'rows':'Success'}
+    #         else:
+    #             app.logger.warn("Empty data received. updateTestscenarioname_ICE")
+    #     except Exception as e:
+    #         servicesException("updateTestscenarioname_ICE",e)
+    #     return jsonify(res)
 
-    @app.route('/create_ice/updateScreenname_ICE',methods=['POST'])
-    def updateScreenname_ICE():
-        app.logger.debug("Inside updateScreenname_ICE")
-        res={'rows':'fail'}
-        try:
-            requestdata=json.loads(request.data)
-            dbconn=n68session["screens"]
-            if not isemptyrequest(requestdata):
-                modifiedon=datetime.now()
-                # queryresult=dbconn.update_one({"projectid":ObjectId(requestdata['projectid']),"_id":ObjectId(requestdata['screenid']),"versionnumber":requestdata["versionnumber"]},{"$set":"name":requestdata['screenname'],"modifiedby":requestdata['modifiedby'],"modifedon":modifiedon,"modifiedbyrole":requestdata['modifiedbyrole']})
-                queryresult=dbconn.update_one({"_id":ObjectId(requestdata['screenid'])},{"$set":{"name":requestdata['screenname'],"modifiedby":requestdata['modifiedby'],"modifedon":modifiedon,"modifiedbyrole":requestdata['modifiedbyrole']}})
-                res={'rows':'Success'}
-            else:
-                app.logger.warn("Empty data received. updateScreenname_ICE")
-        except Exception as e:
-            servicesException("updateScreenname_ICE",e)
-        return jsonify(res)
+    # @app.route('/create_ice/updateScreenname_ICE',methods=['POST'])
+    # def updateScreenname_ICE():
+    #     app.logger.debug("Inside updateScreenname_ICE")
+    #     res={'rows':'fail'}
+    #     try:
+    #         requestdata=json.loads(request.data)
+    #         dbconn=n68session["screens"]
+    #         if not isemptyrequest(requestdata):
+    #             modifiedon=datetime.now()
+    #             # queryresult=dbconn.update_one({"projectid":ObjectId(requestdata['projectid']),"_id":ObjectId(requestdata['screenid']),"versionnumber":requestdata["versionnumber"]},{"$set":"name":requestdata['screenname'],"modifiedby":requestdata['modifiedby'],"modifedon":modifiedon,"modifiedbyrole":requestdata['modifiedbyrole']})
+    #             queryresult=dbconn.update_one({"_id":ObjectId(requestdata['screenid'])},{"$set":{"name":requestdata['screenname'],"modifiedby":requestdata['modifiedby'],"modifedon":modifiedon,"modifiedbyrole":requestdata['modifiedbyrole']}})
+    #             res={'rows':'Success'}
+    #         else:
+    #             app.logger.warn("Empty data received. updateScreenname_ICE")
+    #     except Exception as e:
+    #         servicesException("updateScreenname_ICE",e)
+    #     return jsonify(res)
 
-    @app.route('/create_ice/updateTestcasename_ICE',methods=['POST'])
-    def updateTestcasename_ICE():
-        app.logger.debug("Inside updateTestcasename_ICE")
-        res={'rows':'fail'}
-        try:
-            requestdata=json.loads(request.data)
-            dbconn=n68session["screens"]
-            if not isemptyrequest(requestdata):
-                modifiedon=datetime.now()
-                # queryresult=dbconn.update_one({"projectid":ObjectId(requestdata['projectid']),"_id":ObjectId(requestdata['testcaseid']),"versionnumber":requestdata["versionnumber"]},{"$set":"name":requestdata['testcasename'],"modifiedby":requestdata['modifiedby'],"modifedon":modifiedon,"modifiedbyrole":requestdata['modifiedbyrole']})
-                queryresult=dbconn.update_one({"_id":ObjectId(requestdata['testcaseid'])},{"$set":{"name":requestdata['testcasename'],"modifiedby":requestdata['modifiedby'],"modifedon":modifiedon,"modifiedbyrole":requestdata['modifiedbyrole']}})
-                res={'rows':'Success'}
-            else:
-                app.logger.warn("Empty data received. updateTestcasename_ICE")
-        except Exception as e:
-            servicesException("updateTestcasename_ICE",e)
-        return jsonify(res)
+    # @app.route('/create_ice/updateTestcasename_ICE',methods=['POST'])
+    # def updateTestcasename_ICE():
+    #     app.logger.debug("Inside updateTestcasename_ICE")
+    #     res={'rows':'fail'}
+    #     try:
+    #         requestdata=json.loads(request.data)
+    #         dbconn=n68session["screens"]
+    #         if not isemptyrequest(requestdata):
+    #             modifiedon=datetime.now()
+    #             # queryresult=dbconn.update_one({"projectid":ObjectId(requestdata['projectid']),"_id":ObjectId(requestdata['testcaseid']),"versionnumber":requestdata["versionnumber"]},{"$set":"name":requestdata['testcasename'],"modifiedby":requestdata['modifiedby'],"modifedon":modifiedon,"modifiedbyrole":requestdata['modifiedbyrole']})
+    #             queryresult=dbconn.update_one({"_id":ObjectId(requestdata['testcaseid'])},{"$set":{"name":requestdata['testcasename'],"modifiedby":requestdata['modifiedby'],"modifedon":modifiedon,"modifiedbyrole":requestdata['modifiedbyrole']}})
+    #             res={'rows':'Success'}
+    #         else:
+    #             app.logger.warn("Empty data received. updateTestcasename_ICE")
+    #     except Exception as e:
+    #         servicesException("updateTestcasename_ICE",e)
+    #     return jsonify(res)
 
 
     # New API for getting Module Details.
@@ -626,7 +554,7 @@ def LoadServices(app, redissession, n68session):
             app.logger.debug("Inside getTasksJSON.")
             if not isemptyrequest(requestdata):
                 userid=requestdata["userid"]
-                tasks=list(n68session.tasks.find({"$or":[{"assignedto":ObjectId(userid)},{"reviewer":ObjectId(userid)}]}))
+                tasks=list(n68session.tasks.find({"assignedto":ObjectId(userid)}))
                 res={'rows':tasks}
             else:
                 app.logger.warn("Empty data received. getTasksJSON")
@@ -1083,7 +1011,7 @@ def LoadServices(app, redissession, n68session):
         return jsonify(res)
 
     def checkScenarioNameExists(projectid,name):
-        res=list(n68session.testscenarios.find({"projectid":projectid,"name":name},{"_id":1}))
+        res=list(n68session.testscenarios.find({"projectid":ObjectId(projectid),"name":name},{"_id":1}))
         if len(res)>0:
             return True
         else:
@@ -1163,17 +1091,17 @@ def LoadServices(app, redissession, n68session):
 
     def updateScenarioName(scenarioname,projectid,scenarioid,userid,userroleid):
         modifiedon=datetime.now()
-        queryresult=n68session.testscenarios.update_one({"_id":ObjectId(scenarioid)},{"$set":{"name":scenarioname,"modifiedby":userid,"modifedon":modifiedon,"modifiedbyrole":userroleid}})
+        queryresult=n68session.testscenarios.update_one({"_id":ObjectId(scenarioid)},{"$set":{"name":scenarioname,"modifiedby":ObjectId(userid),"modifedon":modifiedon,"modifiedbyrole":ObjectId(userroleid)}})
         return
 
     def updateScreenName(screenname,projectid,screenid,userid,userroleid):
         modifiedon=datetime.now()
-        queryresult=n68session.screens.update_one({"_id":ObjectId(screenid)},{"$set":{"name":screenname,"modifiedby":userid,"modifedon":modifiedon,"modifiedbyrole":userroleid}})
+        queryresult=n68session.screens.update_one({"_id":ObjectId(screenid)},{"$set":{"name":screenname,"modifiedby":ObjectId(userid),"modifedon":modifiedon,"modifiedbyrole":ObjectId(userroleid)}})
         return
 
     def updateTestcaseName(testcasename,projectid,testcaseid,userid,userroleid):
         modifiedon=datetime.now()
-        queryresult=n68session.testcases.update_one({"_id":ObjectId(testcaseid)},{"$set":{"name":testcasename,"modifiedby":userid,"modifedon":modifiedon,"modifiedbyrole":userroleid}})
+        queryresult=n68session.testcases.update_one({"_id":ObjectId(testcaseid)},{"$set":{"name":testcasename,"modifiedby":ObjectId(userid),"modifedon":modifiedon,"modifiedbyrole":ObjectId(userroleid)}})
         return
     
     def getModuleName(moduleid):
