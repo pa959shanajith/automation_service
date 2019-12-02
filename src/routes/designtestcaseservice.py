@@ -217,10 +217,10 @@ def LoadServices(app, redissession, n68session2):
                 continue
             if 'custname' in j.keys():
                 if j['custname'] in dataObjects.keys():
-                    j['custname'] = dataObjects[j['custname']]['custname']
                     j['objectName'] = dataObjects[j['custname']]['xpath']
                     j['url'] = dataObjects[j['custname']]['url'] if 'url' in dataObjects[j['custname']] else ""
                     j['cord'] = dataObjects[j['custname']]['cord'] if 'cord' in dataObjects[j['custname']] else ""
+                    j['custname'] = dataObjects[j['custname']]['custname']
 
 
     #test case reading service
