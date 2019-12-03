@@ -67,7 +67,7 @@ def LoadServices(app, redissession, n68session2, webocularsession):
             app.logger.debug("Inside reportStatusScenarios_ICE. Query: "+str(requestdata["query"]))
             if not isemptyrequest(requestdata):
                 if(requestdata["query"] == 'executiondetails'):
-                    queryresult = list(n68session2.reports.find({"executionid":ObjectId(requestdata["executionid"]),"testsuiteid":ObjectId(requestdata["testsuiteid"])},{"_id":1,"executionid":1,"executedon":1,"comments":1,"executedtime":1,"modifiedby":1,"modifiedbyrole":1,"modifiedon":1,"status":1,"report":1,"testscenarioid":1}))
+                    queryresult = list(n68session2.reports.find({"executionid":ObjectId(requestdata["executionid"])},{"_id":1,"executionid":1,"executedon":1,"comments":1,"executedtime":1,"modifiedby":1,"modifiedbyrole":1,"modifiedon":1,"status":1,"report":1,"testscenarioid":1}))
                     res= {"rows":queryresult}
                 elif(requestdata["query"] == 'scenarioname'):
                     queryresult = list(n68session2.testscenarios.find({"_id":ObjectId(requestdata["scenarioid"])},{"name":1}))
@@ -88,7 +88,7 @@ def LoadServices(app, redissession, n68session2, webocularsession):
             app.logger.debug("Inside getReport_Nineteen68. Query: "+str(requestdata["query"]))
             if not isemptyrequest(requestdata):
                 if(requestdata["query"] == 'projectsUnderDomain'):
-                    queryresult = list(n68session2.reports.find({"_id":ObjectId(requestdata["reportid"])},{"executionid":1,"executedtime":1,"report":1,"testscenarioid":1,"cycleid":1}))
+                    queryresult = list(n68session2.reports.find({"_id":ObjectId(requestdata["reportid"])},{"executionid":1,"executedtime":1,"report":1,"testscenarioid":1}))
                     res= {"rows":queryresult}
                 elif(requestdata["query"] == 'scenariodetails'):
                     queryresult = list(n68session2.testscenarios.find({"_id":ObjectId(requestdata["scenarioid"]),"deleted":False},{"name":1,"projectid":1}))
@@ -98,7 +98,6 @@ def LoadServices(app, redissession, n68session2, webocularsession):
                         {"$match":{"_id":ObjectId(requestdata["projectid"])}},
                         {"$unwind":'$releases'},
                         {"$unwind":'$releases.cycles'},
-                        {"$match":{"releases.cycles._id":ObjectId(requestdata["cycleid"])}},
                         {"$project":{"name":1,"releases.name":1,"releases.cycles.name":1,"domain":1}}
                     ]))
                     res= {"rows":queryresult}

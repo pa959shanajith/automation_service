@@ -55,6 +55,7 @@ def LoadServices(app, redissession, n68session):
                     'projectId':[],
                     'projectName':[],
                     'appType':[],
+                    'appTypeName':[],
                     'releases':[],
                     'cycles':{},
                     'projecttypes':projecttype_names
@@ -87,6 +88,7 @@ def LoadServices(app, redissession, n68session):
                             prjDetails['projectId'].append(str(prjDetail[0]['_id']))
                             prjDetails['projectName'].append(prjDetail[0]['name'])
                             prjDetails['appType'].append(str(prjDetail[0]['type']))
+                            prjDetails['appTypeName'].append(n68session.projecttypekeywords.find_one({"_id":ObjectId(prjDetail[0]['type'])})["name"])
                             prjDetails['releases'].append(prjDetail[0]["releases"])
                             for rel in prjDetail[0]["releases"]:
                                 for cyc in rel['cycles']:
