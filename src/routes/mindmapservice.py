@@ -415,11 +415,11 @@ def LoadServices(app, redissession, n68session):
                 assignTab=False
                 if tab=="tabAssign":
                     assignTab=True
-                for t in taskdetails:
-                    if assignTab and cycleid==str(t['cycleid']):
-                        #taskdata[t["nodeid"]]=t
-                        data_dict[t['nodetype']][t['nodeid']]={'task':t}
-                    else:
+                    for t in taskdetails:
+                        if assignTab and ( t['nodetype']=="screens" or t['nodetype']=="testcases" or cycleid==str(t['cycleid'])):
+                            data_dict[t['nodetype']][t['nodeid']]={'task':t}
+                else:
+                    for t in taskdetails:
                         data_dict[t['nodetype']][t['nodeid']]={'taskexists':t}
 
                 # scenariodata={}
