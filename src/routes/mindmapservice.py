@@ -816,6 +816,8 @@ def LoadServices(app, redissession, n68session):
                 if checkModuleNameExists(moduledata["testsuiteName"],projectid):
                     error="A project cannot have similar module name"
                     break
+                else:
+                    moduledata['state']="renamed"
             else:
                 # If the the Module has an ID then we will check if the target name has conflict if not then rename will be allowed.
                 name=getModuleName(moduledata['testsuiteId'])
@@ -824,7 +826,7 @@ def LoadServices(app, redissession, n68session):
                         error="Module cannot be renamed to an existing module name"
                         break
                     else:
-                        moduledata["state"]=="renamed"
+                        moduledata['state']="renamed"
             for scenariodata in moduledata['testscenarioDetails']:
                 # This check for similar scenario name within the same module.
                 if scenariodata['testscenarioName'] in scenarionames:
