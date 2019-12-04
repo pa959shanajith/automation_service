@@ -896,6 +896,7 @@ def LoadServices(app, redissession, n68session):
                                 if testcasename!= testcasedata["testcaseName"]:
                                     testcaseid=getTestcaseID(screendata["screenid"],testcasedata["testcaseName"])
                                     if testcaseid is not None:
+                                        updateparent('testcases',testcasedata['testcaseid'],screendata["screenid"],'delete')
                                         testcasedata['testcaseid']=testcaseid
                                         testcasedata["reuse"]=True
                                     else:
