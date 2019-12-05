@@ -41,7 +41,7 @@ def LoadServices(app, redissession, n68session):
                 app.logger.info("Inside readTestSuite_ICE. Query: "+str(requestdata["query"]))
                 if(requestdata["query"] == 'testsuitecheck'):
 
-                    res["rows"]=list(n68session.testsuites.find({"_id":ObjectId(requestdata["id"]),
+                    res["rows"]=list(n68session.testsuites.find({"mindmapid":ObjectId(requestdata["mindmapid"]),
                     "cycleid":ObjectId(requestdata["cycleid"]),"deleted":query['delete_flag']}))
                     app.logger.info("Executed readTestSuite_ICE. Query: "+str(requestdata["query"]))
 
@@ -53,14 +53,14 @@ def LoadServices(app, redissession, n68session):
 ##                    requestdata['testscenarioids'] = ','.join(str(idval) for idval in requestdata['testscenarioids'])
                     #history=createHistory("create","testsuites",requestdata)
                     createdon = datetime.now()
-                    mindmaps = n68session.mindmaps.find_one({"_id":ObjectId(requestdata["id"])});
+                    mindmaps = n68session.mindmaps.find_one({"_id":ObjectId(requestdata["mindmapid"])});
                     tsidlen = len([i["_id"] for i in mindmaps["testscenarios"]])
                     for i in range(0,tsidlen):
                         getparampaths.append(' ')
                         conditioncheck.append(0)
                         donotexecute.append(1)
                     querydata = {}
-                    querydata["_id"] = ObjectId(requestdata['id'])
+                    querydata["mindmapid"] = ObjectId(requestdata['mindmapid'])
                     querydata["cycleid"] = ObjectId(requestdata['cycleid'])
                     querydata["name"] = requestdata['name']
                     querydata["versionnumber"] = mindmaps['versionnumber']
@@ -76,15 +76,15 @@ def LoadServices(app, redissession, n68session):
                     querydata["deleted"] = requestdata['deleted']
                     querydata["testscenarioids"] = [i["_id"] for i in mindmaps["testscenarios"]]
                     if requestdata['name']=='testsuitename':
-                        querydata['name'] = n68session.mindmaps.find_one({"_id":ObjectId(requestdata["id"])},{"name":1,"_id":0})['name']
+                        querydata['name'] = n68session.mindmaps.find_one({"_id":ObjectId(requestdata["mindmapid"])},{"name":1,"_id":0})['name']
 
                     res["rows"] = str(n68session.testsuites.insert(querydata))
                     app.logger.info("Executed readTestSuite_ICE. Query: "+str(requestdata["query"]))
                     #res={'rows':reports_data}
 
                 elif(requestdata["query"] == 'updatescenarioinnsuite'):
-                    testsuites = n68session.testsuites.find_one({"_id":ObjectId(requestdata["id"])});
-                    mindmaps = n68session.mindmaps.find_one({"_id":ObjectId(requestdata["id"])});
+                    testsuites = n68session.testsuites.find_one({"mindmapid":ObjectId(requestdata["mindmapid"])});
+                    mindmaps = n68session.mindmaps.find_one({"_id":ObjectId(requestdata["mindmapid"])});
                     getparampaths1 = []
                     conditioncheck1 = []
                     donotexecute1 = []
@@ -125,8 +125,8 @@ def LoadServices(app, redissession, n68session):
                     querydata["modifiedon"] = datetime.now()
 
                     if requestdata['name']=='testsuitename':
-                        querydata['name'] = n68session.mindmaps.find_one({"_id":ObjectId(requestdata["id"])},{"name":1,"_id":0})['name']
-                    response = n68session.testsuites.update_one({"_id":ObjectId(requestdata["id"]),
+                        querydata['name'] = n68session.mindmaps.find_one({"_id":ObjectId(requestdata["mindmapid"])},{"name":1,"_id":0})['name']
+                    response = n68session.testsuites.update_one({"mindmapid":ObjectId(requestdata["mindmapid"]),
                     "cycleid":ObjectId(requestdata["cycleid"]),"deleted":query['delete_flag'],"versionnumber":versionnumber},{'$set':querydata})
                     res={'rows':'Success'}
                     app.logger.info("Executed readTestSuite_ICE. Query: "+str(requestdata["query"]))
@@ -147,10 +147,11 @@ def LoadServices(app, redissession, n68session):
                     querydata["donotexecute"] = 1
                     querydata["getparampaths"] = 1
                     querydata["testscenarioids"] = 1
+                    querydata["name"] = 1
                     querydata['_id'] = 0
                     if requestdata['testsuitename']=='testsuitename':
-                        requestdata['testsuitename'] = n68session.mindmaps.find_one({"_id":ObjectId(requestdata["id"])},{"name":1,"_id":0})['name']
-                    res['rows'] = list(n68session.testsuites.find({"_id":ObjectId(requestdata["id"]),"name":requestdata["testsuitename"],
+                        requestdata['testsuitename'] = n68session.mindmaps.find_one({"_id":ObjectId(requestdata["mindmapid"])},{"name":1,"_id":0})['name']
+                    res['rows'] = list(n68session.testsuites.find({"mindmapid":ObjectId(requestdata["mindmapid"]),"name":requestdata["testsuitename"],
                     "cycleid":ObjectId(requestdata["cycleid"]),"deleted":query['delete_flag'],"versionnumber":requestdata["versionnumber"]},querydata))
                     app.logger.info("Executed readTestSuite_ICE. Query: "+str(requestdata["query"]))
 
@@ -190,7 +191,7 @@ def LoadServices(app, redissession, n68session):
                 querydata["modifiedon"]= datetime.now()
                 querydata["testscenarioids"] = [ObjectId(i) for i in requestdata['testscenarioids']]
                 setdata ={"$set":querydata}
-                querytoupdate = {"_id":ObjectId(requestdata['id']),"cycleid":ObjectId(requestdata['cycleid']),
+                querytoupdate = {"mindmapid":ObjectId(requestdata['mindmapid']),"cycleid":ObjectId(requestdata['cycleid']),
                 "versionnumber":requestdata["versionnumber"]}
 
                 reports_data=n68session.testsuites.update_one(querytoupdate,setdata)
@@ -244,9 +245,9 @@ def LoadServices(app, redissession, n68session):
                     querydata = {}
                     querydata["executedon"] = requestdata['browser']
                     querydata["executionid"] = ObjectId(requestdata['executionid'])
-                    querydata["cycleid"] = ObjectId(requestdata['cycleid'])
+                    #querydata["cycleid"] = ObjectId(requestdata['cycleid'])
                     querydata["testscenarioid"] = ObjectId(requestdata['testscenarioid'])
-                    querydata["testsuiteid"] = ObjectId(requestdata['testsuiteid'])
+                    #querydata["testsuiteid"] = ObjectId(requestdata['testsuiteid'])
                     querydata["status"] = requestdata['status']
                     querydata["executedtime"] = modifiedon
                     querydata["modifiedon"] = modifiedon
