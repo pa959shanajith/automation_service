@@ -793,6 +793,29 @@ def LoadServices(app, redissession, n68session):
                 elif action=="updatestatus":
                     status=requestdata['status']
                     n68session.tasks.update({"_id":ObjectId(requestdata["id"])},{"$set":{"status":status}})
+                elif action=="updatetaskstatus":  
+                    task=n68session.tasks.find_one({"_id":ObjectId(requestdata["id"])})
+                    history=[]
+                    if requestdata["status"] == "underReview":
+                        status="complete"
+                        assignedto=''
+                        # n68session.tasks.update({"_id":ObjectId(requestdata["id"])},{"$set":{"status":status,"history":history,"assignedto":''}})
+                    elif (requestdata["status"] == "inprogress" or requestdata["status"] == "assigned" or requestdata["status"] == "reassigned") and task['reviewer'] != "select reviewer":
+                        status="underReview"
+                        assignedto=task["reviewer"]
+                        # n68session.tasks.update({"_id":ObjectId(requestdata["id"])},{"$set":{"status":status,"history":history,"assignedto":task["reviewer"]}})
+                    elif (requestdata["status"] == "reassign"):
+                        status="reassigned"
+                        assignedto=task["owner"]
+                    requestdata["history"]["status"]=status
+                    if(len(task["history"])==0):
+                        requestdata["history"]["userid"]=ObjectId(requestdata["history"]["userid"])
+                        history=[requestdata["history"]]
+                    else:
+                        history=task["history"]
+                        requestdata["history"]["userid"]=ObjectId(requestdata["history"]["userid"])
+                        history.append(requestdata["history"])
+                    n68session.tasks.update({"_id":ObjectId(requestdata["id"])},{"$set":{"status":status,"history":history,"assignedto":assignedto}})
                     res={"rows":"success"}
                 elif action == "delete":
                     n68session.tasks.delete({"_id":ObjectId(requestdata["id"]),"cycle":ObjectId(requestdata["cycleid"])})
