@@ -262,7 +262,7 @@ def LoadServices(app, redissession, n68session):
                 elif(requestdata['query'] == 'inserintotexecutionquery'):
                     starttime = datetime.now()
                     res["rows"] = str(n68session.executions.insert({"parent": [], "configuration": {},
-                    "endtime": starttime, "executedby": ObjectId(requestdata['executedby']), "status": requestdata['status'],
+                    "endtime": None, "executedby": ObjectId(requestdata['executedby']), "status": requestdata['status'],
                     "starttime": starttime}))
                     app.logger.debug("Executed ExecuteTestSuite_ICE. Query: "+str(requestdata["query"]))
 
