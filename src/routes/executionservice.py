@@ -268,8 +268,9 @@ def LoadServices(app, redissession, n68session):
 
                 elif(requestdata['query'] == 'updateintotexecutionquery'):
                     endtime = datetime.now()
+                    testsuiteid = (n68session.testsuites.find_one({"mindmapid":ObjectId(requestdata["testsuiteid"]),"cycleid":ObjectId(requestdata["cycleid"])},{"$set":"_id"}))
                     res["rows"] = list(n68session.executions.update({"_id":ObjectId(requestdata['executionid'])},{'$set': {"status":requestdata['status'],"endtime":endtime},
-                    '$addToSet':{"parent":ObjectId(requestdata["testsuiteid"])}}))
+                    '$addToSet':{"parent":testsuiteid['_id']}}))
                     app.logger.debug("Executed ExecuteTestSuite_ICE. Query: "+str(requestdata["query"]))
                 else:
                     return jsonify(res)
