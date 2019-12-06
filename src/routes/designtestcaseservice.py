@@ -70,7 +70,7 @@ def LoadServices(app, redissession, n68session2):
         except:
             return hex_data
 
-    def adddataobjects(self, pid, d):
+    def adddataobjects(pid, d):
         if len(d) == 0: return False
         req = []
         custname = {}
@@ -79,7 +79,7 @@ def LoadServices(app, redissession, n68session2):
             req.append(InsertOne(row))
         n68session2.dataobjects.bulk_write(req)
 
-    def createdataobjects(self, scrid, objs):
+    def createdataobjects(scrid, objs):
         custnameToAdd = []
         for e in objs:
             so = objs[e]
