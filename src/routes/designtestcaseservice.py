@@ -211,7 +211,10 @@ def LoadServices(app, redissession, n68session2):
 
     def update_steps(steps,dataObjects):
         for j in steps:
-            j['objectName'], j['url'] = '', ''
+            j['objectName'], j['url'], j['addTestCaseDetailsInfo'], j['addTestCaseDetails'] = '', '', '', ''
+            if 'addDetails' in j:
+                j['addTestCaseDetailsInfo'] = j['addDetails']
+                del j['addDetails']
             if j['custname'] == "@Custom":
                 j['objectName'] = "@Custom"
                 continue
@@ -260,7 +263,11 @@ def LoadServices(app, redissession, n68session2):
                         dataObjects = {i['_id']:i for i in queryresult1}
                     if (queryresult != []):
                         update_steps(queryresult[0]['steps'],dataObjects)
-                    res= {'rows': queryresult}
+                    if 'screenName' in requestdata and requestdata['screenName']=='fetch':
+                        screen = n68session2.screens.find_one({'_id':queryresult[0]['screenid']},{'name':1})
+                        res= {'rows': queryresult, 'screenName':screen['name']}
+                    else:
+                        res= {'rows': queryresult}
                     # if (not requestdata.has_key('readonly')):
                     #     count = debugcounter + 1
                     #     userid = requestdata['userid']
