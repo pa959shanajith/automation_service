@@ -788,14 +788,14 @@ def LoadServices(app, redissession, n68session):
                         n68session.tasks.insert_many(tasks_insert)
                     if len(tasks_remove)>0:
                         tasks_remove=[ObjectId(t) for t in tasks_remove]
-                        n68session.tasks.delete_many({"nodeid":{"$in":tasks_remove}})
+                        n68session.tasks.delete_many({"_id":{"$in":tasks_remove}})
                     res={"rows":"success"}
                 elif action=="updatestatus":
                     status=requestdata['status']
                     n68session.tasks.update({"_id":ObjectId(requestdata["id"])},{"$set":{"status":status}})
                     res={"rows":"success"}
                 elif action == "delete":
-                    n68session.tasks.delete({"_id":ObjectId(requestdata["id"]),"cycle":ObjectId(requestdata["cycleid"])})
+                    n68session.tasks.delete({"_id":ObjectId(requestdata["id"])})
                     res={"rows":"success"}
             else:
                 app.logger.warn('Empty data received. manage users.')
