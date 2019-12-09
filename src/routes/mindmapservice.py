@@ -457,7 +457,11 @@ def LoadServices(app, redissession, n68session):
                 finaldata["children"]=[]
                 finaldata["completeFlow"]=True
                 finaldata["type"]="modules" if mindmaptype=="basic" else "endtoend"
-                finaldata["task"]=moduledata[mindmapdata["_id"]]["task"] if mindmapdata["_id"] in moduledata and 'task' in moduledata[mindmapdata["_id"]] else None
+                if mindmapdata["_id"] in moduledata and 'task' in moduledata[mindmapdata["_id"]] and moduledata[mindmapdata["_id"]]["task"]["status"] != 'complete':
+                    finaldata["task"]=moduledata[mindmapdata["_id"]]["task"]
+                else:
+                    finaldata["task"]=None
+                # finaldata["task"]=moduledata[mindmapdata["_id"]]["task"] if mindmapdata["_id"] in moduledata and 'task' in moduledata[mindmapdata["_id"]] else None
                 finaldata["taskexists"]=moduledata[mindmapdata["_id"]]["taskexists"] if mindmapdata["_id"] in moduledata and 'taskexists' in moduledata[mindmapdata["_id"]] else None
 
 
@@ -478,7 +482,10 @@ def LoadServices(app, redissession, n68session):
                         finalscenariodata["children"]=[]
                         finalscenariodata["state"]="saved"
                         finalscenariodata["reuse"]=scenariodata[ts["_id"]]["reuse"]
-                        finalscenariodata["task"]=scenariodata[ts["_id"]]['task'] if 'task' in scenariodata[ts["_id"]] else None
+                        if 'task' in scenariodata[ts["_id"]] and scenariodata[ts["_id"]]["task"]["status"] != "complete":
+                            finalscenariodata["task"]=scenariodata[ts["_id"]]['task']  
+                        else: 
+                            finalscenariodata["task"]=None
                         finalscenariodata["taskexists"]=scenariodata[ts["_id"]]['taskexists'] if 'taskexists' in scenariodata[ts["_id"]] else None
                         i=i+1
                         if "screens" in ts:
@@ -496,7 +503,10 @@ def LoadServices(app, redissession, n68session):
                                 finalscreendata["children"]=[]
                                 finalscreendata["reuse"]=screendata[sc["_id"]]["reuse"]
                                 finalscreendata["state"]="saved"
-                                finalscreendata["task"]=screendata[sc["_id"]]['task'] if 'task' in screendata[sc["_id"]] else None
+                                if 'task' in screendata[sc["_id"]] and screendata[sc["_id"]]['task']["status"] != "complete":
+                                    finalscreendata["task"]=screendata[sc["_id"]]['task'] 
+                                else:
+                                    finalscreendata["task"]=None
                                 finalscreendata["taskexists"]=screendata[sc["_id"]]['taskexists'] if 'taskexists' in screendata[sc["_id"]] else None
                                 j=j+1
                                 if "testcases" in sc:
@@ -513,7 +523,10 @@ def LoadServices(app, redissession, n68session):
                                         finaltestcasedata["children"]=[]
                                         finaltestcasedata["reuse"]=testcasedata[tc]["reuse"]
                                         finaltestcasedata["state"]="saved"
-                                        finaltestcasedata["task"]=testcasedata[tc]['task'] if 'task' in testcasedata[tc] else None
+                                        if 'task' in testcasedata[tc] and testcasedata[tc]['task']['status'] != 'complete':
+                                            finaltestcasedata["task"]=testcasedata[tc]['task'] 
+                                        else:
+                                            finaltestcasedata["task"]=None
                                         finaltestcasedata["taskexists"]=testcasedata[tc]['taskexists'] if 'taskexists' in testcasedata[tc] else None
                                         k=k+1
                                         finalscreendata["children"].append(finaltestcasedata)
@@ -789,14 +802,26 @@ def LoadServices(app, redissession, n68session):
                     if requestdata["status"] == "underReview":
                         status="complete"
                         assignedto=''
+                        startdate=''
+                        enddate=''
+                        owner=''
+                        reviewer=''
                         # n68session.tasks.update({"_id":ObjectId(requestdata["id"])},{"$set":{"status":status,"history":history,"assignedto":''}})
                     elif (requestdata["status"] == "inprogress" or requestdata["status"] == "assigned" or requestdata["status"] == "reassigned") and task['reviewer'] != "select reviewer":
                         status="underReview"
                         assignedto=task["reviewer"]
+                        startdate=task["startdate"]
+                        enddate=task["enddate"]
+                        owner=task["owner"]
+                        reviewer=task["reviewer"]
                         # n68session.tasks.update({"_id":ObjectId(requestdata["id"])},{"$set":{"status":status,"history":history,"assignedto":task["reviewer"]}})
                     elif (requestdata["status"] == "reassign"):
                         status="reassigned"
                         assignedto=task["owner"]
+                        startdate=task["startdate"]
+                        enddate=task["enddate"]
+                        owner=task["owner"]
+                        reviewer=task["reviewer"]
                     requestdata["history"]["status"]=status
                     if(len(task["history"])==0):
                         requestdata["history"]["userid"]=ObjectId(requestdata["history"]["userid"])
@@ -805,10 +830,10 @@ def LoadServices(app, redissession, n68session):
                         history=task["history"]
                         requestdata["history"]["userid"]=ObjectId(requestdata["history"]["userid"])
                         history.append(requestdata["history"])
-                    n68session.tasks.update({"_id":ObjectId(requestdata["id"])},{"$set":{"status":status,"history":history,"assignedto":assignedto}})
+                    n68session.tasks.update({"_id":ObjectId(requestdata["id"])},{"$set":{"status":status,"history":history,"assignedto":assignedto,"owner":owner,"startdate":startdate,"enddate":enddate,"reviewer":reviewer}})
                     res={"rows":"success"}
                 elif action == "delete":
-                    n68session.tasks.delete({"_id":ObjectId(requestdata["id"])})
+                    n68session.tasks.delete({"_id":ObjectId(requestdata["id"]),"cycle":ObjectId(requestdata["cycleid"])})
                     res={"rows":"success"}
             else:
                 app.logger.warn('Empty data received. manage users.')
