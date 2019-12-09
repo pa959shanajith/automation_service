@@ -76,7 +76,7 @@ def LoadServices(app, redissession, n68session2):
                     screenID = ObjectId(data["screenid"])
                     screenshot = data["scrapedata"]["mirror"]
                     modifiedbyrole= data["modifiedByrole"]
-                    modifiedby = data["modifiedbyID"]
+                    modifiedby = data["modifiedby"]
                     if "propedit" in requestdata:
                         data_obj=requestdata["propedit"]
                         for i in range(len(data_obj)):
@@ -133,9 +133,8 @@ def LoadServices(app, redissession, n68session2):
                     data_push["parent"] = [screenID]
                     scrapedurl = ""
                     modifiedon=""
-                    modifiedbyrole=""
-                    modifiedby=""
-                    screenshot=""
+                    modifiedbyrole= data["modifiedByrole"]
+                    modifiedby = data["modifiedby"]
                     Old_obj = list(n68session2.dataobjects.find({"parent":data_push["parent"]}))
                     if (len(Old_obj) == 0):
                         n68session2.dataobjects.insert(data_push)
