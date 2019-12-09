@@ -67,7 +67,7 @@ def LoadServices(app, redissession, n68session2, webocularsession):
             app.logger.debug("Inside reportStatusScenarios_ICE. Query: "+str(requestdata["query"]))
             if not isemptyrequest(requestdata):
                 if(requestdata["query"] == 'executiondetails'):
-                    queryresult = list(n68session2.reports.find({"executionid":ObjectId(requestdata["executionid"])},{"_id":1,"executionid":1,"executedon":1,"comments":1,"executedtime":1,"modifiedby":1,"modifiedbyrole":1,"modifiedon":1,"status":1,"report":1,"testscenarioid":1}))
+                    queryresult = list(n68session2.reports.find({"executionid":ObjectId(requestdata["executionid"])},{"_id":1,"executionid":1,"executedon":1,"comments":1,"executedtime":1,"modifiedby":1,"modifiedbyrole":1,"modifiedon":1,"status":1,"testscenarioid":1}))
                     res= {"rows":queryresult}
                 elif(requestdata["query"] == 'scenarioname'):
                     queryresult = list(n68session2.testscenarios.find({"_id":ObjectId(requestdata["scenarioid"])},{"name":1}))
