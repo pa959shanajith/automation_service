@@ -784,6 +784,8 @@ def LoadServices(app, redissession, n68session):
                             i["parent"]=ObjectId(i["parent"])
                         i["reviewer"]=ObjectId(i["reviewer"])
                         i["projectid"]=ObjectId(i["projectid"])
+                        if i['details']=='':
+                            i['details']=i['tasktype']+" "+i['nodetype']+" "+i['name']
                     if len(tasks_insert)>0:
                         n68session.tasks.insert_many(tasks_insert)
                     if len(tasks_remove)>0:
