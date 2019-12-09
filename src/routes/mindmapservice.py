@@ -29,7 +29,7 @@ def LoadServices(app, redissession, n68session):
            if not isemptyrequest(requestdata):
                 projectid=requestdata['projectid']
                 dbconn=n68session["projects"]
-                getProjectType=list(dbconn.find({"_id":ObjectId(projectid)},{"type":1}))
+                getProjectType=list(dbconn.find({"_id":ObjectId(projectid)},{"type":1,"releases.name":1,"releases.cycles.name":1,"releases.cycles._id":1}))
                 dbconn=n68session["projecttypekeywords"]
                 getProjectTypeName= list(dbconn.find({"_id":ObjectId(getProjectType[0]["type"])},{"name":1}))
                 res={'rows':getProjectType,'projecttype':getProjectTypeName}
@@ -367,7 +367,7 @@ def LoadServices(app, redissession, n68session):
             tab=requestdata['tab']
             app.logger.debug("Inside getModules. Query: "+str(requestdata["name"]))
             if 'moduleid' in requestdata and requestdata['moduleid']!=None:
-                mindmapdata=n68session.mindmaps.find_one({"_id":ObjectId(requestdata["moduleid"])},{"testscenarios":1,"_id":1,"name":1,"projectid":1,"type":1})
+                mindmapdata=n68session.mindmaps.find_one({"_id":ObjectId(requestdata["moduleid"])},{"testscenarios":1,"_id":1,"name":1,"projectid":1,"type":1,"versionnumber":1})
                 mindmaptype=mindmapdata["type"]
                 scenarioids=[]
                 screenids=[]
@@ -464,6 +464,7 @@ def LoadServices(app, redissession, n68session):
                 finaldata["type"]="modules"
                 finaldata["childIndex"]=0
                 finaldata["state"]="saved"
+                finaldata["versionnumber"]=mindmapdata["versionnumber"]
                 finaldata["children"]=[]
                 finaldata["completeFlow"]=True
                 finaldata["type"]="modules" if mindmaptype=="basic" else "endtoend"
