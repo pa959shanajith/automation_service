@@ -73,9 +73,12 @@ def LoadServices(app, redissession, n68session,licensedata):
                     if(action=="delete"):
                         userid=n68session.users.find_one({"name":requestdata['name']},{"_id":1})
                         result=n68session.users.delete_one({"name":requestdata['name']})
-                        n68session.tasks.update_many({"assignedto":userid["_id"]},{"$set":{"assignedto":""}})
-                        n68session.tasks.update_many({"assignedto":userid["_id"]},{"$set":{"reviewer":""}})
-                        n68session.tasks.update_many({"owner":userid["_id"]},{"$set":{"owner":""}})
+                        # n68session.tasks.update_many({"assignedto":userid["_id"]},{"$set":{"assignedto":""}})
+                        # n68session.tasks.update_many({"assignedto":userid["_id"]},{"$set":{"reviewer":""}})
+                        # n68session.tasks.update_many({"owner":userid["_id"]},{"$set":{"owner":""}})
+                        n68session.tasks.delete_many({"assignedto":ObjectId(requestdata["userid"]),"status":{"$ne":'complete'}})
+                        n68session.tasks.delete_many({"owner":ObjectId(requestdata["userid"]),"status":{"$ne":'complete'}})
+                        n68session.tasks.update_many({"reviewer":ObjectId(requestdata["userid"]),"status":{"$ne":'complete'}},{"$set":{"status":"inprogress","reviewer":""}})
                         res={"rows":"success"}
                     elif(action=="create"):
                         result=n68session.users.find_one({"name":requestdata['name']},{"name":1})
@@ -322,7 +325,7 @@ def LoadServices(app, redissession, n68session,licensedata):
                             cycles["modifiedon"]=cycles["createdon"]=datetime.now()
                             cycles["modifiedbyrole"]=cycles["createdbyrole"]=ObjectId(requestdata["createdbyrole"])
                             cycleid=cycles["_id"]=ObjectId()
-                            cycles["name"]=requestdata["cyclename"]
+                            cycles["name"]=requestdata["name"]
                             i["cycles"].append(cycles)
                     n68session.projects.update({"_id":ObjectId(requestdata["projectid"])},{"$set":{"releases":result}})
                     res={'rows':'success'}
@@ -449,18 +452,40 @@ def LoadServices(app, redissession, n68session,licensedata):
         try:
             requestdata=json.loads(request.data)
             if not isemptyrequest(requestdata):
+                domains=n68session.projects.distinct("domain")
+                project={}
+                for i in domains:
+                    projects=list(n68session.projects.find({"domain":i},{"_id":1}))
+                    project[i]=[]
+                    for j in projects:
+                        project[i].append(j["_id"])
+                assigned_pro=n68session.users.find_one({"_id":ObjectId(requestdata["userid"])},{"projects":1})["projects"]
                 if (requestdata['alreadyassigned'] != True):
-                    projects=[]
+                    projects=assigned_pro
                     for i in requestdata["projectids"]:
                         projects.append(ObjectId(i))
                     result=n68session.users.update_one({"_id":ObjectId(requestdata["userid"])},{"$set":{"projects":projects}})
                     res={'rows':'success'}
                 elif (requestdata['alreadyassigned'] == True):
                     result=[]
+                    for i in requestdata["projectids"]:
+                        result.append(ObjectId(i))
+                    diff_pro=list(set(assigned_pro) - set(result))
+                    remove_pro=[]
+                    for k,v in project.items():
+                        for i in range(0,len(diff_pro)):
+                            if k != requestdata["domainid"] and diff_pro[i] in v:
+                                result.append(diff_pro[i])
+                            elif k == requestdata["domainid"] and diff_pro[i] in v:
+                                remove_pro.append(diff_pro[i])
+
                     # list(n68session.users.find({"_id":ObjectId(requestdata["userid"])},{"projects":1}))
-                    for idval in requestdata['projectids']:
-                        result.append(ObjectId(idval))
+                    # for idval in requestdata['projectids']:
+                    #     result.append(ObjectId(idval))
                     result=n68session.users.update_one({"_id":ObjectId(requestdata["userid"])},{"$set":{"projects":result}})
+                    n68session.tasks.delete_many({"projectid":{"$in":remove_pro},"assignedto":ObjectId(requestdata["userid"]),"status":{"$ne":'complete'}})
+                    n68session.tasks.delete_many({"projectid":{"$in":remove_pro},"owner":ObjectId(requestdata["userid"]),"status":{"$ne":'complete'}})
+                    n68session.tasks.update_many({"projectid":{"$in":remove_pro},"reviewer":ObjectId(requestdata["userid"]),"status":{"$ne":'complete'}},{"$set":{"status":"inprogress","reviewer":""}})
                     res={'rows':'success'}
                 else:
                    res={'rows':'fail'}
