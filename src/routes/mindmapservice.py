@@ -724,8 +724,7 @@ def LoadServices(app, redissession, n68session):
         "modifiedbyrole":ObjectId(createdbyrole),
         "modifiedon":createdon,
         "screenshot":"",
-        "scrapedurl":"",
-        "testcases":[]
+        "scrapedurl":""
         }
         queryresult=n68session.screens.insert_one(data).inserted_id
         print("Save Screen",queryresult)
