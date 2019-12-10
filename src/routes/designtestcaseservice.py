@@ -5,9 +5,12 @@
 from utils import *
 from Crypto.Cipher import AES
 import codecs
+from pymongo import InsertOne
 
 def LoadServices(app, redissession, n68session2):
     setenv(app)
+    defcn = ['@Window', '@Object', '@System', '@Excel', '@Mobile', '@Android_Custom', '@Word', '@Custom', '@CustomiOS',
+                                '@Generic', '@Browser', '@Action', '@Email', '@BrowserPopUp', '@Sap', 'WebService List', 'Mainframe List']
 
 ################################################################################
 # END OF DEFAULT METHODS AND IMPORTS       -----------DO NOT EDIT
@@ -172,8 +175,6 @@ def LoadServices(app, redissession, n68session2):
                     del requestdata['testcasesteps']
                 else:
                     #Import testcase
-                    defcn = ['@Window', '@Object', '@System', '@Excel', '@Mobile', '@Android_Custom', '@Word', '@Custom', '@CustomiOS',
-                                '@Generic', '@Browser', '@Action', '@Email', '@BrowserPopUp', '@Sap', 'WebService List', 'Mainframe List']
                     missingCustname = {}
                     for so in requestdata['testcasesteps']:
                         cid = cname = so["custname"]
@@ -210,20 +211,29 @@ def LoadServices(app, redissession, n68session2):
 
 
     def update_steps(steps,dataObjects):
-        for j in steps:
-            j['objectName'], j['url'], j['addTestCaseDetailsInfo'], j['addTestCaseDetails'] = '', '', '', ''
-            if 'addDetails' in j:
-                j['addTestCaseDetailsInfo'] = j['addDetails']
-                del j['addDetails']
-            if j['custname'] == "@Custom":
-                j['objectName'] = "@Custom"
-                continue
-            if 'custname' in j.keys():
-                if j['custname'] in dataObjects.keys():
-                    j['objectName'] = dataObjects[j['custname']]['xpath']
-                    j['url'] = dataObjects[j['custname']]['url'] if 'url' in dataObjects[j['custname']] else ""
-                    j['cord'] = dataObjects[j['custname']]['cord'] if 'cord' in dataObjects[j['custname']] else ""
-                    j['custname'] = dataObjects[j['custname']]['custname']
+        del_flag = False
+        try:
+            for j in steps:
+                j['objectName'], j['url'], j['addTestCaseDetailsInfo'], j['addTestCaseDetails'] = '', '', '', ''
+                if 'addDetails' in j:
+                    j['addTestCaseDetailsInfo'] = j['addDetails']
+                    del j['addDetails']
+                if j['custname'] == "@Custom":
+                    j['objectName'] = "@Custom"
+                    continue
+                if 'custname' in j.keys():
+                    if j['custname'] in dataObjects.keys():
+                        j['objectName'] = dataObjects[j['custname']]['xpath']
+                        j['url'] = dataObjects[j['custname']]['url'] if 'url' in dataObjects[j['custname']] else ""
+                        j['cord'] = dataObjects[j['custname']]['cord'] if 'cord' in dataObjects[j['custname']] else ""
+                        j['custname'] = dataObjects[j['custname']]['custname']
+                    elif j['custname'] not in defcn:
+                        j['custname'] = 'OBJECT_DELETED'
+                        del_flag = True
+        except Exception as e:
+            servicesException('readTestCase_ICE',e)
+        return del_flag
+
 
 
     #test case reading service
@@ -253,8 +263,8 @@ def LoadServices(app, redissession, n68session2):
                             dataObjects = {}
                             if (queryresult1 != []):
                                 dataObjects = {i['_id']:i for i in queryresult1}
-                            update_steps(k['steps'],dataObjects)
-                    res= {'rows': queryresult}
+                            del_flag = update_steps(k['steps'],dataObjects)
+                    res= {'rows': queryresult, 'del_flag':del_flag}
                 else:
                     queryresult = list(n68session2.testcases.find({'_id':ObjectId(requestdata['testcaseid']),'versionnumber':requestdata['versionnumber']},{'screenid':1,'steps':1,'name':1,'_id':0}))
                     queryresult1 = list(n68session2.dataobjects.find({'parent':queryresult[0]['screenid']},{'parent':0}))
@@ -262,12 +272,12 @@ def LoadServices(app, redissession, n68session2):
                     if (queryresult1 != []):
                         dataObjects = {i['_id']:i for i in queryresult1}
                     if (queryresult != []):
-                        update_steps(queryresult[0]['steps'],dataObjects)
+                        del_flag = update_steps(queryresult[0]['steps'],dataObjects)
                     if 'screenName' in requestdata and requestdata['screenName']=='fetch':
                         screen = n68session2.screens.find_one({'_id':queryresult[0]['screenid']},{'name':1})
-                        res= {'rows': queryresult, 'screenName':screen['name']}
+                        res= {'rows': queryresult, 'del_flag':del_flag, 'screenName':screen['name']}
                     else:
-                        res= {'rows': queryresult}
+                        res= {'rows': queryresult, 'del_flag':del_flag}
                     # if (not requestdata.has_key('readonly')):
                     #     count = debugcounter + 1
                     #     userid = requestdata['userid']
