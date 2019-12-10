@@ -19,11 +19,11 @@ def LoadServices(app, redissession, n68session2):
             requestdata=json.loads(request.data)
             app.logger.debug("Inside getScrapeDataScreenLevel_ICE. Query: "+str(requestdata["query"]))
             if not isemptyrequest(requestdata):
+                if ('testcaseid' in requestdata and requestdata['testcaseid']):
+                    screen_id = n68session2.testcases.find_one({'_id':ObjectId(requestdata['testcaseid'])},{'screenid':1})['screenid'] ##add versionnumber in condition if needed
+                else :
+                    screen_id = ObjectId(requestdata['screenid'])
                 if (requestdata['query'] == 'getscrapedata'):
-                    if ('testcaseid' in requestdata and requestdata['testcaseid']):
-                        screen_id = n68session2.testcases.find_one({'_id':ObjectId(requestdata['testcaseid'])},{'screenid':1})['screenid'] ##add versionnumber in condition if needed
-                    else :
-                        screen_id = ObjectId(requestdata['screenid'])
                     screen_query=list(n68session2.screens.find({"_id":screen_id,"deleted":False}))
                     if (screen_query != []):
                         dataobj_query = list(n68session2.dataobjects.find({"parent" :{"$in":[screen_id]}}))
