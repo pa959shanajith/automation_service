@@ -310,7 +310,7 @@ def LoadServices(app, redissession, n68session):
                     requestdata1["scheduledby"]=ObjectId(requestdata['userid'])
                     testsuiteids_list = [ObjectId(i) for i in requestdata['testsuiteids']]
                     requestdata1["testsuiteids"]=testsuiteids_list
-                    requestdata1["scenariodetails"]=requestdata["scenariodetails"]
+                    requestdata1["scenariodetails"]=json.loads(requestdata["scenariodetails"])
                     requestdata1["status"]=requestdata["schedulestatus"]
                     requestdata1["browserlist"]=requestdata["browserlist"]
                     # requestdata1["testsuiteids"]=requestdata["testsuiteids"]
