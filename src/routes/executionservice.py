@@ -317,11 +317,10 @@ def LoadServices(app, redissession, n68session):
                     res["rows"] =  n68session.scheduledexecution.insert(requestdata1)
 
                 elif(requestdata['query'] == 'getscheduledata'):
-                    res["rows"]= list(n68session.scheduledexecution.find({
-                    "scheduledon":requestdata['scheduledatetime'],"_id":ObjectId(requestdata['scheduleid'])}))
+                    res["rows"]= list(n68session.scheduledexecution.find({"_id":ObjectId(requestdata['scheduleid'])}))
 
                 elif(requestdata['query'] == 'updatescheduledstatus'):
-                    res["rows"] = list(n68session.scheduledexecution.update({"scheduledon":requestdata['scheduledatetime'],"_id":ObjectId(requestdata['scheduleid'])},{"$set":{"schedulestatus":requestdate["schedulestatus"]}}))
+                    res["rows"] = list(n68session.scheduledexecution.update({"_id":ObjectId(requestdata['scheduleid'])},{"$set":{"status":requestdata["schedulestatus"]}}))
 
 
                 elif(requestdata['query'] == 'getallscheduledetails'):
@@ -329,7 +328,7 @@ def LoadServices(app, redissession, n68session):
                         res["rows"]=list(n68session.scheduledexecution.find({}))
 
                     elif(requestdata['scheduledetails'] == 'getallscheduleddetails'):
-                        res=list(n68session.scheduledexecution.find({"status":"scheduled"}))
+                        res['rows']=list(n68session.scheduledexecution.find({"status":"scheduled"}))
 
 
                     elif(requestdata['scheduledetails'] == 'checkscheduleddetails'):
@@ -337,8 +336,8 @@ def LoadServices(app, redissession, n68session):
                         "target":requestdata["clientipaddress"]}))
 
                 elif(requestdata['query'] == 'getscheduledstatus'):
-                    res["rows"]=list(n68session.scheduledexecution.find({"cycleid":ObjectId(requestdata["cycleid"]),
-                    "scheduledon":requestdata["scheduledatetime"],"_id":ObjectId(requestdata["scheduleid"])},{"schedulestatus":1,"_id":0}))
+                    scheduleTime = requestdata["scheduledatetime"]
+                    res["rows"]=list(n68session.scheduledexecution.find({"_id":ObjectId(requestdata["scheduleid"])},{"status":1,"_id":0}))
 
                 else:
                     return jsonify(res)
