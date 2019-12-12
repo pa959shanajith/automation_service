@@ -24,13 +24,18 @@ def LoadServices(app, redissession, n68session2):
                 else :
                     screen_id = ObjectId(requestdata['screenid'])
                 if (requestdata['query'] == 'getscrapedata'):
-                    screen_query=list(n68session2.screens.find({"_id":screen_id,"deleted":False}))
+                    screen_query=n68session2.screens.find_one({"_id":screen_id,"deleted":False})
                     if (screen_query != []):
-                        dataobj_query = list(n68session2.dataobjects.find({"parent" :{"$in":[screen_id]}}))
-                        res["rows"] = {"view":dataobj_query,"scrapedurl":(screen_query[0]["scrapedurl"] if ("scrapedurl" in screen_query[0]) else ""),"mirror":(screen_query[0]["screenshot"] if ("screenshot" in screen_query[0]) else ""),"name":screen_query[0]["name"]}
+                        dataobj_query = list(n68session2.dataobjects.find({"parent" :screen_id}))
+                        if "scrapeinfo" in screen_query and 'header' in screen_query["scrapeinfo"]:
+                            dataobj_query = [screen_query["scrapeinfo"]]
+                        res["rows"] = {"view":dataobj_query,"scrapedurl":(screen_query["scrapedurl"] if ("scrapedurl" in screen_query) else ""),"mirror":(screen_query["screenshot"] if ("screenshot" in screen_query) else ""),"name":screen_query["name"]}
                 if (requestdata['query']=="getWSscrapedata"):
-                        dataobj_query = list(n68session2.dataobjects.find({"parent" :{"$in":[screen_id]}}))
-                        res = {"rows":dataobj_query}
+                    #dataobj_query = list(n68session2.dataobjects.find({"parent" :screen_id}))
+                    scrapeinfo = n68session2.screens.find_one({"_id":screen_id,"deleted":False},{'_id':0,'scrapeinfo':1})
+                    res["rows"] = scrapeinfo['scrapeinfo'] if 'scrapeinfo' in scrapeinfo else {}
+                    #res["rows"]["view"] = dataobj_query
+                    #res = {"rows":dataobj_query}
             else:
                 app.logger.warn('Empty data received. reading Testcase')
         except Exception as getscrapedataexc:
@@ -49,6 +54,9 @@ def LoadServices(app, redissession, n68session2):
                 if data["type"] == "delete_obj":
                     data_obj=json.loads(data["scrapedata"])
                     data_push=[]
+                    #screenshot = data["scrapedata"]["mirror"]
+                    modifiedbyrole= data["modifiedByrole"]
+                    modifiedby = data["modifiedby"]
                     screenID = ObjectId(data["screenid"])
                     if data_obj==['deleteAll']:
                         #1-drop document for single parent element #2- pop out screen id from parent for multiple parent element
@@ -60,15 +68,21 @@ def LoadServices(app, redissession, n68session2):
                                 data_push.append(ObjectId(data_obj[i]["_id"]))
                         n68session2.dataobjects.update_many({"_id":{"$in":data_push},"$and":[{"parent.1":{"$exists":True}},{"parent":screenID}]},{"$pull":{"parent":screenID}})
                         n68session2.dataobjects.delete_many({"_id":{"$in":data_push},"$and":[{"parent":{"$size": 1}},{"parent":screenID}]})
+                    n68session2.screens.update({"_id":screenID},{"$set":{"modifiedby":modifiedby,'modifiedbyrole':modifiedbyrole},"$currentDate": {"modifiedon": True}})
                     res = {"rows":"Success"}
                 elif data["type"] == "update_obj":
                     data_obj=json.loads(data["scrapedata"])
+                    screenID = ObjectId(data["screenid"])
+                    #screenshot = data["scrapedata"]["mirror"]
+                    modifiedbyrole= data["modifiedByrole"]
+                    modifiedby = data["modifiedby"]
                     data_push=[]
                     try:
                         for i in range(len(data_obj)):
                             data_id=ObjectId(data_obj[i][0])
                             cust_name=data_obj[i][1]
                             n68session2.dataobjects.update({"_id": data_id},{"$set":{"custname":cust_name}})
+                        n68session2.screens.update({"_id":screenID},{"$set":{"modifiedby":modifiedby,'modifiedbyrole':modifiedbyrole},"$currentDate": {"modifiedon": True}})
                         res = {"rows":"Success"}
                     except:
                         res = {"rows":"fail"}
@@ -83,14 +97,14 @@ def LoadServices(app, redissession, n68session2):
                             data_id=ObjectId(data_obj[i]["_id"])
                             del data_obj[i]["_id"]
                             n68session2.dataobjects.update({"_id": data_id},{"$set":data_obj[i]})
-                        res = {"rows":"Success"}
+                        #res = {"rows":"Success"}
                     if "modobj" in data["scrapedata"]:
                         data_obj=data["scrapedata"]["modobj"]
                         for i in range(len(data_obj)):
                             data_id=ObjectId(data_obj[i][0])
                             cust_name=data_obj[i][1]
                             n68session2.dataobjects.update({"_id": data_id},{"$set":{"custname":cust_name}})
-                        res = {"rows":"Success"}
+                        #res = {"rows":"Success"}
                     data_obj=data["scrapedata"]["view"]
                     data_push=[]
                     for i in range(len(data_obj)):
@@ -100,14 +114,16 @@ def LoadServices(app, redissession, n68session2):
                         n68session2.dataobjects.insert(data_push)
                     if "scrapedurl" in data["scrapedata"]:
                         scrapedurl = data["scrapedata"]["scrapedurl"]
-                        n68session2.screens.update({"_id":screenID},{"$set":{"screenshot":screenshot,"scrapedurl":scrapedurl,"modifiedby":modifiedby},"$currentDate": {"modifiedon": True}})
+                        n68session2.screens.update({"_id":screenID},{"$set":{"screenshot":screenshot,"scrapedurl":scrapedurl,"modifiedby":modifiedby, 'modifiedbyrole':modifiedbyrole},"$currentDate": {"modifiedon": True}})
                     else:
-                        n68session2.screens.update({"_id":screenID},{"$set":{"screenshot":screenshot,"modifiedby":modifiedby},"$currentDate": {"modifiedon": True}})
+                        n68session2.screens.update({"_id":screenID},{"$set":{"screenshot":screenshot,"modifiedby":modifiedby, 'modifiedbyrole':modifiedbyrole},"$currentDate": {"modifiedon": True}})
                     res = {"rows":"Success"}
                 elif data["type"] == "map_obj":
                     del_obj = data["scrapedata"][0]
                     update_obj= data["scrapedata"][1]
                     screenID = ObjectId(data["screenid"])
+                    modifiedbyrole= data["modifiedByrole"]
+                    modifiedby = data["modifiedby"]
                     data_push=[]
                     for i in range(len(update_obj)):
                         new_id=ObjectId(update_obj[i][0])
@@ -122,29 +138,32 @@ def LoadServices(app, redissession, n68session2):
                             data_push.append(ObjectId(del_obj[i]))
                         n68session2.dataobjects.update_many({"_id":{"$in":data_push},"$and":[{"parent.1":{"$exists":True}},{"parent":screenID}]},{"$pull":{"parent":screenID}})
                         n68session2.dataobjects.delete_many({"_id":{"$in":data_push},"$and":[{"parent":{"$size": 1}},{"parent":screenID}]})
+                    n68session2.screens.update({"_id":screenID},{"$set":{"modifiedby":modifiedby,'modifiedbyrole':modifiedbyrole},"$currentDate": {"modifiedon": True}})
                     res = {"rows":"Success"}
                 elif data["type"] == "compare_obj":
                     data_obj=json.loads(data["scrapedata"])
+                    screenID = ObjectId(data["screenid"])
+                    modifiedbyrole= data["modifiedByrole"]
+                    modifiedby = data["modifiedby"]
                     data_push=[]
                     for i in range(len(data_obj["view"])):
                         ObjId=data_obj["view"][i]["_id"]
                         del data_obj["view"][i]["_id"]
                         n68session2.dataobjects.update({"_id" : ObjectId(ObjId)},{"$set":data_obj["view"][i]})
+                    n68session2.screens.update({"_id":screenID},{"$set":{"modifiedby":modifiedby,'modifiedbyrole':modifiedbyrole},"$currentDate": {"modifiedon": True}})
                     res = {"rows":"Success"}
                 elif data["type"] == "WS_obj":
                     screenID = ObjectId(data["screenid"])
-                    data_push = json.loads(data["scrapedata"])
-                    data_push["parent"] = [screenID]
-                    scrapedurl = ""
-                    modifiedon=""
+                    scrapeinfo = json.loads(data["scrapedata"])
                     modifiedbyrole= data["modifiedByrole"]
                     modifiedby = data["modifiedby"]
-                    Old_obj = list(n68session2.dataobjects.find({"parent":data_push["parent"]}))
-                    if (len(Old_obj) == 0):
-                        n68session2.dataobjects.insert(data_push)
-                    else:
-                        data_push["_id"] = Old_obj[0]["_id"]
-                        n68session2.dataobjects.save(data_push)
+                    n68session2.screens.update({"_id":screenID},{"$set":{"modifiedby":modifiedby,'modifiedbyrole':modifiedbyrole, 'scrapeinfo':scrapeinfo},"$currentDate": {"modifiedon": True}})
+                    # Old_obj = list(n68session2.dataobjects.find({"parent":data_push["parent"]}))
+                    # if (len(Old_obj) == 0):
+                    #     n68session2.dataobjects.insert(data_push)
+                    # else:
+                    #     data_push["_id"] = Old_obj[0]["_id"]
+                    #     n68session2.dataobjects.save(data_push)
                     res={"rows":"Success"}
 
             else:
