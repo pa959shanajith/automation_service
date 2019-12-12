@@ -88,7 +88,7 @@ def LoadServices(app, redissession, n68session2):
                         res = {"rows":"fail"}
                 elif data["type"] == "insert_obj":
                     screenID = ObjectId(data["screenid"])
-                    #screenshot = data["scrapedata"]["mirror"]
+                    screenshot = data["scrapedata"]["mirror"]
                     modifiedbyrole= data["modifiedByrole"]
                     modifiedby = data["modifiedby"]
                     if "propedit" in requestdata:
