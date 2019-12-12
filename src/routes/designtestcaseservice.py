@@ -103,7 +103,6 @@ def LoadServices(app, redissession, n68session2):
                     else: dodata[legend[i]] = ob[i]
                 dodata["height"] = dodata["top"] - dodata["height"]
                 dodata["width"] = dodata["left"] - dodata["width"]
-                dodata["tag"] = dodata["tag"].split("[")[0]
                 dodata["url"] = so["url"]
                 dodata["cord"] = so["cord"]
             elif so["appType"] in ["Web", "MobileWeb"]:
@@ -124,6 +123,8 @@ def LoadServices(app, redissession, n68session2):
                         else:
                             if ob[i] != "null": dodata[legend[i]] = ob[i]
                 except: pass
+                if "tag" in dodata: dodata["tag"] = dodata["tag"].split("[")[0]
+                if "class" in dodata: dodata["class"] = dodata["class"].split("[")[0]
                 dodata["url"] = so["url"]
                 dodata["cord"] = so["cord"]
             elif so["appType"] == "MobileApp":
@@ -151,16 +152,15 @@ def LoadServices(app, redissession, n68session2):
             app.logger.debug('Inside updateTestCase_ICE. Query: '+str(requestdata['query']))
             if not isemptyrequest(requestdata):
                 query_screen = n68session2.testcases.find_one({'_id':ObjectId(requestdata['testcaseid']),'versionnumber':requestdata['versionnumber']},{'screenid':1})
-                queryresult1 = list(n68session2.dataobjects.find({'parent':query_screen['screenid']},{"custname": 1}))
+                queryresult1 = list(n68session2.dataobjects.find({'parent':query_screen['screenid']}))
                 custnames = {}
                 if (queryresult1 != []):
-                        for doc in queryresult1:
-                            custnames[doc["custname"]] = doc["_id"]
+                    custnames = {i['custname']:i for i in queryresult1}
                 steps = []
                 if not (requestdata['import_status']):
                     for so in requestdata['testcasesteps']:
                         cid = cname = so["custname"]
-                        if cname in custnames: cid = custnames[cname]
+                        if cname in custnames: cid = custnames[cname]["_id"]
                         steps.append({
                             "stepNo": so["stepNo"],
                             "custname": cid,
@@ -178,10 +178,17 @@ def LoadServices(app, redissession, n68session2):
                     missingCustname = {}
                     for so in requestdata['testcasesteps']:
                         cid = cname = so["custname"]
-                        if cname in custnames: cid = custnames[cname]
+                        if cname in custnames:
+                            if (so["objectName"] == custnames[so['custname']]['xpath']) and (so['url'] == custnames[so['custname']]['url']):
+                                cid = custnames[cname]["_id"]
+                            else:
+                                so["custname"] = cname+"_new"
+                                cid = ObjectId()
+                                custnames[so["custname"]] = {"_id":cid,"xpath":so["objectName"],"url":so['url']}
+                                missingCustname[cid] = so
                         elif (cname not in custnames) and (cname not in defcn):
                             cid = ObjectId()
-                            custnames[cname] = cid
+                            custnames[cname] = {"_id":cid,"xpath":so["objectName"],"url":so['url']}
                             missingCustname[cid] = so
                         steps.append({
                             "stepNo": so["stepNo"],
@@ -229,7 +236,9 @@ def LoadServices(app, redissession, n68session2):
                         j['custname'] = dataObjects[j['custname']]['custname']
                     elif j['custname'] not in defcn:
                         j['custname'] = 'OBJECT_DELETED'
-                        del_flag = True
+                        if j['outputVal'].split(';')[-1] != '##':
+                            del_flag = True
+
         except Exception as e:
             servicesException('readTestCase_ICE',e)
         return del_flag
