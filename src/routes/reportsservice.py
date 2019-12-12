@@ -82,30 +82,48 @@ def LoadServices(app, redissession, n68session2, webocularsession):
     #fetching the reports
     @app.route('/reports/getReport_Nineteen68',methods=['POST'])
     def getReport_Nineteen68():
+        # from bson.json_util import dumps as mongo_dumps
+        # queryresult= []
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
             app.logger.debug("Inside getReport_Nineteen68. Query: "+str(requestdata["query"]))
             if not isemptyrequest(requestdata):
                 if(requestdata["query"] == 'projectsUnderDomain'):
-                    queryresult = list(n68session2.reports.find({"_id":ObjectId(requestdata["reportid"])},{"executionid":1,"executedtime":1,"report":1,"testscenarioid":1}))
-                    res= {"rows":queryresult}
-                elif(requestdata["query"] == 'scenariodetails'):
-                    queryresult = list(n68session2.testscenarios.find({"_id":ObjectId(requestdata["scenarioid"]),"deleted":False},{"name":1,"projectid":1}))
-                    res= {"rows":queryresult}
-                elif(requestdata["query"] == 'cycledetails'):
-                    queryresult = list(n68session2.projects.aggregate([
-                        {"$match":{"_id":ObjectId(requestdata["projectid"])}},
-                        {"$unwind":'$releases'},
-                        {"$unwind":'$releases.cycles'},
-                        {"$project":{"name":1,"releases.name":1,"releases.cycles.name":1,"domain":1}}
-                    ]))
-                    res= {"rows":queryresult}
+                    queryresult1 = n68session2.reports.find_one({"_id":ObjectId(requestdata["reportid"])},{"executedtime":1,"report":1,"testscenarioid":1})
+                    # scenarioid = queryresult1['testscenarioid']
+                    queryresult2 = n68session2.testscenarios.find_one({"_id":queryresult1['testscenarioid']},{"name":1,"projectid":1,"_id":0})
+                    # queryresult1.update(queryresult2)
+                    queryresult3 = n68session2.projects.find_one({"_id":queryresult2['projectid']},{"domain":1,"_id":0})
+                    # queryresult1.update(queryresult3)
+                    # queryresult1['testscenarioid'] = scenarioid
+                    # queryresult.append(queryresult1)
+                    query={
+                        'report': queryresult1["report"],
+                        'executedtime': queryresult1["executedtime"],
+                        'testscenarioid': queryresult1["testscenarioid"],
+                        'executionid': queryresult1["executionid"],
+                        'name': queryresult2["name"],
+                        'projectid': queryresult2["projectid"],
+                        'domain': queryresult3["domain"]
+                        }
+                    res= {"rows":query}
+                # elif(requestdata["query"] == 'scenariodetails'):
+                #     queryresult = list(n68session2.testscenarios.find({"_id":ObjectId(requestdata["scenarioid"]),"deleted":False},{"name":1,"projectid":1}))
+                #     res= {"rows":queryresult}
+                # elif(requestdata["query"] == 'cycledetails'):
+                #     queryresult = list(n68session2.projects.aggregate([
+                #         {"$match":{"_id":ObjectId(requestdata["projectid"])}},
+                #         {"$unwind":'$releases'},
+                #         {"$unwind":'$releases.cycles'},
+                #         {"$project":{"name":1,"releases.name":1,"releases.cycles.name":1,"domain":1}}
+                #     ]))
+                #     res= {"rows":queryresult}
             else:
                 app.logger.warn('Empty data received. report.')
         except Exception as getreportexc:
             servicesException("getReport_Nineteen68",getreportexc)
-        return jsonify(res)
+        return res
 
 
     #update jira defect id in report data
