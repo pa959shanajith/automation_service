@@ -31,7 +31,7 @@ def LoadServices(app, redissession, n68session, licensedata):
                 app.logger.warn('Empty data received. authentication')
         except Exception as loaduser_exc:
             app.logger.debug(traceback.format_exc())
-            servicesException('loadUser_Nineteen68 has encountered an exception : ',loaduser_exc)
+            servicesException('loadUser_Nineteen68',loaduser_exc)
         return jsonify(res)
 
     #NDAC service for loading permissions info
@@ -63,5 +63,5 @@ def LoadServices(app, redissession, n68session, licensedata):
                 app.logger.warn('Empty data received. authentication')
         except Exception as loadpermission_exc:
             app.logger.debug(traceback.format_exc())
-            servicesException('loadPermission_Nineteen68 has encountered an exception : ',loadpermission_exc)
+            servicesException('loadPermission_Nineteen68',loadpermission_exc)
         return jsonify(res)
