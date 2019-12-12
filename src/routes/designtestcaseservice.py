@@ -182,7 +182,7 @@ def LoadServices(app, redissession, n68session2):
                             if (so["objectName"] == custnames[so['custname']]['xpath']) and (so['url'] == custnames[so['custname']]['url']):
                                 cid = custnames[cname]["_id"]
                             else:
-                                so["custname"] = cname+"_new"
+                                so["custname"] = cname+str(datetime.datetime.today().timestamp())
                                 cid = ObjectId()
                                 custnames[so["custname"]] = {"_id":cid,"xpath":so["objectName"],"url":so['url']}
                                 missingCustname[cid] = so
