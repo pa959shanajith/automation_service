@@ -801,24 +801,18 @@ def LoadServices(app, redissession, n68session):
                     if requestdata["status"] == "underReview":
                         status="complete"
                         assignedto=''
-                        startdate=''
-                        enddate=''
                         owner=''
                         reviewer=''
                         # n68session.tasks.update({"_id":ObjectId(requestdata["id"])},{"$set":{"status":status,"history":history,"assignedto":''}})
                     elif (requestdata["status"] == "inprogress" or requestdata["status"] == "assigned" or requestdata["status"] == "reassigned") and task['reviewer'] != "select reviewer":
                         status="underReview"
                         assignedto=task["reviewer"]
-                        startdate=task["startdate"]
-                        enddate=task["enddate"]
                         owner=task["owner"]
                         reviewer=task["reviewer"]
                         # n68session.tasks.update({"_id":ObjectId(requestdata["id"])},{"$set":{"status":status,"history":history,"assignedto":task["reviewer"]}})
                     elif (requestdata["status"] == "reassign"):
                         status="reassigned"
                         assignedto=task["owner"]
-                        startdate=task["startdate"]
-                        enddate=task["enddate"]
                         owner=task["owner"]
                         reviewer=task["reviewer"]
                     requestdata["history"]["status"]=status
@@ -829,7 +823,7 @@ def LoadServices(app, redissession, n68session):
                         history=task["history"]
                         requestdata["history"]["userid"]=ObjectId(requestdata["history"]["userid"])
                         history.append(requestdata["history"])
-                    n68session.tasks.update({"_id":ObjectId(requestdata["id"])},{"$set":{"status":status,"history":history,"assignedto":assignedto,"owner":owner,"startdate":startdate,"enddate":enddate,"reviewer":reviewer}})
+                    n68session.tasks.update({"_id":ObjectId(requestdata["id"])},{"$set":{"status":status,"history":history,"assignedto":assignedto,"owner":owner,"reviewer":reviewer}})
                     res={"rows":"success"}
                 elif action == "delete":
                     n68session.tasks.delete({"_id":ObjectId(requestdata["id"]),"cycle":ObjectId(requestdata["cycleid"])})
