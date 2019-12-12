@@ -102,7 +102,6 @@ def LoadServices(app, redissession, n68session2, webocularsession):
                         'report': queryresult1["report"],
                         'executedtime': queryresult1["executedtime"],
                         'testscenarioid': queryresult1["testscenarioid"],
-                        'executionid': queryresult1["executionid"],
                         'name': queryresult2["name"],
                         'projectid': queryresult2["projectid"],
                         'domain': queryresult3["domain"]
