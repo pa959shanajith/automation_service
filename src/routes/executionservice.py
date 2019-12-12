@@ -251,7 +251,7 @@ def LoadServices(app, redissession, n68session):
                     querydata = {}
                     querydata["executedon"] = requestdata['browser']
                     querydata["executionid"] = ObjectId(requestdata['executionid'])
-                    #querydata["cycleid"] = ObjectId(requestdata['cycleid'])
+                    querydata["cycleid"] = ObjectId(requestdata['cycleid'])
                     querydata["testscenarioid"] = ObjectId(requestdata['testscenarioid'])
                     #querydata["testsuiteid"] = ObjectId(requestdata['testsuiteid'])
                     querydata["status"] = requestdata['status']
@@ -312,7 +312,7 @@ def LoadServices(app, redissession, n68session):
                     requestdata1["testsuiteids"]=testsuiteids_list
                     requestdata1["scenariodetails"]=json.loads(requestdata["scenariodetails"])
                     requestdata1["status"]=requestdata["schedulestatus"]
-                    requestdata1["browserlist"]=requestdata["browserlist"]
+                    requestdata1["executeon"]=requestdata["browserlist"]
                     # requestdata1["testsuiteids"]=requestdata["testsuiteids"]
                     res["rows"] =  n68session.scheduledexecutions.insert(requestdata1)
 
