@@ -19,11 +19,11 @@ def LoadServices(app, redissession, n68session2):
             requestdata=json.loads(request.data)
             app.logger.debug("Inside getScrapeDataScreenLevel_ICE. Query: "+str(requestdata["query"]))
             if not isemptyrequest(requestdata):
+                if ('testcaseid' in requestdata and requestdata['testcaseid']):
+                    screen_id = n68session2.testcases.find_one({'_id':ObjectId(requestdata['testcaseid'])},{'screenid':1})['screenid'] ##add versionnumber in condition if needed
+                else :
+                    screen_id = ObjectId(requestdata['screenid'])
                 if (requestdata['query'] == 'getscrapedata'):
-                    if ('testcaseid' in requestdata and requestdata['testcaseid']):
-                        screen_id = n68session2.testcases.find_one({'_id':ObjectId(requestdata['testcaseid'])},{'screenid':1})['screenid'] ##add versionnumber in condition if needed
-                    else :
-                        screen_id = ObjectId(requestdata['screenid'])
                     screen_query=list(n68session2.screens.find({"_id":screen_id,"deleted":False}))
                     if (screen_query != []):
                         dataobj_query = list(n68session2.dataobjects.find({"parent" :{"$in":[screen_id]}}))
@@ -109,15 +109,19 @@ def LoadServices(app, redissession, n68session2):
                     update_obj= data["scrapedata"][1]
                     screenID = ObjectId(data["screenid"])
                     data_push=[]
+                    for i in range(len(update_obj)):
+                        new_id=ObjectId(update_obj[i][0])
+                        old_id=ObjectId(update_obj[i][1])
+                        new_custname=update_obj[i][2]
+                        old_obj = n68session2.dataobjects.find_one({"_id": old_id})
+                        old_obj['_id'] = new_id
+                        old_obj['custname'] = new_custname
+                        n68session2.dataobjects.save(old_obj)
                     if len(del_obj)>0:
                         for i in range(len(del_obj)):
                             data_push.append(ObjectId(del_obj[i]))
                         n68session2.dataobjects.update_many({"_id":{"$in":data_push},"$and":[{"parent.1":{"$exists":True}},{"parent":screenID}]},{"$pull":{"parent":screenID}})
                         n68session2.dataobjects.delete_many({"_id":{"$in":data_push},"$and":[{"parent":{"$size": 1}},{"parent":screenID}]})
-                    for i in range(len(update_obj)):
-                            data_id=ObjectId(update_obj[i][0])
-                            cust_name=update_obj[i][1]
-                            n68session2.dataobjects.update({"_id": data_id},{"$set":{"custname":cust_name}})
                     res = {"rows":"Success"}
                 elif data["type"] == "compare_obj":
                     data_obj=json.loads(data["scrapedata"])

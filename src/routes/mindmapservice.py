@@ -29,7 +29,7 @@ def LoadServices(app, redissession, n68session):
            if not isemptyrequest(requestdata):
                 projectid=requestdata['projectid']
                 dbconn=n68session["projects"]
-                getProjectType=list(dbconn.find({"_id":ObjectId(projectid)},{"type":1}))
+                getProjectType=list(dbconn.find({"_id":ObjectId(projectid)},{"type":1,"releases.name":1,"releases.cycles.name":1,"releases.cycles._id":1}))
                 dbconn=n68session["projecttypekeywords"]
                 getProjectTypeName= list(dbconn.find({"_id":ObjectId(getProjectType[0]["type"])},{"name":1}))
                 res={'rows':getProjectType,'projecttype':getProjectTypeName}
@@ -367,33 +367,26 @@ def LoadServices(app, redissession, n68session):
             tab=requestdata['tab']
             app.logger.debug("Inside getModules. Query: "+str(requestdata["name"]))
             if 'moduleid' in requestdata and requestdata['moduleid']!=None:
-                mindmapdata=n68session.mindmaps.find_one({"_id":ObjectId(requestdata["moduleid"])},{"testscenarios":1,"_id":1,"name":1,"projectid":1,"type":1})
+                mindmapdata=n68session.mindmaps.find_one({"_id":ObjectId(requestdata["moduleid"])},{"testscenarios":1,"_id":1,"name":1,"projectid":1,"type":1,"versionnumber":1})
                 mindmaptype=mindmapdata["type"]
                 scenarioids=[]
                 screenids=[]
                 testcaseids=[]
-                # scenarioidsSeen=set()
-                # screenidsSeen=set()
-                # testcaseidsSeen=set()
                 taskids=[]
                 cycleid=requestdata['cycleid']
                 # Preparing data for fetching details of screens,testcases and scenarios
-                for ts in mindmapdata["testscenarios"]:
-                    #scenarios=mindmapdata[0]["testscenarios"]
-                    if ts["_id"] not in scenarioids:
-                        # scenarioidsSeen.add(scenarios[i]["_id"])
-                        scenarioids.append(ts["_id"])
-                    for sc in ts["screens"]:
-                        #screens=scenarios[i]["screens"]
-                        if sc["_id"] not in screenids:
-                            # screenidsSeen.add(screens[j]["_id"])
-                            screenids.append(sc["_id"])
-                        for tc in sc["testcases"]:
-                            # testcase=screens[j]["testcases"][k]
-                            # for l in range(len(testcases)):
-                            if tc not in testcaseids:
-                                # testcaseidsSeen.add(testcase)
-                                testcaseids.append(tc)
+                if "testscenarios" in mindmapdata:
+                    for ts in mindmapdata["testscenarios"]:
+                        if ts["_id"] not in scenarioids:
+                            scenarioids.append(ts["_id"])
+                        if "screens" in ts:
+                            for sc in ts["screens"]:
+                                if sc["_id"] not in screenids:
+                                    screenids.append(sc["_id"])
+                                if "testcases" in sc:
+                                    for tc in sc["testcases"]:
+                                        if tc not in testcaseids:
+                                            testcaseids.append(tc)
 
                 # Preparing data for fetching tasks based on nodeid
                 taskids.extend(scenarioids)
@@ -424,7 +417,6 @@ def LoadServices(app, redissession, n68session):
                     for t in taskdetails:
                         data_dict[t['nodetype']][t['nodeid']]={'taskexists':t}
 
-                # scenariodata={}
                 for ts in scenariodetails:
                     if ts["_id"] in scenariodata:
                         scenariodata[ts["_id"]]['name']=ts["name"]
@@ -435,7 +427,6 @@ def LoadServices(app, redissession, n68session):
                             'reuse': True if len(ts["parent"])>1 else False
                         }
 
-                # screendata={}
                 for sc in screendetails:
                     if sc["_id"] in screendata:
                         screendata[sc["_id"]]['name']=sc["name"]
@@ -445,7 +436,6 @@ def LoadServices(app, redissession, n68session):
                             "name":sc["name"],
                             "reuse":True if len(sc["parent"])>1 else False
                             }
-                # testcasedata={}
                 for tc in testcasedetails:
                     if tc["_id"] in testcasedata:
                         testcasedata[tc["_id"]]['name']=tc["name"]
@@ -454,7 +444,6 @@ def LoadServices(app, redissession, n68session):
                     else:
                         testcasedata[tc["_id"]]={
                         "name":tc["name"],
-                        # "reuse": True if len(testcasedetails[i]["parent"])>1 else False
                         "reuse": True if tc["parent"]>1 else False
                         }
                 finaldata={}
@@ -464,74 +453,85 @@ def LoadServices(app, redissession, n68session):
                 finaldata["type"]="modules"
                 finaldata["childIndex"]=0
                 finaldata["state"]="saved"
+                finaldata["versionnumber"]=mindmapdata["versionnumber"]
                 finaldata["children"]=[]
                 finaldata["completeFlow"]=True
                 finaldata["type"]="modules" if mindmaptype=="basic" else "endtoend"
-                finaldata["task"]=moduledata[mindmapdata["_id"]]["task"] if mindmapdata["_id"] in moduledata and 'task' in moduledata[mindmapdata["_id"]] else None
+                if mindmapdata["_id"] in moduledata and 'task' in moduledata[mindmapdata["_id"]] and moduledata[mindmapdata["_id"]]["task"]["status"] != 'complete':
+                    finaldata["task"]=moduledata[mindmapdata["_id"]]["task"]
+                else:
+                    finaldata["task"]=None
+                # finaldata["task"]=moduledata[mindmapdata["_id"]]["task"] if mindmapdata["_id"] in moduledata and 'task' in moduledata[mindmapdata["_id"]] else None
                 finaldata["taskexists"]=moduledata[mindmapdata["_id"]]["taskexists"] if mindmapdata["_id"] in moduledata and 'taskexists' in moduledata[mindmapdata["_id"]] else None
 
 
-
-                #finaldata["task"]=taskdata[mindmapdata["_id"]] if mindmapdata["_id"] in taskdata else None
                 projectid=mindmapdata["projectid"]
 
                 # Preparing final data in format needed
                 if len(mindmapdata["testscenarios"])==0 and mindmaptype=="basic":
                     finaldata["completeFlow"]=False
                 i=1
-                for ts in mindmapdata["testscenarios"]:
+                if "testscenarios" in mindmapdata:
+                    for ts in mindmapdata["testscenarios"]:
+                        finalscenariodata={}
+                        finalscenariodata["projectID"]=projectid
+                        finalscenariodata["_id"]=ts["_id"]
+                        finalscenariodata["name"]=scenariodata[ts["_id"]]["name"]
+                        finalscenariodata["type"]="scenarios"
+                        finalscenariodata["childIndex"]=i
+                        finalscenariodata["children"]=[]
+                        finalscenariodata["state"]="saved"
+                        finalscenariodata["reuse"]=scenariodata[ts["_id"]]["reuse"]
+                        if 'task' in scenariodata[ts["_id"]] and scenariodata[ts["_id"]]["task"]["status"] != "complete":
+                            finalscenariodata["task"]=scenariodata[ts["_id"]]['task']  
+                        else: 
+                            finalscenariodata["task"]=None
+                        finalscenariodata["taskexists"]=scenariodata[ts["_id"]]['taskexists'] if 'taskexists' in scenariodata[ts["_id"]] else None
+                        i=i+1
+                        if "screens" in ts:
+                            if len(ts["screens"])==0  and mindmaptype=="basic":
+                                finaldata["completeFlow"]=False
+                            j=1
+                            for sc in ts["screens"]:
 
-                    finalscenariodata={}
-                    #scenarios=mindmapdata["testscenarios"]
-                    finalscenariodata["projectID"]=projectid
-                    finalscenariodata["_id"]=ts["_id"]
-                    finalscenariodata["name"]=scenariodata[ts["_id"]]["name"]
-                    finalscenariodata["type"]="scenarios"
-                    finalscenariodata["childIndex"]=i
-                    finalscenariodata["children"]=[]
-                    finalscenariodata["state"]="saved"
-                    finalscenariodata["reuse"]=scenariodata[ts["_id"]]["reuse"]
-                    finalscenariodata["task"]=scenariodata[ts["_id"]]['task'] if 'task' in scenariodata[ts["_id"]] else None
-                    finalscenariodata["taskexists"]=scenariodata[ts["_id"]]['taskexists'] if 'taskexists' in scenariodata[ts["_id"]] else None
-                    i=i+1
-                    if len(ts["screens"])==0  and mindmaptype=="basic":
-                        finaldata["completeFlow"]=False
-                    j=1
-                    for sc in ts["screens"]:
-
-                        finalscreendata={}
-                        # screens=ts["screens"]
-                        finalscreendata["projectID"]=projectid
-                        finalscreendata["_id"]=sc["_id"]
-                        finalscreendata["name"]=screendata[sc["_id"]]["name"]
-                        finalscreendata["type"]="screens"
-                        finalscreendata["childIndex"]=j
-                        finalscreendata["children"]=[]
-                        finalscreendata["reuse"]=screendata[sc["_id"]]["reuse"]
-                        finalscreendata["state"]="saved"
-                        finalscreendata["task"]=screendata[sc["_id"]]['task'] if 'task' in screendata[sc["_id"]] else None
-                        finalscreendata["taskexists"]=screendata[sc["_id"]]['taskexists'] if 'taskexists' in screendata[sc["_id"]] else None
-                        j=j+1
-                        if len(sc["testcases"])==0 and mindmaptype=="basic":
-                            finaldata["completeFlow"]=False
-                        k=1
-                        for tc in sc["testcases"]:
-                            # testcase=sc["testcases"][k]
-                            finaltestcasedata={}
-                            finaltestcasedata["projectID"]=projectid
-                            finaltestcasedata["_id"]=tc
-                            finaltestcasedata["name"]=testcasedata[tc]["name"]
-                            finaltestcasedata["type"]="testcases"
-                            finaltestcasedata["childIndex"]=k
-                            finaltestcasedata["children"]=[]
-                            finaltestcasedata["reuse"]=testcasedata[tc]["reuse"]
-                            finaltestcasedata["state"]="saved"
-                            finaltestcasedata["task"]=testcasedata[tc]['task'] if 'task' in testcasedata[tc] else None
-                            finaltestcasedata["taskexists"]=testcasedata[tc]['taskexists'] if 'taskexists' in testcasedata[tc] else None
-                            k=k+1
-                            finalscreendata["children"].append(finaltestcasedata)
-                        finalscenariodata["children"].append(finalscreendata)
-                    finaldata["children"].append(finalscenariodata)
+                                finalscreendata={}
+                                finalscreendata["projectID"]=projectid
+                                finalscreendata["_id"]=sc["_id"]
+                                finalscreendata["name"]=screendata[sc["_id"]]["name"]
+                                finalscreendata["type"]="screens"
+                                finalscreendata["childIndex"]=j
+                                finalscreendata["children"]=[]
+                                finalscreendata["reuse"]=screendata[sc["_id"]]["reuse"]
+                                finalscreendata["state"]="saved"
+                                if 'task' in screendata[sc["_id"]] and screendata[sc["_id"]]['task']["status"] != "complete":
+                                    finalscreendata["task"]=screendata[sc["_id"]]['task'] 
+                                else:
+                                    finalscreendata["task"]=None
+                                finalscreendata["taskexists"]=screendata[sc["_id"]]['taskexists'] if 'taskexists' in screendata[sc["_id"]] else None
+                                j=j+1
+                                if "testcases" in sc:
+                                    if len(sc["testcases"])==0 and mindmaptype=="basic":
+                                        finaldata["completeFlow"]=False
+                                    k=1
+                                    for tc in sc["testcases"]:
+                                        finaltestcasedata={}
+                                        finaltestcasedata["projectID"]=projectid
+                                        finaltestcasedata["_id"]=tc
+                                        finaltestcasedata["name"]=testcasedata[tc]["name"]
+                                        finaltestcasedata["type"]="testcases"
+                                        finaltestcasedata["childIndex"]=k
+                                        finaltestcasedata["children"]=[]
+                                        finaltestcasedata["reuse"]=testcasedata[tc]["reuse"]
+                                        finaltestcasedata["state"]="saved"
+                                        if 'task' in testcasedata[tc] and testcasedata[tc]['task']['status'] != 'complete':
+                                            finaltestcasedata["task"]=testcasedata[tc]['task'] 
+                                        else:
+                                            finaltestcasedata["task"]=None
+                                        finaltestcasedata["taskexists"]=testcasedata[tc]['taskexists'] if 'taskexists' in testcasedata[tc] else None
+                                        k=k+1
+                                        finalscreendata["children"].append(finaltestcasedata)
+                                finalscenariodata["children"].append(finalscreendata)
+                        finaldata["children"].append(finalscenariodata)
 
                 res={'rows':finaldata}
             else:
@@ -575,8 +575,9 @@ def LoadServices(app, redissession, n68session):
                 moduledetails=list(n68session.mindmaps.find({"_id":ObjectId(moduleid)},{"testscenarios":1}))
                 scenarioids=[]
                 for mod in moduledetails:
-                    for sce in mod["testscenarios"]:
-                        scenarioids.append(ObjectId(sce["_id"]))
+                    if "testscenarios" in mod:
+                        for sce in mod["testscenarios"]:
+                            scenarioids.append(ObjectId(sce["_id"]))
                 scenarioslist=list(n68session.testscenarios.find({"_id":{"$in":scenarioids}},{"name":1}))
                 res={'rows':scenarioslist}
             else:
@@ -723,8 +724,7 @@ def LoadServices(app, redissession, n68session):
         "modifiedbyrole":ObjectId(createdbyrole),
         "modifiedon":createdon,
         "screenshot":"",
-        "scrapedurl":"",
-        "testcases":[]
+        "scrapedurl":""
         }
         queryresult=n68session.screens.insert_one(data).inserted_id
         print("Save Screen",queryresult)
@@ -784,11 +784,13 @@ def LoadServices(app, redissession, n68session):
                             i["parent"]=ObjectId(i["parent"])
                         i["reviewer"]=ObjectId(i["reviewer"])
                         i["projectid"]=ObjectId(i["projectid"])
+                        if i['details']=='':
+                            i['details']=i['tasktype']+" "+i['nodetype']+" "+i['name']
                     if len(tasks_insert)>0:
                         n68session.tasks.insert_many(tasks_insert)
                     if len(tasks_remove)>0:
                         tasks_remove=[ObjectId(t) for t in tasks_remove]
-                        n68session.tasks.delete_many({"nodeid":{"$in":tasks_remove}})
+                        n68session.tasks.delete_many({"_id":{"$in":tasks_remove}})
                     res={"rows":"success"}
                 elif action=="updatestatus":
                     status=requestdata['status']
@@ -799,14 +801,20 @@ def LoadServices(app, redissession, n68session):
                     if requestdata["status"] == "underReview":
                         status="complete"
                         assignedto=''
+                        owner=''
+                        reviewer=''
                         # n68session.tasks.update({"_id":ObjectId(requestdata["id"])},{"$set":{"status":status,"history":history,"assignedto":''}})
                     elif (requestdata["status"] == "inprogress" or requestdata["status"] == "assigned" or requestdata["status"] == "reassigned") and task['reviewer'] != "select reviewer":
                         status="underReview"
                         assignedto=task["reviewer"]
+                        owner=task["owner"]
+                        reviewer=task["reviewer"]
                         # n68session.tasks.update({"_id":ObjectId(requestdata["id"])},{"$set":{"status":status,"history":history,"assignedto":task["reviewer"]}})
                     elif (requestdata["status"] == "reassign"):
                         status="reassigned"
                         assignedto=task["owner"]
+                        owner=task["owner"]
+                        reviewer=task["reviewer"]
                     requestdata["history"]["status"]=status
                     if(len(task["history"])==0):
                         requestdata["history"]["userid"]=ObjectId(requestdata["history"]["userid"])
@@ -815,7 +823,7 @@ def LoadServices(app, redissession, n68session):
                         history=task["history"]
                         requestdata["history"]["userid"]=ObjectId(requestdata["history"]["userid"])
                         history.append(requestdata["history"])
-                    n68session.tasks.update({"_id":ObjectId(requestdata["id"])},{"$set":{"status":status,"history":history,"assignedto":assignedto}})
+                    n68session.tasks.update({"_id":ObjectId(requestdata["id"])},{"$set":{"status":status,"history":history,"assignedto":assignedto,"owner":owner,"reviewer":reviewer}})
                     res={"rows":"success"}
                 elif action == "delete":
                     n68session.tasks.delete({"_id":ObjectId(requestdata["id"]),"cycle":ObjectId(requestdata["cycleid"])})
@@ -1016,26 +1024,28 @@ def LoadServices(app, redissession, n68session):
                 testcaseids=[]
                 for mod in moduledetails:
                     for sce in mod["testscenarios"]:
-                        for scr in sce["screens"]:
-                            if scr["_id"] not in screenidsset:
-                                screenidsset.add(scr["_id"])
-                                screenids.append(scr["_id"])
-                            for tc in scr["testcases"]:
-                                if tc not in testcaseidsset:
-                                    testcaseids.append(tc)
-                                    testcaseidsset.add(tc)
-                                if scr["_id"] not in screen_testcase:
-                                    screen_testcase[scr["_id"]]=[]
-                                    screen_testcase[scr["_id"]].append(tc)
-                                else:
-                                    screen_testcase[scr["_id"]].append(tc)
+                        if "screens" in sce:
+                            for scr in sce["screens"]:
+                                if scr["_id"] not in screenidsset:
+                                    screenidsset.add(scr["_id"])
+                                    screenids.append(scr["_id"])
+                                if "testcases" in scr:
+                                    for tc in scr["testcases"]:
+                                        if tc not in testcaseidsset:
+                                            testcaseids.append(tc)
+                                            testcaseidsset.add(tc)
+                                        if scr["_id"] not in screen_testcase:
+                                            screen_testcase[scr["_id"]]=[]
+                                            screen_testcase[scr["_id"]].append(tc)
+                                        else:
+                                            screen_testcase[scr["_id"]].append(tc)
                 screendetails=list(n68session.screens.find({"_id":{"$in":screenids}},{"_id":1,"name":1,"parent":1}))
                 testcasedetails=list(n68session.testcases.find({"_id":{"$in":testcaseids}},{"_id":1,"name":1,"parent":1}))
                 res={'rows':{'screenList':screendetails,'testCaseList':testcasedetails}}
             else:
-                app.logger.warn("Empty data received. getScenarios")
+                app.logger.warn("Empty data received. getScreens")
         except Exception as e:
-            servicesException("getScenarios",e)
+            servicesException("getScreens",e)
         return jsonify(res)
 
     def checkScenarioNameExists(projectid,name):

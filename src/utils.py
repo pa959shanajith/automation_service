@@ -42,10 +42,8 @@ ERR_CODE={
 
 
 ecodeServices = {
-    "authenticateUser_Nineteen68": "300",
-    "authenticateUser_Nineteen68_ldap": "301",
-    "getRoleNameByRoleId_Nineteen68": "302",
-    "authenticateUser_Nineteen68_projassigned": "303",
+    "loadUser_Nineteen68": "300",
+    "loadPermission_Nineteen68": "301",
     "loadUserInfo_Nineteen68": "304",
     "getReleaseIDs_Nineteen68": "305",
     "getCycleIDs_Nineteen68": "306",

@@ -17,6 +17,7 @@
 from utils import *
 
 from datetime import datetime, timedelta
+import pytz
 import time
 
 def LoadServices(app, redissession, n68session):
@@ -96,23 +97,28 @@ def LoadServices(app, redissession, n68session):
                     donotexecute = testsuites["donotexecute"]
                     conditioncheck = testsuites["conditioncheck"]
                     for i in range(0,len(testscenariodslist_new)):
-                        index = testscenariodslist.index(testscenariodslist_new[i]);
-                        if index != -1 and i < len(testscenariodslist_new):
-                            if (getparampaths[i] == '' or getparampaths[i] == ' '):
-                                getparampaths1.append(' ')
+                        if testscenariodslist_new[i] in testscenariodslist:
+                            index = testscenariodslist.index(testscenariodslist_new[i])
+                            if index != -1 and i < len(testscenariodslist_new):
+                                if (getparampaths[i] == '' or getparampaths[i] == ' '):
+                                    getparampaths1.append(' ')
+                                else:
+                                    getparampaths1.append(getparampaths[i])
+
+                                if conditioncheck!= None:
+                                    conditioncheck1.append(conditioncheck[i])
+
+                                if donotexecute != None:
+                                    donotexecute1.append(donotexecute[i])
+
                             else:
-                                getparampaths1.append(getparampaths[i])
-
-                            if conditioncheck!= None:
-                                conditioncheck1.append(conditioncheck[i])
-
-                            if donotexecute != None:
-                                donotexecute1.append(donotexecute[i])
-
+                                getparampaths1.append(' ')
+                                conditioncheck1.append(0)
+                                donotexecute1.append(1)
                         else:
-                            getparampaths1.append(' ')
-                            conditioncheck1.append(0)
-                            donotexecute1.append(1)
+                                getparampaths1.append(' ')
+                                conditioncheck1.append(0)
+                                donotexecute1.append(1)
 
 ##                    modifiedon = datetime.now()
                     querydata ={}
@@ -298,48 +304,51 @@ def LoadServices(app, redissession, n68session):
             app.logger.debug("Inside ScheduleTestSuite_ICE. Query: "+str(requestdata["query"]))
             if not isemptyrequest(requestdata):
                 if(requestdata['query'] == 'insertscheduledata'):
-                    requestdata1["scheduledon"]=requestdata['scheduledatetime']
+                    scheduleTime=requestdata['scheduledatetime']
+                    requestdata1["scheduledon"] = datetime.fromtimestamp(int(scheduleTime)/1000,pytz.UTC)
                     requestdata1["target"]=requestdata["clientipaddress"]
                     requestdata1["scheduledby"]=ObjectId(requestdata['userid'])
-                    requestdata1["testsuiteids"]=requestdata['testsuiteids']
-                    requestdata1["scenariodetails"]=requestdata["scenariodetails"]
+                    testsuiteids_list = [ObjectId(i) for i in requestdata['testsuiteids']]
+                    requestdata1["testsuiteids"]=testsuiteids_list
+                    requestdata1["scenariodetails"]=json.loads(requestdata["scenariodetails"])
                     requestdata1["status"]=requestdata["schedulestatus"]
-                    requestdata1["testsuiteids"]=requestdata["testsuiteids"]
-                    res["rows"] =  n68session.scheduledexecution.insert(requestdata1)
+                    requestdata1["browserlist"]=requestdata["browserlist"]
+                    # requestdata1["testsuiteids"]=requestdata["testsuiteids"]
+                    res["rows"] =  n68session.scheduledexecutions.insert(requestdata1)
 
                 elif(requestdata['query'] == 'getscheduledata'):
-                    res["rows"]= list(n68session.scheduledexecution.find({"cycleid":ObjectId(requestdata["cycleid"]),
-                    "scheduledon":requestdata['scheduledatetime'],"_id":ObjectId(requestdata['scheduleid'])}))
+                    res["rows"]= list(n68session.scheduledexecutions.find({"_id":ObjectId(requestdata['scheduleid'])}))
 
                 elif(requestdata['query'] == 'updatescheduledstatus'):
-                    res["rows"] = list(n68session.scheduledexecution.update({"cycleid":ObjectId(requestdata["cycleid"])
-                    ,"scheduledon":requestdata['scheduledatetime'],"_id":ObjectId(requestdata['scheduleid'])},{"$set":{"schedulestatus":requestdate["schedulestatus"]}}))
+                    res["rows"] = list(n68session.scheduledexecutions.update({"_id":ObjectId(requestdata['scheduleid'])},{"$set":{"status":requestdata["schedulestatus"]}}))
 
 
                 elif(requestdata['query'] == 'getallscheduledetails'):
                     if(requestdata['scheduledetails'] == 'getallscheduledata'):
-                        res["rows"]=list(n68session.scheduledexecution.find({}))
+                        res["rows"]=list(n68session.scheduledexecutions.find({}))
 
                     elif(requestdata['scheduledetails'] == 'getallscheduleddetails'):
-                        res=list(n68session.scheduledexecution.find({"status":"scheduled"}))
+                        res['rows']=list(n68session.scheduledexecutions.find({"status":"scheduled"}))
 
 
                     elif(requestdata['scheduledetails'] == 'checkscheduleddetails'):
-                        res["rows"]=list(n68session.scheduledexecution.find({"scheduledatetime":requestdata["scheduledatetime"],
+                        res["rows"]=list(n68session.scheduledexecutions.find({"scheduledatetime":requestdata["scheduledatetime"],
                         "target":requestdata["clientipaddress"]}))
 
                 elif(requestdata['query'] == 'getscheduledstatus'):
-                    res["rows"]=list(n68session.scheduledexecution.find({"cycleid":ObjectId(requestdata["cycleid"]),
-                    "scheduledon":requestdata["scheduledatetime"],"_id":ObjectId(requestdata["scheduleid"])},{"schedulestatus":1,"_id":0}))
+                    scheduleTime = requestdata["scheduledatetime"]
+                    res["rows"]=list(n68session.scheduledexecutions.find({"_id":ObjectId(requestdata["scheduleid"])},{"status":1,"_id":0}))
 
                 else:
                     return jsonify(res)
             else:
                 app.logger.warn('Empty data received. schedule testsuite.')
                 return jsonify(res)
-            res={'rows':queryresult.current_rows}
+            # res={'rows':queryresult.current_rows}
             return jsonify(res)
         except Exception as scheduletestsuiteexc:
+            import traceback
+            traceback.print_exc()
             servicesException("ScheduleTestSuite_ICE",scheduletestsuiteexc)
             return jsonify(res)
 
