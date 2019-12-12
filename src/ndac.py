@@ -173,8 +173,39 @@ def addroutes():
     ##import neurongraphsservice
     ##neurongraphsservice.LoadServices(app, redissession, n68session2)
 
-    ##import chatbotservice
-    ##chatbotservice.LoadServices(app, redissession, n68session2)
+    #Prof J First Service: Getting Best Matches
+    @app.route('/chatbot/getTopMatches_ProfJ',methods=['POST'])
+    def getTopMatches_ProfJ():
+        app.logger.debug("Inside getTopMatches_ProfJ")
+        global newQuesInfo, savedQueries
+        res={'rows':'fail'}
+        try:
+            query = str(request.data)
+            profj = ProfJ(pages,questions,answers,keywords,weights,pquestions,newQuesInfo,savedQueries)
+            response,newQuesInfo,savedQueries = profj.start(query)
+            #if response[0][1] == "Please be relevant..I work soulfully for Nineteen68":
+                #response[0][1] = str(chatbot.get_response(query))
+            profj_sqlitedb.updateCaptureTable()
+            res={'rows':response}
+        except Exception as e:
+            servicesException("getTopMatches_ProfJ",e)
+        return jsonify(res)
+
+    #Prof J Second Service: Updating the Question's Frequency
+    @app.route('/chatbot/updateFrequency_ProfJ',methods=['POST'])
+    def updateFrequency_ProfJ():
+        app.logger.debug("Inside updateFrequency_ProfJ")
+        res={'rows':'fail'}
+        try:
+            qid = request.data
+            weights[int(qid)] += 1
+            temp = []
+            temp.append(qid)
+            temp.append(weights[int(qid)])
+            res={'rows': True}
+        except Exception as e:
+            servicesException("updateFrequency_ProfJ",e)
+        return jsonify(res)
 
 ################################################################################
 # END OF SERVICES IMPORT
