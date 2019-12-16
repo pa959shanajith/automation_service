@@ -157,11 +157,11 @@ def LoadServices(app, redissession, n68session2):
                 queryresult1 = list(n68session2.dataobjects.find({'parent':query_screen['screenid']}))
                 custnames = {}
                 if (queryresult1 != []):
-                    custnames = {i['custname']:i for i in queryresult1}
+                    custnames = {i['custname'].strip():i for i in queryresult1}
                 steps = []
                 if not (requestdata['import_status']):
                     for so in requestdata['testcasesteps']:
-                        cid = cname = so["custname"]
+                        cid = cname = so["custname"].strip()
                         if cname in custnames: cid = custnames[cname]["_id"]
                         steps.append({
                             "stepNo": so["stepNo"],
@@ -179,9 +179,9 @@ def LoadServices(app, redissession, n68session2):
                     #Import testcase
                     missingCustname = {}
                     for so in requestdata['testcasesteps']:
-                        cid = cname = so["custname"]
+                        cid = cname = so["custname"].strip()
                         if cname in custnames:
-                            if (so["objectName"] == custnames[so['custname']]['xpath']) and (so['url'] == custnames[so['custname']]['url']):
+                            if (so["objectName"] == custnames[cname]['xpath']) and (so['url'] == custnames[cname]['url']):
                                 cid = custnames[cname]["_id"]
                             else:
                                 from datetime import datetime
@@ -276,7 +276,9 @@ def LoadServices(app, redissession, n68session2):
                             queryresult1 = list(n68session2.dataobjects.find({'parent':k['screenid']},{'parent':0}))
                             dataObjects = {}
                             if (queryresult1 != []):
-                                dataObjects = {i['_id']:i for i in queryresult1}
+                                for dos in queryresult1:
+                                    if 'custname' in dos: dos['custname'] = dos['custname'].strip()
+                                    dataObjects[dos['_id']] = dos
                             del_flag = update_steps(k['steps'],dataObjects)
                     res= {'rows': queryresult, 'del_flag':del_flag}
                 else:
@@ -284,7 +286,9 @@ def LoadServices(app, redissession, n68session2):
                     queryresult1 = list(n68session2.dataobjects.find({'parent':queryresult[0]['screenid']},{'parent':0}))
                     dataObjects = {}
                     if (queryresult1 != []):
-                        dataObjects = {i['_id']:i for i in queryresult1}
+                        for dos in queryresult1:
+                            if 'custname' in dos: dos['custname'] = dos['custname'].strip()
+                            dataObjects[dos['_id']] = dos
                     if (queryresult != []):
                         del_flag = update_steps(queryresult[0]['steps'],dataObjects)
                     if 'screenName' in requestdata and requestdata['screenName']=='fetch':

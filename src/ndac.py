@@ -180,7 +180,8 @@ def addroutes():
         global newQuesInfo, savedQueries
         res={'rows':'fail'}
         try:
-            query = str(request.data)
+            if ( type(request.data) == bytes ): query = str(request.data.decode('utf-8'))
+            else: query = str(request.data)
             profj = ProfJ(pages,questions,answers,keywords,weights,pquestions,newQuesInfo,savedQueries)
             response,newQuesInfo,savedQueries = profj.start(query)
             #if response[0][1] == "Please be relevant..I work soulfully for Nineteen68":

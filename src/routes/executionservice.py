@@ -309,6 +309,7 @@ def LoadServices(app, redissession, n68session):
                     requestdata1["scenariodetails"]=json.loads(requestdata["scenariodetails"])
                     requestdata1["status"]=requestdata["schedulestatus"]
                     requestdata1["executeon"]=requestdata["browserlist"]
+                    requestdata1["cycleid"]=ObjectId(requestdata["cycleid"])
                     # requestdata1["testsuiteids"]=requestdata["testsuiteids"]
                     res["rows"] =  n68session.scheduledexecutions.insert(requestdata1)
 
