@@ -37,6 +37,7 @@ def LoadServices(app, redissession, n68session):
             else:
                 app.logger.warn('Empty data received. getting qcProjectDetails.')
         except Exception as e:
+            app.logger.debug(traceback.format_exc())
             servicesException("qcProjectDetails_ICE",e)
         return jsonify(res)
 
@@ -54,6 +55,7 @@ def LoadServices(app, redissession, n68session):
             else:
                 app.logger.warn('Empty data received. getting saveQcDetails.')
         except Exception as e:
+            app.logger.debug(traceback.format_exc())
             servicesException("saveQcDetails_ICE",e)
         return jsonify(res)
 
@@ -70,6 +72,7 @@ def LoadServices(app, redissession, n68session):
             else:
                 app.logger.warn('Empty data received. getting QcMappedList.')
         except Exception as e:
+            app.logger.debug(traceback.format_exc())
             servicesException("viewQcMappedList_ICE",e)
         return jsonify(res)
 ################################################################################

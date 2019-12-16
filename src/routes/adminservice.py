@@ -55,6 +55,7 @@ def LoadServices(app, redissession, n68session,licensedata):
             res={'rows':ice_plugins_list}
             return jsonify(res)
         except Exception as getallusersexc:
+            app.logger.debug(traceback.format_exc())
             servicesException("getAvailablePlugins",getallusersexc)
             return jsonify(res)
 
@@ -114,7 +115,7 @@ def LoadServices(app, redissession, n68session,licensedata):
             else:
                 app.logger.warn('Empty data received. manage users.')
         except Exception as e:
-            #app.logger.debug(traceback.format_exc())
+            app.logger.debug(traceback.format_exc())
             servicesException("manageUserDetails",e)
         return jsonify(res)
 
@@ -140,7 +141,7 @@ def LoadServices(app, redissession, n68session,licensedata):
             else:
                 app.logger.warn('Empty data received. users fetch.')
         except Exception as e:
-            #app.logger.debug(traceback.format_exc())
+            app.logger.debug(traceback.format_exc())
             servicesException("getUserDetails",e)
         return jsonify(res)
 
@@ -159,6 +160,7 @@ def LoadServices(app, redissession, n68session,licensedata):
                 result=list(n68session.permissions.find({},{"_id":1,"name":1}))
                 res={'rows':result}
         except Exception as userrolesexc:
+            app.logger.debug(traceback.format_exc())
             servicesException("getUserRoles_Nineteen68",userrolesexc)
         return jsonify(res)
 
@@ -171,6 +173,7 @@ def LoadServices(app, redissession, n68session,licensedata):
             result=n68session.projects.distinct("domain")
             res={'rows':result}
         except Exception as getdomainsexc:
+            app.logger.debug(traceback.format_exc())
             servicesException("getDomains_ICE",getdomainsexc)
         return jsonify(res)
 
@@ -187,6 +190,7 @@ def LoadServices(app, redissession, n68session,licensedata):
                     query=list(n68session.thirdpartyintegration.find({"type":"TOKENS","userid":ObjectId(requestdata["user_id"])},{"hash":0}))
                     res={'rows':query}
         except Exception as getCIUserssexc:
+            app.logger.debug(traceback.format_exc())
             servicesException("getCIUsersDetails",getCIUserssexc)
         return jsonify(res)
 
@@ -218,6 +222,7 @@ def LoadServices(app, redissession, n68session,licensedata):
                         result=list(n68session.thirdpartyintegration.find({"type":"TOKENS","userid":ObjectId(requestdata["userid"])},{"hash":0}))
                         res={'rows':result}
         except Exception as getCITokensexc:
+            app.logger.debug(traceback.format_exc())
             servicesException("manageCIUsers",getCITokensexc)
         return jsonify(res)
 
@@ -244,6 +249,7 @@ def LoadServices(app, redissession, n68session,licensedata):
             else:
                 app.logger.warn('Empty data received. generic name details.')
         except Exception as getnamesexc:
+            app.logger.debug(traceback.format_exc())
             servicesException("getNames_ICE",getnamesexc)
         return jsonify(res)
 
@@ -282,6 +288,7 @@ def LoadServices(app, redissession, n68session,licensedata):
             else:
                 app.logger.warn('Empty data received. create project.')
         except Exception as createprojectexc:
+            app.logger.debug(traceback.format_exc())
             servicesException("createProject_ICE",createprojectexc)
         return jsonify(res)
 
@@ -357,6 +364,7 @@ def LoadServices(app, redissession, n68session,licensedata):
             else:
                 app.logger.warn('Empty data received. update project.')
         except Exception as updateprojectexc:
+            app.logger.debug(traceback.format_exc())
             servicesException("updateProject_ICE",updateprojectexc)
         return jsonify(res)
     #service renders all the details of the child type
@@ -382,6 +390,7 @@ def LoadServices(app, redissession, n68session,licensedata):
             else:
                 app.logger.warn('Empty data received. generic details.')
         except Exception as getdetailsexc:
+            app.logger.debug(traceback.format_exc())
             servicesException("getDetails_ICE",getdetailsexc)
         return jsonify(res)
 
@@ -418,6 +427,7 @@ def LoadServices(app, redissession, n68session,licensedata):
             else:
                 app.logger.warn('Empty data received. LDAP config manage.')
         except Exception as getallusersexc:
+            app.logger.debug(traceback.format_exc())
             servicesException("manageLDAPConfig",getallusersexc)
         return jsonify(res)
 
@@ -441,6 +451,7 @@ def LoadServices(app, redissession, n68session,licensedata):
             else:
                 app.logger.warn('Empty data received. LDAP config fetch.')
         except Exception as getallusersexc:
+            app.logger.debug(traceback.format_exc())
             servicesException("getLDAPConfig",getallusersexc)
         return jsonify(res)
 
@@ -492,6 +503,7 @@ def LoadServices(app, redissession, n68session,licensedata):
             else:
                 app.logger.warn('Empty data received. assign projects.')
         except Exception as assignprojectsexc:
+            app.logger.debug(traceback.format_exc())
             servicesException("assignProjects_ICE",assignprojectsexc)
         return jsonify(res)
 
@@ -518,6 +530,7 @@ def LoadServices(app, redissession, n68session,licensedata):
             else:
                 app.logger.warn('Empty data received. assigned projects.')
         except Exception as e:
+            app.logger.debug(traceback.format_exc())
             servicesException("getAssignedProjects_ICE",e)
         return jsonify(res)
 
@@ -541,5 +554,6 @@ def LoadServices(app, redissession, n68session,licensedata):
                 return jsonify(res)
             return jsonify(res)
         except Exception as getUsersexc:
+            app.logger.debug(traceback.format_exc())
             servicesException("getUsers_Nineteen68",getUsersexc)
             return jsonify(res)

@@ -30,6 +30,7 @@ def LoadServices(app, redissession, n68session2):
             else:
                 app.logger.warn('Empty data received. getKeywordDetails')
         except Exception as keywordsexc:
+            app.logger.debug(traceback.format_exc())
             servicesException('getKeywordDetails',keywordsexc)
         return jsonify(res)
 
@@ -60,6 +61,7 @@ def LoadServices(app, redissession, n68session2):
             else:
                 app.logger.warn('Empty data received. getting testcases.')
         except Exception as e:
+            app.logger.debug(traceback.format_exc())
             servicesException('getTestcasesByScenarioId_ICE',e)
         return jsonify(res)
 
@@ -214,6 +216,7 @@ def LoadServices(app, redissession, n68session2):
             else:
                 app.logger.warn('Empty data received. updating testcases')
         except Exception as updatetestcaseexception:
+            app.logger.debug(traceback.format_exc())
             servicesException('updateTestCase_ICE',updatetestcaseexception)
         return jsonify(res)
 
@@ -241,6 +244,7 @@ def LoadServices(app, redissession, n68session2):
                             del_flag = True
 
         except Exception as e:
+            app.logger.debug(traceback.format_exc())
             servicesException('readTestCase_ICE',e)
         return del_flag
 
@@ -295,5 +299,6 @@ def LoadServices(app, redissession, n68session2):
             else:
                 app.logger.warn('Empty data received. reading Testcase')
         except Exception as readtestcaseexc:
+            app.logger.debug(traceback.format_exc())
             servicesException('readTestCase_ICE',readtestcaseexc)
         return jsonify(res)
