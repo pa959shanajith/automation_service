@@ -165,9 +165,7 @@ def LoadServices(app, redissession, n68session):
                     return jsonify(res)
 
         except Exception as e:
-            import traceback
-            traceback.print_exc()
-            #app.logger.debug(traceback.format_exc())
+            app.logger.debug(traceback.format_exc())
             servicesException("readTestSuite_ICE",e)
         return jsonify(res)
 
@@ -210,8 +208,7 @@ def LoadServices(app, redissession, n68session):
 
             return jsonify(res)
         except Exception as updatetestsuiteexc:
-            import traceback
-            traceback.print_exc()
+            app.logger.debug(traceback.format_exc())
             servicesException("updateTestSuite_ICE",updatetestsuiteexc)
             return jsonify(res)
 
@@ -227,11 +224,9 @@ def LoadServices(app, redissession, n68session):
                 if(requestdata['query'] == 'testcaseid'):
 
                     res["rows"] = list(n68session.testscenarios.find({"_id":ObjectId(requestdata['id']),"deleted":query['delete_flag']},{"testcaseids":1}))
-                    global scenarioscounter
-                    scenarioscounter = 0
-                    userid=requestdata['userid']
+                    userid=ObjectId(requestdata['userid']) if 'userid' in requestdata else ""
                     scenarioscounter = scenarioscounter + 1
-                    #counterupdator('testscenarios',userid,scenarioscounter)
+                    counterupdator(n68session,'testscenarios',userid,scenarioscounter)
                     app.logger.debug("Executed ExecuteTestSuite_ICE. Query: "+str(requestdata["query"]))
 
                 elif(requestdata['query'] == 'testcasesteps'):
@@ -286,8 +281,7 @@ def LoadServices(app, redissession, n68session):
 ##            res={'rows':queryresult.current_rows}
             return jsonify(res)
         except Exception as execuitetestsuiteexc:
-            import traceback
-            traceback.print_exc()
+            app.logger.debug(traceback.format_exc())
             servicesException("ExecuteTestSuite_ICE",execuitetestsuiteexc)
             return jsonify(res)
 
@@ -348,8 +342,7 @@ def LoadServices(app, redissession, n68session):
             # res={'rows':queryresult.current_rows}
             return jsonify(res)
         except Exception as scheduletestsuiteexc:
-            import traceback
-            traceback.print_exc()
+            app.logger.debug(traceback.format_exc())
             servicesException("ScheduleTestSuite_ICE",scheduletestsuiteexc)
             return jsonify(res)
 
@@ -373,6 +366,7 @@ def LoadServices(app, redissession, n68session):
             else:
                 app.logger.warn('Empty data received. getting testcases from scenarios.')
         except Exception as userrolesexc:
+            app.logger.debug(traceback.format_exc())
             servicesException("getTestcaseDetailsForScenario_ICE",userrolesexc)
         return jsonify(res)
 
