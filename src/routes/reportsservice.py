@@ -107,17 +107,6 @@ def LoadServices(app, redissession, n68session2, webocularsession):
                         'domain': queryresult3["domain"]
                         }
                     res= {"rows":query}
-                # elif(requestdata["query"] == 'scenariodetails'):
-                #     queryresult = list(n68session2.testscenarios.find({"_id":ObjectId(requestdata["scenarioid"]),"deleted":False},{"name":1,"projectid":1}))
-                #     res= {"rows":queryresult}
-                # elif(requestdata["query"] == 'cycledetails'):
-                #     queryresult = list(n68session2.projects.aggregate([
-                #         {"$match":{"_id":ObjectId(requestdata["projectid"])}},
-                #         {"$unwind":'$releases'},
-                #         {"$unwind":'$releases.cycles'},
-                #         {"$project":{"name":1,"releases.name":1,"releases.cycles.name":1,"domain":1}}
-                #     ]))
-                #     res= {"rows":queryresult}
             else:
                 app.logger.warn('Empty data received. report.')
         except Exception as getreportexc:

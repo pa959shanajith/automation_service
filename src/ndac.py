@@ -1298,7 +1298,7 @@ def main():
         webocularsession = client.webocular
     except Exception as e:
         app.logger.debug(e)
-        app.logger.critical(printErrorCodes('226'))
+        app.logger.critical(printErrorCodes('206'))
         return False
 
 
@@ -1320,6 +1320,7 @@ def main():
         app.logger.critical(printErrorCodes('218'))
 
 if __name__ == '__main__':
+    parserArgs.test=True
     initLoggers(parserArgs)
     sysMAC = str(getMacAddress()).strip()
     main()

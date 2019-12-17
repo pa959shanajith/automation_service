@@ -39,6 +39,7 @@ def LoadServices(app, redissession, n68session2):
             else:
                 app.logger.warn('Empty data received. reading Testcase')
         except Exception as getscrapedataexc:
+            app.logger.debug(traceback.format_exc())
             servicesException("getScrapeDataScreenLevel_ICE",getscrapedataexc)
         return jsonify(res)
 
@@ -169,6 +170,7 @@ def LoadServices(app, redissession, n68session2):
             else:
                 app.logger.warn('Empty data received. updating screen')
         except Exception as updatescreenexc:
+            app.logger.debug(traceback.format_exc())
             servicesException("updateScreen_ICE",updatescreenexc)
         return jsonify(res)
 
@@ -184,5 +186,6 @@ def LoadServices(app, redissession, n68session2):
                     n68session2.dataobjects.update({"_id": ObjectId(requestdata["_id"])},{"$set":{"objectType":requestdata["type"]}})
                     res={'rows':'success'}
         except Exception as updateirisobjexc:
+            app.logger.debug(traceback.format_exc())
             servicesException("updateIrisObjectType",updateirisobjexc)
         return jsonify(res)

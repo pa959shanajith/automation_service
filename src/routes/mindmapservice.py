@@ -36,6 +36,7 @@ def LoadServices(app, redissession, n68session):
            else:
                 app.logger.warn("Empty data received. getProjectType_Nineteen68")
         except Exception as e:
+            app.logger.debug(traceback.format_exc())
             servicesException("getProjectType_Nineteen68",e)
         return jsonify(res)
 
@@ -99,6 +100,7 @@ def LoadServices(app, redissession, n68session):
             else:
                 app.logger.warn("Empty data received. getProjectIDs_Nineteen68")
         except Exception as e:
+            app.logger.debug(traceback.format_exc())
             servicesException("getProjectIDs_Nineteen68",e)
         return jsonify(res)
 
@@ -541,8 +543,7 @@ def LoadServices(app, redissession, n68session):
                     queryresult=list(n68session.mindmaps.find({"projectid":ObjectId(requestdata["projectid"])},{"name":1,"_id":1,"type":1}))
                 res={'rows':queryresult}
         except Exception as e:
-            import traceback
-            traceback.print_exc()
+            app.logger.debug(traceback.format_exc())
             servicesException("getModules",e)
         return jsonify(res)
 
@@ -561,6 +562,7 @@ def LoadServices(app, redissession, n68session):
             else:
                 app.logger.warn("Empty data received. getTasksJSON")
         except Exception as e:
+            app.logger.debug(traceback.format_exc())
             servicesException("getTasksJSON",e)
         return jsonify(res)
 
@@ -583,6 +585,7 @@ def LoadServices(app, redissession, n68session):
             else:
                 app.logger.warn("Empty data received. getScenarios")
         except Exception as e:
+            app.logger.debug(traceback.format_exc())
             servicesException("getScenarios",e)
         return jsonify(res)
 
@@ -661,6 +664,7 @@ def LoadServices(app, redissession, n68session):
             else:
                 res={'rows':'fail',"error":error}
         except Exception as e:
+            app.logger.debug(traceback.format_exc())
             servicesException("saveMindmap",e)
         return jsonify(res)
 
@@ -831,6 +835,7 @@ def LoadServices(app, redissession, n68session):
             else:
                 app.logger.warn('Empty data received. manage users.')
         except Exception as e:
+            app.logger.debug(traceback.format_exc())
             servicesException("manageTaskDetails",e)
         return jsonify(res)
 
@@ -1045,6 +1050,7 @@ def LoadServices(app, redissession, n68session):
             else:
                 app.logger.warn("Empty data received. getScreens")
         except Exception as e:
+            app.logger.debug(traceback.format_exc())
             servicesException("getScreens",e)
         return jsonify(res)
 
@@ -1112,6 +1118,7 @@ def LoadServices(app, redissession, n68session):
             else:
                 app.logger.warn("Empty data received. saveMindmapE2E")
         except Exception as e:
+            app.logger.debug(traceback.format_exc())
             servicesException("saveMindmapE2E",e)
         return jsonify(res)
 

@@ -20,7 +20,7 @@ ERR_CODE={
     "203":"NDAC is stopped. Issue - Licensing Server is offline",
     "204":"NDAC is stopped. Issue - Offline license expired",
     "205":"NDAC is stopped due to license expiry or loss of connectivity",
-    "206":"Error while establishing connection to Nineteen68 Secondary Database",
+    "206":"Error while establishing connection to Nineteen68 Database",
     "207":"Database connectivity Unavailable",
     "208":"License server must be running",
     "209":"Critical Internal Exception occurred",
@@ -39,8 +39,7 @@ ERR_CODE={
     "222":"Unable to contact storage areas: Assist Components",
     "223":"Critical error in storage areas: Assist Components",
     "224":"Another instance of NDAC is already running",
-    "225":"Port "+ndacport+" already in use",
-    "226":"Error while establishing connection to Nineteen68 Database"
+    "225":"Port "+ndacport+" already in use"
 }
 
 

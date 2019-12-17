@@ -165,9 +165,7 @@ def LoadServices(app, redissession, n68session):
                     return jsonify(res)
 
         except Exception as e:
-            import traceback
-            traceback.print_exc()
-            #app.logger.debug(traceback.format_exc())
+            app.logger.debug(traceback.format_exc())
             servicesException("readTestSuite_ICE",e)
         return jsonify(res)
 
@@ -210,8 +208,7 @@ def LoadServices(app, redissession, n68session):
 
             return jsonify(res)
         except Exception as updatetestsuiteexc:
-            import traceback
-            traceback.print_exc()
+            app.logger.debug(traceback.format_exc())
             servicesException("updateTestSuite_ICE",updatetestsuiteexc)
             return jsonify(res)
 
@@ -284,8 +281,7 @@ def LoadServices(app, redissession, n68session):
 ##            res={'rows':queryresult.current_rows}
             return jsonify(res)
         except Exception as execuitetestsuiteexc:
-            import traceback
-            traceback.print_exc()
+            app.logger.debug(traceback.format_exc())
             servicesException("ExecuteTestSuite_ICE",execuitetestsuiteexc)
             return jsonify(res)
 
@@ -346,8 +342,7 @@ def LoadServices(app, redissession, n68session):
             # res={'rows':queryresult.current_rows}
             return jsonify(res)
         except Exception as scheduletestsuiteexc:
-            import traceback
-            traceback.print_exc()
+            app.logger.debug(traceback.format_exc())
             servicesException("ScheduleTestSuite_ICE",scheduletestsuiteexc)
             return jsonify(res)
 
@@ -371,6 +366,7 @@ def LoadServices(app, redissession, n68session):
             else:
                 app.logger.warn('Empty data received. getting testcases from scenarios.')
         except Exception as userrolesexc:
+            app.logger.debug(traceback.format_exc())
             servicesException("getTestcaseDetailsForScenario_ICE",userrolesexc)
         return jsonify(res)
 
