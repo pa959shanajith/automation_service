@@ -499,15 +499,7 @@ def updateActiveIceSessions():
 def counterupdator(updatortype,userid,count):
     status=False
     try:
-        beginingoftime = datetime.utcfromtimestamp(0)
-        currentdateindays = getupdatetime() - beginingoftime
-        currentdate = long(currentdateindays.total_seconds() * 1000.0)
-        updatorarray = ["update counters set counter=counter + ",
-                    " where counterdate= "," and userid = "," and countertype= ",";"]
-        updatequery=(updatorarray[0]+str(count)+updatorarray[1]
-                    +str(currentdate)+updatorarray[2]+userid+updatorarray[3]+"'"
-                    +updatortype+"'"+updatorarray[4])
-        icesession.execute(updatequery)
+        n68session.counters.find_one_and_update({"countertype":updatortype, "userid":ObjectId(userid)},{"$set":{"counter":count},"$currentDate":{"counterdate":True}})
         status = True
     except Exception as counterupdatorexc:
         servicesException("counterupdator",counterupdatorexc)
@@ -516,10 +508,8 @@ def counterupdator(updatortype,userid,count):
 def getreports_in_day(bgnts,endts):
     res = {"rows":"fail"}
     try:
-        query=("select * from reports where executedtime  > "
-            +str(bgnts)+" and executedtime <= "+str(endts)+" allow filtering;")
-        queryresult = icesession.execute(query)
-        res= {"rows":queryresult.current_rows}
+        queryresult = list(n68session.reports.find({'executedtime':{'$gt': bgnts, '$lte': endts}}))
+        res = {'rows':queryresult}
     except Exception as getreports_in_dayexc:
         servicesException("getreports_in_day",getreports_in_dayexc)
     return res
@@ -527,11 +517,8 @@ def getreports_in_day(bgnts,endts):
 def getsuites_inititated(bgnts,endts):
     res = {"rows":"fail"}
     try:
-        suitequery=("select * from counters where counterdate > "+str(bgnts)
-        +" and counterdate <= "+str(endts)
-        +" and countertype='testsuites' ALLOW FILTERING;")
-        queryresult = icesession.execute(suitequery)
-        res= {"rows":queryresult.current_rows}
+        queryresult = list(n68session.counters.find({'counterdate':{'$gt': bgnts, '$lte': endts}, 'countertype':'testsuites'}))
+        res = {"rows":queryresult}
     except Exception as getsuites_inititatedexc:
         servicesException("getsuites_inititated",getsuites_inititatedexc)
     return res
@@ -539,11 +526,8 @@ def getsuites_inititated(bgnts,endts):
 def getscenario_inititated(bgnts,endts):
     res = {"rows":"fail"}
     try:
-        scenarioquery=("select * from counters where counterdate > "+str(bgnts)
-        +" and counterdate <= "+str(endts)
-        +" and countertype='testscenarios' ALLOW FILTERING;")
-        queryresult = icesession.execute(scenarioquery)
-        res= {"rows":queryresult.current_rows}
+        queryresult = list(n68session.counters.find({'counterdate':{'$gt': bgnts, '$lte': endts}, 'countertype':'testscenarios'}))
+        res = {"rows":queryresult}
     except Exception as getscenario_inititatedexc:
         servicesException("getscenario_inititated",getscenario_inititatedexc)
     return res
@@ -551,14 +535,37 @@ def getscenario_inititated(bgnts,endts):
 def gettestcases_inititated(bgnts,endts):
     res = {"rows":"fail"}
     try:
-        testcasesquery=("select * from counters where counterdate > "+str(bgnts)
-        +" and counterdate <= "+str(endts)
-        +" and countertype='testcases' ALLOW FILTERING;")
-        queryresult = icesession.execute(testcasesquery)
-        res = {"rows":queryresult.current_rows}
+        queryresult = list(n68session.counters.find({'counterdate':{'$gt': bgnts, '$lte': endts}, 'countertype':'testcases'}))
+        res = {"rows":queryresult}
     except Exception as gettestcases_inititatedexc:
         servicesException("gettestcases_inititated",gettestcases_inititatedexc)
     return res
+
+def getbgntime(requiredday,*args):
+    currentday = ''
+    day = ''
+    if len(args)==0:
+        currentday=datetime.utcnow() + timedelta(seconds = 19800)
+    else:
+        currentday=args[0]
+    if requiredday == 'time_at_nine':
+        day=datetime(currentday.year, currentday.month, currentday.day,9,0,0,0)
+    elif requiredday == 'yest':
+        yesterday=currentday - timedelta(1)
+        day=datetime(yesterday.year, yesterday.month, yesterday.day,18,30,0,0)
+    elif requiredday == 'time_at_six_thirty':
+        day=datetime(currentday.year, currentday.month, currentday.day,18,30,0,0)
+    elif requiredday == 'indate':
+        day=datetime(currentday.year, currentday.month, currentday.day,0,0,0,0)
+    elif requiredday == 'now':
+        day=currentday.replace(microsecond=0)
+    return day
+
+# def gettimestamp(date):
+#     timestampdata=''
+#     date= datetime.strptime(str(date),"%Y-%m-%d %H:%M:%S")
+#     timestampdata = calendar.timegm(date.utctimetuple()) * 1000
+#     return timestampdata
 
 def modelinfoprocessor():
     modelinfo=[]
@@ -578,8 +585,8 @@ def modelinfoprocessor():
         dailydata={}
         allusers = []
         dailydata['day'] = str(x)
-        bgnts=gettimestamp(bgnyesday)
-        endts=gettimestamp(bgnoftday)
+        bgnts=bgnyesday#gettimestamp(bgnyesday)
+        endts=bgnoftday#gettimestamp(bgnoftday)
         resultset=getreports_in_day(bgnts,endts)
         reportobj=reportdataprocessor(resultset,bgnyesday,bgnoftday)
         dailydata['r_exec_cnt'] = str(reportobj['reprt_cnt'])
@@ -668,11 +675,6 @@ def getMacAddress():
                 break
     return mac
 
-def gettimestamp(date):
-    timestampdata=''
-    date= datetime.strptime(str(date),"%Y-%m-%d %H:%M:%S")
-    timestampdata = calendar.timegm(date.utctimetuple()) * 1000
-    return timestampdata
 
 def basecheckonls():
     app.logger.debug("Inside basecheckonls")
@@ -771,26 +773,6 @@ def updateonls():
     except Exception as e:
         app.logger.debug(e)
         app.logger.error(printErrorCodes('202'))
-
-def getbgntime(requiredday,*args):
-    currentday = ''
-    day = ''
-    if len(args)==0:
-        currentday=datetime.utcnow() + timedelta(seconds = 19800)
-    else:
-        currentday=args[0]
-    if requiredday == 'time_at_nine':
-        day=datetime(currentday.year, currentday.month, currentday.day,9,0,0,0)
-    elif requiredday == 'yest':
-        yesterday=currentday - timedelta(1)
-        day=datetime(yesterday.year, yesterday.month, yesterday.day,18,30,0,0)
-    elif requiredday == 'time_at_six_thirty':
-        day=datetime(currentday.year, currentday.month, currentday.day,18,30,0,0)
-    elif requiredday == 'indate':
-        day=datetime(currentday.year, currentday.month, currentday.day,0,0,0,0)
-    elif requiredday == 'now':
-        day=currentday.replace(microsecond=0)
-    return day
 
 def getupdatetime():
     x = datetime.utcnow() + timedelta(seconds = 19800)
