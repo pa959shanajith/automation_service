@@ -29,11 +29,13 @@ def LoadServices(app, redissession, n68session2):
                         dataobj_query = list(n68session2.dataobjects.find({"parent" :screen_id}))
                         if "scrapeinfo" in screen_query and 'header' in screen_query["scrapeinfo"]:
                             dataobj_query = [screen_query["scrapeinfo"]]
-                        res["rows"] = {"view":dataobj_query,"scrapedurl":(screen_query["scrapedurl"] if ("scrapedurl" in screen_query) else ""),"mirror":(screen_query["screenshot"] if ("screenshot" in screen_query) else ""),"name":screen_query["name"]}
+                        res["rows"] = {"view":dataobj_query,"scrapedurl":(screen_query["scrapedurl"] if ("scrapedurl" in screen_query) else ""),
+                                        "mirror":(screen_query["screenshot"] if ("screenshot" in screen_query) else ""),"name":screen_query["name"],"reuse":True if(len(screen_query["parent"])>1) else False}
                 if (requestdata['query']=="getWSscrapedata"):
                     #dataobj_query = list(n68session2.dataobjects.find({"parent" :screen_id}))
-                    scrapeinfo = n68session2.screens.find_one({"_id":screen_id,"deleted":False},{'_id':0,'scrapeinfo':1})
+                    scrapeinfo = n68session2.screens.find_one({"_id":screen_id,"deleted":False},{'_id':0,'parent':1,'scrapeinfo':1})
                     res["rows"] = scrapeinfo['scrapeinfo'] if 'scrapeinfo' in scrapeinfo else {}
+                    res["rows"]["reuse"] = True if(len(scrapeinfo["parent"])>1) else False
                     #res["rows"]["view"] = dataobj_query
                     #res = {"rows":dataobj_query}
             else:

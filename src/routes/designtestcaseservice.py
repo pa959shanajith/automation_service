@@ -185,8 +185,8 @@ def LoadServices(app, redissession, n68session2):
                                 cid = custnames[cname]["_id"]
                             else:
                                 from datetime import datetime
-                                so["custname"] = cname+str(datetime.today().timestamp())
                                 cid = ObjectId()
+                                so["custname"] = cname+str(cid)
                                 custnames[so["custname"]] = {"_id":cid,"xpath":so["objectName"],"url":so['url']}
                                 missingCustname[cid] = so
                         elif (cname not in custnames) and (cname not in defcn):
@@ -268,7 +268,7 @@ def LoadServices(app, redissession, n68session2):
                         {"$match":{"_id":{"$in":tc_id_list}}},
                         {"$addFields":{"__order":{"$indexOfArray":[tc_id_list,"$_id"]}}},
                         {"$sort":{"__order":1}},
-                        {"$project":{'steps':1,'name':1,'screenid':1,'_id':0}}
+                        {"$project":{'steps':1,'name':1,'screenid':1,'parent':1,'_id':0}}
                     ]
                     queryresult = list(n68session2.testcases.aggregate(query))
                     if (queryresult != []):
@@ -282,7 +282,7 @@ def LoadServices(app, redissession, n68session2):
                             del_flag = update_steps(k['steps'],dataObjects)
                     res= {'rows': queryresult, 'del_flag':del_flag}
                 else:
-                    queryresult = list(n68session2.testcases.find({'_id':ObjectId(requestdata['testcaseid']),'versionnumber':requestdata['versionnumber']},{'screenid':1,'steps':1,'name':1,'_id':0}))
+                    queryresult = list(n68session2.testcases.find({'_id':ObjectId(requestdata['testcaseid']),'versionnumber':requestdata['versionnumber']},{'screenid':1,'steps':1,'name':1,'parent':1,'_id':0}))
                     queryresult1 = list(n68session2.dataobjects.find({'parent':queryresult[0]['screenid']},{'parent':0}))
                     dataObjects = {}
                     if (queryresult1 != []):
