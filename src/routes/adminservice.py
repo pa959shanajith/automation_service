@@ -557,3 +557,15 @@ def LoadServices(app, redissession, n68session,licensedata):
             app.logger.debug(traceback.format_exc())
             servicesException("getUsers_Nineteen68",getUsersexc)
             return jsonify(res)
+
+    @app.route('/admin/getPreferences',methods=['POST'])
+    def getPreferences():
+        app.logger.debug("Inside getPreferences")
+        res={'rows':'fail'}
+        try:
+            result=list(n68session.permissions.find({},{"name":1,"plugins":1,"_id":0}))
+            res={'rows':result}
+        except Exception as getdomainsexc:
+            app.logger.debug(traceback.format_exc())
+            servicesException("getPreferences",getdomainsexc)
+        return jsonify(res)
