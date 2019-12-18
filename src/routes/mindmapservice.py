@@ -488,7 +488,7 @@ def LoadServices(app, redissession, n68session):
                             finalscenariodata["task"]=scenariodata[ts["_id"]]['task']  
                         else: 
                             finalscenariodata["task"]=None
-                        finalscenariodata["taskexists"]=scenariodata[ts["_id"]]['taskexists'] if 'taskexists' in scenariodata[ts["_id"]] else None
+                        finalscenariodata["taskexists"]=scenariodata[ts["_id"]]['taskexists'] if 'taskexists' in scenariodata[ts["_id"]] and scenariodata[ts["_id"]]["taskexists"]["status"] != "complete" else None
                         i=i+1
                         if "screens" in ts:
                             if len(ts["screens"])==0  and mindmaptype=="basic":
@@ -509,7 +509,7 @@ def LoadServices(app, redissession, n68session):
                                     finalscreendata["task"]=screendata[sc["_id"]]['task'] 
                                 else:
                                     finalscreendata["task"]=None
-                                finalscreendata["taskexists"]=screendata[sc["_id"]]['taskexists'] if 'taskexists' in screendata[sc["_id"]] else None
+                                finalscreendata["taskexists"]=screendata[sc["_id"]]['taskexists'] if 'taskexists' in screendata[sc["_id"]]  and screendata[sc["_id"]]["taskexists"]["status"] != "complete" else None
                                 j=j+1
                                 if "testcases" in sc:
                                     if len(sc["testcases"])==0 and mindmaptype=="basic":
@@ -529,7 +529,7 @@ def LoadServices(app, redissession, n68session):
                                             finaltestcasedata["task"]=testcasedata[tc]['task'] 
                                         else:
                                             finaltestcasedata["task"]=None
-                                        finaltestcasedata["taskexists"]=testcasedata[tc]['taskexists'] if 'taskexists' in testcasedata[tc] else None
+                                        finaltestcasedata["taskexists"]=testcasedata[tc]['taskexists'] if 'taskexists' in testcasedata[tc] and testcasedata[tc]['taskexists']['status'] != 'complete' else None
                                         k=k+1
                                         finalscreendata["children"].append(finaltestcasedata)
                                 finalscenariodata["children"].append(finalscreendata)
@@ -805,8 +805,6 @@ def LoadServices(app, redissession, n68session):
                     if requestdata["status"] == "underReview":
                         status="complete"
                         assignedto=''
-                        owner=''
-                        reviewer=''
                         # n68session.tasks.update({"_id":ObjectId(requestdata["id"])},{"$set":{"status":status,"history":history,"assignedto":''}})
                     elif (requestdata["status"] == "inprogress" or requestdata["status"] == "assigned" or requestdata["status"] == "reassigned") and task['reviewer'] != "select reviewer":
                         status="underReview"
@@ -984,7 +982,7 @@ def LoadServices(app, redissession, n68session):
                     if flag or str(pid)!=parentid:
                         newparentlist.append(pid)
                     else:
-                        flag=False
+                        flag=True
                 n68session.testscenarios.update_one({'_id':ObjectId(nodeid)},{'$set':{'parent':newparentlist}})
             elif type=="screens":
                 parentlist=list(n68session.screens.find({"_id":ObjectId(nodeid)},{"parent":1}))
@@ -995,7 +993,7 @@ def LoadServices(app, redissession, n68session):
                     if flag or str(pid)!=parentid:
                         newparentlist.append(pid)
                     else:
-                        flag=False
+                        flag=True
                 n68session.screens.update_one({'_id':ObjectId(nodeid)},{'$set':{'parent':newparentlist}})
             elif type=="testcases":
                 parentlist=list(n68session.testcases.find({"_id":ObjectId(nodeid)},{"parent":1}))
