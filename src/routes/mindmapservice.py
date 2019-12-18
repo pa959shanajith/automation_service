@@ -982,7 +982,7 @@ def LoadServices(app, redissession, n68session):
                     if flag or str(pid)!=parentid:
                         newparentlist.append(pid)
                     else:
-                        flag=False
+                        flag=True
                 n68session.testscenarios.update_one({'_id':ObjectId(nodeid)},{'$set':{'parent':newparentlist}})
             elif type=="screens":
                 parentlist=list(n68session.screens.find({"_id":ObjectId(nodeid)},{"parent":1}))
@@ -993,7 +993,7 @@ def LoadServices(app, redissession, n68session):
                     if flag or str(pid)!=parentid:
                         newparentlist.append(pid)
                     else:
-                        flag=False
+                        flag=True
                 n68session.screens.update_one({'_id':ObjectId(nodeid)},{'$set':{'parent':newparentlist}})
             elif type=="testcases":
                 parentlist=list(n68session.testcases.find({"_id":ObjectId(nodeid)},{"parent":1}))

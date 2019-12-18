@@ -5,6 +5,9 @@ import traceback
 onlineuser = False
 ndacport = "1990"
 
+debugcounter = 0
+scenarioscounter = 0
+
 ui_plugins = {"alm":"ALM","apg":"APG","dashboard":"Dashboard",
     "mindmap":"Mindmap","neurongraphs":"Neuron Graphs","performancetesting":"Performance Testing",
     "reports":"Reports","utility":"Utility","weboccular":"Webocular"}
@@ -156,3 +159,12 @@ def isemptyrequest(requestdata):
         flag = 0
         app.logger.critical(printErrorCodes('203'))
     return flag
+
+def counterupdator(n68session,updatortype,userid,count):
+    status=False
+    try:
+        n68session.counters.find_one_and_update({"countertype":updatortype, "userid":userid},{"$set":{"counter":count},"$currentDate":{"counterdate":True}})
+        status = True
+    except Exception as counterupdatorexc:
+        servicesException("counterupdator",counterupdatorexc)
+    return status

@@ -296,10 +296,10 @@ def LoadServices(app, redissession, n68session2):
                         res= {'rows': queryresult, 'del_flag':del_flag, 'screenName':screen['name']}
                     else:
                         res= {'rows': queryresult, 'del_flag':del_flag}
-                    # if (not requestdata.has_key('readonly')):
-                    #     count = debugcounter + 1
-                    #     userid = requestdata['userid']
-                    #     counterupdator('testcases',userid,count)
+                    if ('readonly' not in requestdata):
+                        userid = ObjectId(requestdata['userid']) if 'userid' in requestdata else ""
+                        debugcounter = debugcounter+1
+                        counterupdator(n68session2,'testcases',userid,debugcounter)
             else:
                 app.logger.warn('Empty data received. reading Testcase')
         except Exception as readtestcaseexc:

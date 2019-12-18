@@ -51,8 +51,8 @@ def LoadServices(app, redissession, n68session):
             if not isemptyrequest(requestdata):
                 if requestdata['query'] == 'testsuites':
                     count = requestdata['count']
-                    userid = requestdata['userid']
-                    response = counterupdator('testsuites',userid,count)
+                    userid = ObjectId(requestdata['userid']) if 'userid' in requestdata else ""
+                    response = counterupdator(n68session,'testsuites',userid,count)
                     if response != True:
                         res={'rows':'fail'}
                     else:
