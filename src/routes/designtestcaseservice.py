@@ -10,7 +10,7 @@ from pymongo import InsertOne
 def LoadServices(app, redissession, n68session2):
     setenv(app)
     defcn = ['@Window', '@Object', '@System', '@Excel', '@Mobile', '@Android_Custom', '@Word', '@Custom', '@CustomiOS',
-                                '@Generic', '@Browser', '@Action', '@Email', '@BrowserPopUp', '@Sap', 'WebService List', 'Mainframe List']
+                                '@Generic', '@Browser', '@Action', '@Email', '@BrowserPopUp', '@Sap', 'WebService List', 'Mainframe List', 'OBJECT_DELETED']
 
 ################################################################################
 # END OF DEFAULT METHODS AND IMPORTS       -----------DO NOT EDIT
