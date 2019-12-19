@@ -225,6 +225,7 @@ def LoadServices(app, redissession, n68session):
 
                     res["rows"] = list(n68session.testscenarios.find({"_id":ObjectId(requestdata['id']),"deleted":query['delete_flag']},{"testcaseids":1}))
                     userid=ObjectId(requestdata['userid']) if 'userid' in requestdata else ""
+                    global scenarioscounter
                     scenarioscounter = scenarioscounter + 1
                     counterupdator(n68session,'testscenarios',userid,scenarioscounter)
                     app.logger.debug("Executed ExecuteTestSuite_ICE. Query: "+str(requestdata["query"]))
