@@ -238,7 +238,7 @@ def LoadServices(app, redissession, n68session2):
                         j['url'] = dataObjects[j['custname']]['url'] if 'url' in dataObjects[j['custname']] else ""
                         j['cord'] = dataObjects[j['custname']]['cord'] if 'cord' in dataObjects[j['custname']] else ""
                         j['custname'] = dataObjects[j['custname']]['custname']
-                    elif j['custname'] not in defcn:
+                    elif (j['custname'] not in defcn or j['custname']=='OBJECT_DELETED'):
                         j['custname'] = 'OBJECT_DELETED'
                         if j['outputVal'].split(';')[-1] != '##':
                             del_flag = True
