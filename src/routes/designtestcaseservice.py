@@ -297,6 +297,7 @@ def LoadServices(app, redissession, n68session2):
                         res= {'rows': queryresult, 'del_flag':del_flag}
                     if ('readonly' not in requestdata):
                         userid = ObjectId(requestdata['userid']) if 'userid' in requestdata else ""
+                        global debugcounter
                         debugcounter = debugcounter+1
                         counterupdator(n68session2,'testcases',userid,debugcounter)
             else:
