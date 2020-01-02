@@ -29,7 +29,7 @@ def LoadServices(app, redissession, n68session):
            if not isemptyrequest(requestdata):
                 projectid=requestdata['projectid']
                 dbconn=n68session["projects"]
-                getProjectType=list(dbconn.find({"_id":ObjectId(projectid)},{"type":1,"releases.name":1,"releases.cycles.name":1,"releases.cycles._id":1}))
+                getProjectType=list(dbconn.find({"_id":ObjectId(projectid)},{"type":1,"releases.name":1,"releases.cycles.name":1,"releases.cycles._id":1,"domain":1}))
                 dbconn=n68session["projecttypekeywords"]
                 getProjectTypeName= list(dbconn.find({"_id":ObjectId(getProjectType[0]["type"])},{"name":1}))
                 res={'rows':getProjectType,'projecttype':getProjectTypeName}
@@ -59,8 +59,8 @@ def LoadServices(app, redissession, n68session):
                     'appTypeName':[],
                     'releases':[],
                     'cycles':{},
-                    'projecttypes':projecttype_names
-
+                    'projecttypes':projecttype_names,
+                    'domains':[]
                 }
                 userid=requestdata['userid']
                 dbconn=n68session["users"]
@@ -83,7 +83,7 @@ def LoadServices(app, redissession, n68session):
                         prjids=emppid
                     for pid in prjids:
                         dbconn=n68session["projects"]
-                        prjDetail=list(dbconn.find({"_id":ObjectId(pid)},{"_id":1,"name":1,"type":1,"releases.name":1,"releases.cycles.name":1,"releases.cycles._id":1}))
+                        prjDetail=list(dbconn.find({"_id":ObjectId(pid)},{"_id":1,"name":1,"type":1,"domain":1,"releases.name":1,"releases.cycles.name":1,"releases.cycles._id":1}))
                         # print(prjDetail)
                         if(len(prjDetail)!=0):
                             prjDetails['projectId'].append(str(prjDetail[0]['_id']))
@@ -91,9 +91,10 @@ def LoadServices(app, redissession, n68session):
                             prjDetails['appType'].append(str(prjDetail[0]['type']))
                             prjDetails['appTypeName'].append(n68session.projecttypekeywords.find_one({"_id":ObjectId(prjDetail[0]['type'])})["name"])
                             prjDetails['releases'].append(prjDetail[0]["releases"])
+                            prjDetails['domains'].append(prjDetail[0]["domain"])
                             for rel in prjDetail[0]["releases"]:
                                 for cyc in rel['cycles']:
-                                    prjDetails['cycles'][str(cyc['_id'])]=[str(cyc['_id']),rel['name']]
+                                    prjDetails['cycles'][str(cyc['_id'])]=[str(cyc['_id']),rel['name'],cyc['name'],]
 
 
                 res={'rows':prjDetails}
@@ -1043,7 +1044,7 @@ def LoadServices(app, redissession, n68session):
                                         else:
                                             screen_testcase[scr["_id"]].append(tc)
                 screendetails=list(n68session.screens.find({"_id":{"$in":screenids}},{"_id":1,"name":1,"parent":1}))
-                testcasedetails=list(n68session.testcases.find({"_id":{"$in":testcaseids}},{"_id":1,"name":1,"parent":1}))
+                testcasedetails=list(n68session.testcases.find({"_id":{"$in":testcaseids}},{"_id":1,"name":1,"parent":1,"screenid":1}))
                 res={'rows':{'screenList':screendetails,'testCaseList':testcasedetails}}
             else:
                 app.logger.warn("Empty data received. getScreens")

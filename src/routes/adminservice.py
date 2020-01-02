@@ -236,7 +236,7 @@ def LoadServices(app, redissession, n68session,licensedata):
             app.logger.debug("Inside getNames_ICE. Query: "+str(requestdata["type"]))
             if not isemptyrequest(requestdata):
                 if requestdata["type"] =="domainsall" :
-                    result=list(n68session.projects.find({},{"_id":1,"name":1}))
+                    result=list(n68session.projects.find({"domain":requestdata["id"][0]},{"_id":1,"name":1}))
                     res={'rows':result}
                 elif requestdata["type"]=="projects":
                     projectids=[]
