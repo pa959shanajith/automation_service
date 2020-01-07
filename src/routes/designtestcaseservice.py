@@ -78,8 +78,9 @@ def LoadServices(app, redissession, n68session2):
     def adddataobjects(pid, d):
         if len(d) == 0: return False
         req = []
-        custname = {}
         for row in d:
+            if type(row) == str and len(row) == 0: continue
+            if "custname" not in row: row["custname"] = "object"+str(row["_id"])
             row["parent"] = [pid]
             req.append(InsertOne(row))
         n68session2.dataobjects.bulk_write(req)
@@ -88,7 +89,7 @@ def LoadServices(app, redissession, n68session2):
         custnameToAdd = []
         for e in objs:
             so = objs[e]
-            obn = so["objectName"]
+            obn = so["objectName"] if "objectName" in so else ""
             dodata = {
                 "_id": e,
                 "custname": so["custname"],
@@ -105,8 +106,8 @@ def LoadServices(app, redissession, n68session2):
                     else: dodata[legend[i]] = ob[i]
                 dodata["height"] = dodata["top"] - dodata["height"]
                 dodata["width"] = dodata["left"] - dodata["width"]
-                dodata["url"] = so["url"]
-                dodata["cord"] = so["cord"]
+                dodata["url"] = so["url"] if "url" in so else ""
+                dodata["cord"] = so["cord"] if "cord" in so else ""
             elif so["appType"] in ["Web", "MobileWeb"]:
                 ob=[]
                 legend = ['id', 'name', 'tag', 'class', 'left', 'top', 'height', 'width', 'text']
@@ -128,7 +129,7 @@ def LoadServices(app, redissession, n68session2):
                 if "tag" in dodata: dodata["tag"] = dodata["tag"].split("[")[0]
                 if "class" in dodata: dodata["class"] = dodata["class"].split("[")[0]
                 dodata["url"] = so["url"]
-                dodata["cord"] = so["cord"]
+                dodata["cord"] = so["cord"] if "cord" in so else ""
             elif so["appType"] == "MobileApp":
                 ob = obn.split(';')
                 if len(ob) == 2 and ob[0].strip() != "": dodata["id"] = ob[0]
@@ -136,7 +137,7 @@ def LoadServices(app, redissession, n68session2):
                 gettag = {"btn":"button","txtbox":"input","radiobtn":"radiobutton","select":"select","chkbox":"checkbox","lst":"list","tab":"tab","tree":"tree","dtp":"datepicker","table":"table","elmnt":"label"}
                 tag = so["custname"].split("_")[-1]
                 if tag in gettag: dodata["tag"] = gettag[tag]
-                dodata["control_id"] = obn.split(';')[2]
+                dodata["control_id"] = obn.split(';')[2] if len(obn.split(';'))>1 else ""
                 dodata["url"] = so["url"]
             elif so["appType"] == "pdf":
                 dodata["tag"] = "_".join(so["custname"].split("_")[0:2])
