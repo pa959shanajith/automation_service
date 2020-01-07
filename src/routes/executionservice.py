@@ -84,8 +84,8 @@ def LoadServices(app, redissession, n68session):
                     #res={'rows':reports_data}
 
                 elif(requestdata["query"] == 'updatescenarioinnsuite'):
-                    testsuites = n68session.testsuites.find_one({"mindmapid":ObjectId(requestdata["mindmapid"])});
-                    mindmaps = n68session.mindmaps.find_one({"_id":ObjectId(requestdata["mindmapid"])});
+                    testsuites = n68session.testsuites.find_one({"mindmapid":ObjectId(requestdata["mindmapid"])})
+                    mindmaps = n68session.mindmaps.find_one({"_id":ObjectId(requestdata["mindmapid"])})
                     getparampaths1 = []
                     conditioncheck1 = []
                     donotexecute1 = []
@@ -100,16 +100,16 @@ def LoadServices(app, redissession, n68session):
                         if testscenariodslist_new[i] in testscenariodslist:
                             index = testscenariodslist.index(testscenariodslist_new[i])
                             if index != -1 and i < len(testscenariodslist_new):
-                                if (getparampaths[i] == '' or getparampaths[i] == ' '):
+                                if (getparampaths[index] == '' or getparampaths[index] == ' '):
                                     getparampaths1.append(' ')
                                 else:
-                                    getparampaths1.append(getparampaths[i])
+                                    getparampaths1.append(getparampaths[index])
 
                                 if conditioncheck!= None:
-                                    conditioncheck1.append(conditioncheck[i])
+                                    conditioncheck1.append(conditioncheck[index])
 
                                 if donotexecute != None:
-                                    donotexecute1.append(donotexecute[i])
+                                    donotexecute1.append(donotexecute[index])
 
                             else:
                                 getparampaths1.append(' ')
