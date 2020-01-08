@@ -808,7 +808,7 @@ def getcurrentdate():
     currentdate= datetime.now()
     beginingoftime = datetime.utcfromtimestamp(0)
     differencedate= currentdate - beginingoftime
-    return long(differencedate.total_seconds() * 1000.0)
+    return int(differencedate.total_seconds() * 1000.0)
 
 class CustomJSONEncoder(json.JSONEncoder):
     def default(self, obj):
