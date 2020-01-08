@@ -128,7 +128,7 @@ def LoadServices(app, redissession, n68session):
                 except: pass
                 if "tag" in dodata: dodata["tag"] = dodata["tag"].split("[")[0]
                 if "class" in dodata: dodata["class"] = dodata["class"].split("[")[0]
-                dodata["url"] = so["url"]
+                dodata["url"] = so["url"] if 'url' in so else ""
                 dodata["cord"] = so["cord"] if "cord" in so else ""
             elif so["appType"] == "MobileApp":
                 ob = obn.split(';')
@@ -138,7 +138,7 @@ def LoadServices(app, redissession, n68session):
                 tag = so["custname"].split("_")[-1]
                 if tag in gettag: dodata["tag"] = gettag[tag]
                 dodata["control_id"] = obn.split(';')[2] if len(obn.split(';'))>1 else ""
-                dodata["url"] = so["url"]
+                dodata["url"] = so["url"] if 'url' in so else ""
             elif so["appType"] == "pdf":
                 dodata["tag"] = "_".join(so["custname"].split("_")[0:2])
             elif so["appType"] == ["Generic", "SAP", "Webservice", "Mainframe", "System"]: pass
@@ -182,16 +182,17 @@ def LoadServices(app, redissession, n68session):
                     for so in requestdata['testcasesteps']:
                         cid = cname = so["custname"].strip()
                         if cname in custnames:
-                            if (so["objectName"] == custnames[cname]['xpath']) and (so['url'] == custnames[cname]['url']):
-                                cid = custnames[cname]["_id"]
+                            if ('objectName' in so) and ('objectName' in custnames[cname]):
+                                if (so["objectName"] == custnames[cname]['xpath']):
+                                    cid = custnames[cname]["_id"]
                             else:
                                 cid = ObjectId()
                                 so["custname"] = cname+str(cid)
-                                custnames[so["custname"]] = {"_id":cid,"xpath":so["objectName"],"url":so['url']}
+                                custnames[so["custname"]] = {"_id":cid,"xpath":so["objectName"],"url":so['url'] if 'url' in so else ""}
                                 missingCustname[cid] = so
                         elif (cname not in custnames) and (cname not in defcn):
                             cid = ObjectId()
-                            custnames[cname] = {"_id":cid,"xpath":so["objectName"],"url":so['url']}
+                            custnames[cname] = {"_id":cid,"xpath":so["objectName"],"url":so['url'] if 'url' in so else ""}
                             missingCustname[cid] = so
                         steps.append({
                             "stepNo": so["stepNo"],
