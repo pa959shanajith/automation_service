@@ -3,7 +3,6 @@
 ################################################################################
 #----------DEFAULT METHODS AND IMPORTS------------DO NOT EDIT-------------------
 from utils import *
-from bson.json_util import dumps as mongo_dumps
 from bson.objectid import ObjectId
 from datetime import datetime
 import json
@@ -548,15 +547,12 @@ def LoadServices(app, redissession, n68session,licensedata):
                 userroles = requestdata['userroles']
                 result=list(n68session.users.find({"projects":{"$in":[ObjectId(requestdata["projectid"])]}},{"name":1,"defaultrole":1,"addroles":1}))
                 res={"rows":result}
-                return jsonify(res)
             else:
                 app.logger.warn('Empty data received. get users - Mind Maps.')
-                return jsonify(res)
-            return jsonify(res)
         except Exception as getUsersexc:
             app.logger.debug(traceback.format_exc())
             servicesException("getUsers_Nineteen68",getUsersexc)
-            return jsonify(res)
+        return jsonify(res)
 
     @app.route('/admin/getPreferences',methods=['POST'])
     def getPreferences():

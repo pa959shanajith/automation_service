@@ -37,13 +37,6 @@ from Crypto.Cipher import AES
 import codecs
 app = Flask(__name__)
 
-
-
-
-
-
-
-
 parser = argparse.ArgumentParser()
 log_group = parser.add_mutually_exclusive_group()
 log_group.add_argument("-T", "--test", action="store_true", help="Set logger level to Test Environment")
@@ -86,7 +79,7 @@ LS_CRITICAL_ERR_CODE=['199','120','121','123','124','125']
 lsRetryCount=0
 sysMAC=None
 chronographTimer=None
-icesession=n68session=redissession=n68session2=webocularsession=None
+n68session=redissession=None
 
 #counters for License
 debugcounter = 0
@@ -134,44 +127,38 @@ def server_ready():
 
 from utils import *
 setenv(flaskapp=app)
-sys.path.append(currdir+'/ndac/src/routes')
+sys.path + [sys.executable+'/routes', sys.executable+'/src/routes', sys.executable+'/ndac/src/routes']
 
 def addroutes():
     from routes import loginservice
-    loginservice.LoadServices(app, redissession, n68session2,licensedata)
+    loginservice.LoadServices(app, redissession, n68session, licensedata)
 
     from routes import adminservice
-    adminservice.LoadServices(app, redissession, n68session2,licensedata)
+    adminservice.LoadServices(app, redissession, n68session, licensedata)
 
     from routes import mindmapservice
-    mindmapservice.LoadServices(app, redissession, n68session2)
+    mindmapservice.LoadServices(app, redissession, n68session)
 
     from routes import designscreenservice
-    designscreenservice.LoadServices(app, redissession, n68session2)
+    designscreenservice.LoadServices(app, redissession, n68session)
 
     from routes import designtestcaseservice
-    designtestcaseservice.LoadServices(app, redissession, n68session2)
+    designtestcaseservice.LoadServices(app, redissession, n68session)
 
     from routes import executionservice
-    executionservice.LoadServices(app, redissession, n68session2)
+    executionservice.LoadServices(app, redissession, n68session)
 
     from routes import thirdpartyservice
-    thirdpartyservice.LoadServices(app, redissession, n68session2)
+    thirdpartyservice.LoadServices(app, redissession, n68session)
 
     from routes import reportsservice
-    reportsservice.LoadServices(app, redissession, n68session2, webocularsession)
+    reportsservice.LoadServices(app, redissession, n68session)
 
     from routes import utilitiesservice
-    utilitiesservice.LoadServices(app, redissession, n68session2)
-
-    ##import apgservice
-    ##apgservice.LoadServices(app, redissession, n68session2)
-
-    ##import webocularservice
-    ##webocularservice.LoadServices(app, redissession, n68session2)
+    utilitiesservice.LoadServices(app, redissession, n68session)
 
     ##import neurongraphsservice
-    ##neurongraphsservice.LoadServices(app, redissession, n68session2)
+    ##neurongraphsservice.LoadServices(app, redissession, n68session)
 
     #Prof J First Service: Getting Best Matches
     @app.route('/chatbot/getTopMatches_ProfJ',methods=['POST'])
@@ -210,199 +197,6 @@ def addroutes():
 
 ################################################################################
 # END OF SERVICES IMPORT
-################################################################################
-
-
-################################################################################
-# BEGIN OF HISTORY
-################################################################################
-
-##def createHistory(query, table, request_data):
-##    try:
-##        history={}
-##        createclone=False
-##        requestdata=dict(request_data)
-##        if('history' in requestdata and requestdata['history'] != None):
-##            req_history=requestdata['history']
-##            for keys in req_history:
-##                history[keys.encode('utf-8')]=req_history[keys].encode('utf-8')
-##        if("query" in requestdata):
-##            del requestdata["query"]
-##        if("subquery" in requestdata):
-##            createclone=True
-##            del requestdata["subquery"]
-##        if("modifiedflag" in requestdata):
-##            del requestdata["modifiedflag"]
-##        primary_keys={'users':['userid'],
-##                    'projects':['projectid','domainid','projectname'],
-##                    'cycles':['cycleid','releaseid','cyclename'],
-##                    'releases':['releaseid','projectid','releasename'],
-##                    'icepermissions':['userid','domainid'],
-##                    'modules':['moduleid','projectid','modulename','versionnumber'],
-##                    'testsuites':['testsuiteid','cycleid','testsuitename','versionnumber'],
-##                    'testscenarios':['testscenarioid','projectid','testscenarioname','versionnumber'],
-##                    'screens':['screenid','projectid','screenname','versionnumber'],
-##                    'testcases':['testcaseid','screenid','testcasename','versionnumber']
-##                    }
-##        versionquery=''
-##        if(query=='submit'):
-##            if(table=='screens'):
-##                versionquery="select getversions(history) from "+table+" where "+primary_keys[table][0]+"="+requestdata['details']['screenID_c']
-##            elif(table=='testscenarios'):
-##                versionquery="select getversions(history) from "+table+" where "+primary_keys[table][0]+"="+requestdata['details']['testScenarioID_c']
-##            elif(table=='modules'):
-##                versionquery="select getversions(history) from "+table+" where "+primary_keys[table][0]+"="+requestdata['details']['moduleID_c']
-##            elif(table=='testcases'):
-##                versionquery="select getversions(history) from "+table+" where "+primary_keys[table][0]+"="+requestdata['details']['testCaseID_c']
-##        else:
-##            versionquery="select getversions(history) from "+table+" where "+primary_keys[table][0]+"="+str(requestdata[primary_keys[table][0]])
-##        if(table=='users'):
-##            queryresult=n68session.execute(versionquery)
-##        else:
-##            queryresult=icesession.execute(versionquery)
-##        if(query=='submit' and requestdata['status']=='complete'):
-##            version=getHistoryLatestVersion(queryresult.current_rows,table,history,query)
-##        else:
-##            version=getHistoryLatestVersion(queryresult.current_rows,table,history)
-##        value=""
-##        if(query=='create'):
-##            data=str(requestdata)#.replace("'","\'").replace('"',"'")
-##            if(createclone):
-##                desc_str='Replicated '
-##            else:
-##                desc_str='Created '
-##            value={
-##            'description':desc_str+table[:-1]+' with values '+data,
-##            'timestamp':str(getcurrentdate()),
-##            'user':str(requestdata['createdby'])
-##            }
-##        elif(query=='update'):
-##            data={}
-##            for keys in requestdata:
-##                if (keys not in primary_keys[table] and keys != 'modifiedby'
-##                and keys != 'modifiedon' and keys != 'modifiedbyrole'):
-##                    data[keys]=requestdata[keys]
-##            data=str(data).replace("'","\'").replace('"',"'")
-##            user_str=''
-##            if(table=='projects'):
-##                user_str=requestdata['createdby']
-##            else:
-##                user_str=requestdata['modifiedby']
-##            value={
-##            'description':'Updated properties: '+str(data),
-##            'timestamp':str(getcurrentdate()),
-##            'user':str(user_str)
-##            }
-##        elif(query=='assign'):
-##            user_str=''
-##            if(requestdata['alreadyassigned']!=True):
-##                user_str=requestdata['createdby']
-##            else:
-##                user_str=requestdata['modifiedby']
-##            value={
-##            'description':'Assigned project '+str(requestdata['projectids'])+'with domain '+str(requestdata['domainid'])+' to user '+str(requestdata['userid']),
-##            'timestamp':str(getcurrentdate()),
-##            'user':str(user_str)
-##            }
-##        elif(query=='rename'):
-##            desc_str=''
-##            if(table=='modules'):
-##                desc_str='Renamed module to '+requestdata['modulename']
-##            elif(table=='testscenarios'):
-##                desc_str='Renamed scenario to '+requestdata['testscenarioname']
-##            elif(table=='screens'):
-##                desc_str='Renamed screen to '+requestdata['screenname']
-##            elif(table=='testcases'):
-##                desc_str='Renamed testcase to '+requestdata['testcasename']
-##            value={
-##            'description':desc_str,
-##            'timestamp':str(getcurrentdate()),
-##            'user':str(requestdata['modifiedby'])
-##            }
-##        elif(query=='submit'):
-##            desc_str=''
-##            if(requestdata['status']=='review'):
-##                if(table=='modules'):
-##                    desc_str='Submitted module '+requestdata['details']['moduleName']+' for review'
-##                elif(table=='testscenarios'):
-##                    desc_str='Submitted scenario '+requestdata['details']['testScenarioName']+' for review'
-##                elif(table=='screens'):
-##                    desc_str='Submitted screen '+requestdata['details']['screenName']+' for review'
-##                elif(table=='testcases'):
-##                    desc_str='Submitted testcase '+requestdata['details']['testCaseName']+' for review'
-##            elif(requestdata['status']=='complete'):
-##                if(table=='modules'):
-##                    desc_str='Completed module '+requestdata['details']['moduleName']
-##                elif(table=='testscenarios'):
-##                    desc_str='Completed scenario '+requestdata['details']['testScenarioName']
-##                elif(table=='screens'):
-##                    desc_str='Completed screen '+requestdata['details']['screenName']
-##                elif(table=='testcases'):
-##                    desc_str='Completed testcase '+requestdata['details']['testCaseName']
-##            elif(requestdata['status']=='reassigned'):
-##                if(table=='modules'):
-##                    desc_str='Reassigned module '+requestdata['details']['moduleName']+' for review'
-##                elif(table=='testscenarios'):
-##                    desc_str='Reassigned scenario '+requestdata['details']['testScenarioName']+' for review'
-##                elif(table=='screens'):
-##                    desc_str='Reassigned screen '+requestdata['details']['screenName']+' for review'
-##                elif(table=='testcases'):
-##                    desc_str='Reassigned testcase '+requestdata['details']['testCaseName']+' for review'
-##            value={
-##            'description':desc_str,
-##            'timestamp':str(getcurrentdate()),
-##            'user':str(requestdata['username'])
-##            }
-##        value=str(value).replace("'",'\"')
-##        history[version]=value
-##        del requestdata
-##        return history
-##    except Exception as e:
-##        servicesException("createHistory",e)
-##
-##
-##def getHistoryLatestVersion(res,table,hist,*args):
-##    try:
-##        oldverslist=[]
-##        histFlag=False
-##        versions=''
-##        newver=''
-##        if (hist is not None and len(hist)!=0):
-##            oldverslist=hist.keys()
-##            histFlag=True
-##        if (len(res)!=0):
-##            if(table=='users'):
-##                versions=res[0]['nineteen68.getversions(history)']
-##            else:
-##                versions=res[0]['icetestautomation.getversions(history)']
-##            if(versions==''):
-##                return '000.001'
-##            elif(len(oldverslist)==0):
-##                oldverslist=versions.split(',')
-##        elif (not histFlag):
-##            return '000.000'
-##        oldver=max(oldverslist)
-##        if(len(args)!=0):
-##            import math
-##            newver = str(math.ceil(float(oldver)))
-##            newver=newver.split('.')
-##        else:
-##            newver=str(float(oldver)+0.001).split('.')
-##        if(len(newver[0])==1):
-##            newver[0]="00"+newver[0]
-##        elif(len(newver[0])==2):
-##            newver[0]="0"+newver[0]
-##        if(len(newver[1])==1):
-##            newver[1]=newver[1]+"00"
-##        elif(len(newver[1])==2):
-##            newver[1]=newver[1]+"0"
-##        newver= '.'.join(newver)
-##        return newver
-##    except Exception as e:
-##        app.logger.error("Error in getHistoryLatestVersion")
-##
-################################################################################
-# END OF HISTORY
 ################################################################################
 
 @app.route('/server',methods=['POST'])
@@ -456,7 +250,7 @@ def updateActiveIceSessions():
                 app.logger.debug("Connected clients: "+str(list(activeicesessions.keys())))
 
                 #To check whether user exists in db or not
-                queryresult = n68session2.users.find_one({"name":username})
+                queryresult = n68session.users.find_one({"name":username})
                 if queryresult is None:
                     res['err_msg'] = "Unauthorized: Access denied, user is not registered with Nineteen68"
                     response = {"node_check":"userNotValid","ice_check":wrap(json.dumps(res),ice_ndac_key)}
@@ -1244,7 +1038,7 @@ class ProfJ():
 
 def main():
     global lsip,lsport,ndacport,mongo_dbup,redis_dbup,chronographTimer
-    global icesession,n68session2,redissession,n68session,webocularsession
+    global redissession,n68session
     cleanndac = checkSetup()
     if not cleanndac:
         app.logger.critical(printErrorCodes('214'))
@@ -1290,17 +1084,11 @@ def main():
             authMechanism = 'SCRAM-SHA-1')
         if client.server_info():
             mongo_dbup = True
-
-        n68session2 = client.Nineteen68
-        client = MongoClient('mongodb://%s:%s/' % (mongodb_conf["host"],mongodb_conf["port"]),
-            username = mongo_user, password = mongo_pass, authSource = 'webocular',
-            authMechanism = 'SCRAM-SHA-1')
-        webocularsession = client.webocular
+        n68session = client.Nineteen68
     except Exception as e:
         app.logger.debug(e)
         app.logger.critical(printErrorCodes('206'))
         return False
-
 
     if (basecheckonls()):
         addroutes()

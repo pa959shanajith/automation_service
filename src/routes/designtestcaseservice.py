@@ -7,7 +7,7 @@ from Crypto.Cipher import AES
 import codecs
 from pymongo import InsertOne
 
-def LoadServices(app, redissession, n68session2):
+def LoadServices(app, redissession, n68session):
     setenv(app)
     defcn = ['@Window', '@Object', '@System', '@Excel', '@Mobile', '@Android_Custom', '@Word', '@Custom', '@CustomiOS',
                                 '@Generic', '@Browser', '@Action', '@Email', '@BrowserPopUp', '@Sap', 'WebService List', 'Mainframe List', 'OBJECT_DELETED']
@@ -25,7 +25,7 @@ def LoadServices(app, redissession, n68session2):
             projecttypename = str(request.data,'utf-8')
             if not (projecttypename == '' or projecttypename == 'undefined'
                     or projecttypename == 'null' or projecttypename == None):
-                keywordquery = list(n68session2.projecttypekeywords.find({'name':{'$in':[projecttypename,'Generic']}},{'keywordsmap':1,'_id':0}))
+                keywordquery = list(n68session.projecttypekeywords.find({'name':{'$in':[projecttypename,'Generic']}},{'keywordsmap':1,'_id':0}))
                 res = {'rows':keywordquery[0]['keywordsmap']+keywordquery[1]['keywordsmap']}
             else:
                 app.logger.warn('Empty data received. getKeywordDetails')
@@ -45,7 +45,7 @@ def LoadServices(app, redissession, n68session2):
                 +str(requestdata['query']))
             if not isemptyrequest(requestdata):
                 if(requestdata['query'] == 'gettestcasedetails'):
-                    ids = list(n68session2.testscenarios.find({'_id':ObjectId(requestdata['testscenarioid'])},{'testcaseids':1,'_id':0}))
+                    ids = list(n68session.testscenarios.find({'_id':ObjectId(requestdata['testscenarioid'])},{'testcaseids':1,'_id':0}))
                     if (ids != []):
                         tc_ids = ids[0]['testcaseids']
                         query = [
@@ -54,7 +54,7 @@ def LoadServices(app, redissession, n68session2):
                             {"$sort":{"__order":1}},
                             {"$project":{"name":1}}
                         ]
-                        queryresult = list(n68session2.testcases.aggregate(query))
+                        queryresult = list(n68session.testcases.aggregate(query))
                         res= {'rows':queryresult}
                 else:
                     res={'rows':'fail'}
@@ -83,7 +83,7 @@ def LoadServices(app, redissession, n68session2):
             if "custname" not in row: row["custname"] = "object"+str(row["_id"])
             row["parent"] = [pid]
             req.append(InsertOne(row))
-        n68session2.dataobjects.bulk_write(req)
+        n68session.dataobjects.bulk_write(req)
 
     def createdataobjects(scrid, objs):
         custnameToAdd = []
@@ -154,8 +154,8 @@ def LoadServices(app, redissession, n68session2):
             requestdata=json.loads(request.data)
             app.logger.debug('Inside updateTestCase_ICE. Query: '+str(requestdata['query']))
             if not isemptyrequest(requestdata):
-                query_screen = n68session2.testcases.find_one({'_id':ObjectId(requestdata['testcaseid']),'versionnumber':requestdata['versionnumber']},{'screenid':1})
-                queryresult1 = list(n68session2.dataobjects.find({'parent':query_screen['screenid']}))
+                query_screen = n68session.testcases.find_one({'_id':ObjectId(requestdata['testcaseid']),'versionnumber':requestdata['versionnumber']},{'screenid':1})
+                queryresult1 = list(n68session.dataobjects.find({'parent':query_screen['screenid']}))
                 custnames = {}
                 if (queryresult1 != []):
                     custnames = {i['custname'].strip():i for i in queryresult1}
@@ -209,7 +209,7 @@ def LoadServices(app, redissession, n68session2):
 
                 #query to update tescase
                 if(requestdata['query'] == 'updatetestcasedata'):
-                    queryresult = n68session2.testcases.update_many({'_id':ObjectId(requestdata['testcaseid']),'versionnumber':requestdata['versionnumber']},
+                    queryresult = n68session.testcases.update_many({'_id':ObjectId(requestdata['testcaseid']),'versionnumber':requestdata['versionnumber']},
                                 {'$set':{'modifiedby':ObjectId(requestdata['modifiedby']),'modifiedbyrole':ObjectId(requestdata['modifiedbyrole']),'steps':steps},"$currentDate":{'modifiedon':True}}).matched_count
                     if queryresult > 0:
                         res= {'rows': 'success'}
@@ -270,10 +270,10 @@ def LoadServices(app, redissession, n68session2):
                         {"$sort":{"__order":1}},
                         {"$project":{'steps':1,'name':1,'screenid':1,'parent':1,'_id':0}}
                     ]
-                    queryresult = list(n68session2.testcases.aggregate(query))
+                    queryresult = list(n68session.testcases.aggregate(query))
                     if (queryresult != []):
                         for k in queryresult:
-                            queryresult1 = list(n68session2.dataobjects.find({'parent':k['screenid']},{'parent':0}))
+                            queryresult1 = list(n68session.dataobjects.find({'parent':k['screenid']},{'parent':0}))
                             dataObjects = {}
                             if (queryresult1 != []):
                                 for dos in queryresult1:
@@ -282,8 +282,8 @@ def LoadServices(app, redissession, n68session2):
                             del_flag = update_steps(k['steps'],dataObjects)
                     res= {'rows': queryresult, 'del_flag':del_flag}
                 else:
-                    queryresult = list(n68session2.testcases.find({'_id':ObjectId(requestdata['testcaseid']),'versionnumber':requestdata['versionnumber']},{'screenid':1,'steps':1,'name':1,'parent':1,'_id':0}))
-                    queryresult1 = list(n68session2.dataobjects.find({'parent':queryresult[0]['screenid']},{'parent':0}))
+                    queryresult = list(n68session.testcases.find({'_id':ObjectId(requestdata['testcaseid']),'versionnumber':requestdata['versionnumber']},{'screenid':1,'steps':1,'name':1,'parent':1,'_id':0}))
+                    queryresult1 = list(n68session.dataobjects.find({'parent':queryresult[0]['screenid']},{'parent':0}))
                     dataObjects = {}
                     if (queryresult1 != []):
                         for dos in queryresult1:
@@ -292,7 +292,7 @@ def LoadServices(app, redissession, n68session2):
                     if (queryresult != []):
                         del_flag = update_steps(queryresult[0]['steps'],dataObjects)
                     if 'screenName' in requestdata and requestdata['screenName']=='fetch':
-                        screen = n68session2.screens.find_one({'_id':queryresult[0]['screenid']},{'name':1})
+                        screen = n68session.screens.find_one({'_id':queryresult[0]['screenid']},{'name':1})
                         res= {'rows': queryresult, 'del_flag':del_flag, 'screenName':screen['name']}
                     else:
                         res= {'rows': queryresult, 'del_flag':del_flag}
@@ -300,7 +300,7 @@ def LoadServices(app, redissession, n68session2):
                         userid = ObjectId(requestdata['userid']) if 'userid' in requestdata else ""
                         global debugcounter
                         debugcounter = debugcounter+1
-                        counterupdator(n68session2,'testcases',userid,debugcounter)
+                        counterupdator(n68session,'testcases',userid,debugcounter)
             else:
                 app.logger.warn('Empty data received. reading Testcase')
         except Exception as readtestcaseexc:
