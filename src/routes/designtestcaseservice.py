@@ -255,6 +255,7 @@ def LoadServices(app, redissession, n68session):
     @app.route('/design/readTestCase_ICE',methods=['POST'])
     def readTestCase_ICE():
         res={'rows':'fail'}
+        del_flag = False
         try:
             requestdata=json.loads(request.data)
             app.logger.debug('Inside readTestCase_ICE. Query: '+str(requestdata['query']))

@@ -401,7 +401,6 @@ def LoadServices(app, redissession, n68session):
                 scenariodetails=list(n68session.testscenarios.find({"_id":{"$in":scenarioids}},{"_id":1,"name":1,"parent":1}))
                 screendetails=list(n68session.screens.find({"_id":{"$in":screenids}},{"_id":1,"name":1,"parent":1}))
                 testcasedetails=list(n68session.testcases.find({"_id":{"$in":testcaseids}},{"_id":1,"name":1,"parent":1}))
-                taskdata={}
                 moduledata={}
                 scenariodata={}
                 screendata={}
@@ -604,11 +603,9 @@ def LoadServices(app, redissession, n68session):
             versionnumber=requestdata['versionnumber']
             createdthrough=requestdata['createdthrough']
             module_type="basic"
-        
             error=checkReuse(requestdata)
-
+            currentmoduleid=None
             if error is None:
-           
                 for moduledata in requestdata['testsuiteDetails']:
                     if moduledata["testsuiteId"] is None:
                         currentmoduleid=saveTestSuite(projectid,moduledata['testsuiteName'],versionnumber,createdthrough,createdby,createdbyrole,module_type)
@@ -803,6 +800,7 @@ def LoadServices(app, redissession, n68session):
                 elif action=="updatetaskstatus":  
                     task=n68session.tasks.find_one({"_id":ObjectId(requestdata["id"])})
                     history=[]
+                    status=assignedto=owner=reviewer=''
                     if requestdata["status"] == "underReview":
                         status="complete"
                         assignedto=''
@@ -841,7 +839,6 @@ def LoadServices(app, redissession, n68session):
     def checkReuse(requestdata):
         scenarionames=set()
         # screennameset=set()
-        testcasenameset=set()
         screen_testcase={}
         error=None
         projectid=projectid=requestdata['projectid']
@@ -1129,23 +1126,23 @@ def LoadServices(app, redissession, n68session):
             return False
 
     def updateModuleName(modulename,projectid,moduleid,userid,userroleid):
-            modifiedon=datetime.now()
-            queryresult=n68session.mindmaps.update_one({"_id":ObjectId(moduleid)},{"$set":{"name":modulename,"modifiedby":userid,"modifedon":modifiedon,"modifiedbyrole":userroleid}})
-            return
+        modifiedon=datetime.now()
+        n68session.mindmaps.update_one({"_id":ObjectId(moduleid)},{"$set":{"name":modulename,"modifiedby":userid,"modifedon":modifiedon,"modifiedbyrole":userroleid}})
+        return
 
     def updateScenarioName(scenarioname,projectid,scenarioid,userid,userroleid):
         modifiedon=datetime.now()
-        queryresult=n68session.testscenarios.update_one({"_id":ObjectId(scenarioid)},{"$set":{"name":scenarioname,"modifiedby":ObjectId(userid),"modifedon":modifiedon,"modifiedbyrole":ObjectId(userroleid)}})
+        n68session.testscenarios.update_one({"_id":ObjectId(scenarioid)},{"$set":{"name":scenarioname,"modifiedby":ObjectId(userid),"modifedon":modifiedon,"modifiedbyrole":ObjectId(userroleid)}})
         return
 
     def updateScreenName(screenname,projectid,screenid,userid,userroleid):
         modifiedon=datetime.now()
-        queryresult=n68session.screens.update_one({"_id":ObjectId(screenid)},{"$set":{"name":screenname,"modifiedby":ObjectId(userid),"modifedon":modifiedon,"modifiedbyrole":ObjectId(userroleid)}})
+        n68session.screens.update_one({"_id":ObjectId(screenid)},{"$set":{"name":screenname,"modifiedby":ObjectId(userid),"modifedon":modifiedon,"modifiedbyrole":ObjectId(userroleid)}})
         return
 
     def updateTestcaseName(testcasename,projectid,testcaseid,userid,userroleid):
         modifiedon=datetime.now()
-        queryresult=n68session.testcases.update_one({"_id":ObjectId(testcaseid)},{"$set":{"name":testcasename,"modifiedby":ObjectId(userid),"modifedon":modifiedon,"modifiedbyrole":ObjectId(userroleid)}})
+        testcases.update_one({"_id":ObjectId(testcaseid)},{"$set":{"name":testcasename,"modifiedby":ObjectId(userid),"modifedon":modifiedon,"modifiedbyrole":ObjectId(userroleid)}})
         return
     
     def getModuleName(moduleid):
