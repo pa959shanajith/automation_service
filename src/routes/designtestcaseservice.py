@@ -182,7 +182,7 @@ def LoadServices(app, redissession, n68session):
                     for so in requestdata['testcasesteps']:
                         cid = cname = so["custname"].strip()
                         if cname in custnames:
-                            if ('objectName' in so) and ('objectName' in custnames[cname]):
+                            if ('objectName' in so) and ('xpath' in custnames[cname]):
                                 if (so["objectName"] == custnames[cname]['xpath']):
                                     cid = custnames[cname]["_id"]
                             else:
