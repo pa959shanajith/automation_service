@@ -806,6 +806,8 @@ def LoadServices(app, redissession, n68session):
                     if requestdata["status"] == "underReview":
                         status="complete"
                         assignedto=''
+                        owner=task["owner"]
+                        reviewer=task["reviewer"]
                         # n68session.tasks.update({"_id":ObjectId(requestdata["id"])},{"$set":{"status":status,"history":history,"assignedto":''}})
                     elif (requestdata["status"] == "inprogress" or requestdata["status"] == "assigned" or requestdata["status"] == "reassigned") and task['reviewer'] != "select reviewer":
                         status="underReview"

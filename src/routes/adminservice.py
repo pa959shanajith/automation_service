@@ -186,7 +186,7 @@ def LoadServices(app, redissession, n68session,licensedata):
             requestdata=json.loads(request.data)
             if not isemptyrequest(requestdata):
                 if "user_id" in requestdata:
-                    n68session.thirdpartyintegration.update_many({"type":"TOKENS","userid":ObjectId("5da80e9219fa86c7edd47cc6"),"deactivated":"active","expireson":{"$lt":datetime.today()}},{"$set":{"deactivated":"expired"}})
+                    n68session.thirdpartyintegration.update_many({"type":"TOKENS","userid":ObjectId(requestdata["user_id"]),"deactivated":"active","expireson":{"$lt":datetime.today()}},{"$set":{"deactivated":"expired"}})
                     query=list(n68session.thirdpartyintegration.find({"type":"TOKENS","userid":ObjectId(requestdata["user_id"])},{"hash":0}))
                     res={'rows':query}
         except Exception as getCIUserssexc:
@@ -548,10 +548,8 @@ def LoadServices(app, redissession, n68session,licensedata):
                 userroles = requestdata['userroles']
                 result=list(n68session.users.find({"projects":{"$in":[ObjectId(requestdata["projectid"])]}},{"name":1,"defaultrole":1,"addroles":1}))
                 res={"rows":result}
-                return jsonify(res)
             else:
                 app.logger.warn('Empty data received. get users - Mind Maps.')
-                return jsonify(res)
             return jsonify(res)
         except Exception as getUsersexc:
             app.logger.debug(traceback.format_exc())
