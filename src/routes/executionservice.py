@@ -381,7 +381,7 @@ def LoadServices(app, redissession, n68session):
     def checkApproval():
         app.logger.debug("Inside checkApproval")
         res={'rows':'fail'}
-        flag=True
+        flag=False
         try:
             requestdata=json.loads(request.data)
             scenario_ids=[]
@@ -396,10 +396,10 @@ def LoadServices(app, redissession, n68session):
             for i in screenids: 
                 taskids.append(i["screenid"])
             for i in taskids:
-                if (n68session.tasks.find_one({"nodeid":i})!=None):
-                    flag=False
-                    break
-            if flag!=False:
+                if (n68session.tasks.find_one({"nodeid":i})==None):
+                    flag=True
+                    res={'rows':"No Task"}
+            if flag==False:
                 tasks=list(n68session.tasks.find({"nodeid":{"$in":taskids},"status":{"$ne":"complete"}},{"status":1}))
                 res={'rows':len(tasks)}
             return jsonify(res)
