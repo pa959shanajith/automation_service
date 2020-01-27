@@ -170,8 +170,8 @@ def addroutes():
     ##import webocularservice
     ##webocularservice.LoadServices(app, redissession, n68session2)
 
-    ##import neurongraphsservice
-    ##neurongraphsservice.LoadServices(app, redissession, n68session2)
+    from routes import neurongraphsservice
+    neurongraphsservice.LoadServices(app, redissession, n68session2)
 
     #Prof J First Service: Getting Best Matches
     @app.route('/chatbot/getTopMatches_ProfJ',methods=['POST'])
