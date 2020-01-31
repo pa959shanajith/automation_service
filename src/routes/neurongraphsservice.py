@@ -29,15 +29,10 @@ def LoadServices(app, redissession, n68session):
             nodes=[]
             links=[]
             counter=0
-            project_id=ObjectId("5de0bc6619b863400cd3c2f2")
-            # project_id=ObjectId("5e145225a57bf1ae09b1c19f")
-            # project_id=ObjectId("5de4e4aed9cdd57f4061bca5")
+            project_id=n68session["projects"].find_one({}, {"_id":1})["_id"]
             dprc_list=list(n68session["projects"].find({"_id":project_id},{"name":1,"releases.name":1,"releases._id":1,"releases.cycles.name":1,"releases.cycles._id":1,"domain":1}))
             # dprc_list=list(n68session["projects"].find({},{"name":1,"releases.name":1,"releases._id":1,"releases.cycles.name":1,"releases.cycles._id":1,"domain":1}))
             cycle_ids=[]
-            
-            
-            
             domain_id=10000
             for p in dprc_list:
                 nodes.append({'id':str(domain_id),"idx":counter,'type':"Domain","name":p["domain"],"attributes":{"Name":p['domain']}})
@@ -56,9 +51,6 @@ def LoadServices(app, redissession, n68session):
                         cycle_ids.append(c["_id"])
                         counter+=1
             dprc_list=[]
-
-
-
 
             testsuites=list(n68session["testsuites"].find({"cycleid":{"$in":cycle_ids}},{"name":1,"testscenarioids":1,"mindmapid":1,"cycleid":1}))
             # testsuites=list(n68session["testsuites"].find({},{"name":1,"testscenarioids":1,"mindmapid":1,"cycleid":1}))
@@ -118,19 +110,11 @@ def LoadServices(app, redissession, n68session):
                 counter+=1
             screens=[]
 
-            # with open("nodes.json","w") as f:
-            #     f.write(str(nodes))
-            # with open("links.json","w") as f:
-            #     f.write(str(links))
             res={"nodes":nodes,"links":links}
-
         except Exception as e:
-            print(error_name)
-            app.logger.debug(traceback.format_exc())
             servicesException("getData",e)
         return jsonify(res)
 
-    
 
 
-    
+

@@ -132,8 +132,8 @@ def LoadServices(app, redissession, n68session):
 
                     if requestdata['name']=='testsuitename':
                         querydata['name'] = n68session.mindmaps.find_one({"_id":ObjectId(requestdata["mindmapid"])},{"name":1,"_id":0})['name']
-                    response = n68session.testsuites.update_one({"mindmapid":ObjectId(requestdata["mindmapid"]),
-                    "cycleid":ObjectId(requestdata["cycleid"]),"deleted":query['delete_flag'],"versionnumber":versionnumber},{'$set':querydata})
+                    n68session.testsuites.update_one({"mindmapid":ObjectId(requestdata["mindmapid"]), "cycleid":ObjectId(requestdata["cycleid"]),
+                        "deleted":query['delete_flag'],"versionnumber":versionnumber},{'$set':querydata})
                     res={'rows':'Success'}
                     app.logger.info("Executed readTestSuite_ICE. Query: "+str(requestdata["query"]))
 
@@ -169,9 +169,6 @@ def LoadServices(app, redissession, n68session):
             servicesException("readTestSuite_ICE",e)
         return jsonify(res)
 
-
-
-
     #-------------------------------------------------
     #author : shree.p
     #date:11/10/2019
@@ -196,11 +193,9 @@ def LoadServices(app, redissession, n68session):
                 querydata["testscenarioids"] = [ObjectId(i) for i in requestdata['testscenarioids']]
                 setdata ={"$set":querydata}
                 querytoupdate = {"mindmapid":ObjectId(requestdata['mindmapid']),"cycleid":ObjectId(requestdata['cycleid']),
-                "versionnumber":requestdata["versionnumber"]}
-
-                reports_data=n68session.testsuites.update_one(querytoupdate,setdata)
+                    "versionnumber":requestdata["versionnumber"]}
+                n68session.testsuites.update_one(querytoupdate,setdata)
                 app.logger.debug("Executed updateTestSuite_ICE. Query: "+str(requestdata["query"]))
-
                 res={'rows':'Success'}
             else:
                 app.logger.warn('Empty data received. update testsuite.')

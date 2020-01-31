@@ -4,7 +4,7 @@
 #----------DEFAULT METHODS AND IMPORTS------------DO NOT EDIT-------------------
 from utils import *
 
-def LoadServices(app, redissession, n68session2, webocularsession):
+def LoadServices(app, redissession, n68session):
     setenv(app)
 
 ################################################################################
@@ -29,11 +29,11 @@ def LoadServices(app, redissession, n68session2, webocularsession):
             app.logger.debug("Inside getAllSuites_ICE. Query: "+str(requestdata["query"]))
             if not isemptyrequest(requestdata):
                 if(requestdata["query"] == 'projects'):
-                    queryresult1=n68session2.users.find_one({"_id": ObjectId(requestdata["userid"])},{"projects":1,"_id":0})
-                    queryresult=list(n68session2.projects.find({"_id":{"$in":queryresult1["projects"]}},{"name":1,"releases":1}))
+                    queryresult1=n68session.users.find_one({"_id": ObjectId(requestdata["userid"])},{"projects":1,"_id":0})
+                    queryresult=list(n68session.projects.find({"_id":{"$in":queryresult1["projects"]}},{"name":1,"releases":1}))
                     res= {"rows":queryresult}
                 elif(requestdata["query"] == 'getAlltestSuites'):
-                    queryresult=list(n68session2.testsuites.find({"cycleid": ObjectId(requestdata["id"])},{"_id":1,"name":1}))
+                    queryresult=list(n68session.testsuites.find({"cycleid": ObjectId(requestdata["id"])},{"_id":1,"name":1}))
                     res= {"rows":queryresult}
             else:
                 app.logger.warn('Empty data received. report suites details.')
@@ -49,7 +49,7 @@ def LoadServices(app, redissession, n68session2, webocularsession):
         try:
             requestdata=json.loads(request.data)
             if not isemptyrequest(requestdata):
-                queryresult=list(n68session2.executions.find({"parent":ObjectId(requestdata["suiteid"])},{"_id":1,"starttime":1,"endtime":1,"status":1}))
+                queryresult=list(n68session.executions.find({"parent":ObjectId(requestdata["suiteid"])},{"_id":1,"starttime":1,"endtime":1,"status":1}))
                 res= {"rows":queryresult}
             else:
                 app.logger.warn('Empty data received. report suites details execution.')
@@ -67,10 +67,10 @@ def LoadServices(app, redissession, n68session2, webocularsession):
             app.logger.debug("Inside reportStatusScenarios_ICE. Query: "+str(requestdata["query"]))
             if not isemptyrequest(requestdata):
                 if(requestdata["query"] == 'executiondetails'):
-                    queryresult = list(n68session2.reports.find({"executionid":ObjectId(requestdata["executionid"])},{"_id":1,"executionid":1,"executedon":1,"comments":1,"executedtime":1,"modifiedby":1,"modifiedbyrole":1,"modifiedon":1,"status":1,"testscenarioid":1}))
+                    queryresult = list(n68session.reports.find({"executionid":ObjectId(requestdata["executionid"])},{"_id":1,"executionid":1,"executedon":1,"comments":1,"executedtime":1,"modifiedby":1,"modifiedbyrole":1,"modifiedon":1,"status":1,"testscenarioid":1}))
                     res= {"rows":queryresult}
                 elif(requestdata["query"] == 'scenarioname'):
-                    queryresult = list(n68session2.testscenarios.find({"_id":ObjectId(requestdata["scenarioid"])},{"name":1}))
+                    queryresult = list(n68session.testscenarios.find({"_id":ObjectId(requestdata["scenarioid"])},{"name":1}))
                     res= {"rows":queryresult}
             else:
                 app.logger.warn('Empty data received. report status of scenarios.')
@@ -82,19 +82,17 @@ def LoadServices(app, redissession, n68session2, webocularsession):
     #fetching the reports
     @app.route('/reports/getReport_Nineteen68',methods=['POST'])
     def getReport_Nineteen68():
-        # from bson.json_util import dumps as mongo_dumps
-        # queryresult= []
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
             app.logger.debug("Inside getReport_Nineteen68. Query: "+str(requestdata["query"]))
             if not isemptyrequest(requestdata):
                 if(requestdata["query"] == 'projectsUnderDomain'):
-                    queryresult1 = n68session2.reports.find_one({"_id":ObjectId(requestdata["reportid"])},{"executedtime":1,"report":1,"testscenarioid":1})
+                    queryresult1 = n68session.reports.find_one({"_id":ObjectId(requestdata["reportid"])},{"executedtime":1,"report":1,"testscenarioid":1})
                     # scenarioid = queryresult1['testscenarioid']
-                    queryresult2 = n68session2.testscenarios.find_one({"_id":queryresult1['testscenarioid']},{"name":1,"projectid":1,"_id":0})
+                    queryresult2 = n68session.testscenarios.find_one({"_id":queryresult1['testscenarioid']},{"name":1,"projectid":1,"_id":0})
                     # queryresult1.update(queryresult2)
-                    queryresult3 = n68session2.projects.find_one({"_id":queryresult2['projectid']},{"domain":1,"_id":0})
+                    queryresult3 = n68session.projects.find_one({"_id":queryresult2['projectid']},{"domain":1,"_id":0})
                     # queryresult1.update(queryresult3)
                     # queryresult1['testscenarioid'] = scenarioid
                     # queryresult.append(queryresult1)
@@ -122,7 +120,7 @@ def LoadServices(app, redissession, n68session2, webocularsession):
             requestdata=json.loads(request.data)
             app.logger.debug("Inside updateReportData.")
             if not isemptyrequest(requestdata):
-                queryresult = n68session2.reports.find({"_id":ObjectId(requestdata["reportid"])},{"report":1})
+                queryresult = n68session.reports.find({"_id":ObjectId(requestdata["reportid"])},{"report":1})
                 report = queryresult[0]['report']
                 report_rows = report['rows']
                 row = None
@@ -134,34 +132,11 @@ def LoadServices(app, redissession, n68session2, webocularsession):
                 if(row!=None):
                     row.update({'jira_defect_id':str(requestdata['defectid'])})
                     report['rows']=report_rows
-                    queryresult = n68session2.reports.update({"_id":ObjectId(requestdata["reportid"])},{"$set":{"report":report}})
+                    queryresult = n68session.reports.update({"_id":ObjectId(requestdata["reportid"])},{"$set":{"report":report}})
                     res={'rows':'Success'}
         except Exception as updatereportdataexc:
             app.logger.debug(updatereportdataexc)
             servicesException("updateReportData",updatereportdataexc)
         return jsonify(res)
-
-
-    @app.route('/reports/getWebocularData_ICE',methods=['POST'])
-    def getWebocularData_ICE():
-        res={'rows':'fail'}
-        try:
-            requestdata=json.loads(request.data)
-            if not isemptyrequest(requestdata):
-                app.logger.debug("Inside getWebocularData_ICE.")
-                if(requestdata["query"] == 'moduledata'):
-                    reports_data=list(webocularsession.reports.find({},{"_id":1,"modulename":1}))
-                    res={'rows':reports_data}
-                elif(requestdata["query"] == 'reportdata'):
-                    reports_data=list(webocularsession.reports.find({"_id":ObjectId(requestdata["id"])}))
-                    res={'rows':reports_data}
-                elif(requestdata["query"] == 'insertdata'):
-                    webocularsession.reports.insert_one(requestdata['data'])
-                    res={'rows':'success'}
-        except Exception as getweboculardataexec:
-            app.logger.debug(getweboculardataexec)
-            servicesException("getWebocularData_ICE",getweboculardataexec)
-        return jsonify(res)
-
 
 # END OF REPORTS
