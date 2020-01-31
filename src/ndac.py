@@ -224,6 +224,9 @@ def updateActiveIceSessions():
         requestdata=json.loads(request.data)
         app.logger.debug("Inside updateActiveIceSessions. Query: "+str(requestdata["query"]))
         if not isemptyrequest(requestdata):
+            sess = redissession.get('icesessions')
+            if sess == '' or sess is None:
+                redissession.set('icesessions',wrap('{}',db_keys))
             activeicesessions=json.loads(unwrap(redissession.get('icesessions'),db_keys))
             if(requestdata['query']=='disconnect'):
                 username=requestdata['username'].lower()
