@@ -24,10 +24,6 @@ import logging
 import logging.config
 from logging.handlers import TimedRotatingFileHandler
 from pymongo import MongoClient
-import cassandra
-from cassandra.cluster import Cluster
-from cassandra.auth import PlainTextAuthProvider
-from cassandra.query import dict_factory, SimpleStatement
 from nltk.stem import PorterStemmer
 from threading import Timer
 import calendar
@@ -799,9 +795,6 @@ def initLoggers(level):
     else:
         app.logger.setLevel(logLevel)
     app.logger.propagate = False
-    cassandra.cluster.log.setLevel(50) # Set cassanda's log level to critical
-    cassandra.connection.log.setLevel(50) # Set cassanda's log level to critical
-    cassandra.pool.log.setLevel(50) # Set cassanda's log level to critical
     app.logger.debug("Inside initLoggers")
 
 def getcurrentdate():
@@ -1108,7 +1101,6 @@ def main():
         app.logger.critical(printErrorCodes('218'))
 
 if __name__ == '__main__':
-    parserArgs.test=True
     initLoggers(parserArgs)
     sysMAC = str(getMacAddress()).strip()
     main()

@@ -84,7 +84,6 @@ def LoadServices(app, redissession, n68session):
                     for pid in prjids:
                         dbconn=n68session["projects"]
                         prjDetail=list(dbconn.find({"_id":ObjectId(pid)},{"_id":1,"name":1,"type":1,"domain":1,"releases.name":1,"releases.cycles.name":1,"releases.cycles._id":1}))
-                        # print(prjDetail)
                         if(len(prjDetail)!=0):
                             prjDetails['projectId'].append(str(prjDetail[0]['_id']))
                             prjDetails['projectName'].append(prjDetail[0]['name'])
@@ -553,7 +552,6 @@ def LoadServices(app, redissession, n68session):
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
-            print("req",requestdata)
             app.logger.debug("Inside getTasksJSON.")
             if not isemptyrequest(requestdata):
                 userid=requestdata["userid"]
@@ -685,7 +683,6 @@ def LoadServices(app, redissession, n68session):
         "testscenarios":[]
         }
         queryresult=n68session.mindmaps.insert_one(data).inserted_id
-        print("Save Test Suite",queryresult)
         return queryresult
 
     def saveTestScenario(projectid,testscenarioname,versionnumber,createdby,createdbyrole,moduleid,testcaseids=[]):
@@ -707,7 +704,6 @@ def LoadServices(app, redissession, n68session):
             "screens":[]
         }
         queryresult=n68session.testscenarios.insert_one(data).inserted_id
-        print("Save Secenario",queryresult)
         return queryresult
 
     def saveScreen(projectid,screenname,versionnumber,createdby,createdbyrole,scenarioid):
@@ -729,7 +725,6 @@ def LoadServices(app, redissession, n68session):
         "scrapedurl":""
         }
         queryresult=n68session.screens.insert_one(data).inserted_id
-        print("Save Screen",queryresult)
         return queryresult
 
     def saveTestcase(screenid,testcasename,versionnumber,createdby,createdbyrole):
@@ -750,7 +745,6 @@ def LoadServices(app, redissession, n68session):
             "deleted":False
         }
         queryresult=n68session.testcases.insert_one(data).inserted_id
-        print("Save Testcase",queryresult)
         return queryresult
 
     @app.route('/mindmap/manageTask',methods=['POST'])
