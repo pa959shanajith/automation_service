@@ -372,6 +372,36 @@ def LoadServices(app, redissession, n68session):
             servicesException("getTestcaseDetailsForScenario_ICE",userrolesexc)
         return jsonify(res)
 
+    @app.route('/suite/checkApproval',methods=['POST'])
+    def checkApproval():
+        app.logger.debug("Inside checkApproval")
+        res={'rows':'fail'}
+        flag=False
+        try:
+            requestdata=json.loads(request.data)
+            scenario_ids=[]
+            for i in requestdata["scenario_ids"]:
+                scenario_ids.append(ObjectId(i))
+            testcaseids=list(n68session.testscenarios.find({"_id":{"$in":scenario_ids}},{"testcaseids":1}))
+            taskids=[]
+            for i in testcaseids:
+                for j in i["testcaseids"]:
+                    taskids.append(j)
+            screenids=list(n68session.testcases.find({"_id":{"$in":taskids}},{"screenid":1,"_id":0}))
+            for i in screenids: 
+                taskids.append(i["screenid"])
+            for i in taskids:
+                if (n68session.tasks.find_one({"nodeid":i})==None):
+                    flag=True
+                    res={'rows':"No Task"}
+            if flag==False:
+                tasks=list(n68session.tasks.find({"nodeid":{"$in":taskids},"status":{"$ne":"complete"}},{"status":1}))
+                res={'rows':len(tasks)}
+            return jsonify(res)
+        except Exception as getalltaskssexc:
+            app.logger.debug(traceback.format_exc())
+            servicesException("checkApproval",getalltaskssexc)
+            return jsonify(res)
 
 query={}
 query['delete_flag'] = False

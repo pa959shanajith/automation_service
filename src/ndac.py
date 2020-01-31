@@ -153,8 +153,8 @@ def addroutes():
     from routes import utilitiesservice
     utilitiesservice.LoadServices(app, redissession, n68session)
 
-    ##import neurongraphsservice
-    ##neurongraphsservice.LoadServices(app, redissession, n68session)
+    from routes import neurongraphsservice
+    neurongraphsservice.LoadServices(app, redissession, n68session)
 
     #Prof J First Service: Getting Best Matches
     @app.route('/chatbot/getTopMatches_ProfJ',methods=['POST'])

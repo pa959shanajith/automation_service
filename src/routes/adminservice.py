@@ -181,7 +181,7 @@ def LoadServices(app, redissession, n68session,licensedata):
             requestdata=json.loads(request.data)
             if not isemptyrequest(requestdata):
                 if "user_id" in requestdata:
-                    n68session.thirdpartyintegration.update_many({"type":"TOKENS","userid":ObjectId("5da80e9219fa86c7edd47cc6"),"deactivated":"active","expireson":{"$lt":datetime.today()}},{"$set":{"deactivated":"expired"}})
+                    n68session.thirdpartyintegration.update_many({"type":"TOKENS","userid":ObjectId(requestdata["user_id"]),"deactivated":"active","expireson":{"$lt":datetime.today()}},{"$set":{"deactivated":"expired"}})
                     query=list(n68session.thirdpartyintegration.find({"type":"TOKENS","userid":ObjectId(requestdata["user_id"])},{"hash":0}))
                     res={'rows':query}
         except Exception as getCIUserssexc:
