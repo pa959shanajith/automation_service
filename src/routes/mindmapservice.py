@@ -84,7 +84,6 @@ def LoadServices(app, redissession, n68session):
                     for pid in prjids:
                         dbconn=n68session["projects"]
                         prjDetail=list(dbconn.find({"_id":ObjectId(pid)},{"_id":1,"name":1,"type":1,"domain":1,"releases.name":1,"releases.cycles.name":1,"releases.cycles._id":1}))
-                        # print(prjDetail)
                         if(len(prjDetail)!=0):
                             prjDetails['projectId'].append(str(prjDetail[0]['_id']))
                             prjDetails['projectName'].append(prjDetail[0]['name'])
@@ -401,7 +400,6 @@ def LoadServices(app, redissession, n68session):
                 scenariodetails=list(n68session.testscenarios.find({"_id":{"$in":scenarioids}},{"_id":1,"name":1,"parent":1}))
                 screendetails=list(n68session.screens.find({"_id":{"$in":screenids}},{"_id":1,"name":1,"parent":1}))
                 testcasedetails=list(n68session.testcases.find({"_id":{"$in":testcaseids}},{"_id":1,"name":1,"parent":1}))
-                taskdata={}
                 moduledata={}
                 scenariodata={}
                 screendata={}
@@ -554,7 +552,6 @@ def LoadServices(app, redissession, n68session):
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
-            print("req",requestdata)
             app.logger.debug("Inside getTasksJSON.")
             if not isemptyrequest(requestdata):
                 userid=requestdata["userid"]
@@ -604,11 +601,9 @@ def LoadServices(app, redissession, n68session):
             versionnumber=requestdata['versionnumber']
             createdthrough=requestdata['createdthrough']
             module_type="basic"
-        
             error=checkReuse(requestdata)
-
+            currentmoduleid=None
             if error is None:
-           
                 for moduledata in requestdata['testsuiteDetails']:
                     if moduledata["testsuiteId"] is None:
                         currentmoduleid=saveTestSuite(projectid,moduledata['testsuiteName'],versionnumber,createdthrough,createdby,createdbyrole,module_type)
@@ -688,7 +683,6 @@ def LoadServices(app, redissession, n68session):
         "testscenarios":[]
         }
         queryresult=n68session.mindmaps.insert_one(data).inserted_id
-        print("Save Test Suite",queryresult)
         return queryresult
 
     def saveTestScenario(projectid,testscenarioname,versionnumber,createdby,createdbyrole,moduleid,testcaseids=[]):
@@ -710,7 +704,6 @@ def LoadServices(app, redissession, n68session):
             "screens":[]
         }
         queryresult=n68session.testscenarios.insert_one(data).inserted_id
-        print("Save Secenario",queryresult)
         return queryresult
 
     def saveScreen(projectid,screenname,versionnumber,createdby,createdbyrole,scenarioid):
@@ -732,7 +725,6 @@ def LoadServices(app, redissession, n68session):
         "scrapedurl":""
         }
         queryresult=n68session.screens.insert_one(data).inserted_id
-        print("Save Screen",queryresult)
         return queryresult
 
     def saveTestcase(screenid,testcasename,versionnumber,createdby,createdbyrole):
@@ -753,7 +745,6 @@ def LoadServices(app, redissession, n68session):
             "deleted":False
         }
         queryresult=n68session.testcases.insert_one(data).inserted_id
-        print("Save Testcase",queryresult)
         return queryresult
 
     @app.route('/mindmap/manageTask',methods=['POST'])
@@ -803,6 +794,7 @@ def LoadServices(app, redissession, n68session):
                 elif action=="updatetaskstatus":  
                     task=n68session.tasks.find_one({"_id":ObjectId(requestdata["id"])})
                     history=[]
+                    status=assignedto=owner=reviewer=''
                     if requestdata["status"] == "underReview":
                         status="complete"
                         assignedto=''
@@ -841,7 +833,6 @@ def LoadServices(app, redissession, n68session):
     def checkReuse(requestdata):
         scenarionames=set()
         # screennameset=set()
-        testcasenameset=set()
         screen_testcase={}
         error=None
         projectid=projectid=requestdata['projectid']
@@ -1129,23 +1120,23 @@ def LoadServices(app, redissession, n68session):
             return False
 
     def updateModuleName(modulename,projectid,moduleid,userid,userroleid):
-            modifiedon=datetime.now()
-            queryresult=n68session.mindmaps.update_one({"_id":ObjectId(moduleid)},{"$set":{"name":modulename,"modifiedby":userid,"modifedon":modifiedon,"modifiedbyrole":userroleid}})
-            return
+        modifiedon=datetime.now()
+        n68session.mindmaps.update_one({"_id":ObjectId(moduleid)},{"$set":{"name":modulename,"modifiedby":userid,"modifedon":modifiedon,"modifiedbyrole":userroleid}})
+        return
 
     def updateScenarioName(scenarioname,projectid,scenarioid,userid,userroleid):
         modifiedon=datetime.now()
-        queryresult=n68session.testscenarios.update_one({"_id":ObjectId(scenarioid)},{"$set":{"name":scenarioname,"modifiedby":ObjectId(userid),"modifedon":modifiedon,"modifiedbyrole":ObjectId(userroleid)}})
+        n68session.testscenarios.update_one({"_id":ObjectId(scenarioid)},{"$set":{"name":scenarioname,"modifiedby":ObjectId(userid),"modifedon":modifiedon,"modifiedbyrole":ObjectId(userroleid)}})
         return
 
     def updateScreenName(screenname,projectid,screenid,userid,userroleid):
         modifiedon=datetime.now()
-        queryresult=n68session.screens.update_one({"_id":ObjectId(screenid)},{"$set":{"name":screenname,"modifiedby":ObjectId(userid),"modifedon":modifiedon,"modifiedbyrole":ObjectId(userroleid)}})
+        n68session.screens.update_one({"_id":ObjectId(screenid)},{"$set":{"name":screenname,"modifiedby":ObjectId(userid),"modifedon":modifiedon,"modifiedbyrole":ObjectId(userroleid)}})
         return
 
     def updateTestcaseName(testcasename,projectid,testcaseid,userid,userroleid):
         modifiedon=datetime.now()
-        queryresult=n68session.testcases.update_one({"_id":ObjectId(testcaseid)},{"$set":{"name":testcasename,"modifiedby":ObjectId(userid),"modifedon":modifiedon,"modifiedbyrole":ObjectId(userroleid)}})
+        testcases.update_one({"_id":ObjectId(testcaseid)},{"$set":{"name":testcasename,"modifiedby":ObjectId(userid),"modifedon":modifiedon,"modifiedbyrole":ObjectId(userroleid)}})
         return
     
     def getModuleName(moduleid):

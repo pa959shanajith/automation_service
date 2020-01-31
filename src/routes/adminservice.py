@@ -3,7 +3,6 @@
 ################################################################################
 #----------DEFAULT METHODS AND IMPORTS------------DO NOT EDIT-------------------
 from utils import *
-from bson.json_util import dumps as mongo_dumps
 from bson.objectid import ObjectId
 from datetime import datetime
 import json
@@ -72,11 +71,7 @@ def LoadServices(app, redissession, n68session,licensedata):
             if not isemptyrequest(requestdata):
                 # if n68session.server_info():
                     if(action=="delete"):
-                        userid=n68session.users.find_one({"name":requestdata['name']},{"_id":1})
                         result=n68session.users.delete_one({"name":requestdata['name']})
-                        # n68session.tasks.update_many({"assignedto":userid["_id"]},{"$set":{"assignedto":""}})
-                        # n68session.tasks.update_many({"assignedto":userid["_id"]},{"$set":{"reviewer":""}})
-                        # n68session.tasks.update_many({"owner":userid["_id"]},{"$set":{"owner":""}})
                         n68session.tasks.delete_many({"assignedto":ObjectId(requestdata["userid"]),"status":{"$ne":'complete'}})
                         n68session.tasks.delete_many({"owner":ObjectId(requestdata["userid"]),"status":{"$ne":'complete'}})
                         n68session.tasks.update_many({"reviewer":ObjectId(requestdata["userid"]),"status":{"$ne":'complete'}},{"$set":{"status":"inprogress","reviewer":""}})
@@ -331,7 +326,7 @@ def LoadServices(app, redissession, n68session,licensedata):
                             cycles["modifiedby"]=cycles["createdby"]=ObjectId(requestdata["createdby"])
                             cycles["modifiedon"]=cycles["createdon"]=datetime.now()
                             cycles["modifiedbyrole"]=cycles["createdbyrole"]=ObjectId(requestdata["createdbyrole"])
-                            cycleid=cycles["_id"]=ObjectId()
+                            cycles["_id"]=ObjectId()
                             cycles["name"]=requestdata["name"]
                             i["cycles"].append(cycles)
                     n68session.projects.update({"_id":ObjectId(requestdata["projectid"])},{"$set":{"releases":result}})
@@ -401,7 +396,6 @@ def LoadServices(app, redissession, n68session,licensedata):
             requestdata=json.loads(request.data)
             app.logger.info("Inside manageLDAPConfig. Action is "+str(requestdata['action']))
             if not isemptyrequest(requestdata):
-                configquery = ''
                 if "bindcredentials" in requestdata: requestdata["bindcredentials"]=wrap(requestdata["bindcredentials"],ldap_key)
                 else: requestdata["bindcredentials"] = ""
                 if (requestdata['action'] == "delete"):
@@ -539,24 +533,16 @@ def LoadServices(app, redissession, n68session,licensedata):
         app.logger.debug("Inside getUsers_Nineteen68")
         res={'rows':'fail'}
         try:
-            userid_list = []
             requestdata=json.loads(request.data)
             if not isemptyrequest(requestdata):
-                userid_list = []
-            requestdata=json.loads(request.data)
-            if not isemptyrequest(requestdata):
-                userroles = requestdata['userroles']
                 result=list(n68session.users.find({"projects":{"$in":[ObjectId(requestdata["projectid"])]}},{"name":1,"defaultrole":1,"addroles":1}))
                 res={"rows":result}
-                return jsonify(res)
             else:
                 app.logger.warn('Empty data received. get users - Mind Maps.')
-                return jsonify(res)
-            return jsonify(res)
         except Exception as getUsersexc:
             app.logger.debug(traceback.format_exc())
             servicesException("getUsers_Nineteen68",getUsersexc)
-            return jsonify(res)
+        return jsonify(res)
 
     @app.route('/admin/getPreferences',methods=['POST'])
     def getPreferences():
