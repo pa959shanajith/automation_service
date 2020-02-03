@@ -56,10 +56,21 @@ ldap_key = "".join(['l','!','g','#','t','W','3','l','g','G','h','1','3','@','(',
 activeicesessions={}
 latest_access_time=datetime.now()
 
-currdir=os.getcwd()
+currexc = sys.executable
+try: currfiledir = os.path.dirname(os.path.abspath(__file__))
+except: currfiledir = os.path.dirname(currexc)
+currdir = os.getcwd()
+if os.path.basename(currexc).startswith("ndac"):
+    currdir = os.path.dirname(currexc)
+elif os.path.basename(currexc).startswith("python"):
+    currdir = os.path.dirname(currfiledir)
+    if os.path.basename(currdir).endswith("ndac"+os.sep+"src"):
+        currdir = os.path.abspath(os.path.join(currdir,"..",".."))
+    elif currfiledir != os.path.dirname(currexc):
+        currdir = os.path.abspath(os.path.join(currdir,".."))
 config_path = currdir+'/server_config.json'
 assistpath = currdir + "/ndac_internals/assist"
-logspath= currdir + "/ndac_internals/logs"
+logspath = currdir + "/ndac_internals/logs"
 
 lsip = "127.0.0.1"
 lsport = "5000"
@@ -123,37 +134,37 @@ def server_ready():
 
 from utils import *
 setenv(flaskapp=app)
-sys.path + [sys.executable+'/routes', sys.executable+'/src/routes', sys.executable+'/ndac/src/routes']
+sys.path.append(currfiledir+os.sep+"routes")
 
 def addroutes():
-    from routes import loginservice
+    import loginservice
     loginservice.LoadServices(app, redissession, n68session, licensedata)
 
-    from routes import adminservice
+    import adminservice
     adminservice.LoadServices(app, redissession, n68session, licensedata)
 
-    from routes import mindmapservice
+    import mindmapservice
     mindmapservice.LoadServices(app, redissession, n68session)
 
-    from routes import designscreenservice
+    import designscreenservice
     designscreenservice.LoadServices(app, redissession, n68session)
 
-    from routes import designtestcaseservice
+    import designtestcaseservice
     designtestcaseservice.LoadServices(app, redissession, n68session)
 
-    from routes import executionservice
+    import executionservice
     executionservice.LoadServices(app, redissession, n68session)
 
-    from routes import thirdpartyservice
+    import thirdpartyservice
     thirdpartyservice.LoadServices(app, redissession, n68session)
 
-    from routes import reportsservice
+    import reportsservice
     reportsservice.LoadServices(app, redissession, n68session)
 
-    from routes import utilitiesservice
+    import utilitiesservice
     utilitiesservice.LoadServices(app, redissession, n68session)
 
-    from routes import neurongraphsservice
+    import neurongraphsservice
     neurongraphsservice.LoadServices(app, redissession, n68session)
 
     #Prof J First Service: Getting Best Matches
