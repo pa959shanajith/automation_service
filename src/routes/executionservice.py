@@ -380,23 +380,67 @@ def LoadServices(app, redissession, n68session):
         try:
             requestdata=json.loads(request.data)
             scenario_ids=[]
+            screenid=[]
+            testcaseid=[]
+            screens=[]
+            counter=0
             for i in requestdata["scenario_ids"]:
                 scenario_ids.append(ObjectId(i))
             testcaseids=list(n68session.testscenarios.find({"_id":{"$in":scenario_ids}},{"testcaseids":1}))
             taskids=[]
             for i in testcaseids:
                 for j in i["testcaseids"]:
-                    taskids.append(j)
-            screenids=list(n68session.testcases.find({"_id":{"$in":taskids}},{"screenid":1,"_id":0}))
-            for i in screenids: 
-                taskids.append(i["screenid"])
-            for i in taskids:
-                if (n68session.tasks.find_one({"nodeid":i})==None):
+                    testcaseid.append(j)
+            testcases=list(n68session.testcases.find({"_id":{"$in":testcaseid}},{"screenid":1,"_id":1,"modifiedon":1}))
+            for i in testcases:
+                screenid.append(i["screenid"])
+                screens.append(n68session.screens.find_one({"_id":i["screenid"]},{"modifiedon":1}))
+            for i in testcaseid:
+                query=list(n68session.tasks.find({"nodeid":i},{"history":1}).sort("createdon",-1).limit(1))
+                if(len(query[0]["history"])>0):
+                    date=query[0]["history"][-1]["modifiedOn"]
+                    if isinstance(date,str) and query[0]["history"][-1]["status"] == "complete" and testcases[counter]['modifiedon']>=datetime.strptime(date,"%d/%m/%Y,%H:%M:%S"):
+                        flag=True
+                        res={'rows':"Modified"}
+                        return jsonify(res)
+                    elif isinstance(date,datetime) and query[0]["history"][-1]["status"] == "complete" and testcases[counter]['modifiedon']>=date:
+                        flag=True
+                        res={'rows':"Modified"}
+                        return jsonify(res)
+                else:
+                    res={'rows':1}
+                    return jsonify(res)
+                if (query==None):
                     flag=True
                     res={'rows':"No Task"}
+                    return jsonify(res)
+                counter+=1
+            counter=0
+            for i in screenid:
+                query=list(n68session.tasks.find({"nodeid":i},{"history":1}).sort("createdon",-1).limit(1))
+                if(len(query[0]["history"])>0):
+                    date=query[0]["history"][-1]["modifiedOn"]
+                    if isinstance(date,str) and query[0]["history"][-1]["status"] == "complete" and screens[counter]['modifiedon']>=datetime.strptime(date,"%d/%m/%Y,%H:%M:%S"):
+                    flag=True
+                        res={'rows':"Modified"}
+                        return jsonify(res)
+                    elif isinstance(date,datetime) and query[0]["history"][-1]["status"] == "complete" and screens[counter]['modifiedon']>=date:
+                        flag=True
+                        res={'rows':"Modified"}
+                        return jsonify(res)
+                else:
+                    res={'rows':1}
+                    return jsonify(res)
+                date=query[0]["history"][0]["modifiedOn"]
+                if (query==None):
+                    flag=True
+                    res={'rows':"No Task"}
+                    return jsonify(res)
+                counter+=1
             if flag==False:
-                tasks=list(n68session.tasks.find({"nodeid":{"$in":taskids},"status":{"$ne":"complete"}},{"status":1}))
-                res={'rows':len(tasks)}
+                tasks=list(n68session.tasks.find({"nodeid":{"$in":testcaseid},"status":{"$ne":"complete"}},{"status":1}))
+                tasks1=list(n68session.tasks.find({"nodeid":{"$in":screenid},"status":{"$ne":"complete"}},{"status":1}))
+                res={'rows':len(tasks)+len(tasks1)}
             return jsonify(res)
         except Exception as getalltaskssexc:
             app.logger.debug(traceback.format_exc())

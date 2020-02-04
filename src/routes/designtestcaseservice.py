@@ -6,6 +6,7 @@ from utils import *
 from Crypto.Cipher import AES
 import codecs
 from pymongo import InsertOne
+from datetime import datetime
 
 def LoadServices(app, redissession, n68session):
     setenv(app)
@@ -211,7 +212,7 @@ def LoadServices(app, redissession, n68session):
                 #query to update tescase
                 if(requestdata['query'] == 'updatetestcasedata'):
                     queryresult = n68session.testcases.update_many({'_id':ObjectId(requestdata['testcaseid']),'versionnumber':requestdata['versionnumber']},
-                                {'$set':{'modifiedby':ObjectId(requestdata['modifiedby']),'modifiedbyrole':ObjectId(requestdata['modifiedbyrole']),'steps':steps},"$currentDate":{'modifiedon':True}}).matched_count
+                                {'$set':{'modifiedby':ObjectId(requestdata['modifiedby']),'modifiedbyrole':ObjectId(requestdata['modifiedbyrole']),'steps':steps,"modifiedon" : datetime.now()}}).matched_count
                     if queryresult > 0:
                         res= {'rows': 'success'}
             else:
