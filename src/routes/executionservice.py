@@ -421,7 +421,7 @@ def LoadServices(app, redissession, n68session):
                 if(len(query[0]["history"])>0):
                     date=query[0]["history"][-1]["modifiedOn"]
                     if isinstance(date,str) and query[0]["history"][-1]["status"] == "complete" and screens[counter]['modifiedon']>=datetime.strptime(date,"%d/%m/%Y,%H:%M:%S"):
-                    flag=True
+                        flag=True
                         res={'rows':"Modified"}
                         return jsonify(res)
                     elif isinstance(date,datetime) and query[0]["history"][-1]["status"] == "complete" and screens[counter]['modifiedon']>=date:
