@@ -1138,9 +1138,9 @@ def LoadServices(app, redissession, n68session):
 
     def updateTestcaseName(testcasename,projectid,testcaseid,userid,userroleid):
         modifiedon=datetime.now()
-        testcases.update_one({"_id":ObjectId(testcaseid)},{"$set":{"name":testcasename,"modifiedby":ObjectId(userid),"modifedon":modifiedon,"modifiedbyrole":ObjectId(userroleid)}})
+        n68session.testcases.update_one({"_id":ObjectId(testcaseid)},{"$set":{"name":testcasename,"modifiedby":ObjectId(userid),"modifedon":modifiedon,"modifiedbyrole":ObjectId(userroleid)}})
         return
-    
+
     def getModuleName(moduleid):
         modulename=list(n68session.mindmaps.find({"_id":ObjectId(moduleid),"deleted":False},{"name":1}))
         if len(modulename)!=0:
