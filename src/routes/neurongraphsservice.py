@@ -26,11 +26,12 @@ def LoadServices(app, redissession, n68session):
         res={'rows':'fail'}
         error_name=[]
         try:
+            requestdata=json.loads(request.data)
             nodes=[]
             links=[]
             counter=0
-            project_id=n68session["projects"].find_one({}, {"_id":1})["_id"]
-            dprc_list=list(n68session["projects"].find({"_id":project_id},{"name":1,"releases.name":1,"releases._id":1,"releases.cycles.name":1,"releases.cycles._id":1,"domain":1}))
+            project_id=n68session["users"].find_one({"_id":ObjectId(requestdata['user_id'])}, {"_id":1,"projects":1})["projects"]
+            dprc_list=list(n68session["projects"].find({"_id":{"$in":project_id}},{"name":1,"releases.name":1,"releases._id":1,"releases.cycles.name":1,"releases.cycles._id":1,"domain":1}))
             # dprc_list=list(n68session["projects"].find({},{"name":1,"releases.name":1,"releases._id":1,"releases.cycles.name":1,"releases.cycles._id":1,"domain":1}))
             cycle_ids=[]
             domain_id=10000
