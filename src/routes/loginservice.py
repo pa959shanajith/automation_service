@@ -75,14 +75,13 @@ def LoadServices(app, redissession, n68session, licensedata):
         try:
             requestdata=json.loads(request.data)
             if not isemptyrequest(requestdata):
-                queryresult = n68session.users.find_one({"name":requestdata["username"]},{"_id":1})
-                try:
+                queryresult = n68session.users.find_one({"name":requestdata["username"]},{"_id":1, "defaultrole": 1})
+                query = None
+                if queryresult is not None:
                     n68session.thirdpartyintegration.update_many({"type":"TOKENS","userid":queryresult["_id"],"deactivated":"active","expireson":{"$lt":datetime.today()}},{"$set":{"deactivated":"expired"}})
                     query = n68session.thirdpartyintegration.find_one({"userid":queryresult["_id"],"name":requestdata["tokenname"],"type":"TOKENS"})
-
-                    res= {"rows":query}
-                except Exception as e:
-                    app.logger.warn(e)
+                if query is not None: query["role"] = queryresult["defaultrole"]
+                res= {"rows":query}
             else:
                 app.logger.warn('Empty data received. authentication')
         except Exception as authenticateuserciexc:
