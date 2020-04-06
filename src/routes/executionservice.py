@@ -160,7 +160,7 @@ def LoadServices(app, redissession, n68session):
                     if requestdata['testsuitename']=='testsuitename':
                         requestdata['testsuitename'] = n68session.mindmaps.find_one({"_id":ObjectId(requestdata["mindmapid"])},{"name":1,"_id":0})['name']
                     res['rows'] = list(n68session.testsuites.find({"mindmapid":ObjectId(requestdata["mindmapid"]),"name":requestdata["testsuitename"],
-                    "cycleid":ObjectId(requestdata["cycleid"]),"deleted":query['delete_flag'],"versionnumber":requestdata["versionnumber"]},querydata))
+                    "cycleid":ObjectId(requestdata["cycleid"]),"deleted":query['delete_flag'],"versionnumber":float(requestdata["versionnumber"])},querydata))
                     app.logger.info("Executed readTestSuite_ICE. Query: "+str(requestdata["query"]))
 
                 else:
