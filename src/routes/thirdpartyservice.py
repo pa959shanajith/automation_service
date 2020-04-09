@@ -30,7 +30,7 @@ def LoadServices(app, redissession, n68session):
                     result=list(n68session.projects.find({"_id":ObjectId(requestdata["projectid"])},{"name":1}))
                     res= {"rows":result}
                 elif(requestdata["query"] == 'scenariodata'):
-                    result=list(n68session.testscenarios.find({"projectid":ObjectId(requestdata["projectid"])},{"name":1,"testscenarioid":1}))
+                    result=list(n68session.testscenarios.find({"projectid":ObjectId(requestdata["projectid"])},{"name":1,"_id":1}))
                     res= {"rows":result}
                 else:
                     res={'rows':'fail'}
@@ -49,7 +49,10 @@ def LoadServices(app, redissession, n68session):
             app.logger.debug("Inside saveQcDetails_ICE. Query: "+str(requestdata["query"]))
             if not isemptyrequest(requestdata):
                 if(requestdata["query"] == 'saveQcDetails_ICE'):
-                    requestdata["type"]="QC"
+                    requestdata["type"] = "ALM"
+                    n68session.thirdpartyintegration.insert_one(requestdata)
+                    n68session.thirdpartyintegration.delete_many({"type":"ALM","testscenarioid":requestdata["testscenarioid"]})
+                    n68session.thirdpartyintegration.delete_many({"type":"ALM","qctestcase":requestdata["qctestcase"]})
                     n68session.thirdpartyintegration.insert_one(requestdata)
                     res= {"rows":"success"}
             else:
@@ -67,7 +70,7 @@ def LoadServices(app, redissession, n68session):
             app.logger.debug("Inside viewQcMappedList_ICE. Query: "+str(requestdata["query"]))
             if not isemptyrequest(requestdata):
                 if(requestdata["query"] == 'qcdetails'):
-                    result=list(n68session.thirdpartyintegration.find({"type":"QC","_id":ObjectId(requestdata["testscenarioid"])}))
+                    result=list(n68session.thirdpartyintegration.find({"type":"ALM","testscenarioid":requestdata["testscenarioid"]}))
                     res= {"rows":result}
             else:
                 app.logger.warn('Empty data received. getting QcMappedList.')
