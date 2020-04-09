@@ -791,6 +791,7 @@ def LoadServices(app, redissession, n68session):
                 elif action=="updatestatus":
                     status=requestdata['status']
                     n68session.tasks.update({"_id":ObjectId(requestdata["id"])},{"$set":{"status":status}})
+                    res={"rows":"success"}
                 elif action=="updatetaskstatus":  
                     task=n68session.tasks.find_one({"_id":ObjectId(requestdata["id"])})
                     history=[]

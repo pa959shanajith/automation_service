@@ -56,7 +56,12 @@ def LoadServices(app, redissession, n68session):
                             {"$project":{"name":1}}
                         ]
                         queryresult = list(n68session.testcases.aggregate(query))
-                        res= {'rows':queryresult}
+                        result=[]
+                        for i in tc_ids:
+                            for j in queryresult:
+                                if i == j["_id"]:
+                                    result.append(j["name"])
+                        res= {'rows':{'testcaseids':tc_ids,'testcasenames':result}}
                 else:
                     res={'rows':'fail'}
             else:

@@ -5,6 +5,7 @@
 from utils import *
 import traceback
 import json
+from datetime import datetime
 def LoadServices(app, redissession, n68session, licensedata):
     setenv(app)
 
@@ -64,4 +65,25 @@ def LoadServices(app, redissession, n68session, licensedata):
         except Exception as loadpermission_exc:
             app.logger.debug(traceback.format_exc())
             servicesException('loadPermission_Nineteen68',loadpermission_exc)
+        return jsonify(res)
+
+    #service for loading ci_user information
+    @app.route('/login/authenticateUser_Nineteen68_CI',methods=['POST'])
+    def authenticateUser_Nineteen68_CI():
+        app.logger.debug("Inside authenticateUser_Nineteen68_CI")
+        res={'rows':'fail'}
+        try:
+            requestdata=json.loads(request.data)
+            if not isemptyrequest(requestdata):
+                queryresult = n68session.users.find_one({"name":requestdata["username"]},{"_id":1, "defaultrole": 1})
+                query = None
+                if queryresult is not None:
+                    n68session.thirdpartyintegration.update_many({"type":"TOKENS","userid":queryresult["_id"],"deactivated":"active","expireson":{"$lt":datetime.today()}},{"$set":{"deactivated":"expired"}})
+                    query = n68session.thirdpartyintegration.find_one({"userid":queryresult["_id"],"name":requestdata["tokenname"],"type":"TOKENS"})
+                if query is not None: query["role"] = queryresult["defaultrole"]
+                res= {"rows":query}
+            else:
+                app.logger.warn('Empty data received. authentication')
+        except Exception as authenticateuserciexc:
+            servicesException('authenticateUser_Nineteen68_CI',authenticateuserciexc)
         return jsonify(res)

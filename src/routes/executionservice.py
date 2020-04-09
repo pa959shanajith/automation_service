@@ -84,7 +84,8 @@ def LoadServices(app, redissession, n68session):
                     #res={'rows':reports_data}
 
                 elif(requestdata["query"] == 'updatescenarioinnsuite'):
-                    testsuites = n68session.testsuites.find_one({"mindmapid":ObjectId(requestdata["mindmapid"])})
+                    testsuites = n68session.testsuites.find_one({"mindmapid":ObjectId(requestdata["mindmapid"])
+                    ,"cycleid":ObjectId(requestdata["cycleid"])})
                     mindmaps = n68session.mindmaps.find_one({"_id":ObjectId(requestdata["mindmapid"])})
                     getparampaths1 = []
                     conditioncheck1 = []
@@ -129,9 +130,10 @@ def LoadServices(app, redissession, n68session):
                     querydata["modifiedby"] = ObjectId(requestdata["modifiedby"])
                     querydata["modifiedbyrole"] = ObjectId(requestdata["modifiedbyrole"])
                     querydata["modifiedon"] = datetime.now()
+                    querydata["name"] = mindmaps["name"]
 
-                    if requestdata['name']=='testsuitename':
-                        querydata['name'] = n68session.mindmaps.find_one({"_id":ObjectId(requestdata["mindmapid"])},{"name":1,"_id":0})['name']
+                    #if requestdata['name']=='testsuitename':
+                    #querydata['name'] = n68session.mindmaps.find_one({"_id":ObjectId(requestdata["mindmapid"])},{"name":1,"_id":0})['name']
                     n68session.testsuites.update_one({"mindmapid":ObjectId(requestdata["mindmapid"]), "cycleid":ObjectId(requestdata["cycleid"]),
                         "deleted":query['delete_flag'],"versionnumber":versionnumber},{'$set':querydata})
                     res={'rows':'Success'}
@@ -158,7 +160,7 @@ def LoadServices(app, redissession, n68session):
                     if requestdata['testsuitename']=='testsuitename':
                         requestdata['testsuitename'] = n68session.mindmaps.find_one({"_id":ObjectId(requestdata["mindmapid"])},{"name":1,"_id":0})['name']
                     res['rows'] = list(n68session.testsuites.find({"mindmapid":ObjectId(requestdata["mindmapid"]),"name":requestdata["testsuitename"],
-                    "cycleid":ObjectId(requestdata["cycleid"]),"deleted":query['delete_flag'],"versionnumber":requestdata["versionnumber"]},querydata))
+                    "cycleid":ObjectId(requestdata["cycleid"]),"deleted":query['delete_flag'],"versionnumber":float(requestdata["versionnumber"])},querydata))
                     app.logger.info("Executed readTestSuite_ICE. Query: "+str(requestdata["query"]))
 
                 else:
