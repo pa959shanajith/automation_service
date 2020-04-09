@@ -3,7 +3,6 @@
 ################################################################################
 #----------DEFAULT METHODS AND IMPORTS------------DO NOT EDIT-------------------
 from utils import *
-import pymongo
 
 def LoadServices(app, redissession, n68session):
     setenv(app)
@@ -23,18 +22,14 @@ def LoadServices(app, redissession, n68session):
         try:
             requestdata=json.loads(request.data)
             app.logger.debug("Inside qcProjectDetails_ICE. Query: "+str(requestdata["query"]))
-            print(requestdata)
             if not isemptyrequest(requestdata):
                 if(requestdata["query"] == 'getprojectDetails'):
                     result=list(n68session.users.find({"_id":ObjectId(requestdata["userid"])},{"projects":1}))
-                    #
-                    print(result)
                     res= {"rows":result}
                 elif(requestdata["query"] == 'projectname1'):
                     result=list(n68session.projects.find({"_id":ObjectId(requestdata["projectid"])},{"name":1}))
                     res= {"rows":result}
                 elif(requestdata["query"] == 'scenariodata'):
-                    #result=list(n68session.testscenarios.find({"projectid":ObjectId(requestdata["projectid"])},{"name":1,"testscenarioid":1}))
                     result=list(n68session.testscenarios.find({"projectid":ObjectId(requestdata["projectid"])},{"name":1,"_id":1}))
                     res= {"rows":result}
                 else:
