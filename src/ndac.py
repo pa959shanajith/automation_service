@@ -118,6 +118,8 @@ def _jsonencoder_default(self, obj):
     return flask.json.JSONEncoder._default(self, obj)
 flask.json.JSONEncoder._default = flask.json.JSONEncoder.default
 flask.json.JSONEncoder.default = _jsonencoder_default
+# json.JSONEncoder._default = flask.json.JSONEncoder.default
+# json.JSONEncoder.default = _jsonencoder_default
 
 #server check
 @app.route('/')

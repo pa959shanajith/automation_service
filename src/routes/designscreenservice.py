@@ -22,7 +22,7 @@ def LoadServices(app, redissession, n68session):
             if not isemptyrequest(requestdata):
                 if ('testcaseid' in requestdata and requestdata['testcaseid']):
                     screen_id = n68session.testcases.find_one({'_id':ObjectId(requestdata['testcaseid'])},{'screenid':1})['screenid'] ##add versionnumber in condition if needed
-                else :
+                else:
                     screen_id = ObjectId(requestdata['screenid'])
                 if (requestdata['query'] == 'getscrapedata'):
                     screen_query=n68session.screens.find_one({"_id":screen_id,"deleted":False})
@@ -30,20 +30,20 @@ def LoadServices(app, redissession, n68session):
                         dataobj_query = list(n68session.dataobjects.find({"parent" :screen_id}))
                         if "scrapeinfo" in screen_query and 'header' in screen_query["scrapeinfo"]:
                             dataobj_query = [screen_query["scrapeinfo"]]
-                        res["rows"] = {"view":dataobj_query,"scrapedurl":(screen_query["scrapedurl"] if ("scrapedurl" in screen_query) else ""),
-                                        "mirror":(screen_query["screenshot"] if ("screenshot" in screen_query) else ""),"name":screen_query["name"],"reuse":True if(len(screen_query["parent"])>1) else False}
-                if (requestdata['query']=="getWSscrapedata"):
-                    #dataobj_query = list(n68session.dataobjects.find({"parent" :screen_id}))
+                        res["rows"] = { "view": dataobj_query, "name":screen_query["name"],
+                                        "scrapedurl": (screen_query["scrapedurl"] if ("scrapedurl" in screen_query) else ""),
+                                        "mirror": (screen_query["screenshot"] if ("screenshot" in screen_query) else ""),
+                                        "reuse": True if(len(screen_query["parent"])>1) else False
+                                      }
+                elif (requestdata['query']=="getWSscrapedata"):
                     scrapeinfo = n68session.screens.find_one({"_id":screen_id,"deleted":False},{'_id':0,'parent':1,'scrapeinfo':1})
                     res["rows"] = scrapeinfo['scrapeinfo'] if 'scrapeinfo' in scrapeinfo else {}
                     res["rows"]["reuse"] = True if(len(scrapeinfo["parent"])>1) else False
                     #res["rows"]["view"] = dataobj_query
-                    #res = {"rows":dataobj_query}
             else:
                 app.logger.warn('Empty data received. reading Testcase')
         except Exception as getscrapedataexc:
-            app.logger.debug(traceback.format_exc())
-            servicesException("getScrapeDataScreenLevel_ICE",getscrapedataexc)
+            servicesException("getScrapeDataScreenLevel_ICE",getscrapedataexc, True)
         return jsonify(res)
 
     # update/delete/insert opertaions on the screen data
@@ -173,8 +173,7 @@ def LoadServices(app, redissession, n68session):
             else:
                 app.logger.warn('Empty data received. updating screen')
         except Exception as updatescreenexc:
-            app.logger.debug(traceback.format_exc())
-            servicesException("updateScreen_ICE",updatescreenexc)
+            servicesException("updateScreen_ICE",updatescreenexc, True)
         return jsonify(res)
 
     @app.route('/design/updateIrisObjectType',methods=['POST'])
@@ -189,6 +188,5 @@ def LoadServices(app, redissession, n68session):
                     n68session.dataobjects.update({"_id": ObjectId(requestdata["_id"])},{"$set":{"objectType":requestdata["type"]}})
                     res={'rows':'success'}
         except Exception as updateirisobjexc:
-            app.logger.debug(traceback.format_exc())
-            servicesException("updateIrisObjectType",updateirisobjexc)
+            servicesException("updateIrisObjectType",updateirisobjexc, True)
         return jsonify(res)
