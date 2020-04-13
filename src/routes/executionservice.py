@@ -111,6 +111,8 @@ def LoadServices(app, redissession, n68session):
 
                                 if donotexecute != None:
                                     donotexecute1.append(donotexecute[index])
+                                #fix for repeating scenario case
+                                testscenariodslist[index]=-1
 
                             else:
                                 getparampaths1.append(' ')
