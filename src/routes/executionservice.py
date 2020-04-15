@@ -38,15 +38,14 @@ def LoadServices(app, redissession, n68session):
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
+            param = str(requestdata["query"])
             if not isemptyrequest(requestdata):
-                #n68session=n68session.Nineteen68
-                app.logger.info("Inside readTestSuite_ICE. Query: "+str(requestdata["query"]))
-                if(requestdata["query"] == 'testsuitecheck'):
+                app.logger.info("Inside readTestSuite_ICE. Query: " + param)
+                if(param == 'testsuitecheck'):
                     res["rows"]=list(n68session.testsuites.find({"mindmapid":ObjectId(requestdata["mindmapid"]),
                         "cycleid":ObjectId(requestdata["cycleid"]),"deleted":query['delete_flag']}))
-                    app.logger.info("Executed readTestSuite_ICE. Query: "+str(requestdata["query"]))
 
-                elif(requestdata["query"] == 'testcasesteps'):
+                elif(param == 'testcasesteps'):
                     getparampaths=[]
                     conditioncheck = []
                     donotexecute = []
@@ -78,10 +77,8 @@ def LoadServices(app, redissession, n68session):
                         querydata['name'] = mindmaps['name']
 
                     res["rows"] = str(n68session.testsuites.insert(querydata))
-                    app.logger.info("Executed readTestSuite_ICE. Query: "+str(requestdata["query"]))
-                    #res={'rows':reports_data}
 
-                elif(requestdata["query"] == 'updatescenarioinnsuite'):
+                elif(param == 'updatescenarioinnsuite'):
                     testsuites = n68session.testsuites.find_one({"mindmapid":ObjectId(requestdata["mindmapid"])
                     ,"cycleid":ObjectId(requestdata["cycleid"])})
                     mindmaps = n68session.mindmaps.find_one({"_id":ObjectId(requestdata["mindmapid"])})
@@ -137,19 +134,15 @@ def LoadServices(app, redissession, n68session):
                     n68session.testsuites.update_one({"mindmapid":ObjectId(requestdata["mindmapid"]), "cycleid":ObjectId(requestdata["cycleid"]),
                         "deleted":query['delete_flag'],"versionnumber":versionnumber},{'$set':querydata})
                     res={'rows':'Success'}
-                    app.logger.info("Executed readTestSuite_ICE. Query: "+str(requestdata["query"]))
 
-                elif(requestdata["query"] == 'testcasename'):
+                elif(param == 'testcasename'):
                     res["rows"] = list(n68session.testscenarios.find({"_id":ObjectId(requestdata["id"]),"deleted":query['delete_flag']},
                     {"name":1,"projectid":1}))
-                    app.logger.info("Executed readTestSuite_ICE. Query: "+str(requestdata["query"]))
 
-                elif(requestdata["query"] == 'projectname'):
-                    res["rows"] = list(n68session.projects.find({"_id":ObjectId(requestdata["id"])},
-                    {"name":1}))
-                    app.logger.info("Executed readTestSuite_ICE. Query: "+str(requestdata["query"]))
+                elif(param == 'projectname'):
+                    res["rows"] = list(n68session.projects.find({"_id":ObjectId(requestdata["id"])}, {"name":1}))
 
-                elif(requestdata["query"] == 'readTestSuite_ICE'):
+                elif(param == 'readTestSuite_ICE'):
                     querydata ={}
                     querydata["conditioncheck"] = 1
                     querydata["donotexecute"] = 1
@@ -161,47 +154,97 @@ def LoadServices(app, redissession, n68session):
                         requestdata['testsuitename'] = n68session.mindmaps.find_one({"_id":ObjectId(requestdata["mindmapid"])},{"name":1,"_id":0})['name']
                     res['rows'] = list(n68session.testsuites.find({"mindmapid":ObjectId(requestdata["mindmapid"]),"name":requestdata["testsuitename"],
                     "cycleid":ObjectId(requestdata["cycleid"]),"deleted":query['delete_flag'],"versionnumber":float(requestdata["versionnumber"])},querydata))
-                    app.logger.info("Executed readTestSuite_ICE. Query: "+str(requestdata["query"]))
 
-                elif(requestdata["query"] == 'gettestsuite'):
-                    getquery = {"conditioncheck":1,"getparampaths":1,"donotexecute":1,"testscenarioids":1}
-                    testsuite = n68session.testsuites.find_one({"mindmapid":ObjectId(requestdata['mindmapid']),
-                        "cycleid":ObjectId(requestdata['cycleid']),"deleted":query['delete_flag']}, getquery)
-                    if testsuite is None:
-                        mindmaps = n68session.mindmaps.find_one({"_id":ObjectId(requestdata['mindmapid']),"deleted":query['delete_flag']})
-                        #history=createHistory("create","testsuites",requestdata)
-                        testscenarioids = [i["_id"] for i in mindmaps["testscenarios"]]
-                        tsclen = len(testscenarioids)
-                        createdby = ObjectId(requestdata['createdby'])
-                        createdbyrole = n68session.users.find_one({"_id":createdby},{"defaultrole":1})["defaultrole"]
-                        querydata = {}
+                elif(param == 'gettestsuite'):
+                    mindmapid = ObjectId(requestdata['mindmapid'])
+                    cycleid = ObjectId(requestdata['cycleid'])
+                    filterquery = {"conditioncheck":1,"getparampaths":1,"donotexecute":1,"testscenarioids":1}
+                    testsuite = n68session.testsuites.find_one({"mindmapid":mindmapid, "cycleid":cycleid, "deleted":query['delete_flag']}, filterquery)
+                    create_suite = testsuite is None
+                    mindmaps = n68session.mindmaps.find_one({"_id": mindmapid, "deleted":query['delete_flag']})
+                    testscenarioids = [i["_id"] for i in mindmaps["testscenarios"]]
+                    tsclen = len(testscenarioids)
+                    createdby = ObjectId(requestdata['createdby'])
+                    createdbyrole = ObjectId(requestdata['createdbyrole'])
+                    #createdbyrole = n68session.users.find_one({"_id":createdby},{"defaultrole":1})["defaultrole"]
+                    querydata = {}
+                    querydata["name"] = mindmaps["name"]
+                    querydata["modifiedby"] = createdby
+                    querydata["modifiedbyrole"] = createdbyrole
+                    querydata["modifiedon"] = datetime.now()
+                    querydata["testscenarioids"] = testscenarioids
+
+                    if create_suite:
                         querydata["mindmapid"] = mindmaps["_id"]
-                        querydata["mindmapid"] = mindmaps["name"]
-                        querydata["cycleid"] = ObjectId(requestdata['cycleid'])
+                        querydata["cycleid"] = cycleid
                         querydata["versionnumber"] = mindmaps["versionnumber"]
                         querydata["conditioncheck"] = [0] * tsclen
-                        querydata["createdby"] = querydata["modifiedby"] = createdby
-                        querydata["createdbyrole"] = querydata["modifiedbyrole"] = createdbyrole
-                        querydata["createdon"] = querydata["modifiedon"] = datetime.now()
+                        querydata["createdby"] = querydata["modifiedby"]
+                        querydata["createdbyrole"] = querydata["modifiedbyrole"]
+                        querydata["createdon"] = querydata["modifiedon"]
                         querydata["deleted"] = mindmaps["deleted"]
                         querydata["donotexecute"] = [1] * tsclen
                         querydata["getparampaths"] = [' '] * tsclen
-                        querydata["testscenarioids"] = testscenarioids
                         testsuiteid = n68session.testsuites.insert(querydata)
-                        testsuite = n68session.testsuites.find_one({"_id":testsuiteid}, getquery)
-                    res['rows'] = testsuite
-                    app.logger.info("Executed readTestSuite_ICE. Query: "+str(requestdata["query"]))
-                else:
-                    return jsonify(res)
+                    else:
+                        testsuiteid = testsuite["_id"]
+                        testscenariods_ts = testsuite["testscenarioids"]
+                        getparampaths_ts = testsuite["getparampaths"]
+                        donotexecute_ts = testsuite["donotexecute"]
+                        conditioncheck_ts = testsuite["conditioncheck"]
+                        getparampaths = []
+                        conditioncheck = []
+                        donotexecute = []
+                        for i in range(tsclen):
+                            index = -1
+                            if testscenarioids[i] in testscenariods_ts:
+                                index = testscenariods_ts.index(testscenarioids[i])
+                            if index != -1:
+                                if (getparampaths_ts[index].strip() == ''): getparampaths.append(' ')
+                                else: getparampaths.append(getparampaths_ts[index])
+                                if conditioncheck_ts is not None: conditioncheck.append(conditioncheck_ts[index])
+                                if donotexecute_ts is not None: donotexecute.append(donotexecute_ts[index])
+                                testscenariods_ts[index] = -1 # Visited this scenario once already
+                            else:
+                                getparampaths.append(' ')
+                                conditioncheck.append(0)
+                                donotexecute.append(1)
+                        querydata["conditioncheck"] = conditioncheck
+                        querydata["donotexecute"] = donotexecute
+                        querydata["getparampaths"] = getparampaths
+                        n68session.testsuites.update_one({"_id": testsuiteid, "deleted": query['delete_flag']}, {'$set': querydata})
+
+                    res['rows'] = {
+                        "testsuiteid": testsuiteid, "conditioncheck": querydata["conditioncheck"],
+                        "donotexecute": querydata["donotexecute"], "getparampaths": querydata["getparampaths"],
+                        "testscenarioids": testscenarioids, "name": querydata["name"]
+                    }
+
+                elif(param == 'gettestscenario'):
+                    testscenarioids = [ObjectId(i) for i in requestdata["testscenarioids"]]
+                    projects = n68session.projects.find({}, {"name": 1})
+                    prj_map = {}
+                    for prj in projects:
+                        prj_map[prj["_id"]] = prj["name"]
+                    testscenarios = n68session.testscenarios.find({"_id": {"$in": testscenarioids}, "deleted":query['delete_flag']}, {"name": 1, "projectid": 1})
+                    tsc_map = {}
+                    for tsc in testscenarios:
+                        tsc_map[tsc["_id"]] = [tsc["name"], prj_map[tsc["projectid"]]]
+                    testscenarionames = []
+                    projectnames = []
+                    for tsc in testscenarioids:
+                        if tsc in tsc_map:
+                            testscenarionames.append(tsc_map[tsc][0])
+                            projectnames.append(tsc_map[tsc][1])
+                        else:
+                            testscenarionames.append('N/A')
+                            projectnames.append('N/A')
+                    res['rows'] = {"testscenarionames": testscenarionames, "projectnames": projectnames}
+                app.logger.info("Executed readTestSuite_ICE. Query: " + param)
         except Exception as e:
             servicesException("readTestSuite_ICE", e, True)
         return jsonify(res)
 
-    #-------------------------------------------------
-    #author : shree.p
-    #date:11/10/2019
-    #Updates the test suite details in testsuite table
-    #-------------------------------------------------
     @app.route('/suite/updateTestSuite_ICE',methods=['POST'])
     def updateTestSuite_ICE():
         res={'rows':'fail'}
@@ -210,7 +253,6 @@ def LoadServices(app, redissession, n68session):
             requestdata=json.loads(request.data)
             app.logger.debug("Inside updateTestSuite_ICE. Query: "+str(requestdata["query"]))
             if not isemptyrequest(requestdata):
-
                 querydata["name"]= requestdata["name"]
                 querydata["modifiedby"]= ObjectId(requestdata['modifiedby'])
                 querydata["modifiedbyrole"]= ObjectId(requestdata['modifiedbyrole'])
@@ -264,6 +306,11 @@ def LoadServices(app, redissession, n68session):
                             "status": "inprogress", "endtime": None, "starttime": starttime}))
                         execids.append(execid)
                     res["rows"] = {"batchid": str(batchid), "execids": execids}
+                elif param  == 'updateintoexecution':
+                    endtime = datetime.now()
+                    for exec_id in requestdata['executionids']:
+                        n68session.executions.update({"_id":ObjectId(exec_id)}, {'$set': {"status":requestdata['status'],"endtime":endtime}})
+                    res["rows"] = True
                 app.logger.debug("Executed ExecuteTestSuite_ICE. Query: " + param)
             else:
                 app.logger.warn('Empty data received. execute testsuite.')

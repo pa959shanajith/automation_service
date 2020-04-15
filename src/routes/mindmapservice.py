@@ -278,10 +278,9 @@ def LoadServices(app, redissession, n68session):
 
                 res={'rows':finaldata}
             else:
-                if tab=="tabCreate":
-                    queryresult=list(n68session.mindmaps.find({"projectid":ObjectId(requestdata["projectid"]),"type":"basic"},{"name":1,"_id":1,"type":1}))
-                else:
-                    queryresult=list(n68session.mindmaps.find({"projectid":ObjectId(requestdata["projectid"])},{"name":1,"_id":1,"type":1}))
+                findquery = {"projectid":ObjectId(requestdata["projectid"])}
+                if tab=="tabCreate": findquery["type"] = "basic"
+                queryresult=list(n68session.mindmaps.find(findquery, {"name":1,"_id":1,"type":1}))
                 res={'rows':queryresult}
         except Exception as e:
             servicesException("getModules", e, True)
