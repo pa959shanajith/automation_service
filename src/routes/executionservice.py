@@ -253,28 +253,19 @@ def LoadServices(app, redissession, n68session):
             requestdata=json.loads(request.data)
             app.logger.debug("Inside updateTestSuite_ICE. Query: "+str(requestdata["query"]))
             if not isemptyrequest(requestdata):
-                querydata["name"]= requestdata["name"]
-                querydata["modifiedby"]= ObjectId(requestdata['modifiedby'])
-                querydata["modifiedbyrole"]= ObjectId(requestdata['modifiedbyrole'])
-                querydata["conditioncheck"]= requestdata['conditioncheck']
-                querydata["donotexecute"]= requestdata['donotexecute']
-                querydata["getparampaths"]= requestdata['getparampaths']
+                testsuiteid = ObjectId(requestdata['testsuiteid'])
+                querydata = requestdata
+                del querydata["testsuiteid"]
                 querydata["modifiedon"]= datetime.now()
                 querydata["testscenarioids"] = [ObjectId(i) for i in requestdata['testscenarioids']]
-                setdata ={"$set":querydata}
-                querytoupdate = {"mindmapid":ObjectId(requestdata['mindmapid']),"cycleid":ObjectId(requestdata['cycleid']),
-                    "versionnumber":requestdata["versionnumber"]}
-                n68session.testsuites.update_one(querytoupdate,setdata)
-                app.logger.debug("Executed updateTestSuite_ICE. Query: "+str(requestdata["query"]))
+                n68session.testsuites.update_one({"_id": testsuiteid}, {"$set":querydata})
                 res={'rows':'Success'}
             else:
                 app.logger.warn('Empty data received. update testsuite.')
-                return jsonify(res)
-
-            return jsonify(res)
+            app.logger.debug("Executed updateTestSuite_ICE. Query: " + param)
         except Exception as updatetestsuiteexc:
             servicesException("updateTestSuite_ICE", updatetestsuiteexc, True)
-            return jsonify(res)
+        return jsonify(res)
 
     @app.route('/suite/ExecuteTestSuite_ICE',methods=['POST'])
     def ExecuteTestSuite_ICE() :
@@ -297,14 +288,16 @@ def LoadServices(app, redissession, n68session):
                         counterupdator(n68session, 'testscenarios', userid, scenarioscounter)
                 elif param == 'insertintoexecution':
                     starttime = datetime.now()
-                    batchid = ObjectId()
-                    execids = []
+                    batchid = ObjectId() if requestdata["batchid"] == "generate" else ObjectId(requestdata["batchid"])
                     tsuids = requestdata['testsuiteids']
+                    execids = requestdata['executionids']
                     for tsuid in tsuids:
-                        execid = str(n68session.executions.insert({"batchid": batchid, "parent": [ObjectId(tsuid)],
-                            "configuration": {}, "executedby": ObjectId(requestdata['executedby']),
-                            "status": "inprogress", "endtime": None, "starttime": starttime}))
-                        execids.append(execid)
+                        if execids[tsuid] is None:
+                            insertquery = {"batchid": batchid, "parent": [ObjectId(tsuid)],
+                                "configuration": {}, "executedby": ObjectId(requestdata['executedby']),
+                                "status": "inprogress", "endtime": None, "starttime": starttime}
+                            execid = str(n68session.executions.insert(insertquery))
+                            execids[tsuid] = execid
                     res["rows"] = {"batchid": str(batchid), "execids": execids}
                 elif param  == 'updateintoexecution':
                     endtime = datetime.now()
@@ -315,10 +308,9 @@ def LoadServices(app, redissession, n68session):
             else:
                 app.logger.warn('Empty data received. execute testsuite.')
                 return jsonify(res)
-            return jsonify(res)
         except Exception as execuitetestsuiteexc:
             servicesException("ExecuteTestSuite_ICE", execuitetestsuiteexc, True)
-            return jsonify(res)
+        return jsonify(res)
 
     @app.route('/suite/ExecuteTestSuite_ICE1',methods=['POST'])
     def ExecuteTestSuite_ICE1() :
