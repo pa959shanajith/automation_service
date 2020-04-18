@@ -251,11 +251,13 @@ def LoadServices(app, redissession, n68session):
         querydata = {}
         try:
             requestdata=json.loads(request.data)
-            app.logger.debug("Inside updateTestSuite_ICE. Query: "+str(requestdata["query"]))
+            param = str(requestdata["query"])
+            app.logger.debug("Inside updateTestSuite_ICE. Query: " + param)
             if not isemptyrequest(requestdata):
                 testsuiteid = ObjectId(requestdata['testsuiteid'])
                 querydata = requestdata
                 del querydata["testsuiteid"]
+                del querydata["query"]
                 querydata["modifiedon"]= datetime.now()
                 querydata["testscenarioids"] = [ObjectId(i) for i in requestdata['testscenarioids']]
                 n68session.testsuites.update_one({"_id": testsuiteid}, {"$set":querydata})
@@ -276,7 +278,7 @@ def LoadServices(app, redissession, n68session):
             app.logger.debug("Inside ExecuteTestSuite_ICE. Query: " + param)
             if not isemptyrequest(requestdata):
                 if param == 'testcasedetails':
-                    tsc = n68session.testscenarios.find_one({"_id":ObjectId(requestdata['id']),"deleted":query['delete_flag']},{"testcaseids":1})
+                    tsc = n68session.testscenarios.find_one({"_id": ObjectId(requestdata['id']),"deleted":query['delete_flag']},{"testcaseids":1})
                     if tsc is not None:
                         testcases = list(n68session.testcases.find({"_id": {"$in": tsc["testcaseids"]},"deleted":query['delete_flag']},{"name":1,"versionnumber":1,"screenid":1}))
                         res["rows"] = testcases
@@ -396,10 +398,11 @@ def LoadServices(app, redissession, n68session):
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
-            requestdata1={}
-            app.logger.debug("Inside ScheduleTestSuite_ICE. Query: "+str(requestdata["query"]))
+            param = str(requestdata['query'])
+            app.logger.debug("Inside ScheduleTestSuite_ICE. Query: " + param)
             if not isemptyrequest(requestdata):
-                if(requestdata['query'] == 'insertscheduledata'):
+                if(param == 'insertscheduledata'):
+                    requestdata1={}
                     scheduleTime=requestdata['scheduledatetime']
                     requestdata1["scheduledon"] = datetime.fromtimestamp(int(scheduleTime)/1000,pytz.UTC)
                     requestdata1["target"]=requestdata["clientipaddress"]
@@ -413,58 +416,69 @@ def LoadServices(app, redissession, n68session):
                     # requestdata1["testsuiteids"]=requestdata["testsuiteids"]
                     res["rows"] =  n68session.scheduledexecutions.insert(requestdata1)
 
-                elif(requestdata['query'] == 'getscheduledata'):
-                    res["rows"]= list(n68session.scheduledexecutions.find({"_id":ObjectId(requestdata['scheduleid'])}))
+                elif(param == 'updatescheduledstatus'):
+                    n68session.scheduledexecutions.update({"_id":ObjectId(requestdata['scheduleid'])},{"$set":{"status":requestdata["schedulestatus"]}})
+                    res["rows"] = "success"
 
-                elif(requestdata['query'] == 'updatescheduledstatus'):
-                    res["rows"] = list(n68session.scheduledexecutions.update({"_id":ObjectId(requestdata['scheduleid'])},{"$set":{"status":requestdata["schedulestatus"]}}))
+                elif(param == 'getscheduledata'):
+                    findquery = {}
+                    if "status" in requestdata: findquery["status"] = requestdata["status"]
+                    if "scheduleid" in requestdata: findquery["_id"] = ObjectId(requestdata["scheduleid"])
+                    res["rows"] = list(n68session.scheduledexecutions.find(findquery))
 
-
-                elif(requestdata['query'] == 'getallscheduledetails'):
-                    if(requestdata['scheduledetails'] == 'getallscheduledata'):
-                        res["rows"]=list(n68session.scheduledexecutions.find({}))
-
-                    elif(requestdata['scheduledetails'] == 'getallscheduleddetails'):
-                        res['rows']=list(n68session.scheduledexecutions.find({"status":"scheduled"}))
-
-
-                    elif(requestdata['scheduledetails'] == 'checkscheduleddetails'):
-                        res["rows"]=list(n68session.scheduledexecutions.find({"scheduledatetime":requestdata["scheduledatetime"],
-                        "target":requestdata["clientipaddress"]}))
-
-                elif(requestdata['query'] == 'getscheduledstatus'):
-                    scheduleTime = requestdata["scheduledatetime"]
-                    res["rows"]=list(n68session.scheduledexecutions.find({"_id":ObjectId(requestdata["scheduleid"])},{"status":1,"_id":0}))
-
-                else:
-                    return jsonify(res)
+                elif(param == 'checkscheduleddetails'):
+                    timelist = requestdata["scheduledatetime"]
+                    flag = -1
+                    for i in range(len(timelist)):
+                        timestamp =  datetime.strptime(timelist[i], "%d-%m-%Y %H:%M")
+                        address = requestdata["targetaddress"][i]
+                        count = n68session.scheduledexecutions.find({"scheduledon": timestamp, "target": address}).count()
+                        if count > 0:
+                            flag = i
+                            break
+                    res["rows"] = flag
             else:
                 app.logger.warn('Empty data received. schedule testsuite.')
-                return jsonify(res)
-            # res={'rows':queryresult.current_rows}
-            return jsonify(res)
+            app.logger.debug("Executed ScheduleTestSuite_ICE. Query: " + param)
         except Exception as scheduletestsuiteexc:
             servicesException("ScheduleTestSuite_ICE", scheduletestsuiteexc, True)
-            return jsonify(res)
+        return jsonify(res)
 
-        #fetches all the testcases under a test scenario
     @app.route('/suite/getTestcaseDetailsForScenario_ICE',methods=['POST'])
     def getTestcaseDetailsForScenario_ICE():
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
-            app.logger.debug("Inside getTestcaseDetailsForScenario_ICE. Query: "+str(requestdata["query"]))
-
+            app.logger.debug("Inside getTestcaseDetailsForScenario_ICE")
             if not isemptyrequest(requestdata):
-                if(requestdata["query"] == 'screentable'):
-                    res["rows"] = list(n68session.screens.find({"_id":ObjectId(requestdata['screenid']),"deleted":query['delete_flag']},{"name":1,"projectid":1}))
-                    app.logger.debug("Executed getTestcaseDetailsForScenario_ICE. Query: "+str(requestdata["query"]))
-
-                elif(requestdata["query"] == 'projecttable'):
-                    res["rows"] = list(n68session.projects.find({"_id":ObjectId(requestdata['projectid'])},{"name":1}))
-                    app.logger.debug("Executed getTestcaseDetailsForScenario_ICE. Query: "+str(requestdata["query"]))
+                screenids = [ObjectId(i) for i in requestdata['screenids']]
+                screens = list(n68session.screens.find({"_id": {"$in": screenids},
+                    "deleted":query['delete_flag']},{"name":1,"projectid":1}))
+                prjset = set()
+                screenmap = {}
+                prjmap = {}
+                for scr in screens:
+                    screenmap[scr["_id"]] = scr
+                    prjset.add(scr["projectid"])
+                projects = list(n68session.projects.find({"_id": {"$in": list(prjset)}},{"name":1}))
+                for prj in projects: prjmap[prj["_id"]] = prj
+                screennames = []
+                projectnames = []
+                projectids = []
+                for scrid in screenids:
+                    if scrid in screenmap:
+                        scr = screenmap[scrid]
+                        screennames.append(scr["name"])
+                        projectids.append(scr["projectid"])
+                        projectnames.append(prjmap[scr["projectid"]]["name"])
+                    else:
+                        screennames.append("")
+                        projectnames.append("")
+                        projectids.append("")
+                res["rows"] = {"screennames": screennames, "projectnames": projectnames, "projectids": projectids}
             else:
                 app.logger.warn('Empty data received. getting testcases from scenarios.')
+            app.logger.debug("Executed getTestcaseDetailsForScenario_ICE")
         except Exception as userrolesexc:
             servicesException("getTestcaseDetailsForScenario_ICE", userrolesexc, True)
         return jsonify(res)
