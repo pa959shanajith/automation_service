@@ -164,6 +164,9 @@ def LoadServices(app, redissession, n68session):
                     n68session.screens.update({"_id":screenID},{"$set":{"modifiedby":modifiedby,'modifiedbyrole':modifiedbyrole, 'scrapeinfo':scrapeinfo,"modifiedon" : datetime.now()}})
                     Old_obj = list(n68session.dataobjects.find({"parent":screenID}))
                     if len(Old_obj)==0:
+                        for d in data_obj:
+                            d["parent"]=[screenID]
+                            data_push.append(d)
                         n68session.dataobjects.insert(data_push)
                     else:
                         remove_data=[]
