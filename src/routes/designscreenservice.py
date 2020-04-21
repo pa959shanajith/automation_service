@@ -159,16 +159,18 @@ def LoadServices(app, redissession, n68session):
                     scrapeinfo = json.loads(data["scrapedata"])
                     modifiedbyrole= data["modifiedByrole"]
                     modifiedby = data["modifiedby"]
-                    data_obj=scrapeinfo.pop("view")
+                    data_obj=[]
                     data_push=[]
-                    n68session.screens.update({"_id":screenID},{"$set":{"modifiedby":modifiedby,'modifiedbyrole':modifiedbyrole, 'scrapeinfo':scrapeinfo,"modifiedon" : datetime.now()}})
+                    if "view" in scrapeinfo:
+                        data_obj=scrapeinfo.pop("view")
+                    n68session.screens.update({"_id":screenID},{"$set":{"scrapedurl":scrapeinfo["endPointURL"],"modifiedby":modifiedby,'modifiedbyrole':modifiedbyrole, 'scrapeinfo':scrapeinfo,"modifiedon" : datetime.now()}})
                     Old_obj = list(n68session.dataobjects.find({"parent":screenID}))
-                    if len(Old_obj)==0:
-                        for d in data_obj:
-                            d["parent"]=[screenID]
-                            data_push.append(d)
+                    for d in data_obj:
+                        d["parent"]=[screenID]
+                        data_push.append(d)
+                    if len(Old_obj)==0 and len(data_push)>0 :
                         n68session.dataobjects.insert(data_push)
-                    else:
+                    elif len(data_obj)>0:
                         remove_data=[]
                         for d in data_obj:
                             already_exists=False
@@ -188,6 +190,7 @@ def LoadServices(app, redissession, n68session):
                         if remove_data != []:
                             n68session.dataobjects.delete_many({"_id":{"$in":remove_data}})
                     res={"rows":"Success"}
+
             else:
                 app.logger.warn('Empty data received. updating screen')
         except Exception as updatescreenexc:
