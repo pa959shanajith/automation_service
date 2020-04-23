@@ -23,10 +23,9 @@ def LoadServices(app, redissession, n68session, licensedata):
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
-            if (not isemptyrequest(requestdata) ):
-                if(requestdata["query"] == 'userInfobyName'):
-                    user_data = n68session.users.find_one({"name":requestdata["username"]})
-                    res={'rows': user_data}
+            if not isemptyrequest(requestdata):
+                user_data = n68session.users.find_one({"name":requestdata["username"]})
+                res={'rows': user_data}
             else:
                 app.logger.warn('Empty data received. authentication')
         except Exception as loaduser_exc:
@@ -41,7 +40,7 @@ def LoadServices(app, redissession, n68session, licensedata):
         dictdata={}
         try:
             requestdata=json.loads(request.data)
-            if (not isemptyrequest(requestdata) ):
+            if not isemptyrequest(requestdata):
                 if(requestdata["query"] == 'permissionInfoByRoleID'):
                     permissions_data = n68session.permissions.find_one({"_id":ObjectId(requestdata["roleid"])})
                     dictdata['roleid'] = permissions_data['_id']

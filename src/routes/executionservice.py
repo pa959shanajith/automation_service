@@ -346,17 +346,13 @@ def LoadServices(app, redissession, n68session):
                     querydata = {}
                     querydata["executedon"] = requestdata['browser']
                     querydata["executionid"] = ObjectId(requestdata['executionid'])
-                    querydata["cycleid"] = ObjectId(requestdata['cycleid'])
                     querydata["testscenarioid"] = ObjectId(requestdata['testscenarioid'])
-                    #querydata["testsuiteid"] = ObjectId(requestdata['testsuiteid'])
                     querydata["status"] = requestdata['status']
                     querydata["executedtime"] = modifiedon
                     querydata["modifiedon"] = modifiedon
                     querydata["modifiedby"] = ObjectId(requestdata['modifiedby'])
-                    querydata["modifiedbyrole"] = ObjectId(requestdata['modifiedby'])
+                    querydata["modifiedbyrole"] = ObjectId(requestdata['modifiedbyrole'])
                     querydata["report"] = json.loads(requestdata['report'])
-
-
                     res["rows"] = str(n68session.reports.insert(querydata))
                     app.logger.debug("Executed ExecuteTestSuite_ICE. Query: "+str(requestdata["query"]))
 
@@ -402,22 +398,25 @@ def LoadServices(app, redissession, n68session):
             app.logger.debug("Inside ScheduleTestSuite_ICE. Query: " + param)
             if not isemptyrequest(requestdata):
                 if(param == 'insertscheduledata'):
-                    requestdata1={}
-                    scheduleTime=requestdata['scheduledatetime']
-                    requestdata1["scheduledon"] = datetime.fromtimestamp(int(scheduleTime)/1000,pytz.UTC)
-                    requestdata1["target"]=requestdata["clientipaddress"]
-                    requestdata1["scheduledby"]=ObjectId(requestdata['userid'])
-                    testsuiteids_list = [ObjectId(i) for i in requestdata['testsuiteids']]
-                    requestdata1["testsuiteids"]=testsuiteids_list
-                    requestdata1["scenariodetails"]=json.loads(requestdata["scenariodetails"])
-                    requestdata1["status"]=requestdata["schedulestatus"]
-                    requestdata1["executeon"]=requestdata["browserlist"]
-                    requestdata1["cycleid"]=ObjectId(requestdata["cycleid"])
-                    # requestdata1["testsuiteids"]=requestdata["testsuiteids"]
-                    res["rows"] =  n68session.scheduledexecutions.insert(requestdata1)
+                    for tscos in requestdata["scenarios"]:
+                        for tsco in tscos: tsco["scenarioId"] = ObjectId(tsco["scenarioId"])
+                    dataquery = {
+                        "scheduledon": datetime.fromtimestamp(int(requestdata['timestamp'])/1000,pytz.UTC),
+                        "executeon": requestdata["executeon"],
+                        "executemode": requestdata["executemode"],
+                        "target": requestdata["targetaddress"],
+                        "scenariodetails": requestdata["scenarios"],
+                        "status": "scheduled",
+                        "testsuiteids": [ObjectId(i) for i in requestdata['testsuiteIds']],
+                        "scheduledby": ObjectId(requestdata['userid'])
+                    }
+                    scheduleid = n68session.scheduledexecutions.insert(dataquery)
+                    res["rows"] = {"id": scheduleid}
 
                 elif(param == 'updatescheduledstatus'):
-                    n68session.scheduledexecutions.update({"_id":ObjectId(requestdata['scheduleid'])},{"$set":{"status":requestdata["schedulestatus"]}})
+                    updatequery = { "status": requestdata["schedulestatus"] }
+                    if "batchid" in requestdata: updatequery["batchid"] = ObjectId(requestdata["batchid"])
+                    n68session.scheduledexecutions.update({"_id":ObjectId(requestdata['scheduleid'])},{"$set": updatequery})
                     res["rows"] = "success"
 
                 elif(param == 'getscheduledata'):
@@ -425,6 +424,48 @@ def LoadServices(app, redissession, n68session):
                     if "status" in requestdata: findquery["status"] = requestdata["status"]
                     if "scheduleid" in requestdata: findquery["_id"] = ObjectId(requestdata["scheduleid"])
                     res["rows"] = list(n68session.scheduledexecutions.find(findquery))
+
+                elif(param == 'getallscheduledata'):
+                    prjtypes = n68session.projecttypekeywords.find({}, {"name": 1})
+                    ptmap = {}
+                    for pt in prjtypes: ptmap[pt["_id"]] = pt["name"]
+                    projects = n68session.projects.find({}, {"type": 1})
+                    prjmap = {}
+                    for prj in projects: prjmap[prj["_id"]] = ptmap[prj["type"]]
+                    tsuites = n68session.testsuites.find({}, {"name": 1})
+                    tsumap = {}
+                    for tsu in tsuites: tsumap[tsu["_id"]] = tsu["name"]
+                    tscos = n68session.testscenarios.find({}, {"projectid": 1})
+                    tscomap = {}
+                    for tsco in tscos: tscomap[tsco["_id"]] = prjmap[tsco["projectid"]] if tsco["projectid"] in prjmap else "-"
+                    schedules = list(n68session.scheduledexecutions.find({}))
+                    for sch in schedules:
+                        sch["testsuitenames"] = [tsumap[tsuid] for tsuid in sch["testsuiteids"]]
+                        for tscos in sch["scenariodetails"]:
+                            if type(tscos) == dict: break
+                            for tsco in tscos: tsco["appType"] = tscomap[tsco["scenarioId"]]
+                    res["rows"] = schedules
+
+                elif(param == 'gettestsuiteproject'):
+                    testsuiteids = [ObjectId(i) for i in requestdata["testsuiteids"]]
+                    testsuites = list(n68session.testsuites.find({"_id": { "$in": testsuiteids}},
+                        {"name": 1, "cycleid": 1, "versionnumber": 1}))
+                    testsuitemap = {}
+                    for tsu in testsuites: testsuitemap[str(tsu["_id"])] = tsu
+                    cycleid = ObjectId(testsuites[0]["cycleid"])
+                    project = n68session.projects.find_one({"releases.cycles._id": cycleid}, {"name": 1, "domain": 1, "releases": 1, "type": 1})
+                    for rel in project["releases"]:
+                        for cyc in rel["cycles"]:
+                            if cyc["_id"] == cycleid:
+                                project["releaseid"] = rel["name"]
+                                project["cycleid"] = cycleid
+                                project["cyclename"] = cyc["name"]
+                                cycleid = None
+                                break
+                        if cycleid is None: break
+                    del project["releases"]
+                    project["type"] = n68session.projecttypekeywords.find_one({"_id": project["type"]}, {"name": 1})["name"]
+                    res["rows"] = { "suitemap": testsuitemap, "project": project }
 
                 elif(param == 'checkscheduleddetails'):
                     timelist = requestdata["scheduledatetime"]
