@@ -138,5 +138,43 @@ def LoadServices(app, redissession, n68session):
             app.logger.debug(updatereportdataexc)
             servicesException("updateReportData",updatereportdataexc)
         return jsonify(res)
+        
+    #fetching the report by executionId
+    @app.route('/reports/get_Nineteen68Report',methods=['POST'])
+    def get_Nineteen68Report():
+        res={'rows':'fail'}
+        finalQuery=[]
+        try:
+            requestdata=json.loads(request.data)
+            app.logger.debug("Inside get_Nineteen68Report. Query: "+str(requestdata["query"]))
+            if not isemptyrequest(requestdata):
+                if(requestdata["query"] == 'get_Nineteen68Report'):
+                    if("scenarioIds" in requestdata):
+                        queryresult1 = n68session.reports.find({"executionid":ObjectId(requestdata["executionId"]),"testscenarioid":{"$in":[ObjectId(i) for i in requestdata["scenarioIds"]]}})
+                    else:
+                        queryresult1 = n68session.reports.find({"executionid":ObjectId(requestdata["executionId"])})
+                    for execData in queryresult1:
+                        queryresult2 = n68session.testscenarios.find_one({"_id":execData["testscenarioid"]})#,{"name":1,"projectid":1,"_id":0})
+                        queryresult3 = n68session.projects.find_one({"_id":queryresult2["projectid"]})#,{"domain":1,"_id":0})
+                        queryresult4 = n68session.mindmaps.find_one({"_id":execData["testsuiteid"]})
+                        query={
+                            'report': execData["report"],
+                            'scenariodId': queryresult2["_id"],
+                            'scenarioName': queryresult2["name"],
+                            'domainName': queryresult3["domain"],
+                            'projectName': queryresult3["name"],
+                            'reportId': execData["_id"],
+                            'releaseName': queryresult3["releases"][0]["name"],
+                            'cycleName': queryresult3["releases"][0]["cycles"][0]["name"],
+                            'moduleId': queryresult4["_id"],
+                            'moduleName': queryresult4["name"]
+                        }
+                        finalQuery.append(query)
+                    res= {"rows":finalQuery}
+            else:
+                app.logger.warn('Empty data received. report.')
+        except Exception as getreportexc:
+            servicesException("get_Nineteen68Report",getreportexc)
+        return res
 
 # END OF REPORTS
