@@ -18,6 +18,7 @@ from utils import *
 from datetime import datetime, timedelta
 import pytz
 import time
+import uuid
 
 query = {'delete_flag': False}
 
@@ -238,6 +239,7 @@ def LoadServices(app, redissession, n68session):
                         "testsuiteids": [ObjectId(i) for i in requestdata['testsuiteIds']],
                         "scheduledby": ObjectId(requestdata['userid'])
                     }
+                    if "smartid" in requestdata: dataquery["smartid"] = uuid.UUID(requestdata["smartid"])
                     scheduleid = n68session.scheduledexecutions.insert(dataquery)
                     res["rows"] = {"id": scheduleid}
 
