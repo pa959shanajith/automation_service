@@ -92,18 +92,18 @@ def LoadServices(app, redissession, n68session):
                 if "class" in dodata: dodata["class"] = dodata["class"].split("[")[0]
                 dodata["url"] = so["url"] if 'url' in so else ""
                 dodata["cord"] = so["cord"] if "cord" in so else ""
-            elif so["appType"] == "MobileApp":
+            elif so["apptype"] == "MobileApp":
                 ob = obn.split(';')
                 if len(ob) == 2 and ob[0].strip() != "": dodata["id"] = ob[0]
-            elif so["appType"] == "Desktop":
+            elif so["apptype"] == "Desktop":
                 gettag = {"btn":"button","txtbox":"input","radiobtn":"radiobutton","select":"select","chkbox":"checkbox","lst":"list","tab":"tab","tree":"tree","dtp":"datepicker","table":"table","elmnt":"label"}
                 tag = so["custname"].split("_")[-1]
                 if tag in gettag: dodata["tag"] = gettag[tag]
                 dodata["control_id"] = obn.split(';')[2] if len(obn.split(';'))>1 else ""
                 dodata["url"] = so["url"] if 'url' in so else ""
-            elif so["appType"] == "pdf":
+            elif so["apptype"] == "pdf":
                 dodata["tag"] = "_".join(so["custname"].split("_")[0:2])
-            elif so["appType"] == ["Generic", "SAP", "Webservice", "Mainframe", "System"]: pass
+            elif so["apptype"] == ["Generic", "SAP", "Webservice", "Mainframe", "System"]: pass
             custnameToAdd.append(dodata)
         res = adddataobjects(scrid, custnameToAdd)
         return res
