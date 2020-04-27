@@ -270,7 +270,9 @@ def LoadServices(app, redissession, n68session):
                     for tsco in tscos: tscomap[tsco["_id"]] = prjmap[tsco["projectid"]] if tsco["projectid"] in prjmap else "-"
                     schedules = list(n68session.scheduledexecutions.find({}))
                     for sch in schedules:
-                        sch["testsuitenames"] = [tsumap[tsuid] for tsuid in sch["testsuiteids"]]
+                        testsuitenames = []
+                        for tsuid in sch["testsuiteids"]: testsuitenames.append(tsumap[tsuid] if tsuid in tsumap else "")
+                        sch["testsuitenames"] = testsuitenames
                         for tscos in sch["scenariodetails"]:
                             if type(tscos) == dict: break
                             for tsco in tscos: tsco["appType"] = tscomap[tsco["scenarioId"]]
