@@ -159,7 +159,6 @@ def LoadServices(app, redissession, n68session):
                         queryresult2 = n68session.testscenarios.find_one({"_id":execData["testscenarioid"]})#,{"name":1,"projectid":1,"_id":0})
                         queryresult3 = n68session.projects.find_one({"_id":queryresult2["projectid"]})#,{"domain":1,"_id":0})
                         for obj in parent:
-                            app.logger.debug("N68 OBJ IS"+str(obj))
                             queryresult5 = n68session.testsuites.find_one({"_id":obj})
                             if execData["testscenarioid"] in queryresult5["testscenarioids"]:
                                 queryresult6 = n68session.mindmaps.find_one({"_id":queryresult5["mindmapid"]})
