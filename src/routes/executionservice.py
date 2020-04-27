@@ -273,6 +273,8 @@ def LoadServices(app, redissession, n68session):
                         testsuitenames = []
                         for tsuid in sch["testsuiteids"]: testsuitenames.append(tsumap[tsuid] if tsuid in tsumap else "")
                         sch["testsuitenames"] = testsuitenames
+                        if sch["status"] == "Failed 01": sch["status"] = "Missed"
+                        elif sch["status"] == "Failed 02": sch["status"] = "Failed"
                         for tscos in sch["scenariodetails"]:
                             if type(tscos) == dict: break
                             for tsco in tscos: tsco["appType"] = tscomap[tsco["scenarioId"]]

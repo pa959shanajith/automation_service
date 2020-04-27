@@ -77,6 +77,7 @@ def LoadServices(app, redissession, n68session, licensedata):
                     n68session.thirdpartyintegration.update_many({"type":"TOKENS","userid":queryresult["_id"],"deactivated":"active","expireson":{"$lt":datetime.today()}},{"$set":{"deactivated":"expired"}})
                     query = n68session.thirdpartyintegration.find_one({"userid":queryresult["_id"],"name":requestdata["tokenname"],"type":"TOKENS"})
                 if query is not None: query["role"] = queryresult["defaultrole"]
+                else: query = "invalid"
                 res= {"rows":query}
             else:
                 app.logger.warn('Empty data received. authentication')
