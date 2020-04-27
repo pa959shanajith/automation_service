@@ -144,7 +144,6 @@ def LoadServices(app, redissession, n68session):
     def get_Nineteen68Report():
         res={'rows':'fail'}
         finalQuery=[]
-        parentCount = {}
         try:
             requestdata=json.loads(request.data)
             app.logger.debug("Inside get_Nineteen68Report. Query: "+str(requestdata["query"]))
@@ -178,11 +177,11 @@ def LoadServices(app, redissession, n68session):
                             'moduleName': queryresult6["name"]
                         }
                         finalQuery.append(query)
-                    res= {"rows":finalQuery}
+                    res["rows"] = finalQuery
             else:
                 app.logger.warn('Empty data received. report.')
         except Exception as getreportexc:
-            servicesException("get_Nineteen68Report",getreportexc)
-        return res
+            servicesException("get_Nineteen68Report", getreportexc, True)
+        return jsonify(res)
 
 # END OF REPORTS

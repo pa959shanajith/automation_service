@@ -35,11 +35,12 @@ def LoadServices(app, redissession, n68session):
                                         "mirror": (screen_query["screenshot"] if ("screenshot" in screen_query) else ""),
                                         "reuse": True if(len(screen_query["parent"])>1) else False
                                       }
-                elif (requestdata['query']=="getWSscrapedata"):
+                if (requestdata['query']=="getWSscrapedata"):
+                    dataobj_query = list(n68session.dataobjects.find({"parent" :screen_id}))
                     scrapeinfo = n68session.screens.find_one({"_id":screen_id,"deleted":False},{'_id':0,'parent':1,'scrapeinfo':1})
                     res["rows"] = scrapeinfo['scrapeinfo'] if 'scrapeinfo' in scrapeinfo else {}
                     res["rows"]["reuse"] = True if(len(scrapeinfo["parent"])>1) else False
-                    #res["rows"]["view"] = dataobj_query
+                    res["rows"]["view"] = dataobj_query
             else:
                 app.logger.warn('Empty data received. reading Testcase')
         except Exception as getscrapedataexc:
@@ -149,7 +150,6 @@ def LoadServices(app, redissession, n68session):
                     screenID = ObjectId(data["screenid"])
                     modifiedbyrole= data["modifiedByrole"]
                     modifiedby = data["modifiedby"]
-                    data_push=[]
                     for i in range(len(data_obj["view"])):
                         ObjId=data_obj["view"][i]["_id"]
                         del data_obj["view"][i]["_id"]
@@ -161,13 +161,36 @@ def LoadServices(app, redissession, n68session):
                     scrapeinfo = json.loads(data["scrapedata"])
                     modifiedbyrole= data["modifiedByrole"]
                     modifiedby = data["modifiedby"]
-                    n68session.screens.update({"_id":screenID},{"$set":{"modifiedby":modifiedby,'modifiedbyrole':modifiedbyrole, 'scrapeinfo':scrapeinfo,"modifiedon" : datetime.now()}})
-                    # Old_obj = list(n68session.dataobjects.find({"parent":data_push["parent"]}))
-                    # if (len(Old_obj) == 0):
-                    #     n68session.dataobjects.insert(data_push)
-                    # else:
-                    #     data_push["_id"] = Old_obj[0]["_id"]
-                    #     n68session.dataobjects.save(data_push)
+                    data_obj=[]
+                    data_push=[]
+                    if "view" in scrapeinfo:
+                        data_obj=scrapeinfo.pop("view")
+                    n68session.screens.update({"_id":screenID},{"$set":{"scrapedurl":scrapeinfo["endPointURL"],"modifiedby":modifiedby,'modifiedbyrole':modifiedbyrole, 'scrapeinfo':scrapeinfo,"modifiedon" : datetime.now()}})
+                    Old_obj = list(n68session.dataobjects.find({"parent":screenID}))
+                    for d in data_obj:
+                        d["parent"]=[screenID]
+                        data_push.append(d)
+                    if len(Old_obj)==0 and len(data_push)>0 :
+                        n68session.dataobjects.insert(data_push)
+                    elif len(data_obj)>0:
+                        remove_data=[]
+                        for d in data_obj:
+                            already_exists=False
+                            old_obj=''
+                            d["parent"] = [screenID]
+                            for o in Old_obj:
+                                if d["xpath"]==o["xpath"]:
+                                    d["_id"]=o["_id"]
+                                    n68session.dataobjects.update({"_id":d["_id"]},{"$set":d})
+                                    already_exists=True
+                                    old_obj=o
+                                    Old_obj.remove(o)
+                                    break
+                            if not(already_exists):
+                                n68session.dataobjects.insert(d)
+                                remove_data.append(o["_id"])
+                        if remove_data != []:
+                            n68session.dataobjects.delete_many({"_id":{"$in":remove_data}})
                     res={"rows":"Success"}
 
             else:
