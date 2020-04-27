@@ -171,23 +171,20 @@ def LoadServices(app, redissession, n68session):
                     if len(Old_obj)==0 and len(data_push)>0 :
                         n68session.dataobjects.insert(data_push)
                     elif len(data_obj)>0:
-                        remove_data=[]
                         for d in data_obj:
-                            already_exists=False
-                            old_obj=''
                             d["parent"] = [screenID]
+                            existing_object=False
                             for o in Old_obj:
+                                #If new_object xpath matches with existing xpath retain the same
                                 if d["xpath"]==o["xpath"]:
-                                    d["_id"]=o["_id"]
-                                    n68session.dataobjects.update({"_id":d["_id"]},{"$set":d})
-                                    already_exists=True
-                                    old_obj=o
                                     Old_obj.remove(o)
+                                    existing_object=True
                                     break
-                            if not(already_exists):
+                            if not(existing_object):
                                 n68session.dataobjects.insert(d)
-                                remove_data.append(o["_id"])
-                        if remove_data != []:
+                        #Delete the old data objects
+                        if len(Old_obj) > 0:
+                            remove_data=[o["_id"] for o in Old_obj]
                             n68session.dataobjects.delete_many({"_id":{"$in":remove_data}})
                     res={"rows":"Success"}
 
