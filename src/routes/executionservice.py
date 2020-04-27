@@ -248,7 +248,7 @@ def LoadServices(app, redissession, n68session):
                     querydata["executionid"] = ObjectId(requestdata['executionid'])
                     querydata["cycleid"] = ObjectId(requestdata['cycleid'])
                     querydata["testscenarioid"] = ObjectId(requestdata['testscenarioid'])
-                    querydata["testsuiteid"] = ObjectId(requestdata['testsuiteid'])
+                    #querydata["testsuiteid"] = ObjectId(requestdata['testsuiteid'])
                     querydata["status"] = requestdata['status']
                     querydata["executedtime"] = modifiedon
                     querydata["modifiedon"] = modifiedon
