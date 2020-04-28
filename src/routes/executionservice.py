@@ -305,7 +305,7 @@ def LoadServices(app, redissession, n68session):
                     timelist = requestdata["scheduledatetime"]
                     flag = -1
                     for i in range(len(timelist)):
-                        timestamp =  datetime.strptime(timelist[i], "%d-%m-%Y %H:%M")
+                        timestamp =  datetime.fromtimestamp(int(timelist[i])/1000,pytz.UTC)
                         address = requestdata["targetaddress"][i]
                         count = n68session.scheduledexecutions.find({"scheduledon": timestamp, "target": address}).count()
                         if count > 0:
