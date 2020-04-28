@@ -79,10 +79,10 @@ lsport = "5000"
 ndacport = "1990"
 redis_dbup = False
 mongo_dbup = False
-onlineuser = False
+onlineuser = True
 gracePeriodTimer=None
 twoDayTimer=None
-licensedata=None
+licensedata={'allowedIceSessions': 10, 'platforms': {'web': True, 'webservice': True, 'mobileapp': True, 'system': True, 'desktop': True, 'mainframe': True, 'oebs': True, 'sap': True, 'mobileweb': True}, 'plugins': {'alm': True, 'performancetesting': True, 'deadcode': True, 'weboccular': True, 'mindmap': True, 'reports': True, 'apg': True, 'dashboard': True, 'neurongraphs': True, 'oxbowcode': True, 'utility': True}}
 grace_period = 172800
 LS_CRITICAL_ERR_CODE=['199','120','121','123','124','125']
 lsRetryCount=0
@@ -171,6 +171,12 @@ def addroutes():
 
     import neurongraphsservice
     neurongraphsservice.LoadServices(app, redissession, n68session)
+    
+    import benchmarkservice
+    benchmarkservice.LoadServices(app,redissession,n68session)
+
+    import partitionservice
+    partitionservice.LoadServices(app,redissession,n68session)
 
     #Prof J First Service: Getting Best Matches
     @app.route('/chatbot/getTopMatches_ProfJ',methods=['POST'])
