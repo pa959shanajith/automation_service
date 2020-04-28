@@ -32,6 +32,8 @@ def LoadServices(app, redissession, n68session):
         time_usr = {}
         ipPartitions = {}
         modPartitions = {}
+        users,flag = load_sort(requestdata['ipAddressList'],requestdata["time"])
+
         if requestdata['type'] == 'Scenario Smart Scheduling':
             try:
                 for i in range(len(requestdata['scenarios'])):
@@ -39,7 +41,7 @@ def LoadServices(app, redissession, n68session):
                     result = n68session.executiontimes.find(
                         {"testscenarioid": scid})
                     if result is None or result.count() == 0:
-                        timearr[scid] = 0
+                        timearr[scid] = 315
                         continue
                     cursor_len = result.count()
                     for i in range(cursor_len):
@@ -49,7 +51,6 @@ def LoadServices(app, redissession, n68session):
                             timearr[scid] = result[i]['mean']
                 partitions = partition_scenarios.main(
                     timearr, requestdata['activeIce'])
-                users = requestdata['ipAddressList']
                 for i in range(len(users)):
                     if i < len(partitions["seq_partitions"]):
                         ipPartitions[users[i]] = str(
@@ -58,6 +59,7 @@ def LoadServices(app, redissession, n68session):
                 res["partitions"] = ipPartitions
                 res["totalTime"] = partitions["totalTime"]
                 res['timearr'] = timearr
+                if flag: res["result"] = "busy"
             except Exception as e:
                 app.logger.debug(traceback.format_exc())
                 servicesException("partion_scenarios", e)
@@ -83,8 +85,6 @@ def LoadServices(app, redissession, n68session):
                             else:
                                 time = time + result[k]['mean']
                     timearr[modules[i]['testsuiteId']] = time
-                users = requestdata['ipAddressList']
-                users = load_sort(users, requestdata['time'])
                 partitions = partition_scenarios.main(timearr, len(users))
                 
                 for i in range(len(users)):
@@ -99,7 +99,6 @@ def LoadServices(app, redissession, n68session):
                             part_str = str(mod_scn[mod_name]).strip(
                                 "['']") + part_str
                             modPartitions[users[i]].append(mod_name)
-
                         ipPartitions[users[i]] = part_str
 
                 res["result"] = "success"
@@ -107,7 +106,7 @@ def LoadServices(app, redissession, n68session):
                 res["totalTime"] = partitions["totalTime"]
                 res['timearr'] = timearr
                 res['modPartitions'] = modPartitions
-
+                if flag: res['result'] = 'busy'
             except Exception as e:
                 app.logger.debug(traceback.format_exc())
                 servicesException("partion_modules", e)
@@ -140,10 +139,10 @@ def LoadServices(app, redissession, n68session):
                     unavailable += 1
             except Exception as e:
                 app.logger.debug(traceback.format_exc())
-                return users
+                return users,True
         if unavailable == len(users):
-            return users
-        return available_users
+            return users,True
+        return available_users,False
         
 
     def get_time(scid):
