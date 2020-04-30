@@ -144,9 +144,10 @@ def LoadServices(app, redissession, n68session):
     def get_Nineteen68Report():
         res={'rows':'fail','errMsg':''}
         errMsgVal=''
-        errMsg='Invalid Id: '
+        errMsg='Invalid '
         errIds=[]
         finalQuery=[]
+        correctScenarios=[]
         try:
             requestdata=json.loads(request.data)
             app.logger.debug("Inside get_Nineteen68Report. Query: "+str(requestdata["query"]))
@@ -160,14 +161,17 @@ def LoadServices(app, redissession, n68session):
                     if("scenarioIds" in requestdata):
                         scenarioIds = n68session.reports.distinct("testscenarioid",{"executionid":ObjectId(requestdata["executionId"])})
                         for scenId in requestdata["scenarioIds"]:
+                            if len(scenId.strip())==0:
+                                continue
                             try:
                                 if ObjectId(scenId) not in scenarioIds:
                                     errIds.append(str(scenId))
-                                    requestdata["scenarioIds"].remove(scenId)
+                                else:
+                                    correctScenarios.append(ObjectId(scenId))
                             except Exception:
                                 errIds.append(str(scenId))
-                                requestdata["scenarioIds"].remove(scenId)
-                        queryresult1 = n68session.reports.find({"executionid":ObjectId(requestdata["executionId"]),"testscenarioid":{"$in":[ObjectId(i) for i in requestdata["scenarioIds"]]}})
+                        if len(correctScenarios) != 0 or len(errIds) != 0:
+                            queryresult1 = n68session.reports.find({"executionid":ObjectId(requestdata["executionId"]),"testscenarioid":{"$in":correctScenarios}})
                     for execData in queryresult1:
                         queryresult2 = n68session.testscenarios.find_one({"_id":execData["testscenarioid"]})#,{"name":1,"projectid":1,"_id":0})
                         queryresult3 = n68session.projects.find_one({"_id":queryresult2["projectid"]})#,{"domain":1,"_id":0})
@@ -191,12 +195,12 @@ def LoadServices(app, redissession, n68session):
                         finalQuery.append(query)
                     res["rows"] = finalQuery
                     if len(errIds) != 0:
-                        res["errMsg"] = errMsg+(','.join(errIds))
+                        res["errMsg"] = errMsg+'Scenario Id(s): '+(','.join(errIds))
             else:
                 app.logger.warn('Empty data received. report.')
         except Exception as getreportexc:
             if errMsgVal:
-                res['errMsg']=errMsg+errMsgVal
+                res['errMsg']=errMsg+'Execution Id: '+errMsgVal
             servicesException("get_Nineteen68Report", getreportexc, True)
         return jsonify(res)
 
