@@ -156,60 +156,39 @@ def LoadServices(app, redissession, n68session):
                     queryresult1 = n68session.reports.find({"executionid":ObjectId(requestdata["executionId"])})
                     queryresult4 = n68session.executions.find_one({"_id": ObjectId(requestdata["executionId"])})
                     parent = queryresult4["parent"]
+                    errMsgVal=''
                     if("scenarioIds" in requestdata):
+                        scenarioIds = n68session.reports.distinct("testscenarioid",{"executionid":ObjectId(requestdata["executionId"])})
                         for scenId in requestdata["scenarioIds"]:
-                            errMsgVal=str(scenId)
                             try:
-                                queryresult1=n68session.reports.find({"executionid":ObjectId(requestdata["executionId"]),"testscenarioid":ObjectId(scenId)})
-                            except Exception as exce:
-                                errIds.append(errMsgVal)
-                                continue
-                            if queryresult1.count()==0:
-                                errIds.append(errMsgVal)
-                            else:
-                                for execData in queryresult1:
-                                    queryresult2 = n68session.testscenarios.find_one({"_id":execData["testscenarioid"]})#,{"name":1,"projectid":1,"_id":0})
-                                    queryresult3 = n68session.projects.find_one({"_id":queryresult2["projectid"]})#,{"domain":1,"_id":0})
-                                    for obj in parent:
-                                        queryresult5 = n68session.testsuites.find_one({"_id":obj})
-                                        if execData["testscenarioid"] in queryresult5["testscenarioids"]:
-                                            queryresult6 = n68session.mindmaps.find_one({"_id":queryresult5["mindmapid"]})
-                                            break
-                                    query={
-                                        'report': execData["report"],
-                                        'scenariodId': queryresult2["_id"],
-                                        'scenarioName': queryresult2["name"],
-                                        'domainName': queryresult3["domain"],
-                                        'projectName': queryresult3["name"],
-                                        'reportId': execData["_id"],
-                                        'releaseName': queryresult3["releases"][0]["name"],
-                                        'cycleName': queryresult3["releases"][0]["cycles"][0]["name"],
-                                        'moduleId': queryresult6["_id"],
-                                        'moduleName': queryresult6["name"]
-                                    }
-                                    finalQuery.append(query)
-                    else:
-                        for execData in queryresult1:
-                            queryresult2 = n68session.testscenarios.find_one({"_id":execData["testscenarioid"]})#,{"name":1,"projectid":1,"_id":0})
-                            queryresult3 = n68session.projects.find_one({"_id":queryresult2["projectid"]})#,{"domain":1,"_id":0})
-                            for obj in parent:
-                                queryresult5 = n68session.testsuites.find_one({"_id":obj})
-                                if execData["testscenarioid"] in queryresult5["testscenarioids"]:
-                                    queryresult6 = n68session.mindmaps.find_one({"_id":queryresult5["mindmapid"]})
-                                    break
-                            query={
-                                'report': execData["report"],
-                                'scenariodId': queryresult2["_id"],
-                                'scenarioName': queryresult2["name"],
-                                'domainName': queryresult3["domain"],
-                                'projectName': queryresult3["name"],
-                                'reportId': execData["_id"],
-                                'releaseName': queryresult3["releases"][0]["name"],
-                                'cycleName': queryresult3["releases"][0]["cycles"][0]["name"],
-                                'moduleId': queryresult6["_id"],
-                                'moduleName': queryresult6["name"]
-                            }
-                            finalQuery.append(query)
+                                if ObjectId(scenId) not in scenarioIds:
+                                    errIds.append(str(scenId))
+                                    requestdata["scenarioIds"].remove(scenId)
+                            except Exception:
+                                errIds.append(str(scenId))
+                                requestdata["scenarioIds"].remove(scenId)
+                        queryresult1 = n68session.reports.find({"executionid":ObjectId(requestdata["executionId"]),"testscenarioid":{"$in":[ObjectId(i) for i in requestdata["scenarioIds"]]}})
+                    for execData in queryresult1:
+                        queryresult2 = n68session.testscenarios.find_one({"_id":execData["testscenarioid"]})#,{"name":1,"projectid":1,"_id":0})
+                        queryresult3 = n68session.projects.find_one({"_id":queryresult2["projectid"]})#,{"domain":1,"_id":0})
+                        for obj in parent:
+                            queryresult5 = n68session.testsuites.find_one({"_id":obj})
+                            if execData["testscenarioid"] in queryresult5["testscenarioids"]:
+                                #queryresult6 = n68session.mindmaps.find_one({"_id":queryresult5["mindmapid"]})
+                                break
+                        query={
+                            'report': execData["report"],
+                            'scenariodId': queryresult2["_id"],
+                            'scenarioName': queryresult2["name"],
+                            'domainName': queryresult3["domain"],
+                            'projectName': queryresult3["name"],
+                            'reportId': execData["_id"],
+                            'releaseName': queryresult3["releases"][0]["name"],
+                            'cycleName': queryresult3["releases"][0]["cycles"][0]["name"],
+                            'moduleId': queryresult5["mindmapid"],
+                            'moduleName': queryresult5["name"]
+                        }
+                        finalQuery.append(query)
                     res["rows"] = finalQuery
                     if len(errIds) != 0:
                         res["errMsg"] = errMsg+(','.join(errIds))
