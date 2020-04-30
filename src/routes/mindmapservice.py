@@ -396,7 +396,7 @@ def LoadServices(app, redissession, n68session):
                     updateparent(node[1],node[0],node[2],"delete")
                 res={'rows':currentmoduleid}
             else:
-                res={'rows':'fail',"error":error}
+                res={'rows':'reuseerror',"error":error}
         except Exception as e:
             servicesException("saveMindmap", e, True)
         return jsonify(res)
