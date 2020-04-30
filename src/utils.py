@@ -129,7 +129,8 @@ ecodeServices = {
     "getModules":"384",
     "manageTaskDetails":"385",
     "getNeuronGraphsData":"386",
-    "get_Nineteen68Report": "387"
+    "get_Nineteen68Report": "387",
+    "checkApproval": "388"
 }
 
 

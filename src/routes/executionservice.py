@@ -384,11 +384,12 @@ def LoadServices(app, redissession, n68session):
                 query=list(n68session.tasks.find({"nodeid":i},{"history":1}).sort("createdon",-1).limit(1))
                 if(len(query[0]["history"])>0):
                     date=query[0]["history"][-1]["modifiedOn"]
-                    if isinstance(date,str) and query[0]["history"][-1]["status"] == "complete" and testcases[counter]['modifiedon']>=datetime.strptime(date,"%d/%m/%Y,%H:%M:%S"):
-                        flag=True
-                        res={'rows':"Modified"}
-                        return jsonify(res)
-                    elif isinstance(date,datetime) and query[0]["history"][-1]["status"] == "complete" and testcases[counter]['modifiedon']>=date:
+                    if isinstance(date, str):
+                        try:
+                            date = datetime.strptime(date.split(' ')[0], "%d/%m/%Y,%H:%M:%S")
+                        except:
+                            date = datetime.strptime(date, "%d/%m/%Y,%H:%M:%S")
+                    if query[0]["history"][-1]["status"] == "complete" and testcases[counter]['modifiedon']>=date:
                         flag=True
                         res={'rows':"Modified"}
                         return jsonify(res)
@@ -405,11 +406,12 @@ def LoadServices(app, redissession, n68session):
                 query=list(n68session.tasks.find({"nodeid":i},{"history":1}).sort("createdon",-1).limit(1))
                 if(len(query[0]["history"])>0):
                     date=query[0]["history"][-1]["modifiedOn"]
-                    if isinstance(date,str) and query[0]["history"][-1]["status"] == "complete" and screens[counter]['modifiedon']>=datetime.strptime(date,"%d/%m/%Y,%H:%M:%S"):
-                        flag=True
-                        res={'rows':"Modified"}
-                        return jsonify(res)
-                    elif isinstance(date,datetime) and query[0]["history"][-1]["status"] == "complete" and screens[counter]['modifiedon']>=date:
+                    if isinstance(date, str):
+                        try:
+                            date = datetime.strptime(date.split(' ')[0], "%d/%m/%Y,%H:%M:%S")
+                        except:
+                            date = datetime.strptime(date, "%d/%m/%Y,%H:%M:%S")
+                    if query[0]["history"][-1]["status"] == "complete" and screens[counter]['modifiedon']>=date:
                         flag=True
                         res={'rows':"Modified"}
                         return jsonify(res)
