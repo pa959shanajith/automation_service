@@ -133,7 +133,16 @@ def LoadServices(app, redissession, n68session):
                     row.update({'jira_defect_id':str(requestdata['defectid'])})
                     report['rows']=report_rows
                     queryresult = n68session.reports.update({"_id":ObjectId(requestdata["reportid"])},{"$set":{"report":report}})
-                    n68session.thirdpartyintegration.insert_one({"type":"JIRA","reportid":requestdata["reportid"],"executionid":requestdata["executionid"],"defectid":requestdata['defectid']})
+                    n68session.thirdpartyintegration.insert_one({
+                        "type":"JIRA",
+                        "reportid":requestdata["reportid"],
+                        "defectid":requestdata['defectid'],
+                        "stepDetails":{
+                                "stepid": row["id"],
+                                "stepdescription": row["StepDescription"].replace('""',"'"),
+                                "Keyword": row["Keyword"]
+                            }
+                        })
                     res={'rows':'Success'}
         except Exception as updatereportdataexc:
             app.logger.debug(updatereportdataexc)
