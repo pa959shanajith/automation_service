@@ -437,8 +437,7 @@ def LoadServices(app, redissession, n68session):
             "modifiedby":ObjectId(createdby),
             "modifiedbyrole":ObjectId(createdbyrole),
             "modifiedon":createdon,
-            "testcaseids":testcaseids,
-            "screens":[]
+            "testcaseids":testcaseids
         }
         queryresult=n68session.testscenarios.insert_one(data).inserted_id
         return queryresult
