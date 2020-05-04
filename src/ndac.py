@@ -63,11 +63,13 @@ currdir = os.getcwd()
 if os.path.basename(currexc).startswith("ndac"):
     currdir = os.path.dirname(currexc)
 elif os.path.basename(currexc).startswith("python"):
-    currdir = os.path.dirname(currfiledir)
-    if os.path.basename(currdir).endswith("ndac"+os.sep+"src"):
-        currdir = os.path.abspath(os.path.join(currdir,"..",".."))
-    elif currfiledir != os.path.dirname(currexc):
-        currdir = os.path.abspath(os.path.join(currdir,".."))
+    currdir = currfiledir
+    needdir = "ndac_internals"
+    parent_currdir = os.path.abspath(os.path.join(currdir,".."))
+    if os.path.isdir(os.path.abspath(os.path.join(parent_currdir,"..",needdir))):
+        currdir = os.path.dirname(parent_currdir)
+    elif os.path.isdir(parent_currdir + os.sep + needdir):
+        currdir = parent_currdir
 config_path = currdir+'/server_config.json'
 assistpath = currdir + "/ndac_internals/assist"
 logspath = currdir + "/ndac_internals/logs"
@@ -118,6 +120,8 @@ def _jsonencoder_default(self, obj):
     return flask.json.JSONEncoder._default(self, obj)
 flask.json.JSONEncoder._default = flask.json.JSONEncoder.default
 flask.json.JSONEncoder.default = _jsonencoder_default
+# json.JSONEncoder._default = flask.json.JSONEncoder.default
+# json.JSONEncoder.default = _jsonencoder_default
 
 #server check
 @app.route('/')
@@ -137,6 +141,7 @@ setenv(flaskapp=app)
 sys.path.append(currfiledir+os.sep+"routes")
 
 def addroutes():
+    app.logger.debug("Loading services")
     import loginservice
     loginservice.LoadServices(app, redissession, n68session, licensedata)
 

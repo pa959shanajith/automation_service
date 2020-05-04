@@ -6,6 +6,12 @@ from utils import *
 from bson.objectid import ObjectId
 import json
 from datetime import datetime
+uniq = 10000
+
+def generate_id():
+    global uniq
+    uniq += 1
+    return uniq
 
 def LoadServices(app, redissession, n68session):
     setenv(app)
@@ -14,60 +20,66 @@ def LoadServices(app, redissession, n68session):
 # END OF DEFAULT METHODS AND IMPORTS       -----------DO NOT EDIT
 ################################################################################
 
-
 ################################################################################
 # ADD YOUR ROUTES BELOW
 ################################################################################
 
     # API to get the project type name using the ProjectID
     @app.route('/neurongraphs/getData',methods=['POST'])
-    def getData():
-        app.logger.debug("Inside getData")
+    def getNeuronGraphsData():
+        app.logger.debug("Inside getNeuronGraphsData")
         res={'rows':'fail'}
-        error_name=[]
         try:
-            requestdata=json.loads(request.data)
-            nodes=[]
-            links=[]
-            counter=0
-            project_id=n68session["users"].find_one({"_id":ObjectId(requestdata['user_id'])}, {"_id":1,"projects":1})["projects"]
-            dprc_list=list(n68session["projects"].find({"_id":{"$in":project_id}},{"name":1,"releases.name":1,"releases._id":1,"releases.cycles.name":1,"releases.cycles._id":1,"domain":1}))
-            # dprc_list=list(n68session["projects"].find({},{"name":1,"releases.name":1,"releases._id":1,"releases.cycles.name":1,"releases.cycles._id":1,"domain":1}))
+            requestdata = json.loads(request.data)
+            domain_dict = {}
+            ptype = {}
+            nodes = []
+            links = []
+            counter = 0
+            ptypeall = list(n68session["projecttypekeywords"].find({}, {"_id":1,"name":1}))
+            for e in ptypeall: ptype[e["_id"]] = e["name"]
+            prj_data_needed = {"name":1,"releases.name":1,"releases._id":1,"releases.cycles.name":1,"releases.cycles._id":1,"domain":1,"type":1}
+            #project_id = n68session["users"].find_one({"_id":ObjectId(requestdata['user_id'])}, {"_id":1,"projects":1})["projects"]
+            #dprc_list = list(n68session["projects"].find({"_id":{"$in":project_id}}, prj_data_needed))
+            dprc_list = list(n68session["projects"].find({}, prj_data_needed))
             cycle_ids=[]
-            domain_id=10000
             for p in dprc_list:
-                nodes.append({'id':str(domain_id),"idx":counter,'type':"Domain","name":p["domain"],"attributes":{"Name":p['domain']}})
+                if p["domain"] in domain_dict:
+                    domain_id = domain_dict[p["domain"]]
+                else:
+                    domain_id = generate_id()
+                    nodes.append({'id':str(domain_id),"idx":counter,'type':"Domain","name":p["domain"],"attributes":{"Name":p['domain']}})
+                    counter+=1
+                    domain_dict[p["domain"]] = domain_id
+                nodes.append({'id':str(p["_id"]),"idx":counter,'type':"Project","name":p["name"],"attributes":{"Name":p['name'], "Type": ptype[p["type"]]}})
                 links.append({"start":str(domain_id),"end":str(p["_id"])})
                 counter+=1
-                nodes.append({'id':str(p["_id"]),"idx":counter,'type':"Project","name":p["name"],"attributes":{"Name":p['name']}})
-                counter+=1
                 for r in p['releases']:
-                    domain_id+=1
-                    nodes.append({'id':str(domain_id),"idx":counter,'type':"Release","name":r["name"],"attributes":{"Name":r['name']}})
-                    links.append({"start":str(p["_id"]),"end":str(domain_id)})
+                    rel_id = generate_id()
+                    nodes.append({'id':str(rel_id),"idx":counter,'type':"Release","name":r["name"],"attributes":{"Name":r['name']}})
+                    links.append({"start":str(p["_id"]),"end":str(rel_id)})
                     counter+=1
                     for c in r['cycles']:
                         nodes.append({'id':str(c["_id"]),"idx":counter,'type':"Cycle","name":c["name"],"attributes":{"Name":c['name']}})
-                        links.append({"start":str(domain_id),"end":str(c["_id"])})
+                        links.append({"start":str(rel_id),"end":str(c["_id"])})
                         cycle_ids.append(c["_id"])
                         counter+=1
-            dprc_list=[]
-
-            testsuites=list(n68session["testsuites"].find({"cycleid":{"$in":cycle_ids}},{"name":1,"testscenarioids":1,"mindmapid":1,"cycleid":1}))
-            # testsuites=list(n68session["testsuites"].find({},{"name":1,"testscenarioids":1,"mindmapid":1,"cycleid":1}))
+            testsuite_data_needed = {"name":1,"testscenarioids":1,"mindmapid":1,"cycleid":1,"versionnumber":1,"conditioncheck":1,"getparampaths":1}
+            testsuites=list(n68session["testsuites"].find({"cycleid":{"$in":cycle_ids}}, testsuite_data_needed))
+            # testsuites=list(n68session["testsuites"].find({}, testsuite_data_needed))
             ts_list=[]
             for t in testsuites:
-                attributes={
-                    "Name": t["name"],
-                    "testSuiteid": t["mindmapid"],
-                    "testScenarioids":t["testscenarioids"]
-                }
+                #attributes = json.loads(json.dumps(t))
+                attributes = t
+                attributes["Name"] = attributes["name"]
                 links.append({"start":str(t["cycleid"]),"end":str(t["_id"])})
                 nodes.append({'id':str(t["_id"]),"idx":counter,'type':"TestSuite","name":t["name"],"attributes":attributes})
                 for ts in t["testscenarioids"]:
                     links.append({"start":str(t["_id"]),"end":str(ts)})
                     ts_list.append(ts)
                 counter+=1
+                del attributes["_id"]
+                del attributes["name"]
             testsuites=[]
 
             testscenarios=list(n68session["testscenarios"].find({"_id":{"$in":ts_list}},{"name":1,"testcaseids":1,"testcases":1}))
@@ -79,7 +91,6 @@ def LoadServices(app, redissession, n68session):
                 }
                 nodes.append({'id':str(ts["_id"]),"idx":counter,'type':"TestScenario","name":ts["name"],"attributes":attributes})
                 counter+=1
-                error_name=ts['name']
                 key="testcaseids"
                 if key not in ts:
                     key="testcases"
@@ -110,10 +121,10 @@ def LoadServices(app, redissession, n68session):
                 # links.append({"start":str(tc["_id"]),"end":str(tc['screenid'])})
                 counter+=1
             screens=[]
-
+            app.logger.debug("Executed getNeuronGraphsData")
             res={"nodes":nodes,"links":links}
         except Exception as e:
-            servicesException("getData",e)
+            servicesException("getNeuronGraphsData", e, True)
         return jsonify(res)
 
 

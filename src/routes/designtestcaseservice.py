@@ -31,8 +31,7 @@ def LoadServices(app, redissession, n68session):
             else:
                 app.logger.warn('Empty data received. getKeywordDetails')
         except Exception as keywordsexc:
-            app.logger.debug(traceback.format_exc())
-            servicesException('getKeywordDetails',keywordsexc)
+            servicesException('getKeywordDetails', keywordsexc, True)
         return jsonify(res)
 
 
@@ -67,8 +66,7 @@ def LoadServices(app, redissession, n68session):
             else:
                 app.logger.warn('Empty data received. getting testcases.')
         except Exception as e:
-            app.logger.debug(traceback.format_exc())
-            servicesException('getTestcasesByScenarioId_ICE',e)
+            servicesException('getTestcasesByScenarioId_ICE', e, True)
         return jsonify(res)
 
 
@@ -223,8 +221,7 @@ def LoadServices(app, redissession, n68session):
             else:
                 app.logger.warn('Empty data received. updating testcases')
         except Exception as updatetestcaseexception:
-            app.logger.debug(traceback.format_exc())
-            servicesException('updateTestCase_ICE',updatetestcaseexception)
+            servicesException('updateTestCase_ICE', updatetestcaseexception, True)
         return jsonify(res)
 
 
@@ -249,12 +246,9 @@ def LoadServices(app, redissession, n68session):
                         j['custname'] = 'OBJECT_DELETED'
                         if j['outputVal'].split(';')[-1] != '##':
                             del_flag = True
-
         except Exception as e:
-            app.logger.debug(traceback.format_exc())
-            servicesException('readTestCase_ICE',e)
+            servicesException('readTestCase_ICE', e, True)
         return del_flag
-
 
 
     #test case reading service
@@ -268,7 +262,7 @@ def LoadServices(app, redissession, n68session):
             if not isemptyrequest(requestdata):
                 if(requestdata['query'] == 'testcaseids'):
                     tc_id_list=[]
-                    if not isinstance(requestdata['testcaseid'],list):
+                    if not isinstance(requestdata['testcaseid'], list):
                         requestdata['testcaseid'] = [requestdata['testcaseid']]
                     for i in requestdata['testcaseid']:
                         tc_id_list.append(ObjectId(i))
@@ -279,31 +273,30 @@ def LoadServices(app, redissession, n68session):
                         {"$project":{'steps':1,'name':1,'screenid':1,'parent':1,'_id':0}}
                     ]
                     queryresult = list(n68session.testcases.aggregate(query))
-                    if (queryresult != []):
-                        for k in queryresult:
-                            queryresult1 = list(n68session.dataobjects.find({'parent':k['screenid']},{'parent':0}))
-                            dataObjects = {}
-                            if (queryresult1 != []):
-                                for dos in queryresult1:
-                                    if 'custname' in dos: dos['custname'] = dos['custname'].strip()
-                                    dataObjects[dos['_id']] = dos
-                            del_flag = update_steps(k['steps'],dataObjects)
+                    for k in queryresult:
+                        queryresult1 = list(n68session.dataobjects.find({'parent':k['screenid']},{'parent':0}))
+                        dataObjects = {}
+                        if (queryresult1 != []):
+                            for dos in queryresult1:
+                                if 'custname' in dos: dos['custname'] = dos['custname'].strip()
+                                dataObjects[dos['_id']] = dos
+                        del_flag = update_steps(k['steps'],dataObjects)
                     res= {'rows': queryresult, 'del_flag':del_flag}
                 else:
-                    queryresult = list(n68session.testcases.find({'_id':ObjectId(requestdata['testcaseid']),'versionnumber':requestdata['versionnumber']},{'screenid':1,'steps':1,'name':1,'parent':1,'_id':0}))
-                    queryresult1 = list(n68session.dataobjects.find({'parent':queryresult[0]['screenid']},{'parent':0}))
                     dataObjects = {}
-                    if (queryresult1 != []):
-                        for dos in queryresult1:
-                            if 'custname' in dos: dos['custname'] = dos['custname'].strip()
-                            dataObjects[dos['_id']] = dos
+                    queryresult = list(n68session.testcases.find({'_id':ObjectId(requestdata['testcaseid']),
+                        'versionnumber':requestdata['versionnumber']},{'screenid':1,'steps':1,'name':1,'parent':1,'_id':0}))
                     if (queryresult != []):
+                        queryresult1 = list(n68session.dataobjects.find({'parent':queryresult[0]['screenid']},{'parent':0}))
+                        if (queryresult1 != []):
+                            for dos in queryresult1:
+                                if 'custname' in dos: dos['custname'] = dos['custname'].strip()
+                                dataObjects[dos['_id']] = dos
                         del_flag = update_steps(queryresult[0]['steps'],dataObjects)
+                    res = {'rows': queryresult, 'del_flag':del_flag}
                     if 'screenName' in requestdata and requestdata['screenName']=='fetch':
                         screen = n68session.screens.find_one({'_id':queryresult[0]['screenid']},{'name':1})
-                        res= {'rows': queryresult, 'del_flag':del_flag, 'screenName':screen['name']}
-                    else:
-                        res= {'rows': queryresult, 'del_flag':del_flag}
+                        res['screenName'] = screen['name']
                     if ('readonly' not in requestdata):
                         userid = ObjectId(requestdata['userid']) if 'userid' in requestdata else ""
                         global debugcounter
@@ -312,6 +305,5 @@ def LoadServices(app, redissession, n68session):
             else:
                 app.logger.warn('Empty data received. reading Testcase')
         except Exception as readtestcaseexc:
-            app.logger.debug(traceback.format_exc())
-            servicesException('readTestCase_ICE',readtestcaseexc)
+            servicesException('readTestCase_ICE', readtestcaseexc, True)
         return jsonify(res)
