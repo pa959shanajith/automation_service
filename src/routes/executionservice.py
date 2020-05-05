@@ -270,7 +270,11 @@ def LoadServices(app, redissession, n68session):
                     for tsco in tscos: tscomap[tsco["_id"]] = prjmap[tsco["projectid"]] if tsco["projectid"] in prjmap else "-"
                     schedules = list(n68session.scheduledexecutions.find({}))
                     for sch in schedules:
-                        sch["testsuitenames"] = [tsumap[tsuid] for tsuid in sch["testsuiteids"]]
+                        testsuitenames = []
+                        for tsuid in sch["testsuiteids"]: testsuitenames.append(tsumap[tsuid] if tsuid in tsumap else "")
+                        sch["testsuitenames"] = testsuitenames
+                        if sch["status"] == "Failed 01": sch["status"] = "Missed"
+                        elif sch["status"] == "Failed 02": sch["status"] = "Failed"
                         for tscos in sch["scenariodetails"]:
                             if type(tscos) == dict: break
                             for tsco in tscos: tsco["appType"] = tscomap[tsco["scenarioId"]]
@@ -301,7 +305,7 @@ def LoadServices(app, redissession, n68session):
                     timelist = requestdata["scheduledatetime"]
                     flag = -1
                     for i in range(len(timelist)):
-                        timestamp =  datetime.strptime(timelist[i], "%d-%m-%Y %H:%M")
+                        timestamp =  datetime.fromtimestamp(int(timelist[i])/1000,pytz.UTC)
                         address = requestdata["targetaddress"][i]
                         count = n68session.scheduledexecutions.find({"scheduledon": timestamp, "target": address}).count()
                         if count > 0:
@@ -380,11 +384,12 @@ def LoadServices(app, redissession, n68session):
                 query=list(n68session.tasks.find({"nodeid":i},{"history":1}).sort("createdon",-1).limit(1))
                 if(len(query[0]["history"])>0):
                     date=query[0]["history"][-1]["modifiedOn"]
-                    if isinstance(date,str) and query[0]["history"][-1]["status"] == "complete" and testcases[counter]['modifiedon']>=datetime.strptime(date,"%d/%m/%Y,%H:%M:%S"):
-                        flag=True
-                        res={'rows':"Modified"}
-                        return jsonify(res)
-                    elif isinstance(date,datetime) and query[0]["history"][-1]["status"] == "complete" and testcases[counter]['modifiedon']>=date:
+                    if isinstance(date, str):
+                        try:
+                            date = datetime.strptime(date.split(' ')[0], "%d/%m/%Y,%H:%M:%S")
+                        except:
+                            date = datetime.strptime(date, "%d/%m/%Y,%H:%M:%S")
+                    if query[0]["history"][-1]["status"] == "complete" and testcases[counter]['modifiedon']>=date:
                         flag=True
                         res={'rows':"Modified"}
                         return jsonify(res)
@@ -401,11 +406,12 @@ def LoadServices(app, redissession, n68session):
                 query=list(n68session.tasks.find({"nodeid":i},{"history":1}).sort("createdon",-1).limit(1))
                 if(len(query[0]["history"])>0):
                     date=query[0]["history"][-1]["modifiedOn"]
-                    if isinstance(date,str) and query[0]["history"][-1]["status"] == "complete" and screens[counter]['modifiedon']>=datetime.strptime(date,"%d/%m/%Y,%H:%M:%S"):
-                        flag=True
-                        res={'rows':"Modified"}
-                        return jsonify(res)
-                    elif isinstance(date,datetime) and query[0]["history"][-1]["status"] == "complete" and screens[counter]['modifiedon']>=date:
+                    if isinstance(date, str):
+                        try:
+                            date = datetime.strptime(date.split(' ')[0], "%d/%m/%Y,%H:%M:%S")
+                        except:
+                            date = datetime.strptime(date, "%d/%m/%Y,%H:%M:%S")
+                    if query[0]["history"][-1]["status"] == "complete" and screens[counter]['modifiedon']>=date:
                         flag=True
                         res={'rows':"Modified"}
                         return jsonify(res)

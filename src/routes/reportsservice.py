@@ -133,10 +133,85 @@ def LoadServices(app, redissession, n68session):
                     row.update({'jira_defect_id':str(requestdata['defectid'])})
                     report['rows']=report_rows
                     queryresult = n68session.reports.update({"_id":ObjectId(requestdata["reportid"])},{"$set":{"report":report}})
+                    n68session.thirdpartyintegration.insert_one({
+                        "type":"JIRA",
+                        "reportid":requestdata["reportid"],
+                        "defectid":requestdata['defectid'],
+                        "stepDetails":{
+                                "stepid": row["id"],
+                                "stepdescription": row["StepDescription"].replace('""',"'"),
+                                "Keyword": row["Keyword"]
+                            }
+                        })
                     res={'rows':'Success'}
         except Exception as updatereportdataexc:
             app.logger.debug(updatereportdataexc)
             servicesException("updateReportData",updatereportdataexc)
+        return jsonify(res)
+        
+    #fetching the report by executionId
+    @app.route('/reports/get_Nineteen68Report',methods=['POST'])
+    def get_Nineteen68Report():
+        res={'rows':'fail','errMsg':''}
+        errMsgVal=''
+        errMsg='Invalid '
+        errIds=[]
+        finalQuery=[]
+        correctScenarios=[]
+        try:
+            requestdata=json.loads(request.data)
+            app.logger.debug("Inside get_Nineteen68Report. Query: "+str(requestdata["query"]))
+            if not isemptyrequest(requestdata):
+                if(requestdata["query"] == 'get_Nineteen68Report'):
+                    errMsgVal=str(requestdata["executionId"])
+                    queryresult1 = n68session.reports.find({"executionid":ObjectId(requestdata["executionId"])})
+                    queryresult4 = n68session.executions.find_one({"_id": ObjectId(requestdata["executionId"])})
+                    parent = queryresult4["parent"]
+                    errMsgVal=''
+                    if("scenarioIds" in requestdata):
+                        scenarioIds = n68session.reports.distinct("testscenarioid",{"executionid":ObjectId(requestdata["executionId"])})
+                        for scenId in requestdata["scenarioIds"]:
+                            if len(scenId.strip())==0:
+                                continue
+                            try:
+                                if ObjectId(scenId) not in scenarioIds:
+                                    errIds.append(str(scenId))
+                                else:
+                                    correctScenarios.append(ObjectId(scenId))
+                            except Exception:
+                                errIds.append(str(scenId))
+                        if len(correctScenarios) != 0 or len(errIds) != 0:
+                            queryresult1 = n68session.reports.find({"executionid":ObjectId(requestdata["executionId"]),"testscenarioid":{"$in":correctScenarios}})
+                    for execData in queryresult1:
+                        queryresult2 = n68session.testscenarios.find_one({"_id":execData["testscenarioid"]})#,{"name":1,"projectid":1,"_id":0})
+                        queryresult3 = n68session.projects.find_one({"_id":queryresult2["projectid"]})#,{"domain":1,"_id":0})
+                        for obj in parent:
+                            queryresult5 = n68session.testsuites.find_one({"_id":obj})
+                            if execData["testscenarioid"] in queryresult5["testscenarioids"]:
+                                #queryresult6 = n68session.mindmaps.find_one({"_id":queryresult5["mindmapid"]})
+                                break
+                        query={
+                            'report': execData["report"],
+                            'scenariodId': queryresult2["_id"],
+                            'scenarioName': queryresult2["name"],
+                            'domainName': queryresult3["domain"],
+                            'projectName': queryresult3["name"],
+                            'reportId': execData["_id"],
+                            'releaseName': queryresult3["releases"][0]["name"],
+                            'cycleName': queryresult3["releases"][0]["cycles"][0]["name"],
+                            'moduleId': queryresult5["mindmapid"],
+                            'moduleName': queryresult5["name"]
+                        }
+                        finalQuery.append(query)
+                    res["rows"] = finalQuery
+                    if len(errIds) != 0:
+                        res["errMsg"] = errMsg+'Scenario Id(s): '+(','.join(errIds))
+            else:
+                app.logger.warn('Empty data received. report.')
+        except Exception as getreportexc:
+            if errMsgVal:
+                res['errMsg']=errMsg+'Execution Id: '+errMsgVal
+            servicesException("get_Nineteen68Report", getreportexc, True)
         return jsonify(res)
 
 # END OF REPORTS
