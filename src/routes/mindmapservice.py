@@ -46,67 +46,70 @@ def LoadServices(app, redissession, n68session):
     def createdataobjects(scrid, objs):
         custnameToAdd = []
         obj = objs['scrapedata']['view']
-        for i in range(len(obj)):
-            so = obj[i]
-            if 'xpath' in so:
-                obn = so['xpath'] 
-            else:
-                obn = ""
-            dodata = {
-                # "_id": e,
-                "custname": so["custname"],
-                "xpath": obn
-            }
-            if obn.strip() == '' :
-                custnameToAdd.append(dodata)
-                continue
-            elif obn.startswith("iris;"):
-                ob = obn.split(';')[2:]
-                legend = ['left', 'top', 'width', 'height', 'tag']
-                for i in range(len(legend)):
-                    if i < 4: dodata[legend[i]] = int(ob[i])
-                    else: dodata[legend[i]] = ob[i]
-                dodata["height"] = dodata["top"] - dodata["height"]
-                dodata["width"] = dodata["left"] - dodata["width"]
-                dodata["url"] = so["url"] if "url" in so else ""
-                dodata["cord"] = so["cord"] if "cord" in so else ""
-            elif so["apptype"] in ["Web","WEB","MobileWeb"]:
-                ob=[]
-                legend = ['id', 'name', 'tag', 'class', 'left', 'top', 'height', 'width', 'text']
-                for i in obn.split(';'): ob.append(getScrapeData(i))
-                ob = ";".join(ob).split(';')
-                ob = ob[1:2] + ob[3:]
-                if len(ob) < 4:
+        if(obj!=[]):
+            for i in range(len(obj)):
+                so = obj[i]
+                if 'xpath' in so:
+                    obn = so['xpath'] 
+                else:
+                    obn = ""
+                dodata = {
+                    # "_id": e,
+                    "custname": so["custname"],
+                    "xpath": obn
+                }
+                if obn.strip() == '' :
                     custnameToAdd.append(dodata)
                     continue
-                elif len(ob) == 4: legend = legend[:4]
-                elif len(ob) == 8: del legend[3]
-                try:
+                elif obn.startswith("iris;"):
+                    ob = obn.split(';')[2:]
+                    legend = ['left', 'top', 'width', 'height', 'tag']
                     for i in range(len(legend)):
-                        if (i>=4 and i<=7):
-                            if ob[i].isnumeric(): dodata[legend[i]] = int(ob[i])
-                        else:
-                            if ob[i] != "null": dodata[legend[i]] = ob[i]
-                except: pass
-                if "tag" in dodata: dodata["tag"] = dodata["tag"].split("[")[0]
-                if "class" in dodata: dodata["class"] = dodata["class"].split("[")[0]
-                dodata["url"] = so["url"] if 'url' in so else ""
-                dodata["cord"] = so["cord"] if "cord" in so else ""
-            elif so["apptype"] == "MobileApp":
-                ob = obn.split(';')
-                if len(ob) == 2 and ob[0].strip() != "": dodata["id"] = ob[0]
-            elif so["apptype"] == "Desktop":
-                gettag = {"btn":"button","txtbox":"input","radiobtn":"radiobutton","select":"select","chkbox":"checkbox","lst":"list","tab":"tab","tree":"tree","dtp":"datepicker","table":"table","elmnt":"label"}
-                tag = so["custname"].split("_")[-1]
-                if tag in gettag: dodata["tag"] = gettag[tag]
-                dodata["control_id"] = obn.split(';')[2] if len(obn.split(';'))>1 else ""
-                dodata["url"] = so["url"] if 'url' in so else ""
-            elif so["apptype"] == "pdf":
-                dodata["tag"] = "_".join(so["custname"].split("_")[0:2])
-            elif so["apptype"] == ["Generic", "SAP", "Webservice", "Mainframe", "System"]: pass
-            custnameToAdd.append(dodata)
-        res = adddataobjects(scrid, custnameToAdd)
-        return res
+                        if i < 4: dodata[legend[i]] = int(ob[i])
+                        else: dodata[legend[i]] = ob[i]
+                    dodata["height"] = dodata["top"] - dodata["height"]
+                    dodata["width"] = dodata["left"] - dodata["width"]
+                    dodata["url"] = so["url"] if "url" in so else ""
+                    dodata["cord"] = so["cord"] if "cord" in so else ""
+                elif so["apptype"] in ["Web","WEB","MobileWeb"]:
+                    ob=[]
+                    legend = ['id', 'name', 'tag', 'class', 'left', 'top', 'height', 'width', 'text']
+                    for i in obn.split(';'): ob.append(getScrapeData(i))
+                    ob = ";".join(ob).split(';')
+                    ob = ob[1:2] + ob[3:]
+                    if len(ob) < 4:
+                        custnameToAdd.append(dodata)
+                        continue
+                    elif len(ob) == 4: legend = legend[:4]
+                    elif len(ob) == 8: del legend[3]
+                    try:
+                        for i in range(len(legend)):
+                            if (i>=4 and i<=7):
+                                if ob[i].isnumeric(): dodata[legend[i]] = int(ob[i])
+                            else:
+                                if ob[i] != "null": dodata[legend[i]] = ob[i]
+                    except: pass
+                    if "tag" in dodata: dodata["tag"] = dodata["tag"].split("[")[0]
+                    if "class" in dodata: dodata["class"] = dodata["class"].split("[")[0]
+                    dodata["url"] = so["url"] if 'url' in so else ""
+                    dodata["cord"] = so["cord"] if "cord" in so else ""
+                # elif so["apptype"] == "MobileApp":
+                #     ob = obn.split(';')
+                #     if len(ob) == 2 and ob[0].strip() != "": dodata["id"] = ob[0]
+                # elif so["apptype"] == "Desktop":
+                #     gettag = {"btn":"button","txtbox":"input","radiobtn":"radiobutton","select":"select","chkbox":"checkbox","lst":"list","tab":"tab","tree":"tree","dtp":"datepicker","table":"table","elmnt":"label"}
+                #     tag = so["custname"].split("_")[-1]
+                #     if tag in gettag: dodata["tag"] = gettag[tag]
+                #     dodata["control_id"] = obn.split(';')[2] if len(obn.split(';'))>1 else ""
+                #     dodata["url"] = so["url"] if 'url' in so else ""
+                # elif so["apptype"] == "pdf":
+                #     dodata["tag"] = "_".join(so["custname"].split("_")[0:2])
+                # elif so["apptype"] == ["Generic", "SAP", "Webservice", "Mainframe", "System"]: pass
+                custnameToAdd.append(dodata)
+            res = adddataobjects(scrid, custnameToAdd)
+            return res
+        else:
+            return scrid
 
     # API to get the project type name using the ProjectID
     @app.route('/create_ice/getProjectType_Nineteen68',methods=['POST'])
@@ -418,13 +421,13 @@ def LoadServices(app, redissession, n68session):
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
-            if not isemptyrequest(requestdata):
-                modifiedon=datetime.now()
-                queryresult=n68session.screens.insert_one({"name":requestdata['screenname'],"projectid":ObjectId(requestdata['projectid']),"versionnumber":requestdata['versionnumber'],"parent":[],"createdby":requestdata['createdby'],"createdon":requestdata['createdon'],"createdbyrole":requestdata['createdbyrole'],"modifiedby":requestdata['modifiedby'],"modifiedon":modifiedon,"modifiedbyrole":requestdata['modifiedbyrole'],"deleted":requestdata['deleted'],"screenshot":requestdata['screenshot'],"scrapedurl":requestdata['scrapedurl']}).inserted_id
-                result = createdataobjects(queryresult,requestdata)
-                res={'rows':result}
-            else:
-                app.logger.warn("Empty data received. updateScreenname_ICE")
+            # if not isemptyrequest(requestdata):
+            modifiedon=datetime.now()
+            queryresult=n68session.screens.insert_one({"name":requestdata['screenname'],"projectid":ObjectId(requestdata['projectid']),"versionnumber":requestdata['versionnumber'],"parent":[],"createdby":requestdata['createdby'],"createdon":requestdata['createdon'],"createdbyrole":requestdata['createdbyrole'],"modifiedby":requestdata['modifiedby'],"modifiedon":modifiedon,"modifiedbyrole":requestdata['modifiedbyrole'],"deleted":requestdata['deleted'],"screenshot":requestdata['screenshot'],"scrapedurl":requestdata['scrapedurl']}).inserted_id
+            result = createdataobjects(queryresult,requestdata)
+            res={'rows':result}
+            # else:
+            #     app.logger.warn("Empty data received. updateScreenname_ICE")
         except Exception as e:
             servicesException("updateScreenname_ICE",e)
         return jsonify(res)
