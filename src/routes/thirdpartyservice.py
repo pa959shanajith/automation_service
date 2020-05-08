@@ -37,8 +37,7 @@ def LoadServices(app, redissession, n68session):
             else:
                 app.logger.warn('Empty data received. getting qcProjectDetails.')
         except Exception as e:
-            app.logger.debug(traceback.format_exc())
-            servicesException("qcProjectDetails_ICE",e)
+            servicesException("qcProjectDetails_ICE", e, True)
         return jsonify(res)
 
     @app.route('/qualityCenter/saveQcDetails_ICE',methods=['POST'])
@@ -58,8 +57,7 @@ def LoadServices(app, redissession, n68session):
             else:
                 app.logger.warn('Empty data received. getting saveQcDetails.')
         except Exception as e:
-            app.logger.debug(traceback.format_exc())
-            servicesException("saveQcDetails_ICE",e)
+            servicesException("saveQcDetails_ICE", e, True)
         return jsonify(res)
 
     @app.route('/qualityCenter/viewQcMappedList_ICE',methods=['POST'])
@@ -75,8 +73,7 @@ def LoadServices(app, redissession, n68session):
             else:
                 app.logger.warn('Empty data received. getting QcMappedList.')
         except Exception as e:
-            app.logger.debug(traceback.format_exc())
-            servicesException("viewQcMappedList_ICE",e)
+            servicesException("viewQcMappedList_ICE", e, True)
         return jsonify(res)
 ################################################################################
 # END OF QUALITYCENTRE

@@ -1,0 +1,12 @@
+ndac_internals/*
+server_config.json
+*.pyc
+*.DS_Store
+*.dll
+*.exe
+DLLs/*
+Lib/*
+Scripts/*
+include/*
+libs/*
+.project

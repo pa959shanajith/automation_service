@@ -37,8 +37,7 @@ def LoadServices(app, redissession, n68session):
                 app.logger.error("Invalid input")
                 return str(res)
         except Exception as e:
-            app.logger.debug(traceback.format_exc())
-            servicesException("encrypt_ICE",e)
+            servicesException("encrypt_ICE", e, True)
             return str(res)
 
     #directly updates license data
@@ -47,7 +46,7 @@ def LoadServices(app, redissession, n68session):
         app.logger.debug("Inside dataUpdator_ICE")
         res={'rows':'fail'}
         try:
-            requestdata=json.loads(request.data)
+            requestdata = json.loads(request.data)
             if not isemptyrequest(requestdata):
                 if requestdata['query'] == 'testsuites':
                     count = requestdata['count']
@@ -62,8 +61,7 @@ def LoadServices(app, redissession, n68session):
             else:
                 app.logger.warn('Empty data received. Data Updator.')
         except Exception as e:
-            app.logger.debug(traceback.format_exc())
-            servicesException("dataUpdator_ICE",e)
+            servicesException("dataUpdator_ICE", e, True)
         return jsonify(res)
 
     #directly updates user access
@@ -93,8 +91,7 @@ def LoadServices(app, redissession, n68session):
             else:
                 app.logger.warn('Empty data received. user Access Permission.')
         except Exception as useraccessexc:
-            app.logger.debug(traceback.format_exc())
-            servicesException("userAccess_Nineteen68",useraccessexc)
+            servicesException("userAccess_Nineteen68", useraccessexc, True)
         return jsonify(res)
 ################################################################################
 # END OF UTILITIES

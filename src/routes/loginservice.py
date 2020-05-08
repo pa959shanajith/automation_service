@@ -3,7 +3,6 @@
 ################################################################################
 #----------DEFAULT METHODS AND IMPORTS------------DO NOT EDIT-------------------
 from utils import *
-import traceback
 import json
 from datetime import datetime
 def LoadServices(app, redissession, n68session, licensedata):
@@ -24,15 +23,13 @@ def LoadServices(app, redissession, n68session, licensedata):
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
-            if (not isemptyrequest(requestdata) ):
-                if(requestdata["query"] == 'userInfobyName'):
-                    user_data = n68session.users.find_one({"name":requestdata["username"]})
-                    res={'rows': user_data}
+            if not isemptyrequest(requestdata):
+                user_data = n68session.users.find_one({"name":requestdata["username"]})
+                res={'rows': user_data}
             else:
                 app.logger.warn('Empty data received. authentication')
         except Exception as loaduser_exc:
-            app.logger.debug(traceback.format_exc())
-            servicesException('loadUser_Nineteen68',loaduser_exc)
+            servicesException('loadUser_Nineteen68', loaduser_exc, True)
         return jsonify(res)
 
     #NDAC service for loading permissions info
@@ -43,7 +40,7 @@ def LoadServices(app, redissession, n68session, licensedata):
         dictdata={}
         try:
             requestdata=json.loads(request.data)
-            if (not isemptyrequest(requestdata) ):
+            if not isemptyrequest(requestdata):
                 if(requestdata["query"] == 'permissionInfoByRoleID'):
                     permissions_data = n68session.permissions.find_one({"_id":ObjectId(requestdata["roleid"])})
                     dictdata['roleid'] = permissions_data['_id']
@@ -63,8 +60,7 @@ def LoadServices(app, redissession, n68session, licensedata):
             else:
                 app.logger.warn('Empty data received. authentication')
         except Exception as loadpermission_exc:
-            app.logger.debug(traceback.format_exc())
-            servicesException('loadPermission_Nineteen68',loadpermission_exc)
+            servicesException('loadPermission_Nineteen68', loadpermission_exc, True)
         return jsonify(res)
 
     #service for loading ci_user information
@@ -81,6 +77,7 @@ def LoadServices(app, redissession, n68session, licensedata):
                     n68session.thirdpartyintegration.update_many({"type":"TOKENS","userid":queryresult["_id"],"deactivated":"active","expireson":{"$lt":datetime.today()}},{"$set":{"deactivated":"expired"}})
                     query = n68session.thirdpartyintegration.find_one({"userid":queryresult["_id"],"name":requestdata["tokenname"],"type":"TOKENS"})
                 if query is not None: query["role"] = queryresult["defaultrole"]
+                else: query = "invalid"
                 res= {"rows":query}
             else:
                 app.logger.warn('Empty data received. authentication')
