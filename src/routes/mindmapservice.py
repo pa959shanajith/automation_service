@@ -6,6 +6,9 @@ from utils import *
 from bson.objectid import ObjectId
 import json
 from datetime import datetime
+from Crypto.Cipher import AES
+import codecs
+from pymongo import InsertOne
 
 def LoadServices(app, redissession, n68session):
     setenv(app)
@@ -18,6 +21,95 @@ def LoadServices(app, redissession, n68session):
 ################################################################################
 # ADD YOUR ROUTES BELOW
 ################################################################################
+
+    def getScrapeData(hex_data):
+        try:
+            data = codecs.decode(hex_data, 'hex')
+            aes = AES.new(b"Nineeteen68@SecureScrapeDataPath", AES.MODE_CBC, b'0'*16)
+            data = aes.decrypt(data).decode('utf-8')
+            return data[0:-ord(data[-1])]
+        except:
+            return hex_data
+
+    def adddataobjects(pid, d):
+        if len(d) == 0: return False
+        req = []
+        for row in d:
+            if type(row) == str and len(row) == 0: continue
+            if "custname" not in row: row["custname"] = "object"+str(row["_id"])
+            row["parent"] = [pid]
+            req.append(InsertOne(row))
+        n68session.dataobjects.bulk_write(req)
+        queryresult=list(n68session.dataobjects.find({"parent":pid},{"custname":1,"_id":1,"parent":1}))
+        return queryresult
+
+    def createdataobjects(scrid, objs):
+        custnameToAdd = []
+        obj = objs['scrapedata']['view']
+        if(obj!=[]):
+            for i in range(len(obj)):
+                so = obj[i]
+                if 'xpath' in so:
+                    obn = so['xpath'] 
+                else:
+                    obn = ""
+                dodata = {
+                    # "_id": e,
+                    "custname": so["custname"],
+                    "xpath": obn
+                }
+                if obn.strip() == '' :
+                    custnameToAdd.append(dodata)
+                    continue
+                elif obn.startswith("iris;"):
+                    ob = obn.split(';')[2:]
+                    legend = ['left', 'top', 'width', 'height', 'tag']
+                    for i in range(len(legend)):
+                        if i < 4: dodata[legend[i]] = int(ob[i])
+                        else: dodata[legend[i]] = ob[i]
+                    dodata["height"] = dodata["top"] - dodata["height"]
+                    dodata["width"] = dodata["left"] - dodata["width"]
+                    dodata["url"] = so["url"] if "url" in so else ""
+                    dodata["cord"] = so["cord"] if "cord" in so else ""
+                elif so["apptype"] in ["Web","WEB","MobileWeb"]:
+                    ob=[]
+                    legend = ['id', 'name', 'tag', 'class', 'left', 'top', 'height', 'width', 'text']
+                    for i in obn.split(';'): ob.append(getScrapeData(i))
+                    ob = ";".join(ob).split(';')
+                    ob = ob[1:2] + ob[3:]
+                    if len(ob) < 4:
+                        custnameToAdd.append(dodata)
+                        continue
+                    elif len(ob) == 4: legend = legend[:4]
+                    elif len(ob) == 8: del legend[3]
+                    try:
+                        for i in range(len(legend)):
+                            if (i>=4 and i<=7):
+                                if ob[i].isnumeric(): dodata[legend[i]] = int(ob[i])
+                            else:
+                                if ob[i] != "null": dodata[legend[i]] = ob[i]
+                    except: pass
+                    if "tag" in dodata: dodata["tag"] = dodata["tag"].split("[")[0]
+                    if "class" in dodata: dodata["class"] = dodata["class"].split("[")[0]
+                    dodata["url"] = so["url"] if 'url' in so else ""
+                    dodata["cord"] = so["cord"] if "cord" in so else ""
+                # elif so["apptype"] == "MobileApp":
+                #     ob = obn.split(';')
+                #     if len(ob) == 2 and ob[0].strip() != "": dodata["id"] = ob[0]
+                # elif so["apptype"] == "Desktop":
+                #     gettag = {"btn":"button","txtbox":"input","radiobtn":"radiobutton","select":"select","chkbox":"checkbox","lst":"list","tab":"tab","tree":"tree","dtp":"datepicker","table":"table","elmnt":"label"}
+                #     tag = so["custname"].split("_")[-1]
+                #     if tag in gettag: dodata["tag"] = gettag[tag]
+                #     dodata["control_id"] = obn.split(';')[2] if len(obn.split(';'))>1 else ""
+                #     dodata["url"] = so["url"] if 'url' in so else ""
+                # elif so["apptype"] == "pdf":
+                #     dodata["tag"] = "_".join(so["custname"].split("_")[0:2])
+                # elif so["apptype"] == ["Generic", "SAP", "Webservice", "Mainframe", "System"]: pass
+                custnameToAdd.append(dodata)
+            res = adddataobjects(scrid, custnameToAdd)
+            return res
+        else:
+            return scrid
 
     # API to get the project type name using the ProjectID
     @app.route('/create_ice/getProjectType_Nineteen68',methods=['POST'])
@@ -101,6 +193,46 @@ def LoadServices(app, redissession, n68session):
         except Exception as e:
             servicesException("getProjectIDs_Nineteen68", e, True)
         return jsonify(res)
+
+    @app.route('/create_ice/updateScreenname_ICE',methods=['POST'])
+    def updateScreenname_ICE():
+        app.logger.debug("Inside updateScreenname_ICE")
+        res={'rows':'fail'}
+        try:
+            requestdata=json.loads(request.data)
+            # if not isemptyrequest(requestdata):
+            modifiedon=datetime.now()
+            queryresult=n68session.screens.insert_one({"name":requestdata['screenname'],"projectid":ObjectId(requestdata['projectid']),"versionnumber":requestdata['versionnumber'],"parent":[],"createdby":requestdata['createdby'],"createdon":requestdata['createdon'],"createdbyrole":requestdata['createdbyrole'],"modifiedby":requestdata['modifiedby'],"modifiedon":modifiedon,"modifiedbyrole":requestdata['modifiedbyrole'],"deleted":requestdata['deleted'],"screenshot":requestdata['screenshot'],"scrapedurl":requestdata['scrapedurl']}).inserted_id
+            result = createdataobjects(queryresult,requestdata)
+            res={'rows':result}
+            # else:
+            #     app.logger.warn("Empty data received. updateScreenname_ICE")
+        except Exception as e:
+            servicesException("updateScreenname_ICE",e)
+        return jsonify(res)
+
+    @app.route('/create_ice/updateTestcasename_ICE',methods=['POST'])
+    def updateTestcasename_ICE():
+        app.logger.debug("Inside updateTestcasename_ICE")
+        res={'rows':'fail'}
+        try:
+            requestdata=json.loads(request.data)
+            if not isemptyrequest(requestdata):
+                modifiedon=datetime.now()
+                data1=requestdata['dataobjects']
+                data2=requestdata['steps']
+                for i in range(len(data1)):
+                    for j in range(len(data2)):
+                        if(data2[j]['custname']==data1[i]['custname']):
+                            data2[j]['custname']=ObjectId(data1[i]['_id'])
+                queryresult=n68session.testcases.insert_one({"name":requestdata['testcasename'],"screenid":ObjectId(requestdata['screenid']),"versionnumber":requestdata['versionnumber'],"createdby":requestdata['createdby'],"createdon":requestdata['createdon'],"modifiedby":requestdata['modifiedby'],"modifiedon":modifiedon,"modifiedbyrole":requestdata['modifiedbyrole'],"deleted":requestdata['deleted'],"steps":data2,"parent":requestdata["parent"],"deleted":requestdata["deleted"]})
+                res={'rows':'Success'}
+            else:
+                app.logger.warn("Empty data received. updateTestcasename_ICE")
+        except Exception as e:
+            servicesException("updateTestcasename_ICE",e)
+        return jsonify(res)
+
 
     # New API for getting Module Details.
     @app.route('/mindmap/getModules',methods=['POST'])
@@ -371,6 +503,7 @@ def LoadServices(app, redissession, n68session):
                                     updateScreenName(screendata['screenName'],projectid,screendata['screenid'],createdby,createdbyrole)
                                 currentscreenid=screendata["screenid"]
                                 if "reuse" in screendata and screendata["reuse"]:
+                                    updateScreenAndTestcase(currentscreenid,createdby,createdbyrole)
                                     updateparent("screens",currentscreenid,currentscenarioid,"add")
                             iddata2={"_id":ObjectId(currentscreenid),"testcases":[]}
                             for testcasedata in screendata['testcaseDetails']:
@@ -740,6 +873,11 @@ def LoadServices(app, redissession, n68session):
         n68session.mindmaps.update_one({"_id":ObjectId(currentmoduleid)},{'$set':{'testscenarios':idsforModule}})
         return
 
+    def updateScreenAndTestcase(screenid,createdby,createdbyrole):
+        createdon = datetime.now()
+        n68session.screens.update_one({"_id":ObjectId(screenid)},{'$set':{"createdby":ObjectId(createdby),"createdbyrole":ObjectId(createdbyrole),"createdon":createdon,"modifiedby":ObjectId(createdby),"modifiedbyrole":ObjectId(createdbyrole),"modifiedon":createdon}})
+        n68session.testcases.update_one({"screenid":ObjectId(screenid)},{'$set':{"createdby":ObjectId(createdby),"createdbyrole":ObjectId(createdbyrole),"createdon":createdon,"modifiedby":ObjectId(createdby),"modifiedbyrole":ObjectId(createdbyrole),"modifiedon":createdon}})
+        return
 
     @app.route('/mindmap/getScreens',methods=['POST'])
     def getScreens():
