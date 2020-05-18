@@ -169,8 +169,13 @@ def LoadServices(app, redissession, n68session):
                 if param == 'testcasedetails':
                     tsc = n68session.testscenarios.find_one({"_id": ObjectId(requestdata['id']),"deleted":query['delete_flag']},{"testcaseids":1})
                     if tsc is not None:
+                        testcase=[]
                         testcases = list(n68session.testcases.find({"_id": {"$in": tsc["testcaseids"]},"deleted":query['delete_flag']},{"name":1,"versionnumber":1,"screenid":1}))
-                        res["rows"] = testcases
+                        for i in tsc['testcaseids']:
+                            for j in range(0,len(testcases)):
+                                if i==testcases[j]['_id']:
+                                    testcase.append(testcases[j])
+                        res["rows"] = testcase
                     if 'userid' in requestdata:    # Update the Counter
                         userid = ObjectId(requestdata['userid'])
                         global scenarioscounter
