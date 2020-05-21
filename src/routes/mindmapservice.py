@@ -202,8 +202,14 @@ def LoadServices(app, redissession, n68session):
             requestdata=json.loads(request.data)
             # if not isemptyrequest(requestdata):
             modifiedon=datetime.now()
-            queryresult=n68session.screens.insert_one({"name":requestdata['screenname'],"projectid":ObjectId(requestdata['projectid']),"versionnumber":requestdata['versionnumber'],"parent":[],"createdby":requestdata['createdby'],"createdon":requestdata['createdon'],"createdbyrole":requestdata['createdbyrole'],"modifiedby":requestdata['modifiedby'],"modifiedon":modifiedon,"modifiedbyrole":requestdata['modifiedbyrole'],"deleted":requestdata['deleted'],"screenshot":requestdata['screenshot'],"scrapedurl":requestdata['scrapedurl']}).inserted_id
-            result = createdataobjects(queryresult,requestdata)
+            screenname = requestdata['screenname']
+            projectid = requestdata['projectid']
+            screenid = getScreenID(screenname,projectid)
+            if(screenid==None):
+                queryresult=n68session.screens.insert_one({"name":requestdata['screenname'],"projectid":ObjectId(requestdata['projectid']),"versionnumber":requestdata['versionnumber'],"parent":[],"createdby":requestdata['createdby'],"createdon":requestdata['createdon'],"createdbyrole":requestdata['createdbyrole'],"modifiedby":requestdata['modifiedby'],"modifiedon":modifiedon,"modifiedbyrole":requestdata['modifiedbyrole'],"deleted":requestdata['deleted'],"screenshot":requestdata['screenshot'],"scrapedurl":requestdata['scrapedurl']}).inserted_id
+                result = createdataobjects(queryresult,requestdata)
+            else:
+                result = createdataobjects(screenid,requestdata)
             res={'rows':result}
             # else:
             #     app.logger.warn("Empty data received. updateScreenname_ICE")
@@ -219,13 +225,17 @@ def LoadServices(app, redissession, n68session):
             requestdata=json.loads(request.data)
             if not isemptyrequest(requestdata):
                 modifiedon=datetime.now()
-                data1=requestdata['dataobjects']
-                data2=requestdata['steps']
-                for i in range(len(data1)):
-                    for j in range(len(data2)):
-                        if(data2[j]['custname']==data1[i]['custname']):
-                            data2[j]['custname']=ObjectId(data1[i]['_id'])
-                queryresult=n68session.testcases.insert_one({"name":requestdata['testcasename'],"screenid":ObjectId(requestdata['screenid']),"versionnumber":requestdata['versionnumber'],"createdby":requestdata['createdby'],"createdon":requestdata['createdon'],"modifiedby":requestdata['modifiedby'],"modifiedon":modifiedon,"modifiedbyrole":requestdata['modifiedbyrole'],"deleted":requestdata['deleted'],"steps":data2,"parent":requestdata["parent"],"deleted":requestdata["deleted"]})
+                screenid = requestdata['screenid']
+                testcasename = requestdata['testcasename']
+                testcaseid = getTestcaseID(screenid,testcasename)
+                if(testcaseid==None):
+                    data1=requestdata['dataobjects']
+                    data2=requestdata['steps']
+                    for i in range(len(data1)):
+                        for j in range(len(data2)):
+                            if(data2[j]['custname']==data1[i]['custname']):
+                                data2[j]['custname']=ObjectId(data1[i]['_id'])
+                    queryresult=n68session.testcases.insert_one({"name":requestdata['testcasename'],"screenid":ObjectId(requestdata['screenid']),"versionnumber":requestdata['versionnumber'],"createdby":requestdata['createdby'],"createdon":requestdata['createdon'],"modifiedby":requestdata['modifiedby'],"modifiedon":modifiedon,"modifiedbyrole":requestdata['modifiedbyrole'],"deleted":requestdata['deleted'],"steps":data2,"parent":requestdata["parent"],"deleted":requestdata["deleted"]})
                 res={'rows':'Success'}
             else:
                 app.logger.warn("Empty data received. updateTestcasename_ICE")
@@ -471,9 +481,7 @@ def LoadServices(app, redissession, n68session):
             versionnumber=requestdata['versionnumber']
             createdthrough=requestdata['createdthrough']
             module_type="basic"
-            error = None
-            if(createdthrough!='PD'):
-                error=checkReuse(requestdata)
+            error=checkReuse(requestdata)
             currentmoduleid=None
             if error is None:
                 for moduledata in requestdata['testsuiteDetails']:
