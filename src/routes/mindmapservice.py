@@ -471,7 +471,9 @@ def LoadServices(app, redissession, n68session):
             versionnumber=requestdata['versionnumber']
             createdthrough=requestdata['createdthrough']
             module_type="basic"
-            error=checkReuse(requestdata)
+            error = None
+            if(createdthrough!='PD'):
+                error=checkReuse(requestdata)
             currentmoduleid=None
             if error is None:
                 for moduledata in requestdata['testsuiteDetails']:
