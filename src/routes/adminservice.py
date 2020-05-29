@@ -538,3 +538,23 @@ def LoadServices(app, redissession, n68session,licensedata):
         except Exception as getdomainsexc:
             servicesException("getPreferences", getdomainsexc, True)
         return jsonify(res)
+
+    @app.route('/admin/fetchICE',methods=['POST'])
+    def fetchICE():
+        app.logger.debug("Inside fetchICE")
+        res={'rows':'fail'}
+        try:
+            res={'rows':'success'}
+        except Exception as getdomainsexc:
+            servicesException("fetchICE", getdomainsexc, True)
+        return jsonify(res)
+    
+    @app.route('/admin/provisions',methods=['POST'])
+    def provisions():
+        app.logger.debug("Inside provisions")
+        res={'rows':'fail'}
+        try:
+            res={'rows':'success'}
+        except Exception as getdomainsexc:
+            servicesException("provisions", getdomainsexc, True)
+        return jsonify(res)
