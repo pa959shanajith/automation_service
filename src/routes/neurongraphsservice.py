@@ -39,9 +39,9 @@ def LoadServices(app, redissession, n68session):
             ptypeall = list(n68session["projecttypekeywords"].find({}, {"_id":1,"name":1}))
             for e in ptypeall: ptype[e["_id"]] = e["name"]
             prj_data_needed = {"name":1,"releases.name":1,"releases._id":1,"releases.cycles.name":1,"releases.cycles._id":1,"domain":1,"type":1}
-            #project_id = n68session["users"].find_one({"_id":ObjectId(requestdata['user_id'])}, {"_id":1,"projects":1})["projects"]
-            #dprc_list = list(n68session["projects"].find({"_id":{"$in":project_id}}, prj_data_needed))
-            dprc_list = list(n68session["projects"].find({}, prj_data_needed))
+            project_id = n68session["users"].find_one({"_id":ObjectId(requestdata['user_id'])}, {"_id":1,"projects":1})["projects"]
+            dprc_list = list(n68session["projects"].find({"_id":{"$in":project_id}}, prj_data_needed))
+            #dprc_list = list(n68session["projects"].find({}, prj_data_needed))
             cycle_ids=[]
             for p in dprc_list:
                 if p["domain"] in domain_dict:
