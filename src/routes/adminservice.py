@@ -546,11 +546,13 @@ def LoadServices(app, redissession, n68session,licensedata):
         res={'rows':'fail'}
         try:
             result=list(n68session.icetokens.find({}))
-            user_ids=[i["userid"] for i in result]
+            user_ids=[i["userid"] for i in result if "userid" in i]
             result1=list(n68session.users.find({"_id":{"$in":user_ids}},{"name":1}))
             user_ids={x["_id"]: x["name"] for x in result1}
             for row in result:
-                row["username"]=user_ids[row["userid"]]
+                if row["icetype"]=="normal" : row["username"]=user_ids[row["userid"]]
+                else : row["username"]="N/A"
+                
             res={'rows':result}
         except Exception as getdomainsexc:
             servicesException("fetchICE", getdomainsexc)
@@ -564,26 +566,32 @@ def LoadServices(app, redissession, n68session,licensedata):
             requestdata=json.loads(request.data)
             if not isemptyrequest(requestdata):
                 token=uuid.uuid4()
+                token_query={"icetype":requestdata["icetype"]}
+                if requestdata["icetype"]=="normal":
+                    token_query["userid"]=requestdata["userid"]=ObjectId(requestdata["userid"])
+                else:
+                    token_query["icename"]=requestdata["icename"]
+                get_tokens=list(n68session.icetokens.find(token_query))
                 if requestdata["query"]=="provision":
-                    requestdata["userid"]=ObjectId(requestdata["userid"])
                     requestdata["token"]=str(token)
                     requestdata["status"]="provisioned"
                     requestdata["provisionedon"]=datetime.now()
                     requestdata.pop("query")
-                    get_tokens=list(n68session.icetokens.find({"icetype":requestdata["icetype"],"icename":requestdata["icename"],"userid":ObjectId(requestdata["userid"])}))
+                    #this condition is valid if ice_names needs to be unique accross Nineteen68
+                    #ice_names= list(n68session.icetokens.find({"icename":requestdata["icename"]},{"icename":1}))
+                    #if get_tokens == [] and ice_name==[]:
+                    #currently only icetype and user combination is unique
                     if get_tokens == []:
                         result=n68session.icetokens.insert_one(requestdata)
-                        res={"rows":"success"}
+                        res={"rows":token}
                 elif requestdata["query"]=="deregister":
-                    get_tokens=list(n68session.icetokens.find({"icetype":requestdata["icetype"],"icename":requestdata["icename"],"userid":ObjectId(requestdata["userid"])}))
-                    if get_tokens != []:
-                        result=n68session.icetokens.update_one({"icetype":requestdata["icetype"],"icename":requestdata["icename"],"userid":ObjectId(requestdata["userid"])},{"$set":{"status":"deregistered","deregistered":datetime.now()}})
+                    if get_tokens != [] and len(get_tokens)==1:
+                        result=n68session.icetokens.update_one(token_query,{"$set":{"status":"deregistered","deregistered":datetime.now()}})
                         res={'rows':'success'}
                 elif requestdata["query"]=="reregister":
-                    get_tokens=list(n68session.icetokens.find({"icetype":requestdata["icetype"],"icename":requestdata["icename"],"userid":ObjectId(requestdata["userid"])}))
                     if get_tokens != []:
-                        result=n68session.icetokens.update_one({"icetype":requestdata["icetype"],"icename":requestdata["icename"],"userid":ObjectId(requestdata["userid"])},{"$set":{"status":"provisioned","token":token,"provisionedon":datetime.now()}})
-                        res={'rows':'success'}
+                        result=n68session.icetokens.update_one(token_query,{"$set":{"status":"provisioned","token":token,"provisionedon":datetime.now()}})
+                        res={'rows':token}
             else:
                 app.logger.warn('Empty data received. get users - Mind Maps.')
             
