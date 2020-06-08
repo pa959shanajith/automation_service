@@ -2,6 +2,8 @@ from flask import jsonify, request, make_response
 from bson.objectid import ObjectId
 import json
 import traceback
+import string
+import random
 onlineuser = False
 ndacport = "1990"
 
@@ -128,11 +130,8 @@ ecodeServices = {
     "saveMindmap":"383",
     "getModules":"384",
     "manageTaskDetails":"385",
-    "getNeuronGraphsData":"386",
-    "get_Nineteen68Report": "387",
-    "checkApproval": "388",
-    "fetchICE": "389",
-    "provisions": "400"
+    "fetchICE":"386",
+    "provisionICE":"387"
 }
 
 
@@ -145,10 +144,9 @@ def printErrorCodes(ecode):
     msg = "[ECODE: " + ecode + "] " + ERR_CODE[ecode]
     return msg
 
-def servicesException(srv, exc, trcbk=False):
+def servicesException(srv, exc):
     app.logger.debug("Exception occured in "+srv)
-    app.logger.debug(exc)
-    if (trcbk): app.logger.debug(traceback.format_exc())
+    app.logger.error(exc)
     app.logger.error("[ECODE: " + ecodeServices[srv] + "] Internal error occured in api")
 
 def isemptyrequest(requestdata):
@@ -174,3 +172,8 @@ def counterupdator(n68session,updatortype,userid,count):
     except Exception as counterupdatorexc:
         servicesException("counterupdator",counterupdatorexc)
     return status
+
+def get_random_string():
+    chargroup = string.ascii_letters + string.digits 
+    random_string = [random.choice(chargroup) for _ in range(8)]
+    return "".join(random_string)

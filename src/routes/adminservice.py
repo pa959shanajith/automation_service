@@ -8,6 +8,7 @@ from datetime import datetime
 import json
 from Crypto.Cipher import AES
 import codecs
+import uuid
 
 ldap_key = "".join(['l','!','g','#','t','W','3','l','g','G','h','1','3','@','(',
     'c','E','s','$','T','p','R','0','T','c','O','I','-','k','3','y','S'])
@@ -544,17 +545,48 @@ def LoadServices(app, redissession, n68session,licensedata):
         app.logger.debug("Inside fetchICE")
         res={'rows':'fail'}
         try:
-            res={'rows':'success'}
+            result=list(n68session.icetokens.find({}))
+            user_ids=[i["userid"] for i in result]
+            result1=list(n68session.users.find({"_id":{"$in":user_ids}},{"name":1}))
+            user_ids={x["_id"]: x["name"] for x in result1}
+            for row in result:
+                row["username"]=user_ids[row["userid"]]
+            res={'rows':result}
         except Exception as getdomainsexc:
-            servicesException("fetchICE", getdomainsexc, True)
+            servicesException("fetchICE", getdomainsexc)
         return jsonify(res)
     
-    @app.route('/admin/provisions',methods=['POST'])
-    def provisions():
+    @app.route('/admin/provisionICE',methods=['POST'])
+    def iceprovisions():
         app.logger.debug("Inside provisions")
         res={'rows':'fail'}
         try:
-            res={'rows':'success'}
+            requestdata=json.loads(request.data)
+            if not isemptyrequest(requestdata):
+                token=uuid.uuid4()
+                if requestdata["query"]=="provision":
+                    requestdata["userid"]=ObjectId(requestdata["userid"])
+                    requestdata["token"]=str(token)
+                    requestdata["status"]="provisioned"
+                    requestdata["provisionedon"]=datetime.now()
+                    requestdata.pop("query")
+                    get_tokens=list(n68session.icetokens.find({"icetype":requestdata["icetype"],"icename":requestdata["icename"],"userid":ObjectId(requestdata["userid"])}))
+                    if get_tokens == []:
+                        result=n68session.icetokens.insert_one(requestdata)
+                        res={"rows":"success"}
+                elif requestdata["query"]=="deregister":
+                    get_tokens=list(n68session.icetokens.find({"icetype":requestdata["icetype"],"icename":requestdata["icename"],"userid":ObjectId(requestdata["userid"])}))
+                    if get_tokens != []:
+                        result=n68session.icetokens.update_one({"icetype":requestdata["icetype"],"icename":requestdata["icename"],"userid":ObjectId(requestdata["userid"])},{"$set":{"status":"deregistered","deregistered":datetime.now()}})
+                        res={'rows':'success'}
+                elif requestdata["query"]=="reregister":
+                    get_tokens=list(n68session.icetokens.find({"icetype":requestdata["icetype"],"icename":requestdata["icename"],"userid":ObjectId(requestdata["userid"])}))
+                    if get_tokens != []:
+                        result=n68session.icetokens.update_one({"icetype":requestdata["icetype"],"icename":requestdata["icename"],"userid":ObjectId(requestdata["userid"])},{"$set":{"status":"provisioned","token":token,"provisionedon":datetime.now()}})
+                        res={'rows':'success'}
+            else:
+                app.logger.warn('Empty data received. get users - Mind Maps.')
+            
         except Exception as getdomainsexc:
-            servicesException("provisions", getdomainsexc, True)
+            servicesException("provisionICE", getdomainsexc)
         return jsonify(res)
