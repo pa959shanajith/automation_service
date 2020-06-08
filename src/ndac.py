@@ -146,7 +146,7 @@ def addroutes():
     loginservice.LoadServices(app, redissession, n68session, licensedata)
 
     import adminservice
-    adminservice.LoadServices(app, redissession, n68session, licensedata)
+    adminservice.LoadServices(app, redissession, n68session, licensedata,ice_ndac_key)
 
     import mindmapservice
     mindmapservice.LoadServices(app, redissession, n68session)
@@ -255,7 +255,10 @@ def updateActiveIceSessions():
                 icesession = unwrap(requestdata['icesession'],ice_ndac_key)
                 icesession = json.loads(icesession)
                 hostname=icesession["hostname"]
-                ice_token = unwrap(requestdata['icetoken'],ice_ndac_key)
+                ice_action=icesession["iceaction"]
+                ice_token_dec = unwrap(requestdata['icetoken'],ice_ndac_key).split("@")
+                ice_token=ice_token_dec[0]
+                ice_name=ice_token_dec[1]
                 ice_uuid=icesession['ice_id']
                 ice_ts=icesession['connect_time']
                 if('.' not in ice_ts):
@@ -265,25 +268,30 @@ def updateActiveIceSessions():
                 res['id']=ice_uuid
                 res['connect_time']=ice_ts
                 app.logger.debug("Connected clients: "+str(list(activeicesessions.keys())))
-
-                #To check whether user exists in db or not
-                # queryresult = n68session.users.find_one({"name":username})
-                queryresult = n68session.icetokens.find_one({"token":ice_token})
+                #ICE which are "deregistered" are eleminated for the Registartion and Connection
+                queryresult = n68session.icetokens.find_one({"token":ice_token,"icename":ice_name,"status":{"$ne": DEREGISTER_STATUS}})
                 if queryresult is None:
                     res['err_msg'] = "Unauthorized: Access denied due to Invalid Token, ICE is not registered with Nineteen68"
-                    response = {"node_check":"userNotValid","ice_check":wrap(json.dumps(res),ice_ndac_key)}
+                    response = {"node_check":"InvalidToken","icename":ice_name,"ice_check":wrap(json.dumps(res),ice_ndac_key)}
                 else:
                     #To reject connection with same ice_tokens
-                    queryresult2 = n68session.users.find_one({"_id":queryresult["userid"]},{"name":1})
-                    if queryresult2 is None or (queryresult2 is not None and (queryresult2["name"] != username or ("hostname" in queryresult and queryresult["hostname"]!=hostname))):
-                        res['err_msg'] = "Unauthorized: Access denied due to Mismatched Token, ICE is registered with Nineteen68 user "+queryresult2["name"]+" Hostname "+hostname
-                        response = {"node_check":"userNotValid","ice_check":wrap(json.dumps(res),ice_ndac_key)}
+                    if ice_action==REGISTER:
+                        if queryresult["status"]==REGISTER_STATUS:
+                            res['err_msg'] = "Access denied: Multiple registartions Restrcited! ICE name: "+queryresult["icename"]+", Hostname: "+queryresult["hostname"]+" is already registered."
+                            response = {"node_check":"InvalidICE","ice_check":wrap(json.dumps(res),ice_ndac_key)}
+                        else:
+                            n68session.icetokens.update_one({"token":ice_token},{"$set":{"hostname":hostname,"registeredon":datetime.now(),"status":REGISTER_STATUS}})
+                            res['res']="validICE"
+                            res['icename']=ice_name
+                            response = {"node_check":"validICE","icename":ice_name,"ice_check":wrap(json.dumps(res),ice_ndac_key)}
                     else:
-                        user_channel=redissession.pubsub_numsub("ICE1_normal_"+ice_token,"ICE1_scheduling_"+ice_token)
+                        ice_name=queryresult["icename"]
+                        username=n68session.users.find_one({"_id":queryresult["provisionedto"]},{"name":1})
+                        user_channel=redissession.pubsub_numsub("ICE1_normal_"+ice_name,"ICE1_scheduling_"+ice_name)
                         user_channel_cnt=int(user_channel[0][1]+user_channel[1][1])
-                        if(user_channel_cnt == 0 and ice_token in activeicesessions):
-                            del activeicesessions[ice_token]
-                        if(ice_token in activeicesessions and activeicesessions[ice_token] != ice_uuid):
+                        if(user_channel_cnt == 0 and ice_name in activeicesessions):
+                            del activeicesessions[ice_name]
+                        if(ice_name in activeicesessions and activeicesessions[ice_name] != ice_uuid):
                             res['err_msg'] = "Connection exists with same token"
                             response["ice_check"]=wrap(json.dumps(res),ice_ndac_key)
                         #To check if license is available
@@ -292,16 +300,14 @@ def updateActiveIceSessions():
                             response["ice_check"]=wrap(json.dumps(res),ice_ndac_key)
                         #To add in active ice sessions
                         else:
-                            if queryresult["status"]=="provisioned":
-                                n68session.icetokens.update_one({"token":ice_token},{"$set":{"hostname":hostname,"registeredon":datetime.now(),"status":"registered"}})
-                            random_string=get_random_string()
-                            ct=wrap(ice_token+random_string+hostname,ice_ndac_key)
+                            # random_string=get_random_string()
+                            # ct=wrap(ice_token+random_string+hostname,ice_ndac_key)
+                            # res['ct']=ct
                             activeicesessions=json.loads(unwrap(redissession.get('icesessions'),db_keys))
                             activeicesessions[ice_token] = ice_uuid
                             redissession.set('icesessions',wrap(json.dumps(activeicesessions),db_keys))
                             res['res']="success"
-                            res['ct']=ct
-                            response = {"node_check":"allow","ice_check":wrap(json.dumps(res),ice_ndac_key)}
+                            response = {"node_check":"allow","ice_name":ice_name,"username":username["name"],"ice_check":wrap(json.dumps(res),ice_ndac_key)}
         else:
             app.logger.warn('Empty data received. updateActiveIceSessions.')
     except redis.ConnectionError as exc:

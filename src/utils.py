@@ -4,6 +4,14 @@ import json
 import traceback
 import string
 import random
+
+REGISTER="register"
+DEREGISTER="deregister"
+PROVISION="provision"
+REGISTER_STATUS="registered"
+PROVISION_STATUS="provisioned"
+DEREGISTER_STATUS="deregistered"
+
 onlineuser = False
 ndacport = "1990"
 
