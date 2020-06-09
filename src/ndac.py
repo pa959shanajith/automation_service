@@ -273,12 +273,14 @@ def updateActiveIceSessions():
                 #ICE which are "deregistered" are eleminated for the Registartion and Connection
                 queryresult = n68session.icetokens.find_one({"token":ice_token,"icename":ice_name,"status":{"$ne": DEREGISTER_STATUS}})
                 if queryresult is None:
-                    res['err_msg'] = "Unauthorized: Access denied due to Invalid Token, ICE is not registered with Nineteen68"
+                    res['err_msg'] = "Unauthorized: Access denied due to Invalid Token"
+                    res['res']="InvalidToken"
                     response = {"node_check":"InvalidToken","icename":ice_name,"ice_check":wrap(json.dumps(res),ice_ndac_key)}
                 else:
                     #To reject connection with same ice_tokens
                     if ice_action==REGISTER:
                         if queryresult["status"]==REGISTER_STATUS:
+                            res['res']="InvalidICE"
                             res['err_msg'] = "Access denied: Multiple registartions Restrcited! ICE name: "+queryresult["icename"]+", Hostname: "+queryresult["hostname"]+" is already registered."
                             response = {"node_check":"InvalidICE","ice_check":wrap(json.dumps(res),ice_ndac_key)}
                         else:
@@ -312,7 +314,7 @@ def updateActiveIceSessions():
                                 activeicesessions[ice_token] = ice_uuid
                                 redissession.set('icesessions',wrap(json.dumps(activeicesessions),db_keys))
                                 res['res']="success"
-                                response = {"node_check":"allow","ice_name":ice_name,"username":username["name"],"ice_check":wrap(json.dumps(res),ice_ndac_key)}
+                                response = {"node_check":"allow","icename":ice_name,"username":username["name"],"ice_check":wrap(json.dumps(res),ice_ndac_key)}
                         else:
                             app.logger.critical("Hostname check failed for %s",ice_name)
                             res['err_msg'] = "Access denied: Registered Hostname check failed! ICE name: "+queryresult["icename"]+", Hostname: "+queryresult["hostname"]+" is already registered."
