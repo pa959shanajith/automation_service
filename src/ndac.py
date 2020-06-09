@@ -245,9 +245,10 @@ def updateActiveIceSessions():
                 redissession.set('icesessions',wrap('{}',db_keys))
             activeicesessions=json.loads(unwrap(redissession.get('icesessions'),db_keys))
             if(requestdata['query']=='disconnect'):
-                username=requestdata['username'].lower()
-                if(username in activeicesessions):
-                    del activeicesessions[username]
+                #Here username is icename , variable name in requestdata will changed very soon
+                icename=requestdata['username'].lower()
+                if(icename in activeicesessions):
+                    del activeicesessions[icename]
                     redissession.set('icesessions',wrap(json.dumps(activeicesessions),db_keys))
                 res['res']="success"
 
@@ -255,6 +256,7 @@ def updateActiveIceSessions():
                 icesession = unwrap(requestdata['icesession'],ice_ndac_key)
                 icesession = json.loads(icesession)
                 hostname=icesession["hostname"]
+                ice_type=icesession["icetype"]
                 ice_action=icesession["iceaction"]
                 ice_token_dec = unwrap(requestdata['icetoken'],ice_ndac_key).split("@")
                 ice_token=ice_token_dec[0]
@@ -285,29 +287,36 @@ def updateActiveIceSessions():
                             res['icename']=ice_name
                             response = {"node_check":"validICE","icename":ice_name,"ice_check":wrap(json.dumps(res),ice_ndac_key)}
                     else:
-                        ice_name=queryresult["icename"]
-                        username=n68session.users.find_one({"_id":queryresult["provisionedto"]},{"name":1})
-                        user_channel=redissession.pubsub_numsub("ICE1_normal_"+ice_name,"ICE1_scheduling_"+ice_name)
-                        user_channel_cnt=int(user_channel[0][1]+user_channel[1][1])
-                        if(user_channel_cnt == 0 and ice_name in activeicesessions):
-                            del activeicesessions[ice_name]
-                        if(ice_name in activeicesessions and activeicesessions[ice_name] != ice_uuid):
-                            res['err_msg'] = "Connection exists with same token"
-                            response["ice_check"]=wrap(json.dumps(res),ice_ndac_key)
-                        #To check if license is available
-                        elif(len(activeicesessions)>=int(licensedata['allowedIceSessions'])):
-                            res['err_msg'] = "All ice sessions are in use"
-                            response["ice_check"]=wrap(json.dumps(res),ice_ndac_key)
-                        #To add in active ice sessions
+                        flag=True
+                        if ice_type==NORMAL and hostname!=queryresult["hostname"]:
+                            flag=False
+                        if flag:
+                            username=n68session.users.find_one({"_id":queryresult["provisionedto"]},{"name":1})
+                            user_channel=redissession.pubsub_numsub("ICE1_normal_"+ice_name,"ICE1_scheduling_"+ice_name)
+                            user_channel_cnt=int(user_channel[0][1]+user_channel[1][1])
+                            if(user_channel_cnt == 0 and ice_name in activeicesessions):
+                                del activeicesessions[ice_name]
+                            if(ice_name in activeicesessions and activeicesessions[ice_name] != ice_uuid):
+                                res['err_msg'] = "Connection exists with same token"
+                                response["ice_check"]=wrap(json.dumps(res),ice_ndac_key)
+                            #To check if license is available
+                            elif(len(activeicesessions)>=int(licensedata['allowedIceSessions'])):
+                                res['err_msg'] = "All ice sessions are in use"
+                                response["ice_check"]=wrap(json.dumps(res),ice_ndac_key)
+                            #To add in active ice sessions
+                            else:
+                                # random_string=get_random_string()
+                                # ct=wrap(ice_token+random_string+hostname,ice_ndac_key)
+                                # res['ct']=ct
+                                activeicesessions=json.loads(unwrap(redissession.get('icesessions'),db_keys))
+                                activeicesessions[ice_token] = ice_uuid
+                                redissession.set('icesessions',wrap(json.dumps(activeicesessions),db_keys))
+                                res['res']="success"
+                                response = {"node_check":"allow","ice_name":ice_name,"username":username["name"],"ice_check":wrap(json.dumps(res),ice_ndac_key)}
                         else:
-                            # random_string=get_random_string()
-                            # ct=wrap(ice_token+random_string+hostname,ice_ndac_key)
-                            # res['ct']=ct
-                            activeicesessions=json.loads(unwrap(redissession.get('icesessions'),db_keys))
-                            activeicesessions[ice_token] = ice_uuid
-                            redissession.set('icesessions',wrap(json.dumps(activeicesessions),db_keys))
-                            res['res']="success"
-                            response = {"node_check":"allow","ice_name":ice_name,"username":username["name"],"ice_check":wrap(json.dumps(res),ice_ndac_key)}
+                            app.logger.critical("Hostname check failed for %s",ice_name)
+                            res['err_msg'] = "Access denied: Registered Hostname check failed! ICE name: "+queryresult["icename"]+", Hostname: "+queryresult["hostname"]+" is already registered."
+                            response = {"node_check":"InvalidICE","ice_check":wrap(json.dumps(res),ice_ndac_key)}
         else:
             app.logger.warn('Empty data received. updateActiveIceSessions.')
     except redis.ConnectionError as exc:

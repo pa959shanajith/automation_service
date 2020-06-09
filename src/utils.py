@@ -5,6 +5,8 @@ import traceback
 import string
 import random
 
+NORMAL="normal"
+CICD="ci-cd"
 REGISTER="register"
 DEREGISTER="deregister"
 PROVISION="provision"
