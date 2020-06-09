@@ -31,8 +31,9 @@ def unwrap(hex_data, key, iv=b'0'*16):
     aes = AES.new(key.encode('utf-8'), AES.MODE_CBC, iv)
     return unpad(aes.decrypt(data).decode('utf-8'))
 
-def LoadServices(app, redissession, n68session,licensedata):
+def LoadServices(app, redissession, n68session,licensedata,*args):
     setenv(app)
+    ice_ndac_key=args[0]
 
 ################################################################################
 # END OF DEFAULT METHODS AND IMPORTS       -----------DO NOT EDIT
@@ -545,17 +546,16 @@ def LoadServices(app, redissession, n68session,licensedata):
         app.logger.debug("Inside fetchICE")
         res={'rows':'fail'}
         try:
-            result=list(n68session.icetokens.find({}))
-            user_ids=[i["userid"] for i in result if "userid" in i]
+            result=list(n68session.icetokens.find())
+            user_ids=[i["provisionedto"] for i in result if "provisionedto" in i]
             result1=list(n68session.users.find({"_id":{"$in":user_ids}},{"name":1}))
             user_ids={x["_id"]: x["name"] for x in result1}
             for row in result:
-                if row["icetype"]=="normal" : row["username"]=user_ids[row["userid"]]
+                if row["icetype"]=="normal" : row["username"]=user_ids[row["provisionedto"]]
                 else : row["username"]="N/A"
-                
             res={'rows':result}
-        except Exception as getdomainsexc:
-            servicesException("fetchICE", getdomainsexc)
+        except Exception as fetchICEexc:
+            servicesException("fetchICE", fetchICEexc)
         return jsonify(res)
     
     @app.route('/admin/provisionICE',methods=['POST'])
@@ -565,36 +565,40 @@ def LoadServices(app, redissession, n68session,licensedata):
         try:
             requestdata=json.loads(request.data)
             if not isemptyrequest(requestdata):
-                token=uuid.uuid4()
+                token=str(uuid.uuid4())
                 token_query={"icetype":requestdata["icetype"]}
+                #To restrict multiple ICE provsioning to the same user
                 if requestdata["icetype"]=="normal":
-                    token_query["userid"]=requestdata["userid"]=ObjectId(requestdata["userid"])
+                    token_query["provisionedto"]=requestdata["provisionedto"]=ObjectId(requestdata["provisionedto"])
                 else:
                     token_query["icename"]=requestdata["icename"]
                 get_tokens=list(n68session.icetokens.find(token_query))
-                if requestdata["query"]=="provision":
-                    requestdata["token"]=str(token)
-                    requestdata["status"]="provisioned"
-                    requestdata["provisionedon"]=datetime.now()
+                if requestdata["query"]==PROVISION:
+                    requestdata["token"]=token
+                    requestdata["status"]=PROVISION_STATUS
+                    requestdata[PROVISION_STATUS]=datetime.now()
                     requestdata.pop("query")
                     #this condition is valid if ice_names needs to be unique accross Nineteen68
-                    #ice_names= list(n68session.icetokens.find({"icename":requestdata["icename"]},{"icename":1}))
-                    #if get_tokens == [] and ice_name==[]:
+                    ice_names= list(n68session.icetokens.find({"icename":requestdata["icename"]},{"icename":1}))
+                    if get_tokens == [] and ice_names==[]:
                     #currently only icetype and user combination is unique
-                    if get_tokens == []:
+                    # if get_tokens == []:
                         result=n68session.icetokens.insert_one(requestdata)
-                        res={"rows":token}
-                elif requestdata["query"]=="deregister":
-                    if get_tokens != [] and len(get_tokens)==1:
-                        result=n68session.icetokens.update_one(token_query,{"$set":{"status":"deregistered","deregistered":datetime.now()}})
-                        res={'rows':'success'}
-                elif requestdata["query"]=="reregister":
+                        enc_token=wrap(token+"@"+requestdata["icename"],ice_ndac_key)
+                        res={"rows":enc_token}
+                    else:
+                        res={"rows":"DuplicateIceName"}
+                elif requestdata["query"]==DEREGISTER:
                     if get_tokens != []:
-                        result=n68session.icetokens.update_one(token_query,{"$set":{"status":"provisioned","token":token,"provisionedon":datetime.now()}})
+                        result=n68session.icetokens.update_one(token_query,{"$set":{"status":"DEREGISTER_STATUS","deregisteredon":datetime.now()}})
+                        res={'rows':'success'}
+                elif requestdata["query"]==REGISTER:
+                    if get_tokens != []:
+                        result=n68session.icetokens.update_one(token_query,{"$set":{"status":PROVISION_STATUS,"token":token,"provisionedon":datetime.now()}})
                         res={'rows':token}
             else:
-                app.logger.warn('Empty data received. get users - Mind Maps.')
+                app.logger.warn('Empty data received. provisionICE - Admin.')
             
-        except Exception as getdomainsexc:
-            servicesException("provisionICE", getdomainsexc)
+        except Exception as provisionICEexc:
+            servicesException("provisionICE", provisionICEexc)
         return jsonify(res)
