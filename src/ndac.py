@@ -636,6 +636,8 @@ def chronograph():
             x = datetime.utcnow() + timedelta(seconds = 19800)
             secs = (getupdatetime() - x).total_seconds()
         t = Timer(secs, updateonls)
+        update_script_thread = Timer(secs,update_execution_times,[n68session,app])
+        update_script_thread.start()
         t.start()
     except Exception as e:
         app.logger.debug(e)
@@ -1108,7 +1110,7 @@ def main():
         app.logger.critical(printErrorCodes('206'))
         return False
 
-    if (basecheckonls()):
+    if True: #if (basecheckonls()):
         addroutes()
         err_msg = None
         try:

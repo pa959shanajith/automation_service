@@ -33,38 +33,21 @@ def LoadServices(app, redissession, n68session):
         ipPartitions = {}
         modPartitions = {}
         users,flag = load_sort(requestdata['ipAddressList'],requestdata["time"])
-
-        if requestdata['type'] == 'Scenario Smart Scheduling':
-            try:
+        try:
+            if requestdata['type'] == 'Scenario Smart Scheduling':
                 for i in range(len(requestdata['scenarios'])):
+                    time = 0
                     scid = requestdata['scenarios'][i]['scenarioId']
-                    result = n68session.executiontimes.find(
-                        {"testscenarioid": scid})
-                    if result is None or result.count() == 0:
-                        timearr[scid] = 315
-                        continue
-                    cursor_len = result.count()
-                    for i in range(cursor_len):
-                        if result[i]['count'] > 10:
-                            timearr[scid] = result[i]['median']
-                        else:
-                            timearr[scid] = result[i]['mean']
-                partitions = partition_scenarios.main(
-                    timearr, requestdata['activeIce'])
+                    time = get_time(scid)
+                    if scid in timearr:
+                        scid = scid + str(i)
+                    timearr[scid] = time
+                partitions = partition_scenarios.main(timearr, len(users))
                 for i in range(len(users)):
                     if i < len(partitions["seq_partitions"]):
                         ipPartitions[users[i]] = str(
                             partitions["seq_partitions"][i]).strip("['']")
-                res["result"] = "success"
-                res["partitions"] = ipPartitions
-                res["totalTime"] = partitions["totalTime"]
-                res['timearr'] = timearr
-                if flag: res["result"] = "busy"
-            except Exception as e:
-                app.logger.debug(traceback.format_exc())
-                servicesException("partion_scenarios", e)
-        elif requestdata['type'] == 'Module Smart Scheduling':
-            try:
+            elif requestdata['type'] == 'Module Smart Scheduling':
                 modules = requestdata['modules']
                 mod_scn = {}
                 for i in range(len(modules)):
@@ -73,18 +56,8 @@ def LoadServices(app, redissession, n68session):
                     for j in range(len(modules[i]['suiteDetails'])):
                         scid = modules[i]['suiteDetails'][j]['scenarioId']
                         mod_scn[modules[i]['testsuiteId']].append(scid)
-                        result = n68session.executiontimes.find(
-                            {"testscenarioid": scid})
-                        if result is None or result.count() == 0:
-                            time = time + 315
-                            continue
-                        cursor_len = result.count()
-                        for k in range(cursor_len):
-                            if result[k]['count'] > 10:
-                                time = time + result[k]['median']
-                            else:
-                                time = time + result[k]['mean']
-                    timearr[modules[i]['testsuiteId']] = time
+                        time = get_time(scid)
+                    timearr[modules[i]['testsuiteId']] = time            
                 partitions = partition_scenarios.main(timearr, len(users))
                 
                 for i in range(len(users)):
@@ -100,17 +73,15 @@ def LoadServices(app, redissession, n68session):
                                 "['']") + part_str
                             modPartitions[users[i]].append(mod_name)
                         ipPartitions[users[i]] = part_str
-
-                res["result"] = "success"
-                res["partitions"] = ipPartitions
-                res["totalTime"] = partitions["totalTime"]
-                res['timearr'] = timearr
                 res['modPartitions'] = modPartitions
-                if flag: res['result'] = 'busy'
-            except Exception as e:
-                app.logger.debug(traceback.format_exc())
-                servicesException("partion_modules", e)
-
+        except Exception as e:
+            app.logger.debug(traceback.format_exc())
+            servicesException("partion_modules", e)
+        res["result"] = "success"
+        res["partitions"] = ipPartitions
+        res["totalTime"] = partitions["totalTime"]
+        res['timearr'] = timearr
+        if flag: res["result"] = "busy"
         return jsonify(res)
 
     def load_sort(users, time):
@@ -121,12 +92,15 @@ def LoadServices(app, redissession, n68session):
                 prev_time = 0
                 x = DP.parse(time)
                 dtm = datetime.datetime(x.year,x.month,x.day,x.hour,x.minute) 
-                result = n68session.scheduledexecutions.find({"scheduledon": {"$lt": dtm}, "target": users[i]})
+                result = n68session.scheduledexecutions.find({"scheduledon": {"$lt": dtm}, "target": users[i],"status":"scheduled"})
+                if result is None or result.count() == 0:
+                    available_users.insert(0,users[i])
+                    continue
                 latest = result[result.count() - 1]
                 scenario_details = latest['scenariodetails']
                 for j in range(len(scenario_details)):
                     for k in range(len(scenario_details[j])):
-                        prev_time = prev_time + get_time(scenario_details[j][k]['scenarioids'])
+                        prev_time = prev_time + get_time(scenario_details[j][k]['scenarioId'])
                 end_time = latest['scheduledon']
                 #x = DP.parse(end_time)
                 #end_dtm = datetime.datetime(x.year,x.month,x.day,x.hour,x.minute)
