@@ -590,12 +590,13 @@ def LoadServices(app, redissession, n68session,licensedata,*args):
                         res={"rows":"DuplicateIceName"}
                 elif requestdata["query"]==DEREGISTER:
                     if get_tokens != []:
-                        result=n68session.icetokens.update_one(token_query,{"$set":{"status":"DEREGISTER_STATUS","deregisteredon":datetime.now()}})
+                        result=n68session.icetokens.update_one(token_query,{"$set":{"status":DEREGISTER_STATUS,"deregisteredon":datetime.now()}})
                         res={'rows':'success'}
-                elif requestdata["query"]==REGISTER:
+                elif requestdata["query"]=='re'+REGISTER:
                     if get_tokens != []:
                         result=n68session.icetokens.update_one(token_query,{"$set":{"status":PROVISION_STATUS,"token":token,"provisionedon":datetime.now()}})
-                        res={'rows':token}
+                        enc_token=wrap(token+"@"+requestdata["icename"],ice_ndac_key)
+                        res={"rows":enc_token}
             else:
                 app.logger.warn('Empty data received. provisionICE - Admin.')
             
