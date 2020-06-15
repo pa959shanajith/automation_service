@@ -32,7 +32,8 @@ def LoadServices(app, redissession, n68session):
         time_usr = {}
         ipPartitions = {}
         modPartitions = {}
-        users,flag = load_sort(requestdata['ipAddressList'],requestdata["time"])
+        users = bench_mark_sort(requestdata['ipAddressList'])
+        users,flag = load_sort(users,requestdata["time"])
         try:
             if requestdata['type'] == 'Scenario Smart Scheduling':
                 for i in range(len(requestdata['scenarios'])):
@@ -56,7 +57,7 @@ def LoadServices(app, redissession, n68session):
                     for j in range(len(modules[i]['suiteDetails'])):
                         scid = modules[i]['suiteDetails'][j]['scenarioId']
                         mod_scn[modules[i]['testsuiteId']].append(scid)
-                        time = get_time(scid)
+                        time = time + get_time(scid)
                     timearr[modules[i]['testsuiteId']] = time            
                 partitions = partition_scenarios.main(timearr, len(users))
                 
@@ -127,3 +128,30 @@ def LoadServices(app, redissession, n68session):
             return result[0]['median']
         else:
             return result[0]['mean']
+
+    def bench_mark_sort(users):
+        try:
+            score = []
+            scoreMap = {}
+            for i in range(len(users)):
+                result = n68session.benchmark.find({"hostname": users[i]})
+                latest = -1
+                if result is not None and result.count() - 1 >=0:
+                    latest = result.count() - 1
+                else:
+                    score.append(i*1000)
+                    scoreMap[i*1000] = users[i]
+                    continue
+                score.append(result[latest]["averagesystemscore"])
+                scoreMap[result[latest]["averagesystemscore"]] = users[i]
+
+            score.sort()
+            sorted_list = []
+            for i in range(len(score)):
+                sorted_list.append(scoreMap[score[i]])
+            return sorted_list
+        except Exception as e:
+            app.logger.debug(traceback.format_exc())
+            return users
+
+        
