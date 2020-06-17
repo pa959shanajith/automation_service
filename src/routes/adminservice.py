@@ -571,7 +571,6 @@ def LoadServices(app, redissession, n68session,licensedata,*args):
                 if requestdata["icetype"]=="normal":
                     token_query["provisionedto"]=requestdata["provisionedto"]=ObjectId(requestdata["provisionedto"])
                 else:
-                    requestdata["expireson"]=datetime.strptime(str(requestdata["expireson"]),'%d-%m-%Y %H:%M')
                     token_query["icename"]=requestdata["icename"]
                 get_tokens=list(n68session.icetokens.find(token_query))
                 if requestdata["query"]==PROVISION:
@@ -585,7 +584,7 @@ def LoadServices(app, redissession, n68session,licensedata,*args):
                     #currently only icetype and user combination is unique
                     # if get_tokens == []:
                         result=n68session.icetokens.insert_one(requestdata)
-                        enc_token=wrap(token+"@"+requestdata["icename"],ice_ndac_key)
+                        enc_token=wrap(token+'@'+requestdata["icename"],ice_ndac_key)
                         res={"rows":enc_token}
                     else:
                         res={"rows":"DuplicateIceName"}
@@ -598,11 +597,6 @@ def LoadServices(app, redissession, n68session,licensedata,*args):
                         result=n68session.icetokens.update_one(token_query,{"$set":{"status":PROVISION_STATUS,"token":token,"provisionedon":datetime.now()}})
                         enc_token=wrap(token+"@"+requestdata["icename"],ice_ndac_key)
                         res={"rows":enc_token}
-                elif requestdata["query"]=="gettoken":
-                    if get_tokens != []:
-                        citoken=requestdata["token"]
-                        result=n68session.icetokens.update_one(token_query,{"$set":{"citoken":citoken}})
-                        res={"rows":citoken}
             else:
                 app.logger.warn('Empty data received. provisionICE - Admin.')
             
