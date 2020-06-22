@@ -71,12 +71,22 @@ def LoadServices(app, redissession, n68session, licensedata):
         try:
             requestdata=json.loads(request.data)
             if not isemptyrequest(requestdata):
-                queryresult = n68session.users.find_one({"name":requestdata["username"]},{"_id":1, "defaultrole": 1})
+                queryresult = n68session.icetokens.find_one({"icename":requestdata["icename"]})
                 query = None
+                user_query=None
                 if queryresult is not None:
-                    n68session.thirdpartyintegration.update_many({"type":"TOKENS","userid":queryresult["_id"],"deactivated":"active","expireson":{"$lt":datetime.today()}},{"$set":{"deactivated":"expired"}})
-                    query = n68session.thirdpartyintegration.find_one({"userid":queryresult["_id"],"name":requestdata["tokenname"],"type":"TOKENS"})
-                if query is not None: query["role"] = queryresult["defaultrole"]
+                    token_query1={"type":"TOKENS","userid":queryresult["_id"],"deactivated":"active","expireson":{"$lt":datetime.today()}}
+                    token_query2={"userid":queryresult["_id"],"name":requestdata["tokenname"],"type":"TOKENS"}
+                    user_query={"name":"admin"}
+                    if queryresult['icetype'] == 'normal':
+                        token_query1['userid'] = token_query2["userid"] = queryresult["provisionedto"]
+                        user_query={"_id":queryresult["provisionedto"]}
+                    n68session.thirdpartyintegration.update_many(token_query1,{"$set":{"deactivated":"expired"}})
+                    query = n68session.thirdpartyintegration.find_one(token_query2)
+                if query is not None:
+                    user_res=n68session.users.find_one(user_query,{"defaultrole":1})
+                    query["userid"]=user_res["_id"]
+                    query["role"] = user_res["defaultrole"]
                 else: query = "invalid"
                 res= {"rows":query}
             else:

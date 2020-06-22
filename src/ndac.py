@@ -270,7 +270,7 @@ def updateActiveIceSessions():
                 res['connect_time']=ice_ts
                 app.logger.debug("Connected clients: "+str(list(activeicesessions.keys())))
                 #ICE which are in "deregistered" status are eleminated for the Registartion and Connection
-                queryresult = n68session.icetokens.find_one({"token":ice_token,"icename":ice_name,"status":{"$ne": DEREGISTER_STATUS}})
+                queryresult = n68session.icetokens.find_one({"token":ice_token,"icetype":ice_type,"icename":ice_name,"status":{"$ne": DEREGISTER_STATUS}})
                 if queryresult is None:
                     res['err_msg'] = "Unauthorized: Access denied due to Invalid Token"
                     res['res']="InvalidToken"
