@@ -312,7 +312,7 @@ def updateActiveIceSessions():
                                 #To add in active ice sessions
                                 else:
                                     activeicesessions=json.loads(unwrap(redissession.get('icesessions'),db_keys))
-                                    activeicesessions[ice_token] = ice_uuid
+                                    activeicesessions[ice_name] = ice_uuid
                                     redissession.set('icesessions',wrap(json.dumps(activeicesessions),db_keys))
                                     res['res']="success"
                                     response = {"node_check":"allow","icename":ice_name,"username":username,"ice_check":wrap(json.dumps(res),ice_ndac_key)}
