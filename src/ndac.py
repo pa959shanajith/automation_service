@@ -280,7 +280,7 @@ def updateActiveIceSessions():
                     if ice_action==REGISTER:
                         if queryresult["status"]==REGISTER_STATUS:
                             res['res']="InvalidICE"
-                            res['err_msg'] = "Access denied: Multiple registartions Restrcited! ICE name: "+queryresult["icename"]+", Hostname: "+queryresult["hostname"]+" is already registered."
+                            res['err_msg'] = "Access denied: Token already used!"
                             response = {"node_check":"InvalidICE","ice_check":wrap(json.dumps(res),ice_ndac_key)}
                         else:
                             n68session.icetokens.update_one({"token":ice_token},{"$set":{"hostname":hostname,"registeredon":datetime.now(),"status":REGISTER_STATUS}})
@@ -326,6 +326,7 @@ def updateActiveIceSessions():
                             res['res']="InvalidICE"
                             app.logger.critical("%s : ICE is not in Registered state ",ice_name)
                             response = {"node_check":"InvalidICE","ice_check":wrap(json.dumps(res),ice_ndac_key)}
+        app.logger.debug("Connected clients: "+str(list(activeicesessions.keys())))
         else:
             app.logger.warn('Empty data received. updateActiveIceSessions.')
     except redis.ConnectionError as exc:
