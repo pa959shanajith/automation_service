@@ -326,7 +326,7 @@ def updateActiveIceSessions():
                             res['res']="InvalidICE"
                             app.logger.critical("%s : ICE is not in Registered state ",ice_name)
                             response = {"node_check":"InvalidICE","ice_check":wrap(json.dumps(res),ice_ndac_key)}
-        app.logger.debug("Connected clients: "+str(list(activeicesessions.keys())))
+            app.logger.debug("Connected clients: "+str(list(activeicesessions.keys())))
         else:
             app.logger.warn('Empty data received. updateActiveIceSessions.')
     except redis.ConnectionError as exc:

@@ -584,7 +584,7 @@ def LoadServices(app, redissession, n68session,licensedata,*args):
                     #currently only icetype and user combination is unique
                     # if get_tokens == []:
                         result=n68session.icetokens.insert_one(requestdata)
-                        enc_token=wrap(token+'@'+requestdata["icename"],ice_ndac_key)
+                        enc_token=wrap(token+'@'+requestdata["icetype"]+'@'+requestdata["icename"],ice_ndac_key)
                         res={"rows":enc_token}
                     else:
                         res={"rows":"DuplicateIceName"}
@@ -595,7 +595,7 @@ def LoadServices(app, redissession, n68session,licensedata,*args):
                 elif requestdata["query"]=='re'+REGISTER:
                     if get_tokens != []:
                         result=n68session.icetokens.update_one(token_query,{"$set":{"status":PROVISION_STATUS,"token":token,"provisionedon":datetime.now()}})
-                        enc_token=wrap(token+"@"+requestdata["icename"],ice_ndac_key)
+                        enc_token=wrap(token+'@'+requestdata["icetype"]+'@'+requestdata["icename"],ice_ndac_key)
                         res={"rows":enc_token}
             else:
                 app.logger.warn('Empty data received. provisionICE - Admin.')
