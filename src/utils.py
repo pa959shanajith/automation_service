@@ -2,12 +2,12 @@ from flask import jsonify, request, make_response
 from bson.objectid import ObjectId
 import json
 import traceback
-onlineuser = False
 import statistics 
 import numpy as np 
 from datetime import datetime, timedelta
 import time
 import uuid
+onlineuser = True
 ndacport = "1990"
 
 debugcounter = 0
@@ -185,7 +185,6 @@ def update_execution_times(n68session,app):
         result = n68session.reports.find({},{"testscenarioid":1,"report":1,"status":1})
         for i in range(result.count()):
             try:
-                print(i)
                 key = str(result[i]['testscenarioid'])
                 if key in resultdict:
                     ostatus = result[i]['report']['overallstatus']
@@ -253,7 +252,6 @@ def write_excution_times(resultdict,n68session):
     try:
         i = 0
         for key in resultdict:
-            print(i)
             i = i + 1
             data = resultdict[key]
             if len(data['timearr']) > 3:
@@ -300,7 +298,7 @@ def write_excution_times(resultdict,n68session):
             resdata = {"testscnearioid":key,"mean":avg,"median":median_data,"count":count,"standarDeviation":sd,"min":minVal,"minCount":minCount,"max":maxVal,"maxCount":maxCount,"25th Percentile":tfive,"75th Percentile":sfive,"time":datetime.utcnow()}
             result = n68session.executiontimes.find({"testscenarioid": key})
             if result and result.count() > 0:
-                n68session.executiontimes.update_one({"_id":result[0]["_id"]},{"$set":resdata})
+                n68session.executiontimes.update_one({"_id":result[0]["_id"]},{"$set":{"testscnearioid":key,"mean":avg,"median":median_data,"count":count,"standarDeviation":sd,"min":minVal,"minCount":minCount,"max":maxVal,"maxCount":maxCount,"25th Percentile":tfive,"75th Percentile":sfive,"time":datetime.utcnow()}})
             else:
                 n68session.executiontimes.insert_one(resdata)
 
