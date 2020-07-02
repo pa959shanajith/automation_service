@@ -7,6 +7,7 @@ import random
 
 NORMAL="normal"
 CICD="ci-cd"
+REGISTER_CONNECT="guestconnect"
 REGISTER="register"
 DEREGISTER="deregister"
 PROVISION="provision"

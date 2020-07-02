@@ -228,104 +228,111 @@ def checkServer():
 def updateActiveIceSessions():
     global activeicesessions
     global latest_access_time
-    ice_plugins_list = []
-    for keys in licensedata['platforms']:
-        if(licensedata['platforms'][keys] == True):
-            ice_plugins_list.append(keys)
-    res={"id":"","res":"fail","ts_now":str(datetime.now()),"connect_time":str(datetime.now()),"plugins":str(ice_plugins_list)}
+    res = {"id":"","res":"fail","ts_now":str(datetime.now()),"connect_time":str(datetime.now()),
+        "plugins":"","data":random.random()*100000000000000}
     response = {"node_check":False,"ice_check":wrap(json.dumps(res),ice_ndac_key)}
-    ice_uuid=None
-    ice_ts=None
+    ice_uuid = None
+    ice_ts = None
     try:
-        requestdata=json.loads(request.data)
+        requestdata = json.loads(request.data)
         app.logger.debug("Inside updateActiveIceSessions. Query: "+str(requestdata["query"]))
         if not isemptyrequest(requestdata):
             sess = redissession.get('icesessions')
             if sess == '' or sess is None:
                 redissession.set('icesessions',wrap('{}',db_keys))
             activeicesessions=json.loads(unwrap(redissession.get('icesessions'),db_keys))
-            if(requestdata['query']=='disconnect'):
-                #Here username is icename , variable name in requestdata will changed very soon
-                icename=requestdata['username'].lower()
+            if(requestdata['query'] == 'disconnect'):
+                icename=requestdata['icename'].lower()
                 if(icename in activeicesessions):
                     del activeicesessions[icename]
                     redissession.set('icesessions',wrap(json.dumps(activeicesessions),db_keys))
-                res['res']="success"
+                res['res'] = "success"
 
             elif(requestdata['query']=='connect' and 'icesession' in requestdata):
                 icesession = unwrap(requestdata['icesession'],ice_ndac_key)
                 icesession = json.loads(icesession)
-                hostname=icesession["hostname"]
-                ice_type=icesession["icetype"]
-                ice_action=icesession["iceaction"]
-                ice_token_dec = json.loads(unwrap(requestdata['icetoken'], ice_ndac_key))
-                ice_token=ice_token_dec["token"]
-                ice_name=ice_token_dec["icename"]
-                ice_uuid=icesession['ice_id']
-                ice_ts=icesession['connect_time']
-                if('.' not in ice_ts):
-                    ice_ts = ice_ts + '.000000'
-                latest_access_time=datetime.strptime(ice_ts, '%Y-%m-%d %H:%M:%S.%f')
+                ice_action = icesession["iceaction"]
+                ice_token_dec = icesession["icetoken"]
+                hostname = ice_token_dec["hostname"]
+                ice_token = ice_token_dec["token"]
+                ice_name = ice_token_dec["icename"]
+                ice_type = ice_token_dec["icetype"]
+                ice_uuid = icesession['ice_id']
+                ice_ts = icesession['connect_time']
+                if('.' not in ice_ts): ice_ts = ice_ts + '.000000'
+                latest_access_time = datetime.strptime(ice_ts, '%Y-%m-%d %H:%M:%S.%f')
                 res['id']=ice_uuid
-                res['connect_time']=ice_ts
-                app.logger.debug("Connected clients: "+str(list(activeicesessions.keys())))
-                #ICE which are in "deregistered" status are eleminated for the Registartion and Connection
-                queryresult = n68session.icetokens.find_one({"token":ice_token,"icetype":ice_type,"icename":ice_name,"status":{"$ne": DEREGISTER_STATUS}})
+                res['connect_time'] = icesession['connect_time']
+                # ICE which are in "deregistered" status are eliminated for the Registration and Connection
+                queryresult = n68session.icetokens.find_one({"token":ice_token,"icetype":ice_type,"icename":ice_name})
                 if queryresult is None:
                     res['err_msg'] = "Unauthorized: Access denied due to Invalid Token"
-                    res['res']="InvalidToken"
-                    response = {"node_check":"InvalidToken","icename":ice_name,"ice_check":wrap(json.dumps(res),ice_ndac_key)}
+                    res['status'] = "InvalidToken"
                 else:
-                    #To reject connection with same ice_tokens
-                    if ice_action==REGISTER:
-                        if queryresult["status"]==REGISTER_STATUS:
-                            res['res']="InvalidICE"
-                            res['err_msg'] = "Access denied: Token already used!"
-                            response = {"node_check":"InvalidICE","ice_check":wrap(json.dumps(res),ice_ndac_key)}
+                    ice_status = queryresult["status"]
+                    # Register Phase
+                    if ice_action == REGISTER:
+                        if ice_status != PROVISION_STATUS:
+                            res['status'] = "InvalidICE"
+                            if ice_status == REGISTER_STATUS:
+                                res['err_msg'] = "Access denied: Token already used!"
+                            else:
+                                res['err_msg'] = "Access denied: Token is expired!"
                         else:
                             n68session.icetokens.update_one({"token":ice_token},{"$set":{"hostname":hostname,"registeredon":datetime.now(),"status":REGISTER_STATUS}})
-                            res['res']="validICE"
-                            res['icename']=ice_name
-                            response = {"node_check":"validICE","icename":ice_name,"ice_check":wrap(json.dumps(res),ice_ndac_key)}
+                            res['status'] = "validICE"
+                    # Connection Phase
                     else:
-                        #To allow the connection , check for registered state of ICE
-                        username=None
-                        if queryresult["status"]==REGISTER_STATUS:
+                        if ice_action == REGISTER_CONNECT:   # Guest mode connection
+                            if ice_status == PROVISION_STATUS: ice_status = REGISTER_STATUS
+
+                        username = None
+                        # To allow the connection, check for registered state of ICE
+                        if ice_status == REGISTER_STATUS:
                             #If icetype=="normal" , map username-->icename , else if icetype=="ci-cd" map icetoken-->icename
-                            if queryresult["icetype"]=="normal": 
-                                username=n68session.users.find_one({"_id":queryresult["provisionedto"]},{"name":1})
-                                if username is not None: username=username['name']
-                            elif queryresult["icetype"]=="ci-cd":
-                                username=ice_name
+                            if ice_type == "normal": 
+                                username = n68session.users.find_one({"_id":queryresult["provisionedto"]},{"name":1})
+                                if username is not None: username = username['name']
+                            elif ice_type == "ci-cd":
+                                username = ice_name
                             if username:
-                                user_channel=redissession.pubsub_numsub("ICE1_normal_"+ice_name,"ICE1_scheduling_"+ice_name)
-                                user_channel_cnt=int(user_channel[0][1]+user_channel[1][1])
+                                res['status'] = "allow"
+                                user_channel = redissession.pubsub_numsub("ICE1_normal_"+ice_name,"ICE1_scheduling_"+ice_name)
+                                user_channel_cnt = int(user_channel[0][1]+user_channel[1][1])
+                                # Remove stale sessions
                                 if(user_channel_cnt == 0 and ice_name in activeicesessions):
                                     del activeicesessions[ice_name]
+                                # To ensure another ICE with same name is not connected already
                                 if(ice_name in activeicesessions and activeicesessions[ice_name] != ice_uuid):
                                     res['err_msg'] = "Connection exists with same token"
-                                    response["ice_check"]=wrap(json.dumps(res),ice_ndac_key)
-                                #To check if license is available
+                                # To check if license is available
                                 elif(len(activeicesessions)>=int(licensedata['allowedIceSessions'])):
                                     res['err_msg'] = "All ice sessions are in use"
-                                    response["ice_check"]=wrap(json.dumps(res),ice_ndac_key)
-                                #To add in active ice sessions
+                                # To add in active ice sessions
                                 else:
                                     activeicesessions=json.loads(unwrap(redissession.get('icesessions'),db_keys))
                                     activeicesessions[ice_name] = ice_uuid
-                                    redissession.set('icesessions',wrap(json.dumps(activeicesessions),db_keys))
-                                    res['res']="success"
-                                    response = {"node_check":"allow","icename":ice_name,"username":username,"ice_check":wrap(json.dumps(res),ice_ndac_key)}
+                                    redissession.set('icesessions', wrap(json.dumps(activeicesessions),db_keys))
+                                    res['res'] = "success"
+                                    response["username"] = username
+                                    ice_plugins_list = []
+                                    for keys in licensedata['platforms']:
+                                        if(licensedata['platforms'][keys] == True):
+                                            ice_plugins_list.append(keys)
+                                    res["plugins"] = ice_plugins_list
                             else:
-                                res['err_msg']=ice_name+" is not Registered witha a valid Nineteen68 User"
-                                res['res']="InvalidICE"
-                                app.logger.critical("%s : is not Registered witha a valid Nineteen68 User ",ice_name)
-                                response = {"node_check":"InvalidICE","ice_check":wrap(json.dumps(res),ice_ndac_key)}
+                                res['err_msg'] = ice_name+" is not Registered with a valid Nineteen68 User"
+                                res['status'] = "InvalidICE"
+                                app.logger.error(res['err_msg'])
                         else:
-                            res['err_msg']="ICE is not in Registered state"
-                            res['res']="InvalidICE"
-                            app.logger.critical("%s : ICE is not in Registered state ",ice_name)
-                            response = {"node_check":"InvalidICE","ice_check":wrap(json.dumps(res),ice_ndac_key)}
+                            if ice_status == DEREGISTER_STATUS:
+                                res['err_msg'] = "Access denied: Token is expired! Re-register to connect again."
+                            else:
+                                res['err_msg'] = "Access denied: ICE is not in Registered state"
+                            res['status'] = "InvalidICE"
+                            app.logger.error("%s : ICE is not in Registered state ", ice_name)
+                response["node_check"] = res['status']
+                response["ice_check"] = wrap(json.dumps(res),ice_ndac_key)
             app.logger.debug("Connected clients: "+str(list(activeicesessions.keys())))
         else:
             app.logger.warn('Empty data received. updateActiveIceSessions.')
@@ -757,7 +764,7 @@ def checkSetup():
                 enndac=True
                 dbdata['macid']=sysmacid
                 dataholder('update',dbdata)
-            elif dbmacid!=sysmacid and dbmacid!="PoC".lower():
+            elif False and dbmacid!=sysmacid and dbmacid!="PoC".lower():
                 enndac=False
                 errCode='211'
             else:
