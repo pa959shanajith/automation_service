@@ -70,44 +70,46 @@ def LoadServices(app, redissession, n68session,licensedata,*args):
             del requestdata["action"]
             app.logger.info("Inside manageUserDetails. Query: "+str(action))
             if not isemptyrequest(requestdata):
-                # if n68session.server_info():
-                    if(action=="delete"):
-                        result=n68session.users.delete_one({"name":requestdata['name']})
-                        n68session.tasks.delete_many({"assignedto":ObjectId(requestdata["userid"]),"status":{"$ne":'complete'}})
-                        n68session.tasks.delete_many({"owner":ObjectId(requestdata["userid"]),"status":{"$ne":'complete'}})
-                        n68session.tasks.update_many({"reviewer":ObjectId(requestdata["userid"]),"status":{"$ne":'complete'}},{"$set":{"status":"inprogress","reviewer":""}})
-                        res={"rows":"success"}
-                    elif(action=="create"):
-                        result=n68session.users.find_one({"name":requestdata['name']},{"name":1})
-                        if result!=None:
-                            res={"rows":"exists"}
-                        else:
-                            requestdata["defaultrole"]=ObjectId(requestdata["defaultrole"])
-                            requestdata["createdby"]=ObjectId(requestdata["createdby"])
-                            requestdata["createdbyrole"]=ObjectId(requestdata["createdbyrole"])
-                            requestdata["modifiedby"]=ObjectId(requestdata["createdby"])
-                            requestdata["modifiedbyrole"]=ObjectId(requestdata["createdbyrole"])
-                            requestdata["createdon"]=datetime.now()
-                            requestdata["modifiedon"]=datetime.now()
-                            requestdata["deactivated"]="false"
-                            requestdata["addroles"]=[]
-                            requestdata["projects"]=[]
-                            if not (requestdata["ldapuser"]):requestdata["ldapuser"]={}
-                            else : requestdata["ldapuser"]=json.loads(requestdata["ldapuser"])
-                            n68session.users.insert_one(requestdata)
-                            res={"rows":"success"}
-                    elif (action=="update"):
+                if(action=="delete"):
+                    result=n68session.users.delete_one({"name":requestdata['name']})
+                    # Delete assigned tasks
+                    n68session.tasks.delete_many({"assignedto":ObjectId(requestdata["userid"]),"status":{"$ne":'complete'}})
+                    n68session.tasks.delete_many({"owner":ObjectId(requestdata["userid"]),"status":{"$ne":'complete'}})
+                    n68session.tasks.update_many({"reviewer":ObjectId(requestdata["userid"]),"status":{"$ne":'complete'}},{"$set":{"status":"inprogress","reviewer":""}})
+                    # Delete provisioned ICE
+                    n68session.icetokens.delete_many({"provisionedto":ObjectId(requestdata["userid"])})
+                    res={"rows":"success"}
+                elif(action=="create"):
+                    result=n68session.users.find_one({"name":requestdata['name']},{"name":1})
+                    if result!=None:
+                        res={"rows":"exists"}
+                    else:
+                        requestdata["defaultrole"]=ObjectId(requestdata["defaultrole"])
+                        requestdata["createdby"]=ObjectId(requestdata["createdby"])
+                        requestdata["createdbyrole"]=ObjectId(requestdata["createdbyrole"])
                         requestdata["modifiedby"]=ObjectId(requestdata["createdby"])
                         requestdata["modifiedbyrole"]=ObjectId(requestdata["createdbyrole"])
+                        requestdata["createdon"]=datetime.now()
                         requestdata["modifiedon"]=datetime.now()
-                        addroles=[]
-                        for i in requestdata["additionalroles"]:
-                            addroles.append(ObjectId(i))
-                        if "password" in requestdata:
-                            n68session.users.update_one({"_id":ObjectId(requestdata["userid"])},{"$set":{"name":requestdata["name"],"firstname":requestdata["firstname"],"lastname":requestdata["lastname"],"email":requestdata["email"],"password":requestdata["password"],"addroles":addroles,"modifiedby":requestdata["modifiedby"],"modifiedbyrole":requestdata["modifiedbyrole"],"modifiedon":requestdata["modifiedon"]}})
-                        else:
-                            n68session.users.update_one({"_id":ObjectId(requestdata["userid"])},{"$set":{"name":requestdata["name"],"firstname":requestdata["firstname"],"lastname":requestdata["lastname"],"email":requestdata["email"],"addroles":addroles,"modifiedby":requestdata["modifiedby"],"modifiedbyrole":requestdata["modifiedbyrole"],"modifiedon":requestdata["modifiedon"]}})
+                        requestdata["deactivated"]="false"
+                        requestdata["addroles"]=[]
+                        requestdata["projects"]=[]
+                        if not (requestdata["ldapuser"]):requestdata["ldapuser"]={}
+                        else : requestdata["ldapuser"]=json.loads(requestdata["ldapuser"])
+                        n68session.users.insert_one(requestdata)
                         res={"rows":"success"}
+                elif (action=="update"):
+                    requestdata["modifiedby"]=ObjectId(requestdata["createdby"])
+                    requestdata["modifiedbyrole"]=ObjectId(requestdata["createdbyrole"])
+                    requestdata["modifiedon"]=datetime.now()
+                    addroles=[]
+                    for i in requestdata["additionalroles"]:
+                        addroles.append(ObjectId(i))
+                    if "password" in requestdata:
+                        n68session.users.update_one({"_id":ObjectId(requestdata["userid"])},{"$set":{"name":requestdata["name"],"firstname":requestdata["firstname"],"lastname":requestdata["lastname"],"email":requestdata["email"],"password":requestdata["password"],"addroles":addroles,"modifiedby":requestdata["modifiedby"],"modifiedbyrole":requestdata["modifiedbyrole"],"modifiedon":requestdata["modifiedon"]}})
+                    else:
+                        n68session.users.update_one({"_id":ObjectId(requestdata["userid"])},{"$set":{"name":requestdata["name"],"firstname":requestdata["firstname"],"lastname":requestdata["lastname"],"email":requestdata["email"],"addroles":addroles,"modifiedby":requestdata["modifiedby"],"modifiedbyrole":requestdata["modifiedbyrole"],"modifiedon":requestdata["modifiedon"]}})
+                    res={"rows":"success"}
             else:
                 app.logger.warn('Empty data received. manage users.')
         except Exception as e:
@@ -551,13 +553,18 @@ def LoadServices(app, redissession, n68session,licensedata,*args):
             result1=list(n68session.users.find({"_id":{"$in":user_ids}},{"name":1}))
             user_ids={x["_id"]: x["name"] for x in result1}
             for row in result:
-                if row["icetype"]=="normal" : row["username"]=user_ids[row["provisionedto"]]
+                if row["icetype"]=="normal":
+                    prv_to = row["provisionedto"]
+                    if prv_to in user_ids: row["username"] = user_ids[prv_to] 
+                    else:
+                        row["username"] = "N/A"
+                        row["provisionedto"] = " "
                 else : row["username"]="N/A"
             res={'rows':result}
         except Exception as fetchICEexc:
             servicesException("fetchICE", fetchICEexc)
         return jsonify(res)
-    
+
     @app.route('/admin/provisionICE',methods=['POST'])
     def iceprovisions():
         app.logger.debug("Inside provisions")
@@ -581,8 +588,7 @@ def LoadServices(app, redissession, n68session,licensedata,*args):
                     #this condition is valid if ice_names needs to be unique accross Nineteen68
                     ice_names= list(n68session.icetokens.find({"icename":requestdata["icename"]},{"icename":1}))
                     if get_tokens == [] and ice_names==[]:
-                    #currently only icetype and user combination is unique
-                    # if get_tokens == []:
+                        #currently only icetype and user combination is unique
                         result=n68session.icetokens.insert_one(requestdata)
                         enc_token=wrap(token+'@'+requestdata["icetype"]+'@'+requestdata["icename"],ice_ndac_key)
                         res={"rows":enc_token}
@@ -599,7 +605,6 @@ def LoadServices(app, redissession, n68session,licensedata,*args):
                         res={"rows":enc_token}
             else:
                 app.logger.warn('Empty data received. provisionICE - Admin.')
-            
         except Exception as provisionICEexc:
             servicesException("provisionICE", provisionICEexc)
         return jsonify(res)
