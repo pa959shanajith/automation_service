@@ -138,11 +138,15 @@ ecodeServices = {
     "generateCIusertokens": "380",
     "getCIUsersDetails": "381",
     "deactivateCIUser": "382",
-    "saveMindmap":"383",
-    "getModules":"384",
-    "manageTaskDetails":"385",
-    "fetchICE":"386",
-    "provisionICE":"387"
+    "saveMindmap": "383",
+    "getModules": "384",
+    "manageTaskDetails": "385",
+    "fetchICE": "386",
+    "provisionICE": "387",
+    "getSAMLConfig": "388",
+    "manageSAMLConfig": "389",
+    "getOIDCConfig": "390",
+    "manageOIDCConfig": "391"
 }
 
 
@@ -155,9 +159,10 @@ def printErrorCodes(ecode):
     msg = "[ECODE: " + ecode + "] " + ERR_CODE[ecode]
     return msg
 
-def servicesException(srv, exc):
+def servicesException(srv, exc, trace=False):
     app.logger.debug("Exception occured in "+srv)
     app.logger.error(exc)
+    if trace: app.logger.debug(traceback.format_exc())
     app.logger.error("[ECODE: " + ecodeServices[srv] + "] Internal error occured in api")
 
 def isemptyrequest(requestdata):
