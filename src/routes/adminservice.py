@@ -695,7 +695,7 @@ def LoadServices(app, redissession, n68session,licensedata,*args):
                 app.logger.debug("Inside provisionICE. Query: "+query)
                 token=str(uuid.uuid4())
                 token_query={"icetype": requestdata["icetype"], "icename": requestdata["icename"]}
-                token_notexists = len(list(n68session.icetokens.find(token_query, {"icename":1})))==0
+                token_exists = len(list(n68session.icetokens.find(token_query, {"icename":1})))!=0
                 if query==PROVISION:
                     requestdata["token"]=token
                     requestdata["status"]=PROVISION_STATUS
@@ -705,7 +705,7 @@ def LoadServices(app, redissession, n68session,licensedata,*args):
                     if requestdata["icetype"]=="normal":
                         requestdata["provisionedto"]=ObjectId(requestdata["provisionedto"])
                         user_notexists = len(list(n68session.icetokens.find({"provisionedto":requestdata["provisionedto"]},{"provisionedto":1})))==0
-                    if token_notexists and user_notexists:
+                    if not token_exists and user_notexists:
                         #currently only icetype and user combination is unique
                         n68session.icetokens.insert_one(requestdata)
                         enc_token=wrap(token+'@'+requestdata["icetype"]+'@'+requestdata["icename"],ice_ndac_key)
@@ -713,11 +713,11 @@ def LoadServices(app, redissession, n68session,licensedata,*args):
                     else:
                         res["rows"] = "DuplicateIceName"
                 elif query == DEREGISTER:
-                    if token_notexists:
+                    if token_exists:
                         n68session.icetokens.update_one(token_query,{"$set":{"status":DEREGISTER_STATUS,"deregisteredon":datetime.now()}})
                         res["rows"] = 'success'
                 elif query == 're'+REGISTER:
-                    if token_notexists:
+                    if token_exists:
                         n68session.icetokens.update_one(token_query,{"$set":{"status":PROVISION_STATUS,"token":token,"provisionedon":datetime.now()}})
                         enc_token = wrap(token+'@'+requestdata["icetype"]+'@'+requestdata["icename"],ice_ndac_key)
                         res["rows"] = enc_token

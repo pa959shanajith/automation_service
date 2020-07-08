@@ -267,20 +267,20 @@ def updateActiveIceSessions():
                 queryresult = n68session.icetokens.find_one({"token":ice_token,"icetype":ice_type,"icename":ice_name})
                 if queryresult is None:
                     res['err_msg'] = "Unauthorized: Access denied due to Invalid Token"
-                    res['status'] = "InvalidToken"
+                    response["node_check"] = res['status'] = "InvalidToken"
                 else:
                     ice_status = queryresult["status"]
                     # Register Phase
                     if ice_action == REGISTER:
                         if ice_status != PROVISION_STATUS:
-                            res['status'] = "InvalidICE"
+                            response["node_check"] = res['status'] = "InvalidICE"
                             if ice_status == REGISTER_STATUS:
                                 res['err_msg'] = "Access denied: Token already used!"
                             else:
                                 res['err_msg'] = "Access denied: Token is expired!"
                         else:
                             n68session.icetokens.update_one({"token":ice_token},{"$set":{"hostname":hostname,"registeredon":datetime.now(),"status":REGISTER_STATUS}})
-                            res['status'] = "validICE"
+                            response["node_check"] = res['status'] = "validICE"
                     # Connection Phase
                     else:
                         if ice_action == REGISTER_CONNECT:   # Guest mode connection
@@ -314,6 +314,7 @@ def updateActiveIceSessions():
                                     activeicesessions[ice_name] = ice_uuid
                                     redissession.set('icesessions', wrap(json.dumps(activeicesessions),db_keys))
                                     res['res'] = "success"
+                                    response["node_check"] = "allow"
                                     response["username"] = username
                                     ice_plugins_list = []
                                     for keys in licensedata['platforms']:
@@ -322,16 +323,15 @@ def updateActiveIceSessions():
                                     res["plugins"] = ice_plugins_list
                             else:
                                 res['err_msg'] = ice_name+" is not Registered with a valid Nineteen68 User"
-                                res['status'] = "InvalidICE"
+                                response["node_check"] = res['status'] = "InvalidICE"
                                 app.logger.error(res['err_msg'])
                         else:
                             if ice_status == DEREGISTER_STATUS:
                                 res['err_msg'] = "Access denied: Token is expired! Re-register to connect again."
                             else:
                                 res['err_msg'] = "Access denied: ICE is not in Registered state"
-                            res['status'] = "InvalidICE"
+                            response["node_check"] = res['status'] = "InvalidICE"
                             app.logger.error("%s : ICE is not in Registered state ", ice_name)
-                response["node_check"] = res['status']
                 response["ice_check"] = wrap(json.dumps(res),ice_ndac_key)
             app.logger.debug("Connected clients: "+str(list(activeicesessions.keys())))
         else:
