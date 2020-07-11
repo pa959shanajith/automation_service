@@ -1155,7 +1155,7 @@ def main():
         app.logger.critical(printErrorCodes('206'))
         return False
 
-    if True: #if (basecheckonls()):
+    if (basecheckonls()):
         addroutes()
         err_msg = None
         try:
