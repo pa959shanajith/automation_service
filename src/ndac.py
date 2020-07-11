@@ -171,6 +171,12 @@ def addroutes():
 
     import neurongraphsservice
     neurongraphsservice.LoadServices(app, redissession, n68session)
+    
+    import benchmarkservice
+    benchmarkservice.LoadServices(app,redissession,n68session)
+
+    import partitionservice
+    partitionservice.LoadServices(app,redissession,n68session)
 
     #Prof J First Service: Getting Best Matches
     @app.route('/chatbot/getTopMatches_ProfJ',methods=['POST'])
@@ -675,6 +681,8 @@ def chronograph():
             x = datetime.utcnow() + timedelta(seconds = 19800)
             secs = (getupdatetime() - x).total_seconds()
         t = Timer(secs, updateonls)
+        update_script_thread = Timer(secs,update_execution_times,[n68session,app])
+        update_script_thread.start()
         t.start()
     except Exception as e:
         app.logger.debug(e)
