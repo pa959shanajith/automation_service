@@ -8,6 +8,7 @@ from datetime import datetime
 import json
 from Crypto.Cipher import AES
 import codecs
+import uuid
 
 ldap_key = "".join(['l','!','g','#','t','W','3','l','g','G','h','1','3','@','(',
     'c','E','s','$','T','p','R','0','T','c','O','I','-','k','3','y','S'])
@@ -30,8 +31,9 @@ def unwrap(hex_data, key, iv=b'0'*16):
     aes = AES.new(key.encode('utf-8'), AES.MODE_CBC, iv)
     return unpad(aes.decrypt(data).decode('utf-8'))
 
-def LoadServices(app, redissession, n68session,licensedata):
+def LoadServices(app, redissession, n68session,licensedata,*args):
     setenv(app)
+    ice_ndac_key=args[0]
 
 ################################################################################
 # END OF DEFAULT METHODS AND IMPORTS       -----------DO NOT EDIT
@@ -68,44 +70,44 @@ def LoadServices(app, redissession, n68session,licensedata):
             del requestdata["action"]
             app.logger.info("Inside manageUserDetails. Query: "+str(action))
             if not isemptyrequest(requestdata):
-                # if n68session.server_info():
-                    if(action=="delete"):
-                        result=n68session.users.delete_one({"name":requestdata['name']})
-                        n68session.tasks.delete_many({"assignedto":ObjectId(requestdata["userid"]),"status":{"$ne":'complete'}})
-                        n68session.tasks.delete_many({"owner":ObjectId(requestdata["userid"]),"status":{"$ne":'complete'}})
-                        n68session.tasks.update_many({"reviewer":ObjectId(requestdata["userid"]),"status":{"$ne":'complete'}},{"$set":{"status":"inprogress","reviewer":""}})
-                        res={"rows":"success"}
-                    elif(action=="create"):
-                        result=n68session.users.find_one({"name":requestdata['name']},{"name":1})
-                        if result!=None:
-                            res={"rows":"exists"}
-                        else:
-                            requestdata["defaultrole"]=ObjectId(requestdata["defaultrole"])
-                            requestdata["createdby"]=ObjectId(requestdata["createdby"])
-                            requestdata["createdbyrole"]=ObjectId(requestdata["createdbyrole"])
-                            requestdata["modifiedby"]=ObjectId(requestdata["createdby"])
-                            requestdata["modifiedbyrole"]=ObjectId(requestdata["createdbyrole"])
-                            requestdata["createdon"]=datetime.now()
-                            requestdata["modifiedon"]=datetime.now()
-                            requestdata["deactivated"]="false"
-                            requestdata["addroles"]=[]
-                            requestdata["projects"]=[]
-                            if not (requestdata["ldapuser"]):requestdata["ldapuser"]={}
-                            else : requestdata["ldapuser"]=json.loads(requestdata["ldapuser"])
-                            n68session.users.insert_one(requestdata)
-                            res={"rows":"success"}
-                    elif (action=="update"):
+                if(action=="delete"):
+                    result=n68session.users.delete_one({"name":requestdata['name']})
+                    # Delete assigned tasks
+                    n68session.tasks.delete_many({"assignedto":ObjectId(requestdata["userid"]),"status":{"$ne":'complete'}})
+                    n68session.tasks.delete_many({"owner":ObjectId(requestdata["userid"]),"status":{"$ne":'complete'}})
+                    n68session.tasks.update_many({"reviewer":ObjectId(requestdata["userid"]),"status":{"$ne":'complete'}},{"$set":{"status":"inprogress","reviewer":""}})
+                    res={"rows":"success"}
+                elif(action=="create"):
+                    result=n68session.users.find_one({"name":requestdata['name']},{"name":1})
+                    if result!=None:
+                        res={"rows":"exists"}
+                    else:
+                        requestdata["defaultrole"]=ObjectId(requestdata["defaultrole"])
+                        requestdata["createdby"]=ObjectId(requestdata["createdby"])
+                        requestdata["createdbyrole"]=ObjectId(requestdata["createdbyrole"])
                         requestdata["modifiedby"]=ObjectId(requestdata["createdby"])
                         requestdata["modifiedbyrole"]=ObjectId(requestdata["createdbyrole"])
+                        requestdata["createdon"]=datetime.now()
                         requestdata["modifiedon"]=datetime.now()
-                        addroles=[]
-                        for i in requestdata["additionalroles"]:
-                            addroles.append(ObjectId(i))
-                        if "password" in requestdata:
-                            n68session.users.update_one({"_id":ObjectId(requestdata["userid"])},{"$set":{"name":requestdata["name"],"firstname":requestdata["firstname"],"lastname":requestdata["lastname"],"email":requestdata["email"],"password":requestdata["password"],"addroles":addroles,"modifiedby":requestdata["modifiedby"],"modifiedbyrole":requestdata["modifiedbyrole"],"modifiedon":requestdata["modifiedon"]}})
-                        else:
-                            n68session.users.update_one({"_id":ObjectId(requestdata["userid"])},{"$set":{"name":requestdata["name"],"firstname":requestdata["firstname"],"lastname":requestdata["lastname"],"email":requestdata["email"],"addroles":addroles,"modifiedby":requestdata["modifiedby"],"modifiedbyrole":requestdata["modifiedbyrole"],"modifiedon":requestdata["modifiedon"]}})
+                        requestdata["deactivated"]="false"
+                        requestdata["addroles"]=[]
+                        requestdata["projects"]=[]
+                        if not (requestdata["ldapuser"]):requestdata["ldapuser"]={}
+                        else : requestdata["ldapuser"]=json.loads(requestdata["ldapuser"])
+                        n68session.users.insert_one(requestdata)
                         res={"rows":"success"}
+                elif (action=="update"):
+                    requestdata["modifiedby"]=ObjectId(requestdata["createdby"])
+                    requestdata["modifiedbyrole"]=ObjectId(requestdata["createdbyrole"])
+                    requestdata["modifiedon"]=datetime.now()
+                    addroles=[]
+                    for i in requestdata["additionalroles"]:
+                        addroles.append(ObjectId(i))
+                    if "password" in requestdata:
+                        n68session.users.update_one({"_id":ObjectId(requestdata["userid"])},{"$set":{"name":requestdata["name"],"firstname":requestdata["firstname"],"lastname":requestdata["lastname"],"email":requestdata["email"],"password":requestdata["password"],"addroles":addroles,"modifiedby":requestdata["modifiedby"],"modifiedbyrole":requestdata["modifiedbyrole"],"modifiedon":requestdata["modifiedon"]}})
+                    else:
+                        n68session.users.update_one({"_id":ObjectId(requestdata["userid"])},{"$set":{"name":requestdata["name"],"firstname":requestdata["firstname"],"lastname":requestdata["lastname"],"email":requestdata["email"],"addroles":addroles,"modifiedby":requestdata["modifiedby"],"modifiedbyrole":requestdata["modifiedbyrole"],"modifiedon":requestdata["modifiedon"]}})
+                    res={"rows":"success"}
             else:
                 app.logger.warn('Empty data received. manage users.')
         except Exception as e:
@@ -385,32 +387,33 @@ def LoadServices(app, redissession, n68session,licensedata):
             requestdata=json.loads(request.data)
             app.logger.info("Inside manageLDAPConfig. Action is "+str(requestdata['action']))
             if not isemptyrequest(requestdata):
+                query_filter = {"type":"LDAP","name":requestdata["name"]}
+                result=n68session.thirdpartyintegration.find_one(query_filter)
                 if "bindcredentials" in requestdata: requestdata["bindcredentials"]=wrap(requestdata["bindcredentials"],ldap_key)
                 else: requestdata["bindcredentials"] = ""
                 if (requestdata['action'] == "delete"):
-                    n68session.thirdpartyintegration.delete_one({"type":"LDAP","name":requestdata["name"]})
-                    res={"rows":"success"}
-                elif (requestdata['action'] == "create"):
-                    del requestdata["action"]
-                    requestdata["fieldmap"]=json.loads(requestdata["fieldmap"])
-                    result=n68session.thirdpartyintegration.find_one({"type":"LDAP","name":requestdata["name"]})
                     if result != None:
-                        res = {"rows":"exists"}
-                        return jsonify(res)
+                        n68session.thirdpartyintegration.delete_one(query_filter)
+                    res["rows"] = "success"
+                elif (requestdata['action'] == "create"):
+                    if result != None: res["rows"] = "exists"
                     else:
+                        del requestdata["action"]
+                        requestdata["fieldmap"]=json.loads(requestdata["fieldmap"])
                         requestdata["type"]="LDAP"
                         n68session.thirdpartyintegration.insert_one(requestdata)
-                        res = {"rows":"success"}
+                        res["rows"] = "success"
                 elif (requestdata['action'] == "update"):
-                    requestdata["fieldmap"]=json.loads(requestdata["fieldmap"])
-                    n68session.thirdpartyintegration.update_one({"name":requestdata["name"]},{"$set":{"url":requestdata["url"],"bindcredentials":requestdata["bindcredentials"],"basedn":requestdata["basedn"],"auth":requestdata["auth"],"binddn":requestdata["binddn"],"fieldmap":requestdata["fieldmap"]}})
-                    res = {"rows":"success"}
+                    if result != None:
+                        requestdata["fieldmap"]=json.loads(requestdata["fieldmap"])
+                        n68session.thirdpartyintegration.update_one({"name":requestdata["name"]},{"$set":{"url":requestdata["url"],"bindcredentials":requestdata["bindcredentials"],"basedn":requestdata["basedn"],"auth":requestdata["auth"],"binddn":requestdata["binddn"],"fieldmap":requestdata["fieldmap"]}})
+                        res["rows"] = "success"
                 else:
                     res={'rows':'fail'}
             else:
                 app.logger.warn('Empty data received. LDAP config manage.')
-        except Exception as getallusersexc:
-            servicesException("manageLDAPConfig", getallusersexc, True)
+        except Exception as manageldapexc:
+            servicesException("manageLDAPConfig", manageldapexc, True)
         return jsonify(res)
 
     @app.route('/admin/getLDAPConfig',methods=['POST'])
@@ -420,20 +423,129 @@ def LoadServices(app, redissession, n68session,licensedata):
         try:
             requestdata=json.loads(request.data)
             if not isemptyrequest(requestdata):
+                query_filter = {"type":"LDAP"}
                 if "name" in requestdata:
-                    result = n68session.thirdpartyintegration.find_one({"name":requestdata["name"]})
-                    password = result["bindcredentials"]
-                    if len(password) > 0:
-                        password = unwrap(password, ldap_key)
-                        result["bindcredentials"] = password
-                    res = {"rows":result}
+                    query_filter["name"] = requestdata["name"]
+                    result = n68session.thirdpartyintegration.find_one(query_filter)
+                    if result is None: result = []
+                    else:
+                        password = result["bindcredentials"]
+                        if len(password) > 0:
+                            password = unwrap(password, ldap_key)
+                            result["bindcredentials"] = password
                 else:
-                    result=list(n68session.thirdpartyintegration.find({"type":"LDAP"},{"name":1}))
-                    res={"rows":result}
+                    result = list(n68session.thirdpartyintegration.find(query_filter,{"name":1}))
+                res["rows"] = result
             else:
                 app.logger.warn('Empty data received. LDAP config fetch.')
         except Exception as getallusersexc:
             servicesException("getLDAPConfig", getallusersexc, True)
+        return jsonify(res)
+
+    @app.route('/admin/manageSAMLConfig',methods=['POST'])
+    def manageSAMLConfig():
+        res={'rows':'fail'}
+        try:
+            requestdata=json.loads(request.data)
+            app.logger.info("Inside manageSAMLConfig. Action is "+str(requestdata['action']))
+            if not isemptyrequest(requestdata):
+                query_filter = {"type":"SAML","name":requestdata["name"]}
+                result=n68session.thirdpartyintegration.find_one(query_filter)
+                if requestdata['action'] == "delete":
+                    if result != None:
+                        n68session.thirdpartyintegration.delete_one(query_filter)
+                    res["rows"] = "success"
+                elif (requestdata['action'] == "create"):
+                    if result != None: res["rows"] = "exists"
+                    else:
+                        del requestdata["action"]
+                        requestdata["type"]="SAML"
+                        n68session.thirdpartyintegration.insert_one(requestdata)
+                        res["rows"] = "success"
+                elif (requestdata['action'] == "update"):
+                    if result != None:
+                        del requestdata["action"]
+                        del requestdata["name"]
+                        n68session.thirdpartyintegration.update_one(query_filter,{"$set":requestdata})
+                        res["rows"] = "success"
+            else:
+                app.logger.warn('Empty data received. SAML config manage.')
+        except Exception as managesamlexc:
+            servicesException("manageSAMLConfig", managesamlexc, True)
+        return jsonify(res)
+
+    @app.route('/admin/getSAMLConfig',methods=['POST'])
+    def getSAMLConfig():
+        app.logger.info("Inside getSAMLConfig")
+        res={'rows':'fail'}
+        try:
+            requestdata=json.loads(request.data)
+            if not isemptyrequest(requestdata):
+                query_filter = {"type":"SAML"}
+                if "name" in requestdata:
+                    query_filter["name"] = requestdata["name"]
+                    result = n68session.thirdpartyintegration.find_one(query_filter)
+                    if result is None: result = []
+                else:
+                    result = list(n68session.thirdpartyintegration.find(query_filter,{"name":1}))
+                res["rows"] = result
+            else:
+                app.logger.warn('Empty data received. SAML config fetch.')
+        except Exception as getsamlexc:
+            servicesException("getSAMLConfig", getsamlexc, True)
+        return jsonify(res)
+
+    @app.route('/admin/manageOIDCConfig',methods=['POST'])
+    def manageOIDCConfig():
+        res={'rows':'fail'}
+        try:
+            requestdata=json.loads(request.data)
+            app.logger.info("Inside manageOIDCConfig. Action is "+str(requestdata['action']))
+            if not isemptyrequest(requestdata):
+                query_filter = {"type":"OIDC","name":requestdata["name"]}
+                result=n68session.thirdpartyintegration.find_one(query_filter)
+                if requestdata['action'] == "delete":
+                    if result != None:
+                        n68session.thirdpartyintegration.delete_one(query_filter)
+                    res["rows"] = "success"
+                elif (requestdata['action'] == "create"):
+                    if result != None: res["rows"] = "exists"
+                    else:
+                        del requestdata["action"]
+                        requestdata["type"]="OIDC"
+                        n68session.thirdpartyintegration.insert_one(requestdata)
+                        res["rows"] = "success"
+                elif (requestdata['action'] == "update"):
+                    if result != None:
+                        del requestdata["action"]
+                        del requestdata["name"]
+                        n68session.thirdpartyintegration.update_one(query_filter,{"$set":requestdata})
+                        res["rows"] = "success"
+            else:
+                app.logger.warn('Empty data received. OIDC config manage.')
+        except Exception as manageoidcexc:
+            servicesException("manageOIDCConfig", manageoidcexc, True)
+        return jsonify(res)
+
+    @app.route('/admin/getOIDCConfig',methods=['POST'])
+    def getOIDCConfig():
+        app.logger.info("Inside getOIDCConfig")
+        res={'rows':'fail'}
+        try:
+            requestdata=json.loads(request.data)
+            if not isemptyrequest(requestdata):
+                query_filter = {"type":"OIDC"}
+                if "name" in requestdata:
+                    query_filter["name"] = requestdata["name"]
+                    result = n68session.thirdpartyintegration.find_one(query_filter)
+                    if result is None: result = []
+                else:
+                    result = list(n68session.thirdpartyintegration.find(query_filter,{"name":1}))
+                res["rows"] = result
+            else:
+                app.logger.warn('Empty data received. OIDC config fetch.')
+        except Exception as getoidcexc:
+            servicesException("getOIDCConfig", getoidcexc, True)
         return jsonify(res)
 
     #service assigns projects to a specific user
@@ -533,8 +645,84 @@ def LoadServices(app, redissession, n68session,licensedata):
         app.logger.debug("Inside getPreferences")
         res={'rows':'fail'}
         try:
-            result=list(n68session.permissions.find({},{"name":1,"plugins":1,"_id":0}))
-            res={'rows':result}
+            requestdata=json.loads(request.data)
+            if not isemptyrequest(requestdata):
+                result = list(n68session.permissions.find({},{"name":1,"plugins":1,"_id":0}))
+                res = {'rows':result}
+            else:
+                app.logger.warn('Empty data received. get user preferences.')
         except Exception as getdomainsexc:
             servicesException("getPreferences", getdomainsexc, True)
+        return jsonify(res)
+
+    @app.route('/admin/fetchICE',methods=['POST'])
+    def fetchICE():
+        app.logger.debug("Inside fetchICE")
+        res={'rows':'fail'}
+        try:
+            requestdata=json.loads(request.data)
+            if not isemptyrequest(requestdata):
+                find_args = {}
+                if "user" in requestdata:
+                    find_args["provisionedto"] = ObjectId(requestdata["user"])
+                result=list(n68session.icetokens.find(find_args))
+                user_ids=[i["provisionedto"] for i in result if "provisionedto" in i]
+                result1=list(n68session.users.find({"_id":{"$in":user_ids}},{"name":1}))
+                user_ids={x["_id"]: x["name"] for x in result1}
+                for row in result:
+                    if row["icetype"]=="normal":
+                        prv_to = row["provisionedto"]
+                        if prv_to in user_ids: row["username"] = user_ids[prv_to]
+                        else:
+                            n68session.icetokens.delete_one({"_id": row["_id"]})
+                            row["provisionedto"] = "--Deleted--"
+                    else: row["username"]="N/A"
+                res={'rows':result}
+            else:
+                app.logger.warn('Empty data received. get ice provisions.')
+        except Exception as fetchICEexc:
+            servicesException("fetchICE", fetchICEexc, True)
+        return jsonify(res)
+
+    @app.route('/admin/provisionICE',methods=['POST'])
+    def iceprovisions():
+        app.logger.debug("Inside provisions")
+        res={'rows':'fail'}
+        try:
+            requestdata=json.loads(request.data)
+            if not isemptyrequest(requestdata):
+                query = str(requestdata.pop("query"))
+                app.logger.debug("Inside provisionICE. Query: "+query)
+                token=str(uuid.uuid4())
+                token_query={"icetype": requestdata["icetype"], "icename": requestdata["icename"]}
+                token_exists = len(list(n68session.icetokens.find(token_query, {"icename":1})))!=0
+                if query==PROVISION:
+                    requestdata["token"]=token
+                    requestdata["status"]=PROVISION_STATUS
+                    requestdata[PROVISION_STATUS+"on"]=datetime.now()
+                    user_notexists = True
+                    #To restrict multiple ICE provsioning for the same user
+                    if requestdata["icetype"]=="normal":
+                        requestdata["provisionedto"]=ObjectId(requestdata["provisionedto"])
+                        user_notexists = len(list(n68session.icetokens.find({"provisionedto":requestdata["provisionedto"]},{"provisionedto":1})))==0
+                    if not token_exists and user_notexists:
+                        #currently only icetype and user combination is unique
+                        n68session.icetokens.insert_one(requestdata)
+                        enc_token=wrap(token+'@'+requestdata["icetype"]+'@'+requestdata["icename"],ice_ndac_key)
+                        res["rows"] = enc_token
+                    else:
+                        res["rows"] = "DuplicateIceName"
+                elif query == DEREGISTER:
+                    if token_exists:
+                        n68session.icetokens.update_one(token_query,{"$set":{"status":DEREGISTER_STATUS,"deregisteredon":datetime.now()}})
+                        res["rows"] = 'success'
+                elif query == 're'+REGISTER:
+                    if token_exists:
+                        n68session.icetokens.update_one(token_query,{"$set":{"status":PROVISION_STATUS,"token":token,"provisionedon":datetime.now()}})
+                        enc_token = wrap(token+'@'+requestdata["icetype"]+'@'+requestdata["icename"],ice_ndac_key)
+                        res["rows"] = enc_token
+            else:
+                app.logger.warn('Empty data received. provisionICE - Admin.')
+        except Exception as provisionICEexc:
+            servicesException("provisionICE", provisionICEexc, True)
         return jsonify(res)

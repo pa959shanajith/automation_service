@@ -2,9 +2,26 @@ from flask import jsonify, request, make_response
 from bson.objectid import ObjectId
 import json
 import traceback
+import statistics 
+import numpy as np 
+from datetime import datetime, timedelta
+import time
+import uuid
+import string
+import random
+
+NORMAL="normal"
+CICD="ci-cd"
+REGISTER_CONNECT="guestconnect"
+REGISTER="register"
+DEREGISTER="deregister"
+PROVISION="provision"
+REGISTER_STATUS="registered"
+PROVISION_STATUS="provisioned"
+DEREGISTER_STATUS="deregistered"
+
 onlineuser = False
 ndacport = "1990"
-
 debugcounter = 0
 scenarioscounter = 0
 
@@ -125,12 +142,17 @@ ecodeServices = {
     "generateCIusertokens": "380",
     "getCIUsersDetails": "381",
     "deactivateCIUser": "382",
-    "saveMindmap":"383",
-    "getModules":"384",
-    "manageTaskDetails":"385",
-    "getNeuronGraphsData":"386",
-    "get_Nineteen68Report": "387",
-    "checkApproval": "388"
+    "saveMindmap": "383",
+    "getModules": "384",
+    "manageTaskDetails": "385",
+    "fetchICE": "386",
+    "provisionICE": "387",
+    "getSAMLConfig": "388",
+    "manageSAMLConfig": "389",
+    "getOIDCConfig": "390",
+    "manageOIDCConfig": "391",
+    "update_execution_times": "392",
+    "write_execution_times", "393"
 }
 
 
@@ -143,10 +165,10 @@ def printErrorCodes(ecode):
     msg = "[ECODE: " + ecode + "] " + ERR_CODE[ecode]
     return msg
 
-def servicesException(srv, exc, trcbk=False):
+def servicesException(srv, exc, trace=False):
     app.logger.debug("Exception occured in "+srv)
-    app.logger.debug(exc)
-    if (trcbk): app.logger.debug(traceback.format_exc())
+    app.logger.error(exc)
+    if trace: app.logger.debug(traceback.format_exc())
     app.logger.error("[ECODE: " + ecodeServices[srv] + "] Internal error occured in api")
 
 def isemptyrequest(requestdata):
@@ -172,3 +194,138 @@ def counterupdator(n68session,updatortype,userid,count):
     except Exception as counterupdatorexc:
         servicesException("counterupdator",counterupdatorexc)
     return status
+
+def get_random_string():
+    chargroup = string.ascii_letters + string.digits 
+    random_string = [random.choice(chargroup) for _ in range(8)]
+    return "".join(random_string)
+
+def update_execution_times(n68session,app):
+    app.logger.info("Updating Execution Times")
+    resultdict = {}
+    try:
+        result = n68session.reports.find({},{"testscenarioid":1,"report":1,"status":1})
+        for i in range(result.count()):
+            try:
+                key = str(result[i]['testscenarioid'])
+                if key in resultdict:
+                    ostatus = result[i]['report']['overallstatus']
+                    if len(ostatus) == 1:
+                        if "overallstatus" not in ostatus[0]:
+                            statuskey = 'overAllStatus'
+                        else:
+                            statuskey = 'overallstatus'
+                        if(result[i]['status'] == 'pass' or result[i]['status'] == 'fail'  ):
+                            time = ostatus[0]['EllapsedTime']
+                            if "days" in time:
+                                time = time.replace(" days, ",":").split(':')
+                                time_sec = float((time[0]))*86400 + float((time[1]))*3600 + float((time[2]))*60 + float((time[3]))
+                            elif "day" in time:
+                                time = time.replace(" day, ",":").split(":")
+                                time_sec = float((time[0]))*86400 + float((time[1]))*3600 + float((time[2]))*60 + float((time[3]))
+                            else:
+                                time = time.split(":")
+                                time_sec = float((time[0]))*3600 + float((time[1]))*60 + float((time[2]))
+                            if time_sec >= resultdict[key]['max']:
+                                resultdict[key]['max'] = time_sec
+                                resultdict[key]['max_status'] = ostatus[0][statuskey]
+                            if time_sec <= resultdict[key]['min']:
+                                resultdict[key]['min'] = time_sec
+                                resultdict[key]['min_status'] = ostatus[0][statuskey]
+                            resultdict[key]['timearr'].append(time_sec)
+                            resultdict[key]['steps'] = len(result[i]['report']['rows'])
+                else:
+                    ostatus = result[i]['report']['overallstatus']
+                    if len(ostatus) == 1:
+                        if "overallstatus" not in ostatus[0]:
+                            statuskey = 'overAllStatus'
+                        else:
+                            statuskey = 'overallstatus'
+                        if(result[i]['status'] == 'pass' or result[i]['status'] == 'fail'):
+                            time = ostatus[0]['EllapsedTime']
+                            if "days" in time:
+                                time = time.replace(" days, ",":").split(':')
+                                time_sec = float((time[0]))*86400 + float((time[1]))*3600 + float((time[2]))*60 + float((time[3]))
+                            elif "day" in time:
+                                time = time.replace(" day, ",":").split(':')
+                                time_sec = float((time[0]))*86400 + float((time[1]))*3600 + float((time[2]))*60 + float((time[3]))
+                            else:
+                                time = time.split(":")
+                                time_sec = float((time[0]))*3600 + float((time[1]))*60 + float((time[2]))
+                            resultdict[key] = {}
+                            resultdict[key]['max_status'] = ostatus[0][statuskey]
+                            resultdict[key]['min_status'] = ostatus[0][statuskey]
+                            resultdict[key]['timearr'] = []
+                            resultdict[key]['min'] = time_sec
+                            resultdict[key]['max'] = time_sec
+                            resultdict[key]['timearr'].append(time_sec)
+                            resultdict[key]['steps'] = len(result[i]['report']['rows'])
+            except Exception as e:
+                servicesException("update_execution_times",e,True)
+                continue
+        app.logger.debug("Updating Database for Execution times")
+        write_execution_times(resultdict,n68session)
+        app.logger.debug("Update Execution times completed")
+        return
+    except Exception as e:
+        servicesException("update_execution_times",e,True)
+        return
+
+def write_execution_times(resultdict,n68session):
+    try:
+        i = 0
+        for key in resultdict:
+            i = i + 1
+            data = resultdict[key]
+            if len(data['timearr']) > 3:
+                data['timearr'].sort()
+                minVal = data['timearr'][0]
+                maxVal = data['timearr'][len(data['timearr'])-1]
+                data['timearr'] = list(filter((maxVal).__ne__, data['timearr']))
+                data['timearr'] = list(filter((minVal).__ne__, data['timearr']))  
+                if data['timearr'] is not None:
+                    if len(data['timearr']) > 1:
+                        median_data = statistics.median(data['timearr'])
+                        tfive = np.percentile(data['timearr'], 25)
+                        sfive = np.percentile(data['timearr'], 75)
+                        data['timearr'].sort()
+                        minVal = data['timearr'][0]
+                        maxVal = data['timearr'][len(data['timearr'])-1]
+                        minCount = data['timearr'].count(data['timearr'][0])
+                        maxCount = data['timearr'].count(data['timearr'][len(data['timearr'])-1])
+                        avg = statistics.mean(data['timearr'])
+                        count = len(data['timearr'])
+                    elif len(data['timearr']) == 1:
+                        median_data = "N/A"
+                        tfive = "N/A"
+                        sfive = "N/A"
+                        count = 1
+                        avg = data['timearr'][0]
+                        minVal = data['timearr'][0]
+                        maxVal = data['timearr'][0]
+                    else:
+                        continue
+                else:
+                    median_data = "N/A"
+                    tfive = "N/A"
+                    sfive = "N/A"
+                    data['max'] = "N/A"
+                    data['min'] = "N/A"
+                    data['count'] = 0
+            else:
+                continue 
+            try:
+                sd = statistics.stdev(data['timearr'])
+            except Exception as e:
+                sd = "N/A"
+            resdata = {"testscnearioid":key,"mean":avg,"median":median_data,"count":count,"standarDeviation":sd,"min":minVal,"minCount":minCount,"max":maxVal,"maxCount":maxCount,"25th Percentile":tfive,"75th Percentile":sfive,"time":datetime.utcnow()}
+            result = n68session.executiontimes.find({"testscenarioid": key})
+            if result and result.count() > 0:
+                n68session.executiontimes.update_one({"_id":result[0]["_id"]},{"$set":{"testscnearioid":key,"mean":avg,"median":median_data,"count":count,"standarDeviation":sd,"min":minVal,"minCount":minCount,"max":maxVal,"maxCount":maxCount,"25th Percentile":tfive,"75th Percentile":sfive,"time":datetime.utcnow()}})
+            else:
+                n68session.executiontimes.insert_one(resdata)
+
+        return
+    except Exception as e:
+        servicesException("write_execution_times",e,True)
+        return
