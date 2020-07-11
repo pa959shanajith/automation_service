@@ -7,9 +7,21 @@ import numpy as np
 from datetime import datetime, timedelta
 import time
 import uuid
-onlineuser = True
-ndacport = "1990"
+import string
+import random
 
+NORMAL="normal"
+CICD="ci-cd"
+REGISTER_CONNECT="guestconnect"
+REGISTER="register"
+DEREGISTER="deregister"
+PROVISION="provision"
+REGISTER_STATUS="registered"
+PROVISION_STATUS="provisioned"
+DEREGISTER_STATUS="deregistered"
+
+onlineuser = False
+ndacport = "1990"
 debugcounter = 0
 scenarioscounter = 0
 
@@ -130,12 +142,17 @@ ecodeServices = {
     "generateCIusertokens": "380",
     "getCIUsersDetails": "381",
     "deactivateCIUser": "382",
-    "saveMindmap":"383",
-    "getModules":"384",
-    "manageTaskDetails":"385",
-    "getNeuronGraphsData":"386",
-    "get_Nineteen68Report": "387",
-    "checkApproval": "388"
+    "saveMindmap": "383",
+    "getModules": "384",
+    "manageTaskDetails": "385",
+    "fetchICE": "386",
+    "provisionICE": "387",
+    "getSAMLConfig": "388",
+    "manageSAMLConfig": "389",
+    "getOIDCConfig": "390",
+    "manageOIDCConfig": "391",
+    "update_execution_times": "392",
+    "write_execution_times", "393"
 }
 
 
@@ -148,10 +165,10 @@ def printErrorCodes(ecode):
     msg = "[ECODE: " + ecode + "] " + ERR_CODE[ecode]
     return msg
 
-def servicesException(srv, exc, trcbk=False):
+def servicesException(srv, exc, trace=False):
     app.logger.debug("Exception occured in "+srv)
-    app.logger.debug(exc)
-    if (trcbk): app.logger.debug(traceback.format_exc())
+    app.logger.error(exc)
+    if trace: app.logger.debug(traceback.format_exc())
     app.logger.error("[ECODE: " + ecodeServices[srv] + "] Internal error occured in api")
 
 def isemptyrequest(requestdata):
@@ -177,6 +194,11 @@ def counterupdator(n68session,updatortype,userid,count):
     except Exception as counterupdatorexc:
         servicesException("counterupdator",counterupdatorexc)
     return status
+
+def get_random_string():
+    chargroup = string.ascii_letters + string.digits 
+    random_string = [random.choice(chargroup) for _ in range(8)]
+    return "".join(random_string)
 
 def update_execution_times(n68session,app):
     app.logger.info("Updating Execution Times")
@@ -241,14 +263,15 @@ def update_execution_times(n68session,app):
             except Exception as e:
                 servicesException("update_execution_times",e,True)
                 continue
-        app.logger.info("Updating Database ")
-        write_excution_times(resultdict,n68session)
-        app.logger.info("Update Execution times completed")
+        app.logger.debug("Updating Database for Execution times")
+        write_execution_times(resultdict,n68session)
+        app.logger.debug("Update Execution times completed")
         return
     except Exception as e:
         servicesException("update_execution_times",e,True)
         return
-def write_excution_times(resultdict,n68session):
+
+def write_execution_times(resultdict,n68session):
     try:
         i = 0
         for key in resultdict:
