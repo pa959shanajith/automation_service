@@ -241,6 +241,9 @@ def LoadServices(app, redissession, n68session):
                         j['objectName'] = dataObjects[j['custname']]['xpath']
                         j['url'] = dataObjects[j['custname']]['url'] if 'url' in dataObjects[j['custname']] else ""
                         j['cord'] = dataObjects[j['custname']]['cord'] if 'cord' in dataObjects[j['custname']] else ""
+                        if 'original_device_width' in dataObjects[j['custname']].keys():
+                            j['original_device_width'] = dataObjects[j['custname']]['original_device_width']
+                            j['original_device_height'] = dataObjects[j['custname']]['original_device_height']
                         j['custname'] = dataObjects[j['custname']]['custname']
                     elif (j['custname'] not in defcn or j['custname']=='OBJECT_DELETED'):
                         j['custname'] = 'OBJECT_DELETED'

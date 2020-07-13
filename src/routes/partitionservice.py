@@ -103,8 +103,6 @@ def LoadServices(app, redissession, n68session):
                     for k in range(len(scenario_details[j])):
                         prev_time = prev_time + get_time(scenario_details[j][k]['scenarioId'])
                 end_time = latest['scheduledon']
-                #x = DP.parse(end_time)
-                #end_dtm = datetime.datetime(x.year,x.month,x.day,x.hour,x.minute)
                 end_dtm = end_time + datetime.timedelta(0,int(prev_time))
                 if end_dtm < dtm:
                     available_users.insert(0,users[i])

@@ -36,7 +36,6 @@ def LoadServices(app, redissession, n68session):
         inputdata["time"] = []
         inputdata["percent_received"] = []
         inputdata["hostip"] = []
-
         try:
             x = DP.parse(requestdata["time"])
             dtm = datetime.datetime(x.year,x.month,x.day,x.hour,x.minute) 
