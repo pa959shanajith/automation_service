@@ -139,6 +139,7 @@ def server_ready():
 from utils import *
 setenv(flaskapp=app)
 sys.path.append(currfiledir+os.sep+"routes")
+sys.path.append(currfiledir+os.sep+"utility")
 
 def addroutes():
     app.logger.debug("Loading services")

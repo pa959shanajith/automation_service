@@ -7,7 +7,7 @@ from Crypto.Cipher import AES
 import base64
 import json
 import datetime
-from utility import partition_scenarios
+import partition_scenarios
 import dateutil.parser as DP
 
 
