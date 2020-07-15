@@ -73,19 +73,20 @@ def LoadServices(app, redissession, n68session, licensedata):
             if not isemptyrequest(requestdata):
                 queryresult = n68session.icetokens.find_one({"icename":requestdata["icename"]})
                 query = None
-                user_query=None
+                user_query = {"name":"admin"} # Give admin's profile for CI/CD user
                 if queryresult is not None:
-                    token_query1={"type":"TOKENS","userid":queryresult["_id"],"deactivated":"active","expireson":{"$lt":datetime.today()}}
-                    token_query2={"userid":queryresult["_id"],"name":requestdata["tokenname"],"type":"TOKENS"}
-                    user_query={"name":"admin"}
+                    userid = queryresult["_id"]
                     if queryresult['icetype'] == 'normal':
-                        token_query1['userid'] = token_query2["userid"] = queryresult["provisionedto"]
-                        user_query={"_id":queryresult["provisionedto"]}
-                    n68session.thirdpartyintegration.update_many(token_query1,{"$set":{"deactivated":"expired"}})
-                    query = n68session.thirdpartyintegration.find_one(token_query2)
+                        userid = queryresult["provisionedto"]
+                        user_query = {"_id":queryresult["provisionedto"]}
+                    # Mark active tokens that are expired as expired
+                    deact_expired_tkn_qry = {"type":"TOKENS","userid":userid,"deactivated":"active","expireson":{"$lt":datetime.today()}}
+                    n68session.thirdpartyintegration.update_many(deact_expired_tkn_qry,{"$set":{"deactivated":"expired"}})
+                    # Fetch the token with given token name
+                    query = n68session.thirdpartyintegration.find_one({"userid":userid,"name":requestdata["tokenname"],"type":"TOKENS"})
                 if query is not None:
                     user_res=n68session.users.find_one(user_query,{"defaultrole":1})
-                    query["userid"]=user_res["_id"]
+                    query["userid"] = user_res["_id"]
                     query["role"] = user_res["defaultrole"]
                 else: query = "invalid"
                 res= {"rows":query}
