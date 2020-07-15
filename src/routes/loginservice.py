@@ -97,3 +97,43 @@ def LoadServices(app, redissession, n68session, licensedata):
         except Exception as authenticateuserciexc:
             servicesException('authenticateUser_Nineteen68_CI',authenticateuserciexc)
         return jsonify(res)
+
+    # service for fetching user profile for given icename or all provisioned ice
+    @app.route('/login/fetchICEUser',methods=['POST'])
+    def fetchICEUser():
+        app.logger.debug("Inside fetchICEUser")
+        res={'rows':'fail'}
+        try:
+            requestdata=json.loads(request.data)
+            if not isemptyrequest(requestdata):
+                find_args = {}
+                if "icename" in requestdata:
+                    find_args["icename"] = requestdata["icename"]
+                ice_list=list(n68session.icetokens.find(find_args))
+                user_ids=[i["provisionedto"] for i in ice_list if "provisionedto" in i]
+                user_list=list(n68session.users.find({"_id":{"$in":user_ids}},{"name":1,"defaultrole":1}))
+                user_profiles={x["_id"]: x for x in user_list}
+                cicd_user=n68session.users.find({"name":"ci_cd"},{"name":1,"defaultrole":1})
+                for row in ice_list:
+                    if row["icetype"]=="normal":
+                        prv_to = row["provisionedto"]
+                        if prv_to in user_ids:
+                            row["userid"] = prv_to
+                            row["name"] = user_profiles[prv_to]["name"]
+                            row["role"] = user_profiles[prv_to]["defaultrole"]
+                        #else: n68session.icetokens.delete_one({"_id": row["_id"]})
+                        del row["provisionedto"]
+                    else:
+                        row["userid"] = cicd_user["_id"]
+                        row["name"] = cicd_user["name"]
+                        row["role"] = cicd_user["defaultrole"]
+                if "icename" in requestdata:
+                    if len(ice_list) == 0: ice_list = None
+                    else: ice_list = ice_list[0]
+                    if "userid" not in ice_list: ice_list = None
+                res={'rows':ice_list}
+            else:
+                app.logger.warn('Empty data received. get user profile for ice.')
+        except Exception as fetchICEexc:
+            servicesException("fetchICEUser", fetchICEexc, True)
+        return jsonify(res)
