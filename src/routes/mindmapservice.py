@@ -193,7 +193,7 @@ def LoadServices(app, redissession, n68session):
             projectid = requestdata['projectid']
             screenid = getScreenID(screenname,projectid)
             if(screenid==None):
-                queryresult=n68session.screens.insert_one({"name":requestdata['screenname'],"projectid":ObjectId(requestdata['projectid']),"versionnumber":requestdata['versionnumber'],"parent":[],"createdby":requestdata['createdby'],"createdon":requestdata['createdon'],"createdbyrole":requestdata['createdbyrole'],"modifiedby":requestdata['modifiedby'],"modifiedon":modifiedon,"modifiedbyrole":requestdata['modifiedbyrole'],"deleted":requestdata['deleted'],"screenshot":requestdata['screenshot'],"scrapedurl":requestdata['scrapedurl']}).inserted_id
+                queryresult=n68session.screens.insert_one({"name":requestdata['screenname'],"projectid":ObjectId(requestdata['projectid']),"versionnumber":requestdata['versionnumber'],"parent":[],"createdby":ObjectId(requestdata['createdby']),"createdon":modifiedon,"createdbyrole":ObjectId(requestdata['createdbyrole']),"modifiedby":ObjectId(requestdata['modifiedby']),"modifiedon":modifiedon,"modifiedbyrole":ObjectId(requestdata['modifiedbyrole']),"deleted":requestdata['deleted'],"screenshot":requestdata['screenshot'],"scrapedurl":requestdata['scrapedurl']}).inserted_id
                 result = createdataobjects(queryresult,requestdata)
             else:
                 result = createdataobjects(screenid,requestdata)
@@ -220,7 +220,7 @@ def LoadServices(app, redissession, n68session):
                         for j in range(len(data2)):
                             if(data2[j]['custname']==data1[i]['custname']):
                                 data2[j]['custname']=ObjectId(data1[i]['_id'])
-                    queryresult=n68session.testcases.insert_one({"name":requestdata['testcasename'],"screenid":ObjectId(requestdata['screenid']),"versionnumber":requestdata['versionnumber'],"createdby":requestdata['createdby'],"createdon":requestdata['createdon'],"modifiedby":requestdata['modifiedby'],"modifiedon":modifiedon,"modifiedbyrole":requestdata['modifiedbyrole'],"deleted":requestdata['deleted'],"steps":data2,"parent":requestdata["parent"],"deleted":requestdata["deleted"]})
+                    queryresult=n68session.testcases.insert_one({"name":requestdata['testcasename'],"screenid":ObjectId(requestdata['screenid']),"versionnumber":requestdata['versionnumber'],"createdby":ObjectId(requestdata['createdby']),"createdon":modifiedon,"createdbyrole":ObjectId(requestdata['createdbyrole']),"modifiedby":ObjectId(requestdata['modifiedby']),"modifiedon":modifiedon,"modifiedbyrole":ObjectId(requestdata['modifiedbyrole']),"deleted":requestdata['deleted'],"steps":data2,"parent":requestdata["parent"]})
                 res={'rows':'Success'}
             else:
                 app.logger.warn("Empty data received. updateTestcasename_ICE")
