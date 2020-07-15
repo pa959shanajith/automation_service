@@ -24,7 +24,9 @@ def LoadServices(app, redissession, n68session, licensedata):
         try:
             requestdata=json.loads(request.data)
             if not isemptyrequest(requestdata):
-                user_data = n68session.users.find_one({"name":requestdata["username"]})
+                user_data = None
+                if requestdata["username"] != "ci_cd":
+                    user_data = n68session.users.find_one({"name":requestdata["username"]})
                 res={'rows': user_data}
             else:
                 app.logger.warn('Empty data received. authentication')
@@ -73,7 +75,7 @@ def LoadServices(app, redissession, n68session, licensedata):
             if not isemptyrequest(requestdata):
                 queryresult = n68session.icetokens.find_one({"icename":requestdata["icename"]})
                 query = None
-                user_query = {"name":"admin"} # Give admin's profile for CI/CD user
+                user_query = {"name":"ci_cd"}
                 if queryresult is not None:
                     userid = queryresult["_id"]
                     if queryresult['icetype'] == 'normal':

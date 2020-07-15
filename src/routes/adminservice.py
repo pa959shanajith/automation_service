@@ -70,7 +70,10 @@ def LoadServices(app, redissession, n68session,licensedata,*args):
             del requestdata["action"]
             app.logger.info("Inside manageUserDetails. Query: "+str(action))
             if not isemptyrequest(requestdata):
-                if(action=="delete"):
+                if requestdata["name"] in ["support.nineteen68","ci_cd"]:
+                    app.logger.error("Cannot perform read/write operation on priviliged user: "+requestdata["name"])
+                    res={"rows":"forbidden"}
+                elif(action=="delete"):
                     result=n68session.users.delete_one({"name":requestdata['name']})
                     # Delete assigned tasks
                     n68session.tasks.delete_many({"assignedto":ObjectId(requestdata["userid"]),"status":{"$ne":'complete'}})
@@ -123,16 +126,18 @@ def LoadServices(app, redissession, n68session,licensedata,*args):
             if request.data:
                 requestdata=json.loads(request.data)
             if not isemptyrequest(requestdata):
-                # if n68session.server_info():
-                    if "userid" in requestdata:
-                        result=n68session.users.find_one({"_id":ObjectId(requestdata["userid"])},{"name":1,"firstname":1,"lastname":1,"email":1,"ldapuser":1,"defaultrole":1,"addroles":1})
-                        result["rolename"]=n68session.permissions.find_one({"_id":result["defaultrole"]})["name"]
-                        res={'rows':result}
-                    else:
-                        result=list(n68session.users.find({},{"_id":1,"name":1,"defaultrole":1}))
-                        for i in result:
-                            i["rolename"]=n68session.permissions.find_one({"_id":i["defaultrole"]})["name"]
-                        res={'rows':result}
+                if "userid" in requestdata:
+                    result=n68session.users.find_one({"_id":ObjectId(requestdata["userid"])},{"name":1,"firstname":1,"lastname":1,"email":1,"ldapuser":1,"defaultrole":1,"addroles":1})
+                    if result["name"] in ["support.nineteen68","ci_cd"]: result = None
+                    else: result["rolename"]=n68session.permissions.find_one({"_id":result["defaultrole"]})["name"]
+                    res={'rows':result}
+                else:
+                    perms_list = n68session.permissions.find({},{"_id":1,"name":1})
+                    perms = {x["_id"]: x["name"] for x in perms_list}
+                    result=list(n68session.users.find({"name":{"$nin":["support.nineteen68","ci_cd"]}},{"_id":1,"name":1,"defaultrole":1}))
+                    for i in result:
+                        i["rolename"]=perms[i["defaultrole"]]
+                    res={'rows':result}
             else:
                 app.logger.warn('Empty data received. users fetch.')
         except Exception as e:
@@ -151,7 +156,7 @@ def LoadServices(app, redissession, n68session,licensedata,*args):
                 result=list(n68session.permissions.find({"_id":requestdata["id"]},{"name":1}))
                 res={'rows':result}
             else:
-                result=list(n68session.permissions.find({},{"_id":1,"name":1}))
+                result=list(n68session.permissions.find({"name":{"$ne":"CI_CD"}},{"_id":1,"name":1}))
                 res={'rows':result}
         except Exception as userrolesexc:
             servicesException("getUserRoles_Nineteen68", userrolesexc, True)
@@ -583,9 +588,6 @@ def LoadServices(app, redissession, n68session,licensedata,*args):
                             elif k == requestdata["domainid"] and diff_pro[i] in v:
                                 remove_pro.append(diff_pro[i])
 
-                    # list(n68session.users.find({"_id":ObjectId(requestdata["userid"])},{"projects":1}))
-                    # for idval in requestdata['projectids']:
-                    #     result.append(ObjectId(idval))
                     result=n68session.users.update_one({"_id":ObjectId(requestdata["userid"])},{"$set":{"projects":result}})
                     n68session.tasks.delete_many({"projectid":{"$in":remove_pro},"assignedto":ObjectId(requestdata["userid"]),"status":{"$ne":'complete'}})
                     n68session.tasks.delete_many({"projectid":{"$in":remove_pro},"owner":ObjectId(requestdata["userid"]),"status":{"$ne":'complete'}})
@@ -647,7 +649,7 @@ def LoadServices(app, redissession, n68session,licensedata,*args):
         try:
             requestdata=json.loads(request.data)
             if not isemptyrequest(requestdata):
-                result = list(n68session.permissions.find({},{"name":1,"plugins":1,"_id":0}))
+                result = list(n68session.permissions.find({{"name":{"$ne":"CI_CD"}}},{"name":1,"plugins":1,"_id":0}))
                 res = {'rows':result}
             else:
                 app.logger.warn('Empty data received. get user preferences.')

@@ -53,7 +53,6 @@ def LoadServices(app, redissession, n68session):
                     tsclen = len(testscenarioids)
                     createdby = ObjectId(requestdata['createdby'])
                     createdbyrole = ObjectId(requestdata['createdbyrole'])
-                    #createdbyrole = n68session.users.find_one({"_id":createdby},{"defaultrole":1})["defaultrole"]
                     querydata = {}
                     querydata["name"] = mindmaps["name"]
                     querydata["modifiedby"] = createdby
