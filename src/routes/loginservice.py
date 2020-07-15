@@ -24,7 +24,9 @@ def LoadServices(app, redissession, n68session, licensedata):
         try:
             requestdata=json.loads(request.data)
             if not isemptyrequest(requestdata):
-                user_data = n68session.users.find_one({"name":requestdata["username"]})
+                user_data = None
+                if requestdata["username"] != "ci_cd":
+                    user_data = n68session.users.find_one({"name":requestdata["username"]})
                 res={'rows': user_data}
             else:
                 app.logger.warn('Empty data received. authentication')
@@ -73,19 +75,20 @@ def LoadServices(app, redissession, n68session, licensedata):
             if not isemptyrequest(requestdata):
                 queryresult = n68session.icetokens.find_one({"icename":requestdata["icename"]})
                 query = None
-                user_query=None
+                user_query = {"name":"ci_cd"}
                 if queryresult is not None:
-                    token_query1={"type":"TOKENS","userid":queryresult["_id"],"deactivated":"active","expireson":{"$lt":datetime.today()}}
-                    token_query2={"userid":queryresult["_id"],"name":requestdata["tokenname"],"type":"TOKENS"}
-                    user_query={"name":"admin"}
+                    userid = queryresult["_id"]
                     if queryresult['icetype'] == 'normal':
-                        token_query1['userid'] = token_query2["userid"] = queryresult["provisionedto"]
-                        user_query={"_id":queryresult["provisionedto"]}
-                    n68session.thirdpartyintegration.update_many(token_query1,{"$set":{"deactivated":"expired"}})
-                    query = n68session.thirdpartyintegration.find_one(token_query2)
+                        userid = queryresult["provisionedto"]
+                        user_query = {"_id":queryresult["provisionedto"]}
+                    # Mark active tokens that are expired as expired
+                    deact_expired_tkn_qry = {"type":"TOKENS","userid":userid,"deactivated":"active","expireson":{"$lt":datetime.today()}}
+                    n68session.thirdpartyintegration.update_many(deact_expired_tkn_qry,{"$set":{"deactivated":"expired"}})
+                    # Fetch the token with given token name
+                    query = n68session.thirdpartyintegration.find_one({"userid":userid,"name":requestdata["tokenname"],"type":"TOKENS"})
                 if query is not None:
                     user_res=n68session.users.find_one(user_query,{"defaultrole":1})
-                    query["userid"]=user_res["_id"]
+                    query["userid"] = user_res["_id"]
                     query["role"] = user_res["defaultrole"]
                 else: query = "invalid"
                 res= {"rows":query}
@@ -93,4 +96,44 @@ def LoadServices(app, redissession, n68session, licensedata):
                 app.logger.warn('Empty data received. authentication')
         except Exception as authenticateuserciexc:
             servicesException('authenticateUser_Nineteen68_CI',authenticateuserciexc)
+        return jsonify(res)
+
+    # service for fetching user profile for given icename or all provisioned ice
+    @app.route('/login/fetchICEUser',methods=['POST'])
+    def fetchICEUser():
+        app.logger.debug("Inside fetchICEUser")
+        res={'rows':'fail'}
+        try:
+            requestdata=json.loads(request.data)
+            if not isemptyrequest(requestdata):
+                find_args = {}
+                if "icename" in requestdata:
+                    find_args["icename"] = requestdata["icename"]
+                ice_list=list(n68session.icetokens.find(find_args))
+                user_ids=[i["provisionedto"] for i in ice_list if "provisionedto" in i]
+                user_list=list(n68session.users.find({"_id":{"$in":user_ids}},{"name":1,"defaultrole":1}))
+                user_profiles={x["_id"]: x for x in user_list}
+                cicd_user=n68session.users.find({"name":"ci_cd"},{"name":1,"defaultrole":1})
+                for row in ice_list:
+                    if row["icetype"]=="normal":
+                        prv_to = row["provisionedto"]
+                        if prv_to in user_ids:
+                            row["userid"] = prv_to
+                            row["name"] = user_profiles[prv_to]["name"]
+                            row["role"] = user_profiles[prv_to]["defaultrole"]
+                        #else: n68session.icetokens.delete_one({"_id": row["_id"]})
+                        del row["provisionedto"]
+                    else:
+                        row["userid"] = cicd_user["_id"]
+                        row["name"] = cicd_user["name"]
+                        row["role"] = cicd_user["defaultrole"]
+                if "icename" in requestdata:
+                    if len(ice_list) == 0: ice_list = None
+                    else: ice_list = ice_list[0]
+                    if "userid" not in ice_list: ice_list = None
+                res={'rows':ice_list}
+            else:
+                app.logger.warn('Empty data received. get user profile for ice.')
+        except Exception as fetchICEexc:
+            servicesException("fetchICEUser", fetchICEexc, True)
         return jsonify(res)
