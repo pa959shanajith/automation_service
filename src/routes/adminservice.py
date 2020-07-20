@@ -649,7 +649,7 @@ def LoadServices(app, redissession, n68session,licensedata,*args):
         try:
             requestdata=json.loads(request.data)
             if not isemptyrequest(requestdata):
-                result = list(n68session.permissions.find({{"name":{"$ne":"CI_CD"}}},{"name":1,"plugins":1,"_id":0}))
+                result = list(n68session.permissions.find({"name":{"$ne":"CI_CD"}},{"name":1,"plugins":1,"_id":0}))
                 res = {'rows':result}
             else:
                 app.logger.warn('Empty data received. get user preferences.')

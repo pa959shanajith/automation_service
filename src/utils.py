@@ -153,7 +153,8 @@ ecodeServices = {
     "manageOIDCConfig": "391",
     "update_execution_times": "392",
     "write_execution_times": "393",
-    "fetchICEUser": "394"
+    "fetchICEUser": "394",
+    "getPreferences": "395"
 }
 
 
