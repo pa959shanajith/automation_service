@@ -1,5 +1,5 @@
 #-------------------------------------------------------------------------------
-# Name:        ndac.py
+# Name:        dac.py
 # Purpose:     Security Aspects, Licensing components and ProfJ
 #
 # Created:     10/07/2017
@@ -43,7 +43,7 @@ log_group.add_argument("-E", "--error", action="store_true", help="Set logger le
 log_group.add_argument("-C", "--critical", action="store_true", help="Set logger level to Critical")
 parserArgs = parser.parse_args()
 
-ice_ndac_key = "".join(['a','j','k','d','f','i','H','F','E','o','w','#','D','j',
+ice_das_key = "".join(['a','j','k','d','f','i','H','F','E','o','w','#','D','j',
     'g','L','I','q','o','c','n','^','8','s','j','p','2','h','f','Y','&','d'])
 db_keys = "".join(['N','i','n','E','t','e','E','n','6','8','d','A','t','a','B',
     'A','s','3','e','N','c','R','y','p','T','1','0','n','k','3','y','S'])
@@ -60,23 +60,23 @@ currexc = sys.executable
 try: currfiledir = os.path.dirname(os.path.abspath(__file__))
 except: currfiledir = os.path.dirname(currexc)
 currdir = os.getcwd()
-if os.path.basename(currexc).startswith("ndac"):
+if os.path.basename(currexc).startswith("AvoAssureDAS"):
     currdir = os.path.dirname(currexc)
 elif os.path.basename(currexc).startswith("python"):
     currdir = currfiledir
-    needdir = "ndac_internals"
+    needdir = "das_internals"
     parent_currdir = os.path.abspath(os.path.join(currdir,".."))
     if os.path.isdir(os.path.abspath(os.path.join(parent_currdir,"..",needdir))):
         currdir = os.path.dirname(parent_currdir)
     elif os.path.isdir(parent_currdir + os.sep + needdir):
         currdir = parent_currdir
 config_path = currdir+'/server_config.json'
-assistpath = currdir + "/ndac_internals/assist"
-logspath = currdir + "/ndac_internals/logs"
+assistpath = currdir + "/das_internals/assist"
+logspath = currdir + "/das_internals/logs"
 
 lsip = "127.0.0.1"
 lsport = "5000"
-ndacport = "1990"
+dasport = "1990"
 redis_dbup = False
 mongo_dbup = False
 onlineuser = False
@@ -88,7 +88,7 @@ LS_CRITICAL_ERR_CODE=['199','120','121','123','124','125']
 lsRetryCount=0
 sysMAC=None
 chronographTimer=None
-n68session=redissession=None
+dbsession=redissession=None
 
 #counters for License
 debugcounter = 0
@@ -144,40 +144,40 @@ sys.path.append(currfiledir+os.sep+"utility")
 def addroutes():
     app.logger.debug("Loading services")
     import loginservice
-    loginservice.LoadServices(app, redissession, n68session, licensedata)
+    loginservice.LoadServices(app, redissession, dbsession, licensedata)
 
     import adminservice
-    adminservice.LoadServices(app, redissession, n68session, licensedata,ice_ndac_key)
+    adminservice.LoadServices(app, redissession, dbsession, licensedata,ice_das_key)
 
     import mindmapservice
-    mindmapservice.LoadServices(app, redissession, n68session)
+    mindmapservice.LoadServices(app, redissession, dbsession)
 
     import designscreenservice
-    designscreenservice.LoadServices(app, redissession, n68session)
+    designscreenservice.LoadServices(app, redissession, dbsession)
 
     import designtestcaseservice
-    designtestcaseservice.LoadServices(app, redissession, n68session)
+    designtestcaseservice.LoadServices(app, redissession, dbsession)
 
     import executionservice
-    executionservice.LoadServices(app, redissession, n68session)
+    executionservice.LoadServices(app, redissession, dbsession)
 
     import thirdpartyservice
-    thirdpartyservice.LoadServices(app, redissession, n68session)
+    thirdpartyservice.LoadServices(app, redissession, dbsession)
 
     import reportsservice
-    reportsservice.LoadServices(app, redissession, n68session)
+    reportsservice.LoadServices(app, redissession, dbsession)
 
     import utilitiesservice
-    utilitiesservice.LoadServices(app, redissession, n68session)
+    utilitiesservice.LoadServices(app, redissession, dbsession)
 
     import neurongraphsservice
-    neurongraphsservice.LoadServices(app, redissession, n68session)
+    neurongraphsservice.LoadServices(app, redissession, dbsession)
     
     import benchmarkservice
-    benchmarkservice.LoadServices(app,redissession,n68session)
+    benchmarkservice.LoadServices(app,redissession,dbsession)
 
     import partitionservice
-    partitionservice.LoadServices(app,redissession,n68session)
+    partitionservice.LoadServices(app,redissession,dbsession)
 
     #Prof J First Service: Getting Best Matches
     @app.route('/chatbot/getTopMatches_ProfJ',methods=['POST'])
@@ -190,7 +190,7 @@ def addroutes():
             else: query = str(request.data)
             profj = ProfJ(pages,questions,answers,keywords,weights,pquestions,newQuesInfo,savedQueries)
             response,newQuesInfo,savedQueries = profj.start(query)
-            #if response[0][1] == "Please be relevant..I work soulfully for Nineteen68":
+            #if response[0][1] == "Please be relevant..I work soulfully for Avo Assure":
                 #response[0][1] = str(chatbot.get_response(query))
             profj_sqlitedb.updateCaptureTable()
             res={'rows':response}
@@ -237,7 +237,7 @@ def updateActiveIceSessions():
     global latest_access_time
     res = {"id":"","res":"fail","ts_now":str(datetime.now()),"connect_time":str(datetime.now()),
         "plugins":"","data":random.random()*100000000000000}
-    response = {"node_check":False,"ice_check":wrap(json.dumps(res),ice_ndac_key)}
+    response = {"node_check":False,"ice_check":wrap(json.dumps(res),ice_das_key)}
     ice_uuid = None
     ice_ts = None
     try:
@@ -256,7 +256,7 @@ def updateActiveIceSessions():
                 res['res'] = "success"
 
             elif(requestdata['query']=='connect' and 'icesession' in requestdata):
-                icesession = unwrap(requestdata['icesession'],ice_ndac_key)
+                icesession = unwrap(requestdata['icesession'],ice_das_key)
                 icesession = json.loads(icesession)
                 ice_action = icesession["iceaction"]
                 ice_token_dec = icesession["icetoken"]
@@ -271,7 +271,7 @@ def updateActiveIceSessions():
                 res['id']=ice_uuid
                 res['connect_time'] = icesession['connect_time']
                 # ICE which are in "deregistered" status are eliminated for the Registration and Connection
-                queryresult = n68session.icetokens.find_one({"token":ice_token,"icetype":ice_type,"icename":ice_name})
+                queryresult = dbsession.icetokens.find_one({"token":ice_token,"icetype":ice_type,"icename":ice_name})
                 if queryresult is None:
                     res['err_msg'] = "Unauthorized: Access denied due to Invalid Token"
                     response["node_check"] = res['status'] = "InvalidToken"
@@ -286,7 +286,7 @@ def updateActiveIceSessions():
                             else:
                                 res['err_msg'] = "Access denied: Token is expired!"
                         else:
-                            n68session.icetokens.update_one({"token":ice_token},{"$set":{"hostname":hostname,"registeredon":datetime.now(),"status":REGISTER_STATUS}})
+                            dbsession.icetokens.update_one({"token":ice_token},{"$set":{"hostname":hostname,"registeredon":datetime.now(),"status":REGISTER_STATUS}})
                             response["node_check"] = res['status'] = "validICE"
                     # Connection Phase
                     else:
@@ -298,7 +298,7 @@ def updateActiveIceSessions():
                         if ice_status == REGISTER_STATUS:
                             #If icetype=="normal" , map username-->icename , else if icetype=="ci-cd" map icetoken-->icename
                             if ice_type == "normal": 
-                                username = n68session.users.find_one({"_id":queryresult["provisionedto"]},{"name":1})
+                                username = dbsession.users.find_one({"_id":queryresult["provisionedto"]},{"name":1})
                                 if username is not None: username = username['name']
                             elif ice_type == "ci-cd":
                                 username = ice_name
@@ -329,7 +329,7 @@ def updateActiveIceSessions():
                                             ice_plugins_list.append(keys)
                                     res["plugins"] = ice_plugins_list
                             else:
-                                res['err_msg'] = ice_name+" is not Registered with a valid Nineteen68 User"
+                                res['err_msg'] = ice_name+" is not Registered with a valid Avo Assure User"
                                 response["node_check"] = res['status'] = "InvalidICE"
                                 app.logger.error(res['err_msg'])
                         else:
@@ -339,7 +339,7 @@ def updateActiveIceSessions():
                                 res['err_msg'] = "Access denied: ICE is not in Registered state"
                             response["node_check"] = res['status'] = "InvalidICE"
                             app.logger.error("%s : ICE is not in Registered state ", ice_name)
-                response["ice_check"] = wrap(json.dumps(res),ice_ndac_key)
+                response["ice_check"] = wrap(json.dumps(res),ice_das_key)
             app.logger.debug("Connected clients: "+str(list(activeicesessions.keys())))
         else:
             app.logger.warn('Empty data received. updateActiveIceSessions.')
@@ -360,7 +360,7 @@ def updateActiveIceSessions():
 def counterupdator(updatortype,userid,count):
     status=False
     try:
-        n68session.counters.find_one_and_update({"countertype":updatortype, "userid":ObjectId(userid)},{"$set":{"counter":count},"$currentDate":{"counterdate":True}})
+        dbsession.counters.find_one_and_update({"countertype":updatortype, "userid":ObjectId(userid)},{"$set":{"counter":count},"$currentDate":{"counterdate":True}})
         status = True
     except Exception as counterupdatorexc:
         servicesException("counterupdator",counterupdatorexc)
@@ -369,7 +369,7 @@ def counterupdator(updatortype,userid,count):
 def getreports_in_day(bgnts,endts):
     res = {"rows":"fail"}
     try:
-        queryresult = list(n68session.reports.find({'executedtime':{'$gt': bgnts, '$lte': endts}}))
+        queryresult = list(dbsession.reports.find({'executedtime':{'$gt': bgnts, '$lte': endts}}))
         res = {'rows':queryresult}
     except Exception as getreports_in_dayexc:
         servicesException("getreports_in_day",getreports_in_dayexc)
@@ -378,7 +378,7 @@ def getreports_in_day(bgnts,endts):
 def getsuites_inititated(bgnts,endts):
     res = {"rows":"fail"}
     try:
-        queryresult = list(n68session.counters.find({'counterdate':{'$gt': bgnts, '$lte': endts}, 'countertype':'testsuites'}))
+        queryresult = list(dbsession.counters.find({'counterdate':{'$gt': bgnts, '$lte': endts}, 'countertype':'testsuites'}))
         res = {"rows":queryresult}
     except Exception as getsuites_inititatedexc:
         servicesException("getsuites_inititated",getsuites_inititatedexc)
@@ -387,7 +387,7 @@ def getsuites_inititated(bgnts,endts):
 def getscenario_inititated(bgnts,endts):
     res = {"rows":"fail"}
     try:
-        queryresult = list(n68session.counters.find({'counterdate':{'$gt': bgnts, '$lte': endts}, 'countertype':'testscenarios'}))
+        queryresult = list(dbsession.counters.find({'counterdate':{'$gt': bgnts, '$lte': endts}, 'countertype':'testscenarios'}))
         res = {"rows":queryresult}
     except Exception as getscenario_inititatedexc:
         servicesException("getscenario_inititated",getscenario_inititatedexc)
@@ -396,7 +396,7 @@ def getscenario_inititated(bgnts,endts):
 def gettestcases_inititated(bgnts,endts):
     res = {"rows":"fail"}
     try:
-        queryresult = list(n68session.counters.find({'counterdate':{'$gt': bgnts, '$lte': endts}, 'countertype':'testcases'}))
+        queryresult = list(dbsession.counters.find({'counterdate':{'$gt': bgnts, '$lte': endts}, 'countertype':'testcases'}))
         res = {"rows":queryresult}
     except Exception as gettestcases_inititatedexc:
         servicesException("gettestcases_inititated",gettestcases_inititatedexc)
@@ -655,7 +655,7 @@ def connectingls(data):
     lsRetryCount+=1
     connectionstatus=False
     try:
-        lsresponse = requests.post('http://'+lsip+":"+lsport+"/ndacrequest",data=data)
+        lsresponse = requests.post('http://'+lsip+":"+lsport+"/dasrequest",data=data)
         if lsresponse.status_code == 200:
             dbdata=dataholder('select')
             if('grace_period' in dbdata):
@@ -682,7 +682,7 @@ def chronograph():
             x = datetime.utcnow() + timedelta(seconds = 19800)
             secs = (getupdatetime() - x).total_seconds()
         t = Timer(secs, updateonls)
-        update_script_thread = Timer(secs,update_execution_times,[n68session,app])
+        update_script_thread = Timer(secs,update_execution_times,[dbsession,app])
         update_script_thread.start()
         t.start()
     except Exception as e:
@@ -700,16 +700,26 @@ def dataholder(ops,*args):
             conn = sqlite3.connect(logspath+"/data.db")
             if ops=='select':
                 #Retrieve the data from db and decrypt it
-                cursor1 = conn.execute("SELECT intrtkndt FROM clndls WHERE sysid='ndackey'")
-                for row in cursor1:
-                    data = row[0]
+                cursor = conn.cursor()
+                result = cursor.execute("SELECT intrtkndt FROM clndls WHERE sysid='daskey'")
+                data = list(result)
+                if len(data) == 0:
+                    # Backward compatibility
+                    old_key = "nd"+"ackey" # To hide n.d.a.c from search
+                    result = list(cursor.execute("SELECT intrtkndt FROM clndls WHERE sysid=(?)",(old_key,)))
+                    if len(result) == 0: data = ""
+                    else:
+                        data = result[0][0]
+                        cursor.execute("INSERT INTO clndls(sysid,intrtkndt) VALUES (?,?)",('daskey',data))
+                        cursor.execute("DELETE FROM clndls WHERE sysid=(?)",(old_key,))
+                else: data = data[0][0]
                 data=unwrap(data,mine)
                 data=json.loads(data)
             elif ops=='update':
                 #Encrypt data and update in db
                 datatodb=json.dumps(args[0])
                 datatodb=wrap(datatodb,mine)
-                cursor1 = conn.execute("UPDATE clndls SET intrtkndt = ? WHERE sysid = 'ndackey'",[datatodb])
+                cursor1 = conn.execute("UPDATE clndls SET intrtkndt = ? WHERE sysid = 'daskey'",[datatodb])
                 data=True
             conn.commit()
             conn.close()
@@ -754,7 +764,7 @@ def dataholder_profj(ops,*args):
 def checkSetup():
     app.logger.debug("Inside Setup Check")
     global grace_period
-    enndac=False
+    endas=False
     errCode=0
     #checks if the db is already existing,
         #if exists, verifies the MAC address, if present allows further,
@@ -770,35 +780,35 @@ def checkSetup():
             dbmacid=dbdata['macid']
             sysmacid=sysMAC
             if len(dbmacid)==0:
-                enndac=True
+                endas=True
                 dbdata['macid']=sysmacid
                 dataholder('update',dbdata)
             elif False and dbmacid!=sysmacid and dbmacid!="PoC".lower():
-                enndac=False
+                endas=False
                 errCode='211'
             else:
-                enndac=True
+                endas=True
         else:
-            enndac=False
+            endas=False
             errCode='213'
     else:
-        enndac=False
+        endas=False
         errCode='212'
 
     if not profj_dbexists:
-        enndac=False
+        endas=False
         errCode='222'
 
     if errCode!=0:
         app.logger.error(printErrorCodes(errCode))
-    return enndac
+    return endas
 
 def beginserver():
     global profj_sqlitedb
     if redis_dbup and mongo_dbup:
         profj_sqlitedb = SQLite_DataSetup()
         updateWeightages() # ProfJ component
-        serve(app,host='127.0.0.1',port=int(ndacport))
+        serve(app,host='127.0.0.1',port=int(dasport))
     else:
         app.logger.critical(printErrorCodes('207'))
 
@@ -859,7 +869,7 @@ def initLoggers(level):
     consoleHandler = app.logger.handlers[0]
     consoleHandler.setFormatter(consoleFormatter)
     fileFormatter = logging.Formatter('''{"timestamp": "%(asctime)s", "file": "%(module)s", "lineno.": %(lineno)d, "level": "%(levelname)s", "message": "%(message)s"}''')
-    fileHandler = TimedRotatingFileHandler(logspath+'/ndac/ndac'+datetime.now().strftime("_%Y%m%d-%H%M%S")+'.log',when='d', encoding='utf-8', backupCount=1)
+    fileHandler = TimedRotatingFileHandler(logspath+'/das/das'+datetime.now().strftime("_%Y%m%d-%H%M%S")+'.log',when='d', encoding='utf-8', backupCount=1)
     fileHandler.setFormatter(fileFormatter)
     app.logger.addHandler(fileHandler)
     if level.test:
@@ -1089,7 +1099,7 @@ class ProfJ():
                         self.newQuesInfo.append(temp1)
                     #self.newKeys.append(query_string)
             else:
-                response = [[-1, "Please be relevant..I work soulfully for Nineteen68", -1]]
+                response = [[-1, "Please be relevant..I work soulfully for Avo Assure", -1]]
         else:
             response = [-1, "Invalid Input...Please try again", -1]
         return response, self.newQuesInfo, self.savedQueries
@@ -1103,25 +1113,25 @@ class ProfJ():
 ################################################################################
 
 def main():
-    global lsip,lsport,ndacport,mongo_dbup,redis_dbup,chronographTimer
-    global redissession,n68session
-    cleanndac = checkSetup()
-    if not cleanndac:
+    global lsip,lsport,dasport,mongo_dbup,redis_dbup,chronographTimer
+    global redissession,dbsession
+    cleandas = checkSetup()
+    if not cleandas:
         app.logger.critical(printErrorCodes('214'))
         return False
 
     try:
-        ndac_conf_obj = open(config_path, 'r')
-        ndac_conf = json.load(ndac_conf_obj)
-        ndac_conf_obj.close()
-        lsip = ndac_conf['licenseserverip']
-        if 'licenseserverport' in ndac_conf:
-            lsport = ndac_conf['licenseserverport']
-        if 'ndacserverport' in ndac_conf:
-            ndacport = ndac_conf['ndacserverport']
-            ERR_CODE["225"] = "Port "+ndacport+" already in use"
-        if 'custChronographTimer' in ndac_conf:
-            chronographTimer = int(ndac_conf['custChronographTimer'])
+        das_conf_obj = open(config_path, 'r')
+        das_conf = json.load(das_conf_obj)
+        das_conf_obj.close()
+        lsip = das_conf['licenseserverip']
+        if 'licenseserverport' in das_conf:
+            lsport = das_conf['licenseserverport']
+        if 'dasserverport' in das_conf:
+            dasport = das_conf['dasserverport']
+            ERR_CODE["225"] = "Port "+dasport+" already in use"
+        if 'custChronographTimer' in das_conf:
+            chronographTimer = int(das_conf['custChronographTimer'])
             app.logger.debug("'custChronographTimer' detected.")
     except Exception as e:
         app.logger.debug(e)
@@ -1129,7 +1139,7 @@ def main():
         return False
 
     try:
-        redisdb_conf = ndac_conf['cachedb']
+        redisdb_conf = das_conf['cachedb']
         redisdb_pass = unwrap(redisdb_conf['password'],db_keys)
         redissession = redis.StrictRedis(host=redisdb_conf['host'], port=int(redisdb_conf['port']), password=redisdb_pass, db=3)
         if redissession.get('icesessions') is None:
@@ -1142,7 +1152,7 @@ def main():
         return False
 
     try:
-        mongodb_conf = ndac_conf['nineteen68db']
+        mongodb_conf = das_conf['avoassuredb']
         mongo_user=unwrap(mongodb_conf["username"],db_keys)
         mongo_pass=unwrap(mongodb_conf['password'],db_keys)
         client = MongoClient('mongodb://%s:%s/' % (mongodb_conf["host"],mongodb_conf["port"]),
@@ -1150,7 +1160,7 @@ def main():
             authMechanism = 'SCRAM-SHA-1')
         if client.server_info():
             mongo_dbup = True
-        n68session = client.Nineteen68
+        dbsession = client.Nineteen68
     except Exception as e:
         app.logger.debug(e)
         app.logger.critical(printErrorCodes('206'))
@@ -1160,7 +1170,7 @@ def main():
         addroutes()
         err_msg = None
         try:
-            resp = requests.get("http://127.0.0.1:"+ndacport)
+            resp = requests.get("http://127.0.0.1:"+dasport)
             err_msg = printErrorCodes('225')
             if resp.content == ['Data Server Ready!!!', 'Data Server Stopped!!!']:
                 err_msg = printErrorCodes('224')

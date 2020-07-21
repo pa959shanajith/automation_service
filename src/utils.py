@@ -21,7 +21,7 @@ PROVISION_STATUS="provisioned"
 DEREGISTER_STATUS="deregistered"
 
 onlineuser = False
-ndacport = "1990"
+dasport = "1990"
 debugcounter = 0
 scenarioscounter = 0
 
@@ -34,40 +34,40 @@ projecttype_names={}
 ERR_CODE={
     "201":"Error while registration with LS",
     "202":"Error while pushing update to LS",
-    "203":"NDAC is stopped. Issue - Licensing Server is offline",
-    "204":"NDAC is stopped. Issue - Offline license expired",
-    "205":"NDAC is stopped due to license expiry or loss of connectivity",
-    "206":"Error while establishing connection to Nineteen68 Database",
+    "203":"Avo Assure DAS is stopped. Issue - Licensing Server is offline",
+    "204":"Avo Assure DAS is stopped. Issue - Offline license expired",
+    "205":"Avo Assure DAS is stopped due to license expiry or loss of connectivity",
+    "206":"Error while establishing connection to Avo Assure Database",
     "207":"Database connectivity Unavailable",
     "208":"License server must be running",
     "209":"Critical Internal Exception occurred",
     "210":"Critical Internal Exception occurred: updateData",
-    "211":"Another instance of NDAC is already registered with the License server",
+    "211":"Another instance of Avo Assure DAS is already registered with the License server",
     "212":"Unable to contact storage areas",
     "213":"Critical error in storage areas",
-    "214":"Please contact Team - Nineteen68. Setup is corrupted",
+    "214":"Please contact Team - Avo Assure. Setup is corrupted",
     "215":"Error while establishing connection to Licensing Server. Retrying to establish connection",
     "216":"Connection to Licensing Server failed. Maximum retries exceeded. Hence, Shutting down server",
     "217":"Error while establishing connection to Redis",
     "218":"Invalid configuration file",
-    "219":"Please contact Team - Nineteen68. Error while starting NDAC",
+    "219":"Please contact Team - Avo Assure. Error while starting Avo Assure DAS",
     "220":"Error occured in assist module: Update weights",
     "221":"Error occured in assist module: Update queries",
     "222":"Unable to contact storage areas: Assist Components",
     "223":"Critical error in storage areas: Assist Components",
-    "224":"Another instance of NDAC is already running",
-    "225":"Port "+ndacport+" already in use"
+    "224":"Another instance of Avo Assure DAS is already running",
+    "225":"Port "+dasport+" already in use"
 }
 
 
 ecodeServices = {
-    "loadUser_Nineteen68": "300",
-    "loadPermission_Nineteen68": "301",
-    "loadUserInfo_Nineteen68": "304",
-    "getReleaseIDs_Nineteen68": "305",
-    "getCycleIDs_Nineteen68": "306",
-    "getProjectType_Nineteen68": "307",
-    "getProjectIDs_Nineteen68": "308",
+    "loadUser": "300",
+    "loadPermission": "301",
+    "loadUserInfo": "304",
+    "getReleaseIDs": "305",
+    "getCycleIDs": "306",
+    "getProjectType": "307",
+    "getProjectIDs": "308",
     "getAllNames_ICE": "309",
     "testsuiteid_exists_ICE": "310",
     "testscenariosid_exists_ICE": "311",
@@ -111,19 +111,19 @@ ecodeServices = {
     "manageLDAPConfig": "349",
     "createProject_ICE": "350",
     "updateProject_ICE": "351",
-    "getUsers_Nineteen68": "352",
+    "getUsers": "352",
     "assignProjects_ICE": "353",
     "getLDAPConfig": "354",
     "getAvailablePlugins": "355",
     "getAllSuites_ICE": "356",
     "getSuiteDetailsInExecution_ICE": "357",
     "reportStatusScenarios_ICE": "358",
-    "getReport_Nineteen68": "359",
+    "getReport": "359",
     "exportToJson_ICE": "360",
     "createHistory": "361",
     "encrypt_ICE": "362",
     "dataUpdator_ICE": "363",
-    "userAccess_Nineteen68": "364",
+    "userAccess": "364",
     "checkServer": "365",
     "updateActiveIceSessions": "366",
     "counterupdator": "367",
@@ -138,7 +138,7 @@ ecodeServices = {
     "updateFrequency_ProfJ": "376",
     "updateReportData": "377",
     "updateIrisObjectType": "378",
-    "authenticateUser_Nineteen68_CI": "379",
+    "authenticateUser_CI": "379",
     "generateCIusertokens": "380",
     "getCIUsersDetails": "381",
     "deactivateCIUser": "382",
@@ -154,7 +154,8 @@ ecodeServices = {
     "update_execution_times": "392",
     "write_execution_times": "393",
     "fetchICEUser": "394",
-    "getPreferences": "395"
+    "getPreferences": "395",
+    "getReport_API": "396"
 }
 
 
@@ -188,10 +189,10 @@ def isemptyrequest(requestdata):
         app.logger.critical(printErrorCodes('203'))
     return flag
 
-def counterupdator(n68session,updatortype,userid,count):
+def counterupdator(dbsession,updatortype,userid,count):
     status=False
     try:
-        n68session.counters.find_one_and_update({"countertype":updatortype, "userid":userid},{"$set":{"counter":count},"$currentDate":{"counterdate":True}})
+        dbsession.counters.find_one_and_update({"countertype":updatortype, "userid":userid},{"$set":{"counter":count},"$currentDate":{"counterdate":True}})
         status = True
     except Exception as counterupdatorexc:
         servicesException("counterupdator",counterupdatorexc)
@@ -202,11 +203,11 @@ def get_random_string():
     random_string = [random.choice(chargroup) for _ in range(8)]
     return "".join(random_string)
 
-def update_execution_times(n68session,app):
+def update_execution_times(dbsession,app):
     app.logger.info("Updating Execution Times")
     resultdict = {}
     try:
-        result = n68session.reports.find({},{"testscenarioid":1,"report":1,"status":1})
+        result = dbsession.reports.find({},{"testscenarioid":1,"report":1,"status":1})
         for i in range(result.count()):
             try:
                 key = str(result[i]['testscenarioid'])
@@ -266,14 +267,14 @@ def update_execution_times(n68session,app):
                 servicesException("update_execution_times",e,True)
                 continue
         app.logger.debug("Updating Database for Execution times")
-        write_execution_times(resultdict,n68session)
+        write_execution_times(resultdict,dbsession)
         app.logger.debug("Update Execution times completed")
         return
     except Exception as e:
         servicesException("update_execution_times",e,True)
         return
 
-def write_execution_times(resultdict,n68session):
+def write_execution_times(resultdict,dbsession):
     try:
         i = 0
         for key in resultdict:
@@ -321,11 +322,11 @@ def write_execution_times(resultdict,n68session):
             except Exception as e:
                 sd = "N/A"
             resdata = {"testscnearioid":key,"mean":avg,"median":median_data,"count":count,"standarDeviation":sd,"min":minVal,"minCount":minCount,"max":maxVal,"maxCount":maxCount,"25th Percentile":tfive,"75th Percentile":sfive,"time":datetime.utcnow()}
-            result = n68session.executiontimes.find({"testscenarioid": key})
+            result = dbsession.executiontimes.find({"testscenarioid": key})
             if result and result.count() > 0:
-                n68session.executiontimes.update_one({"_id":result[0]["_id"]},{"$set":{"testscnearioid":key,"mean":avg,"median":median_data,"count":count,"standarDeviation":sd,"min":minVal,"minCount":minCount,"max":maxVal,"maxCount":maxCount,"25th Percentile":tfive,"75th Percentile":sfive,"time":datetime.utcnow()}})
+                dbsession.executiontimes.update_one({"_id":result[0]["_id"]},{"$set":{"testscnearioid":key,"mean":avg,"median":median_data,"count":count,"standarDeviation":sd,"min":minVal,"minCount":minCount,"max":maxVal,"maxCount":maxCount,"25th Percentile":tfive,"75th Percentile":sfive,"time":datetime.utcnow()}})
             else:
-                n68session.executiontimes.insert_one(resdata)
+                dbsession.executiontimes.insert_one(resdata)
 
         return
     except Exception as e:

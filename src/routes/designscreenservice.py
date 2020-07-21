@@ -5,7 +5,7 @@
 from utils import *
 from datetime import datetime
 
-def LoadServices(app, redissession, n68session):
+def LoadServices(app, redissession, dbsession):
     setenv(app)
 
 ################################################################################
@@ -21,13 +21,13 @@ def LoadServices(app, redissession, n68session):
             app.logger.debug("Inside getScrapeDataScreenLevel_ICE. Query: "+str(requestdata["query"]))
             if not isemptyrequest(requestdata):
                 if ('testcaseid' in requestdata and requestdata['testcaseid']):
-                    screen_id = n68session.testcases.find_one({'_id':ObjectId(requestdata['testcaseid'])},{'screenid':1})['screenid'] ##add versionnumber in condition if needed
+                    screen_id = dbsession.testcases.find_one({'_id':ObjectId(requestdata['testcaseid'])},{'screenid':1})['screenid'] ##add versionnumber in condition if needed
                 else:
                     screen_id = ObjectId(requestdata['screenid'])
                 if (requestdata['query'] == 'getscrapedata'):
-                    screen_query=n68session.screens.find_one({"_id":screen_id,"deleted":False})
+                    screen_query=dbsession.screens.find_one({"_id":screen_id,"deleted":False})
                     if (screen_query != []):
-                        dataobj_query = list(n68session.dataobjects.find({"parent" :screen_id}))
+                        dataobj_query = list(dbsession.dataobjects.find({"parent" :screen_id}))
                         if "scrapeinfo" in screen_query and 'header' in screen_query["scrapeinfo"]:
                             dataobj_query = [screen_query["scrapeinfo"]]
                         res["rows"] = { "view": dataobj_query, "name":screen_query["name"],
@@ -36,8 +36,8 @@ def LoadServices(app, redissession, n68session):
                                         "reuse": True if(len(screen_query["parent"])>1) else False
                                       }
                 if (requestdata['query']=="getWSscrapedata"):
-                    dataobj_query = list(n68session.dataobjects.find({"parent" :screen_id}))
-                    scrapeinfo = n68session.screens.find_one({"_id":screen_id,"deleted":False},{'_id':0,'parent':1,'scrapeinfo':1})
+                    dataobj_query = list(dbsession.dataobjects.find({"parent" :screen_id}))
+                    scrapeinfo = dbsession.screens.find_one({"_id":screen_id,"deleted":False},{'_id':0,'parent':1,'scrapeinfo':1})
                     res["rows"] = scrapeinfo['scrapeinfo'] if 'scrapeinfo' in scrapeinfo else {}
                     res["rows"]["reuse"] = True if(len(scrapeinfo["parent"])>1) else False
                     res["rows"]["view"] = dataobj_query
@@ -65,15 +65,15 @@ def LoadServices(app, redissession, n68session):
                     screenID = ObjectId(data["screenid"])
                     if data_obj==['deleteAll']:
                         #1-drop document for single parent element #2- pop out screen id from parent for multiple parent element
-                        n68session.dataobjects.update_many({"$and":[{"parent.1":{"$exists":True}},{"parent":screenID}]},{"$pull":{"parent":screenID}})
-                        n68session.dataobjects.delete_many({"$and":[{"parent":{"$size": 1}},{"parent":screenID}]})
+                        dbsession.dataobjects.update_many({"$and":[{"parent.1":{"$exists":True}},{"parent":screenID}]},{"$pull":{"parent":screenID}})
+                        dbsession.dataobjects.delete_many({"$and":[{"parent":{"$size": 1}},{"parent":screenID}]})
                     else:
                         for i in range(len(data_obj)):
                             if "_id" in data_obj[0]:
                                 data_push.append(ObjectId(data_obj[i]["_id"]))
-                        n68session.dataobjects.update_many({"_id":{"$in":data_push},"$and":[{"parent.1":{"$exists":True}},{"parent":screenID}]},{"$pull":{"parent":screenID}})
-                        n68session.dataobjects.delete_many({"_id":{"$in":data_push},"$and":[{"parent":{"$size": 1}},{"parent":screenID}]})
-                    n68session.screens.update({"_id":screenID},{"$set":{"modifiedby":modifiedby,'modifiedbyrole':modifiedbyrole,"modifiedon" : datetime.now()}})
+                        dbsession.dataobjects.update_many({"_id":{"$in":data_push},"$and":[{"parent.1":{"$exists":True}},{"parent":screenID}]},{"$pull":{"parent":screenID}})
+                        dbsession.dataobjects.delete_many({"_id":{"$in":data_push},"$and":[{"parent":{"$size": 1}},{"parent":screenID}]})
+                    dbsession.screens.update({"_id":screenID},{"$set":{"modifiedby":modifiedby,'modifiedbyrole':modifiedbyrole,"modifiedon" : datetime.now()}})
                     res = {"rows":"Success"}
                 elif data["type"] == "update_obj":
                     data_obj=json.loads(data["scrapedata"])
@@ -86,8 +86,8 @@ def LoadServices(app, redissession, n68session):
                         for i in range(len(data_obj)):
                             data_id=ObjectId(data_obj[i][0])
                             cust_name=data_obj[i][1]
-                            n68session.dataobjects.update({"_id": data_id},{"$set":{"custname":cust_name}})
-                        n68session.screens.update({"_id":screenID},{"$set":{"modifiedby":modifiedby,'modifiedbyrole':modifiedbyrole,"modifiedon" : datetime.now()}})
+                            dbsession.dataobjects.update({"_id": data_id},{"$set":{"custname":cust_name}})
+                        dbsession.screens.update({"_id":screenID},{"$set":{"modifiedby":modifiedby,'modifiedbyrole':modifiedbyrole,"modifiedon" : datetime.now()}})
                         res = {"rows":"Success"}
                     except:
                         res = {"rows":"fail"}
@@ -101,14 +101,14 @@ def LoadServices(app, redissession, n68session):
                         for i in range(len(data_obj)):
                             data_id=ObjectId(data_obj[i]["_id"])
                             del data_obj[i]["_id"]
-                            n68session.dataobjects.update({"_id": data_id},{"$set":data_obj[i]})
+                            dbsession.dataobjects.update({"_id": data_id},{"$set":data_obj[i]})
                         #res = {"rows":"Success"}
                     if "modobj" in data["scrapedata"]:
                         data_obj=data["scrapedata"]["modobj"]
                         for i in range(len(data_obj)):
                             data_id=ObjectId(data_obj[i][0])
                             cust_name=data_obj[i][1]
-                            n68session.dataobjects.update({"_id": data_id},{"$set":{"custname":cust_name}})
+                            dbsession.dataobjects.update({"_id": data_id},{"$set":{"custname":cust_name}})
                         #res = {"rows":"Success"}
                     data_obj=data["scrapedata"]["view"]
                     data_push=[]
@@ -116,12 +116,12 @@ def LoadServices(app, redissession, n68session):
                         data_obj[i]["parent"] = [ObjectId(data["screenid"])]
                         data_push.append(data_obj[i])
                     if (data_push != []):
-                        n68session.dataobjects.insert(data_push)
+                        dbsession.dataobjects.insert(data_push)
                     if "scrapedurl" in data["scrapedata"]:
                         scrapedurl = data["scrapedata"]["scrapedurl"]
-                        n68session.screens.update({"_id":screenID},{"$set":{"screenshot":screenshot,"scrapedurl":scrapedurl,"modifiedby":modifiedby, 'modifiedbyrole':modifiedbyrole,"modifiedon" : datetime.now()}})
+                        dbsession.screens.update({"_id":screenID},{"$set":{"screenshot":screenshot,"scrapedurl":scrapedurl,"modifiedby":modifiedby, 'modifiedbyrole':modifiedbyrole,"modifiedon" : datetime.now()}})
                     else:
-                        n68session.screens.update({"_id":screenID},{"$set":{"screenshot":screenshot,"modifiedby":modifiedby, 'modifiedbyrole':modifiedbyrole,"modifiedon" : datetime.now()}})
+                        dbsession.screens.update({"_id":screenID},{"$set":{"screenshot":screenshot,"modifiedby":modifiedby, 'modifiedbyrole':modifiedbyrole,"modifiedon" : datetime.now()}})
                     res = {"rows":"Success"}
                 elif data["type"] == "map_obj":
                     del_obj = data["scrapedata"][0]
@@ -134,16 +134,16 @@ def LoadServices(app, redissession, n68session):
                         new_id=ObjectId(update_obj[i][0])
                         old_id=ObjectId(update_obj[i][1])
                         new_custname=update_obj[i][2]
-                        old_obj = n68session.dataobjects.find_one({"_id": old_id})
+                        old_obj = dbsession.dataobjects.find_one({"_id": old_id})
                         old_obj['_id'] = new_id
                         old_obj['custname'] = new_custname
-                        n68session.dataobjects.save(old_obj)
+                        dbsession.dataobjects.save(old_obj)
                     if len(del_obj)>0:
                         for i in range(len(del_obj)):
                             data_push.append(ObjectId(del_obj[i]))
-                        n68session.dataobjects.update_many({"_id":{"$in":data_push},"$and":[{"parent.1":{"$exists":True}},{"parent":screenID}]},{"$pull":{"parent":screenID}})
-                        n68session.dataobjects.delete_many({"_id":{"$in":data_push},"$and":[{"parent":{"$size": 1}},{"parent":screenID}]})
-                    n68session.screens.update({"_id":screenID},{"$set":{"modifiedby":modifiedby,'modifiedbyrole':modifiedbyrole,"modifiedon" : datetime.now()}})
+                        dbsession.dataobjects.update_many({"_id":{"$in":data_push},"$and":[{"parent.1":{"$exists":True}},{"parent":screenID}]},{"$pull":{"parent":screenID}})
+                        dbsession.dataobjects.delete_many({"_id":{"$in":data_push},"$and":[{"parent":{"$size": 1}},{"parent":screenID}]})
+                    dbsession.screens.update({"_id":screenID},{"$set":{"modifiedby":modifiedby,'modifiedbyrole':modifiedbyrole,"modifiedon" : datetime.now()}})
                     res = {"rows":"Success"}
                 elif data["type"] == "compare_obj":
                     data_obj=json.loads(data["scrapedata"])
@@ -153,8 +153,8 @@ def LoadServices(app, redissession, n68session):
                     for i in range(len(data_obj["view"])):
                         ObjId=data_obj["view"][i]["_id"]
                         del data_obj["view"][i]["_id"]
-                        n68session.dataobjects.update({"_id" : ObjectId(ObjId)},{"$set":data_obj["view"][i]})
-                    n68session.screens.update({"_id":screenID},{"$set":{"modifiedby":modifiedby,'modifiedbyrole':modifiedbyrole,"modifiedon" : datetime.now()}})
+                        dbsession.dataobjects.update({"_id" : ObjectId(ObjId)},{"$set":data_obj["view"][i]})
+                    dbsession.screens.update({"_id":screenID},{"$set":{"modifiedby":modifiedby,'modifiedbyrole':modifiedbyrole,"modifiedon" : datetime.now()}})
                     res = {"rows":"Success"}
                 elif data["type"] == "WS_obj":
                     screenID = ObjectId(data["screenid"])
@@ -165,13 +165,13 @@ def LoadServices(app, redissession, n68session):
                     data_push=[]
                     if "view" in scrapeinfo:
                         data_obj=scrapeinfo.pop("view")
-                    n68session.screens.update({"_id":screenID},{"$set":{"scrapedurl":scrapeinfo["endPointURL"],"modifiedby":modifiedby,'modifiedbyrole':modifiedbyrole, 'scrapeinfo':scrapeinfo,"modifiedon" : datetime.now()}})
-                    Old_obj = list(n68session.dataobjects.find({"parent":screenID}))
+                    dbsession.screens.update({"_id":screenID},{"$set":{"scrapedurl":scrapeinfo["endPointURL"],"modifiedby":modifiedby,'modifiedbyrole':modifiedbyrole, 'scrapeinfo':scrapeinfo,"modifiedon" : datetime.now()}})
+                    Old_obj = list(dbsession.dataobjects.find({"parent":screenID}))
                     for d in data_obj:
                         d["parent"]=[screenID]
                         data_push.append(d)
                     if len(Old_obj)==0 and len(data_push)>0 :
-                        n68session.dataobjects.insert(data_push)
+                        dbsession.dataobjects.insert(data_push)
                     elif len(data_obj)>0:
                         for d in data_obj:
                             d["parent"] = [screenID]
@@ -183,11 +183,11 @@ def LoadServices(app, redissession, n68session):
                                     existing_object=True
                                     break
                             if not(existing_object):
-                                n68session.dataobjects.insert(d)
+                                dbsession.dataobjects.insert(d)
                         #Delete the old data objects
                         if len(Old_obj) > 0:
                             remove_data=[o["_id"] for o in Old_obj]
-                            n68session.dataobjects.delete_many({"_id":{"$in":remove_data}})
+                            dbsession.dataobjects.delete_many({"_id":{"$in":remove_data}})
                     res={"rows":"Success"}
 
             else:
@@ -205,7 +205,7 @@ def LoadServices(app, redissession, n68session):
             if("_id" not in requestdata or requestdata["_id"] == ""):
                 res={'rows':'unsavedObject'}
             if not isemptyrequest(requestdata):
-                    n68session.dataobjects.update({"_id": ObjectId(requestdata["_id"])},{"$set":{"objectType":requestdata["type"]}})
+                    dbsession.dataobjects.update({"_id": ObjectId(requestdata["_id"])},{"$set":{"objectType":requestdata["type"]}})
                     res={'rows':'success'}
         except Exception as updateirisobjexc:
             servicesException("updateIrisObjectType",updateirisobjexc, True)

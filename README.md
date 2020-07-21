@@ -1,4 +1,4 @@
-# Nineteen68 Data Access Components
+# Avo Assure Data Access Server
 
 Consists of REST APIs to access DB.
 
@@ -7,8 +7,6 @@ Consists of REST APIs to access DB.
 **Python Packages**
 
 **_explicit instalations in italics_**
-
-*cassandra-driver==3.10*
 
 click==6.7
 

@@ -11,7 +11,7 @@ import partition_scenarios
 import dateutil.parser as DP
 
 
-def LoadServices(app, redissession, n68session):
+def LoadServices(app, redissession, dbsession):
     setenv(app)
 
 ################################################################################
@@ -93,7 +93,7 @@ def LoadServices(app, redissession, n68session):
                 prev_time = 0
                 x = DP.parse(time)
                 dtm = datetime.datetime(x.year,x.month,x.day,x.hour,x.minute) 
-                result = n68session.scheduledexecutions.find({"scheduledon": {"$lt": dtm}, "target": users[i],"status":"scheduled"})
+                result = dbsession.scheduledexecutions.find({"scheduledon": {"$lt": dtm}, "target": users[i],"status":"scheduled"})
                 if result is None or result.count() == 0:
                     available_users.insert(0,users[i])
                     continue
@@ -119,7 +119,7 @@ def LoadServices(app, redissession, n68session):
         
 
     def get_time(scid):
-        result = n68session.executiontimes.find({"testscenarioid": scid})
+        result = dbsession.executiontimes.find({"testscenarioid": scid})
         if result is None or result.count() == 0:
             return 315
         if result[0]['count'] > 10:
@@ -132,7 +132,7 @@ def LoadServices(app, redissession, n68session):
             score = []
             scoreMap = {}
             for i in range(len(users)):
-                result = n68session.benchmark.find({"hostname": users[i]})
+                result = dbsession.benchmark.find({"hostname": users[i]})
                 latest = -1
                 if result is not None and result.count() - 1 >=0:
                     latest = result.count() - 1
