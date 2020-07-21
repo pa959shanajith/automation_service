@@ -20,19 +20,21 @@ def getcwd_exe():
     currdir = os.getcwd()
     currexc = sys.executable
     currexcname = os.path.basename(currexc).replace(".exe", '')
-    try: currfiledir = os.path.dirname(os.path.abspath(__file__))
-    except: currfiledir = os.path.dirname(currexc)
-    if currexcname == "das_service":
+    if currexcname == "AvoAssureDASservice":
         currdir = os.path.dirname(currexc)
     elif currexcname == "python" or currexcname.lower() == "pythonservice":
-        currdir = currfiledir
+        try:
+            currdir = os.path.dirname(os.path.abspath(__file__))
+            if os.path.basename(currdir) == "src": currdir = os.path.dirname(currdir)
+        except: currdir = os.path.dirname(currexc)
     return currdir
 
 class DAS_Service_Manager(win32serviceutil.ServiceFramework):
-    _svc_name_ = "avoassureDAS"
+    _svc_deps_ = ["AvoAssureLS"]
+    _svc_name_ = "AvoAssureDAS"
     _svc_display_name_ = "Avo Assure DAS Service"
-    _svc_description_ = "Avo Assure Data Access Service"
-    _exe_name_ = "das_service.exe" if os.path.basename(sys.executable).replace(".exe", '') == "das_service" else "pythonservice.exe"
+    _svc_description_ = "Avo Assure Data Access Server Service"
+    _exe_name_ = "AvoAssureDASservice.exe" if os.path.basename(sys.executable).replace(".exe", '') == "AvoAssureDASservice" else "pythonservice.exe"
     child_process_name = "AvoAssureDAS.exe"
 
     def __init__(self, args):
@@ -59,11 +61,14 @@ class DAS_Service_Manager(win32serviceutil.ServiceFramework):
         servicemanager.LogInfoMsg(self._svc_display_name_+" ("+self._svc_name_+") is RUNNING.")
         rc = None
 
-        cwd = getcwd_exe()
+        cwd = getcwd_exe() + os.sep
         os.chdir(cwd)
         run_cmd = self.child_process_name
         if not os.path.isfile(run_cmd):  # This is a dev ENV. Run das.py
-            run_cmd = cwd+os.sep+"python "+cwd+os.sep+"das.py"
+            das_file = cwd+"src"+os.sep+"das.py"
+            if not os.path.isfile(das_file) and os.path.isfile(cwd+"das.py"):
+                das_file = cwd+"das.py"
+            run_cmd = cwd + "python " + das_file
         if os.path.exists("./das_internals/logs/conf.txt"):
             env_in = open("./das_internals/logs/conf.txt",'r')
             env_conf = env_in.read().replace(' ','').replace('\n','').replace('\r','')

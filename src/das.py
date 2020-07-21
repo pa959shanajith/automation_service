@@ -700,9 +700,19 @@ def dataholder(ops,*args):
             conn = sqlite3.connect(logspath+"/data.db")
             if ops=='select':
                 #Retrieve the data from db and decrypt it
-                cursor1 = conn.execute("SELECT intrtkndt FROM clndls WHERE sysid='daskey'")
-                for row in cursor1:
-                    data = row[0]
+                cursor = conn.cursor()
+                result = cursor.execute("SELECT intrtkndt FROM clndls WHERE sysid='daskey'")
+                data = list(result)
+                if len(data) == 0:
+                    # Backward compatibility
+                    old_key = "nd"+"ackey" # To hide n.d.a.c from search
+                    result = list(cursor.execute("SELECT intrtkndt FROM clndls WHERE sysid=(?)",(old_key,)))
+                    if len(result) == 0: data = ""
+                    else:
+                        data = result[0][0]
+                        cursor.execute("INSERT INTO clndls(sysid,intrtkndt) VALUES (?,?)",('daskey',data))
+                        cursor.execute("DELETE FROM clndls WHERE sysid=(?)",(old_key,))
+                else: data = data[0][0]
                 data=unwrap(data,mine)
                 data=json.loads(data)
             elif ops=='update':
