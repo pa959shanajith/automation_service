@@ -4,7 +4,7 @@
 #----------DEFAULT METHODS AND IMPORTS------------DO NOT EDIT-------------------
 from utils import *
 
-def LoadServices(app, redissession, n68session):
+def LoadServices(app, redissession, dbsession):
     setenv(app)
 
 ################################################################################
@@ -29,11 +29,11 @@ def LoadServices(app, redissession, n68session):
             app.logger.debug("Inside getAllSuites_ICE. Query: "+str(requestdata["query"]))
             if not isemptyrequest(requestdata):
                 if(requestdata["query"] == 'projects'):
-                    queryresult1=n68session.users.find_one({"_id": ObjectId(requestdata["userid"])},{"projects":1,"_id":0})
-                    queryresult=list(n68session.projects.find({"_id":{"$in":queryresult1["projects"]}},{"name":1,"releases":1}))
+                    queryresult1=dbsession.users.find_one({"_id": ObjectId(requestdata["userid"])},{"projects":1,"_id":0})
+                    queryresult=list(dbsession.projects.find({"_id":{"$in":queryresult1["projects"]}},{"name":1,"releases":1}))
                     res= {"rows":queryresult}
                 elif(requestdata["query"] == 'getAlltestSuites'):
-                    queryresult=list(n68session.testsuites.find({"cycleid": ObjectId(requestdata["id"])},{"_id":1,"name":1}))
+                    queryresult=list(dbsession.testsuites.find({"cycleid": ObjectId(requestdata["id"])},{"_id":1,"name":1}))
                     res= {"rows":queryresult}
             else:
                 app.logger.warn('Empty data received. report suites details.')
@@ -49,7 +49,7 @@ def LoadServices(app, redissession, n68session):
         try:
             requestdata=json.loads(request.data)
             if not isemptyrequest(requestdata):
-                queryresult=list(n68session.executions.find({"parent":ObjectId(requestdata["suiteid"])},{"_id":1,"starttime":1,"endtime":1,"status":1}))
+                queryresult=list(dbsession.executions.find({"parent":ObjectId(requestdata["suiteid"])},{"_id":1,"starttime":1,"endtime":1,"status":1}))
                 res= {"rows":queryresult}
             else:
                 app.logger.warn('Empty data received. report suites details execution.')
@@ -67,10 +67,10 @@ def LoadServices(app, redissession, n68session):
             app.logger.debug("Inside reportStatusScenarios_ICE. Query: "+str(requestdata["query"]))
             if not isemptyrequest(requestdata):
                 if(requestdata["query"] == 'executiondetails'):
-                    queryresult = list(n68session.reports.find({"executionid":ObjectId(requestdata["executionid"])},{"_id":1,"executionid":1,"executedon":1,"comments":1,"executedtime":1,"modifiedby":1,"modifiedbyrole":1,"modifiedon":1,"status":1,"testscenarioid":1}))
+                    queryresult = list(dbsession.reports.find({"executionid":ObjectId(requestdata["executionid"])},{"_id":1,"executionid":1,"executedon":1,"comments":1,"executedtime":1,"modifiedby":1,"modifiedbyrole":1,"modifiedon":1,"status":1,"testscenarioid":1}))
                     res= {"rows":queryresult}
                 elif(requestdata["query"] == 'scenarioname'):
-                    queryresult = list(n68session.testscenarios.find({"_id":ObjectId(requestdata["scenarioid"])},{"name":1}))
+                    queryresult = list(dbsession.testscenarios.find({"_id":ObjectId(requestdata["scenarioid"])},{"name":1}))
                     res= {"rows":queryresult}
             else:
                 app.logger.warn('Empty data received. report status of scenarios.')
@@ -80,19 +80,19 @@ def LoadServices(app, redissession, n68session):
 
 
     #fetching the reports
-    @app.route('/reports/getReport_Nineteen68',methods=['POST'])
-    def getReport_Nineteen68():
+    @app.route('/reports/getReport',methods=['POST'])
+    def getReport():
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
-            app.logger.debug("Inside getReport_Nineteen68. Query: "+str(requestdata["query"]))
+            app.logger.debug("Inside getReport. Query: "+str(requestdata["query"]))
             if not isemptyrequest(requestdata):
                 if(requestdata["query"] == 'projectsUnderDomain'):
-                    queryresult1 = n68session.reports.find_one({"_id":ObjectId(requestdata["reportid"])},{"executedtime":1,"report":1,"testscenarioid":1})
+                    queryresult1 = dbsession.reports.find_one({"_id":ObjectId(requestdata["reportid"])},{"executedtime":1,"report":1,"testscenarioid":1})
                     # scenarioid = queryresult1['testscenarioid']
-                    queryresult2 = n68session.testscenarios.find_one({"_id":queryresult1['testscenarioid']},{"name":1,"projectid":1,"_id":0})
+                    queryresult2 = dbsession.testscenarios.find_one({"_id":queryresult1['testscenarioid']},{"name":1,"projectid":1,"_id":0})
                     # queryresult1.update(queryresult2)
-                    queryresult3 = n68session.projects.find_one({"_id":queryresult2['projectid']},{"domain":1,"_id":0})
+                    queryresult3 = dbsession.projects.find_one({"_id":queryresult2['projectid']},{"domain":1,"_id":0})
                     # queryresult1.update(queryresult3)
                     # queryresult1['testscenarioid'] = scenarioid
                     # queryresult.append(queryresult1)
@@ -108,7 +108,7 @@ def LoadServices(app, redissession, n68session):
             else:
                 app.logger.warn('Empty data received. report.')
         except Exception as getreportexc:
-            servicesException("getReport_Nineteen68",getreportexc)
+            servicesException("getReport",getreportexc)
         return res
 
 
@@ -120,7 +120,7 @@ def LoadServices(app, redissession, n68session):
             requestdata=json.loads(request.data)
             app.logger.debug("Inside updateReportData.")
             if not isemptyrequest(requestdata):
-                queryresult = n68session.reports.find({"_id":ObjectId(requestdata["reportid"])},{"report":1})
+                queryresult = dbsession.reports.find({"_id":ObjectId(requestdata["reportid"])},{"report":1})
                 report = queryresult[0]['report']
                 report_rows = report['rows']
                 row = None
@@ -132,8 +132,8 @@ def LoadServices(app, redissession, n68session):
                 if(row!=None):
                     row.update({'jira_defect_id':str(requestdata['defectid'])})
                     report['rows']=report_rows
-                    queryresult = n68session.reports.update({"_id":ObjectId(requestdata["reportid"])},{"$set":{"report":report}})
-                    n68session.thirdpartyintegration.insert_one({
+                    queryresult = dbsession.reports.update({"_id":ObjectId(requestdata["reportid"])},{"$set":{"report":report}})
+                    dbsession.thirdpartyintegration.insert_one({
                         "type":"JIRA",
                         "reportid":requestdata["reportid"],
                         "defectid":requestdata['defectid'],
@@ -148,10 +148,10 @@ def LoadServices(app, redissession, n68session):
             app.logger.debug(updatereportdataexc)
             servicesException("updateReportData",updatereportdataexc)
         return jsonify(res)
-        
+
     #fetching the report by executionId
-    @app.route('/reports/get_Nineteen68Report',methods=['POST'])
-    def get_Nineteen68Report():
+    @app.route('/reports/getReport_API',methods=['POST'])
+    def getReport_API():
         res={'rows':'fail','errMsg':''}
         errMsgVal=''
         errMsg='Invalid '
@@ -160,58 +160,57 @@ def LoadServices(app, redissession, n68session):
         correctScenarios=[]
         try:
             requestdata=json.loads(request.data)
-            app.logger.debug("Inside get_Nineteen68Report. Query: "+str(requestdata["query"]))
+            app.logger.debug("Inside getReport_API. Query: "+str(requestdata["query"]))
             if not isemptyrequest(requestdata):
-                if(requestdata["query"] == 'get_Nineteen68Report'):
-                    errMsgVal=str(requestdata["executionId"])
-                    queryresult1 = n68session.reports.find({"executionid":ObjectId(requestdata["executionId"])})
-                    queryresult4 = n68session.executions.find_one({"_id": ObjectId(requestdata["executionId"])})
-                    parent = queryresult4["parent"]
-                    errMsgVal=''
-                    if("scenarioIds" in requestdata):
-                        scenarioIds = n68session.reports.distinct("testscenarioid",{"executionid":ObjectId(requestdata["executionId"])})
-                        for scenId in requestdata["scenarioIds"]:
-                            if len(scenId.strip())==0:
-                                continue
-                            try:
-                                if ObjectId(scenId) not in scenarioIds:
-                                    errIds.append(str(scenId))
-                                else:
-                                    correctScenarios.append(ObjectId(scenId))
-                            except Exception:
+                errMsgVal=str(requestdata["executionId"])
+                queryresult1 = dbsession.reports.find({"executionid":ObjectId(requestdata["executionId"])})
+                queryresult4 = dbsession.executions.find_one({"_id": ObjectId(requestdata["executionId"])})
+                parent = queryresult4["parent"]
+                errMsgVal=''
+                if("scenarioIds" in requestdata):
+                    scenarioIds = dbsession.reports.distinct("testscenarioid",{"executionid":ObjectId(requestdata["executionId"])})
+                    for scenId in requestdata["scenarioIds"]:
+                        if len(scenId.strip())==0:
+                            continue
+                        try:
+                            if ObjectId(scenId) not in scenarioIds:
                                 errIds.append(str(scenId))
-                        if len(correctScenarios) != 0 or len(errIds) != 0:
-                            queryresult1 = n68session.reports.find({"executionid":ObjectId(requestdata["executionId"]),"testscenarioid":{"$in":correctScenarios}})
-                    for execData in queryresult1:
-                        queryresult2 = n68session.testscenarios.find_one({"_id":execData["testscenarioid"]})#,{"name":1,"projectid":1,"_id":0})
-                        queryresult3 = n68session.projects.find_one({"_id":queryresult2["projectid"]})#,{"domain":1,"_id":0})
-                        for obj in parent:
-                            queryresult5 = n68session.testsuites.find_one({"_id":obj})
-                            if execData["testscenarioid"] in queryresult5["testscenarioids"]:
-                                #queryresult6 = n68session.mindmaps.find_one({"_id":queryresult5["mindmapid"]})
-                                break
-                        query={
-                            'report': execData["report"],
-                            'scenariodId': queryresult2["_id"],
-                            'scenarioName': queryresult2["name"],
-                            'domainName': queryresult3["domain"],
-                            'projectName': queryresult3["name"],
-                            'reportId': execData["_id"],
-                            'releaseName': queryresult3["releases"][0]["name"],
-                            'cycleName': queryresult3["releases"][0]["cycles"][0]["name"],
-                            'moduleId': queryresult5["mindmapid"],
-                            'moduleName': queryresult5["name"]
-                        }
-                        finalQuery.append(query)
-                    res["rows"] = finalQuery
-                    if len(errIds) != 0:
-                        res["errMsg"] = errMsg+'Scenario Id(s): '+(','.join(errIds))
+                            else:
+                                correctScenarios.append(ObjectId(scenId))
+                        except Exception:
+                            errIds.append(str(scenId))
+                    if len(correctScenarios) != 0 or len(errIds) != 0:
+                        queryresult1 = dbsession.reports.find({"executionid":ObjectId(requestdata["executionId"]),"testscenarioid":{"$in":correctScenarios}})
+                for execData in queryresult1:
+                    queryresult2 = dbsession.testscenarios.find_one({"_id":execData["testscenarioid"]})#,{"name":1,"projectid":1,"_id":0})
+                    queryresult3 = dbsession.projects.find_one({"_id":queryresult2["projectid"]})#,{"domain":1,"_id":0})
+                    for obj in parent:
+                        queryresult5 = dbsession.testsuites.find_one({"_id":obj})
+                        if execData["testscenarioid"] in queryresult5["testscenarioids"]:
+                            #queryresult6 = dbsession.mindmaps.find_one({"_id":queryresult5["mindmapid"]})
+                            break
+                    query={
+                        'report': execData["report"],
+                        'scenariodId': queryresult2["_id"],
+                        'scenarioName': queryresult2["name"],
+                        'domainName': queryresult3["domain"],
+                        'projectName': queryresult3["name"],
+                        'reportId': execData["_id"],
+                        'releaseName': queryresult3["releases"][0]["name"],
+                        'cycleName': queryresult3["releases"][0]["cycles"][0]["name"],
+                        'moduleId': queryresult5["mindmapid"],
+                        'moduleName': queryresult5["name"]
+                    }
+                    finalQuery.append(query)
+                res["rows"] = finalQuery
+                if len(errIds) != 0:
+                    res["errMsg"] = errMsg+'Scenario Id(s): '+(','.join(errIds))
             else:
                 app.logger.warn('Empty data received. report.')
         except Exception as getreportexc:
             if errMsgVal:
                 res['errMsg']=errMsg+'Execution Id: '+errMsgVal
-            servicesException("get_Nineteen68Report", getreportexc, True)
+            servicesException("getReport_API", getreportexc, True)
         return jsonify(res)
 
 # END OF REPORTS

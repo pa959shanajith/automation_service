@@ -13,7 +13,7 @@ def generate_id():
     uniq += 1
     return uniq
 
-def LoadServices(app, redissession, n68session):
+def LoadServices(app, redissession, dbsession):
     setenv(app)
 
 ################################################################################
@@ -36,12 +36,12 @@ def LoadServices(app, redissession, n68session):
             nodes = []
             links = []
             counter = 0
-            ptypeall = list(n68session["projecttypekeywords"].find({}, {"_id":1,"name":1}))
+            ptypeall = list(dbsession["projecttypekeywords"].find({}, {"_id":1,"name":1}))
             for e in ptypeall: ptype[e["_id"]] = e["name"]
             prj_data_needed = {"name":1,"releases.name":1,"releases._id":1,"releases.cycles.name":1,"releases.cycles._id":1,"domain":1,"type":1}
-            project_id = n68session["users"].find_one({"_id":ObjectId(requestdata['user_id'])}, {"_id":1,"projects":1})["projects"]
-            dprc_list = list(n68session["projects"].find({"_id":{"$in":project_id}}, prj_data_needed))
-            #dprc_list = list(n68session["projects"].find({}, prj_data_needed))
+            project_id = dbsession["users"].find_one({"_id":ObjectId(requestdata['user_id'])}, {"_id":1,"projects":1})["projects"]
+            dprc_list = list(dbsession["projects"].find({"_id":{"$in":project_id}}, prj_data_needed))
+            #dprc_list = list(dbsession["projects"].find({}, prj_data_needed))
             cycle_ids=[]
             for p in dprc_list:
                 if p["domain"] in domain_dict:
@@ -65,8 +65,8 @@ def LoadServices(app, redissession, n68session):
                         cycle_ids.append(c["_id"])
                         counter+=1
             testsuite_data_needed = {"name":1,"testscenarioids":1,"mindmapid":1,"cycleid":1,"versionnumber":1,"conditioncheck":1,"getparampaths":1}
-            testsuites=list(n68session["testsuites"].find({"cycleid":{"$in":cycle_ids}}, testsuite_data_needed))
-            # testsuites=list(n68session["testsuites"].find({}, testsuite_data_needed))
+            testsuites=list(dbsession["testsuites"].find({"cycleid":{"$in":cycle_ids}}, testsuite_data_needed))
+            # testsuites=list(dbsession["testsuites"].find({}, testsuite_data_needed))
             ts_list=[]
             for t in testsuites:
                 #attributes = json.loads(json.dumps(t))
@@ -82,8 +82,8 @@ def LoadServices(app, redissession, n68session):
                 del attributes["name"]
             testsuites=[]
 
-            testscenarios=list(n68session["testscenarios"].find({"_id":{"$in":ts_list}},{"name":1,"testcaseids":1,"testcases":1}))
-            # testscenarios=list(n68session["testscenarios"].find({},{"name":1,"testcaseids":1,"testcases":1}))
+            testscenarios=list(dbsession["testscenarios"].find({"_id":{"$in":ts_list}},{"name":1,"testcaseids":1,"testcases":1}))
+            # testscenarios=list(dbsession["testscenarios"].find({},{"name":1,"testcaseids":1,"testcases":1}))
             testcases_list=[]
             for ts in testscenarios:
                 attributes={
@@ -99,8 +99,8 @@ def LoadServices(app, redissession, n68session):
                     links.append({"start":str(ts["_id"]),"end":str(tc)})
             testscenarios=[]
 
-            testcases=list(n68session["testcases"].find({"_id":{"$in":testcases_list}},{"name":1,"screenid":1}))
-            # testcases=list(n68session["testcases"].find({},{"name":1,"screenid":1}))
+            testcases=list(dbsession["testcases"].find({"_id":{"$in":testcases_list}},{"name":1,"screenid":1}))
+            # testcases=list(dbsession["testcases"].find({},{"name":1,"screenid":1}))
             screen_list=[]
             for tc in testcases:
                 attributes={
@@ -112,7 +112,7 @@ def LoadServices(app, redissession, n68session):
                 counter+=1
             testcases=[]
 
-            screens=list(n68session["screens"].find({"_id":{"$in":screen_list}},{"name":1}))
+            screens=list(dbsession["screens"].find({"_id":{"$in":screen_list}},{"name":1}))
             for s in screens:
                 attributes={
                     "Name": s["name"],

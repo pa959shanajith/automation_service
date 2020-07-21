@@ -1,5 +1,5 @@
 #-------------------------------------------------------------------------------
-# Name:        NDAC DB Generator
+# Name:        Avo Assure DAS DB Generator
 # Purpose:
 #
 # Author: ranjan.agrawal
@@ -16,7 +16,7 @@ import codecs
 import sqlite3
 import json
 
-KEY_NDAC = "\x4e\x36\x38\x53\x51\x4c\x69\x74\x65\x44\x61\x74\x61\x53\x65\x63\x72\x65\x74\x4b\x65\x79\x43\x6f\x6d\x70\x4f\x4e\x65\x6e\x74\x73"
+KEY_DAS = "\x4e\x36\x38\x53\x51\x4c\x69\x74\x65\x44\x61\x74\x61\x53\x65\x63\x72\x65\x74\x4b\x65\x79\x43\x6f\x6d\x70\x4f\x4e\x65\x6e\x74\x73"
 
 #############################ENCRYPTION UTILITY START##############################
 def pad(data):
@@ -41,9 +41,9 @@ def filldb():
     	"macid": "",
     	"tkn": "",
     }
-    datatodb = wrap(json.dumps(data),KEY_NDAC)
+    datatodb = wrap(json.dumps(data),KEY_DAS)
     cursor.execute("CREATE TABLE IF NOT EXISTS clndls (sysid TEXT PRIMARY KEY, intrtkndt TEXT);")
-    cursor.execute("INSERT INTO clndls(sysid,intrtkndt) VALUES (?,?)",('ndackey',datatodb))
+    cursor.execute("INSERT INTO clndls(sysid,intrtkndt) VALUES (?,?)",('daskey',datatodb))
     conn.commit()
     conn.close()
 #############################DB UTILITY END ###################################

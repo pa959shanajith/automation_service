@@ -31,9 +31,9 @@ def unwrap(hex_data, key, iv=b'0'*16):
     aes = AES.new(key.encode('utf-8'), AES.MODE_CBC, iv)
     return unpad(aes.decrypt(data).decode('utf-8'))
 
-def LoadServices(app, redissession, n68session,licensedata,*args):
+def LoadServices(app, redissession, dbsession,licensedata,*args):
     setenv(app)
-    ice_ndac_key=args[0]
+    ice_das_key=args[0]
 
 ################################################################################
 # END OF DEFAULT METHODS AND IMPORTS       -----------DO NOT EDIT
@@ -60,7 +60,7 @@ def LoadServices(app, redissession, n68session,licensedata,*args):
             return jsonify(res)
 
 
-    # Service to create/edit/delete users in Nineteen68
+    # Service to create/edit/delete users in Avo Assure
     @app.route('/admin/manageUserDetails',methods=['POST'])
     def manageUserDetails():
         res={'rows':'fail'}
@@ -70,18 +70,18 @@ def LoadServices(app, redissession, n68session,licensedata,*args):
             del requestdata["action"]
             app.logger.info("Inside manageUserDetails. Query: "+str(action))
             if not isemptyrequest(requestdata):
-                if requestdata["name"] in ["support.nineteen68","ci_cd"]:
+                if requestdata["name"] in ["support.avoassure","ci_cd"]:
                     app.logger.error("Cannot perform read/write operation on priviliged user: "+requestdata["name"])
                     res={"rows":"forbidden"}
                 elif(action=="delete"):
-                    result=n68session.users.delete_one({"name":requestdata['name']})
+                    result=dbsession.users.delete_one({"name":requestdata['name']})
                     # Delete assigned tasks
-                    n68session.tasks.delete_many({"assignedto":ObjectId(requestdata["userid"]),"status":{"$ne":'complete'}})
-                    n68session.tasks.delete_many({"owner":ObjectId(requestdata["userid"]),"status":{"$ne":'complete'}})
-                    n68session.tasks.update_many({"reviewer":ObjectId(requestdata["userid"]),"status":{"$ne":'complete'}},{"$set":{"status":"inprogress","reviewer":""}})
+                    dbsession.tasks.delete_many({"assignedto":ObjectId(requestdata["userid"]),"status":{"$ne":'complete'}})
+                    dbsession.tasks.delete_many({"owner":ObjectId(requestdata["userid"]),"status":{"$ne":'complete'}})
+                    dbsession.tasks.update_many({"reviewer":ObjectId(requestdata["userid"]),"status":{"$ne":'complete'}},{"$set":{"status":"inprogress","reviewer":""}})
                     res={"rows":"success"}
                 elif(action=="create"):
-                    result=n68session.users.find_one({"name":requestdata['name']},{"name":1})
+                    result=dbsession.users.find_one({"name":requestdata['name']},{"name":1})
                     if result!=None:
                         res={"rows":"exists"}
                     else:
@@ -97,7 +97,7 @@ def LoadServices(app, redissession, n68session,licensedata,*args):
                         requestdata["projects"]=[]
                         if not (requestdata["ldapuser"]):requestdata["ldapuser"]={}
                         else : requestdata["ldapuser"]=json.loads(requestdata["ldapuser"])
-                        n68session.users.insert_one(requestdata)
+                        dbsession.users.insert_one(requestdata)
                         res={"rows":"success"}
                 elif (action=="update"):
                     requestdata["modifiedby"]=ObjectId(requestdata["createdby"])
@@ -107,9 +107,9 @@ def LoadServices(app, redissession, n68session,licensedata,*args):
                     for i in requestdata["additionalroles"]:
                         addroles.append(ObjectId(i))
                     if "password" in requestdata:
-                        n68session.users.update_one({"_id":ObjectId(requestdata["userid"])},{"$set":{"name":requestdata["name"],"firstname":requestdata["firstname"],"lastname":requestdata["lastname"],"email":requestdata["email"],"password":requestdata["password"],"addroles":addroles,"modifiedby":requestdata["modifiedby"],"modifiedbyrole":requestdata["modifiedbyrole"],"modifiedon":requestdata["modifiedon"]}})
+                        dbsession.users.update_one({"_id":ObjectId(requestdata["userid"])},{"$set":{"name":requestdata["name"],"firstname":requestdata["firstname"],"lastname":requestdata["lastname"],"email":requestdata["email"],"password":requestdata["password"],"addroles":addroles,"modifiedby":requestdata["modifiedby"],"modifiedbyrole":requestdata["modifiedbyrole"],"modifiedon":requestdata["modifiedon"]}})
                     else:
-                        n68session.users.update_one({"_id":ObjectId(requestdata["userid"])},{"$set":{"name":requestdata["name"],"firstname":requestdata["firstname"],"lastname":requestdata["lastname"],"email":requestdata["email"],"addroles":addroles,"modifiedby":requestdata["modifiedby"],"modifiedbyrole":requestdata["modifiedbyrole"],"modifiedon":requestdata["modifiedon"]}})
+                        dbsession.users.update_one({"_id":ObjectId(requestdata["userid"])},{"$set":{"name":requestdata["name"],"firstname":requestdata["firstname"],"lastname":requestdata["lastname"],"email":requestdata["email"],"addroles":addroles,"modifiedby":requestdata["modifiedby"],"modifiedbyrole":requestdata["modifiedbyrole"],"modifiedon":requestdata["modifiedon"]}})
                     res={"rows":"success"}
             else:
                 app.logger.warn('Empty data received. manage users.')
@@ -127,14 +127,14 @@ def LoadServices(app, redissession, n68session,licensedata,*args):
                 requestdata=json.loads(request.data)
             if not isemptyrequest(requestdata):
                 if "userid" in requestdata:
-                    result=n68session.users.find_one({"_id":ObjectId(requestdata["userid"])},{"name":1,"firstname":1,"lastname":1,"email":1,"ldapuser":1,"defaultrole":1,"addroles":1})
-                    if result["name"] in ["support.nineteen68","ci_cd"]: result = None
-                    else: result["rolename"]=n68session.permissions.find_one({"_id":result["defaultrole"]})["name"]
+                    result=dbsession.users.find_one({"_id":ObjectId(requestdata["userid"])},{"name":1,"firstname":1,"lastname":1,"email":1,"ldapuser":1,"defaultrole":1,"addroles":1})
+                    if result["name"] in ["support.avoassure","ci_cd"]: result = None
+                    else: result["rolename"]=dbsession.permissions.find_one({"_id":result["defaultrole"]})["name"]
                     res={'rows':result}
                 else:
-                    perms_list = n68session.permissions.find({},{"_id":1,"name":1})
+                    perms_list = dbsession.permissions.find({},{"_id":1,"name":1})
                     perms = {x["_id"]: x["name"] for x in perms_list}
-                    result=list(n68session.users.find({"name":{"$nin":["support.nineteen68","ci_cd"]}},{"_id":1,"name":1,"defaultrole":1}))
+                    result=list(dbsession.users.find({"name":{"$nin":["support.avoassure","ci_cd"]}},{"_id":1,"name":1,"defaultrole":1}))
                     for i in result:
                         i["rolename"]=perms[i["defaultrole"]]
                     res={'rows':result}
@@ -144,22 +144,22 @@ def LoadServices(app, redissession, n68session,licensedata,*args):
             servicesException("getUserDetails", e, True)
         return jsonify(res)
 
-    @app.route('/admin/getUserRoles_Nineteen68',methods=['POST'])
-    def getUserRoles_Nineteen68():
-        app.logger.debug("Inside getUserRoles_Nineteen68")
+    @app.route('/admin/getUserRoles',methods=['POST'])
+    def getUserRoles():
+        app.logger.debug("Inside getUserRoles")
         res={'rows':'fail'}
         try:
             requestdata={}
             if request.data:
                 requestdata=json.loads(request.data)
             if "id" in requestdata:
-                result=list(n68session.permissions.find({"_id":requestdata["id"]},{"name":1}))
+                result=list(dbsession.permissions.find({"_id":requestdata["id"]},{"name":1}))
                 res={'rows':result}
             else:
-                result=list(n68session.permissions.find({"name":{"$ne":"CI_CD"}},{"_id":1,"name":1}))
+                result=list(dbsession.permissions.find({"name":{"$ne":"CI_CD"}},{"_id":1,"name":1}))
                 res={'rows':result}
         except Exception as userrolesexc:
-            servicesException("getUserRoles_Nineteen68", userrolesexc, True)
+            servicesException("getUserRoles", userrolesexc, True)
         return jsonify(res)
 
     #service renders all the domains in DB
@@ -168,7 +168,7 @@ def LoadServices(app, redissession, n68session,licensedata,*args):
         app.logger.debug("Inside getDomains_ICE")
         res={'rows':'fail'}
         try:
-            result=n68session.projects.distinct("domain")
+            result=dbsession.projects.distinct("domain")
             res={'rows':result}
         except Exception as getdomainsexc:
             servicesException("getDomains_ICE", getdomainsexc, True)
@@ -183,8 +183,8 @@ def LoadServices(app, redissession, n68session,licensedata,*args):
             requestdata=json.loads(request.data)
             if not isemptyrequest(requestdata):
                 if "user_id" in requestdata:
-                    n68session.thirdpartyintegration.update_many({"type":"TOKENS","userid":ObjectId(requestdata["user_id"]),"deactivated":"active","expireson":{"$lt":datetime.today()}},{"$set":{"deactivated":"expired"}})
-                    query=list(n68session.thirdpartyintegration.find({"type":"TOKENS","userid":ObjectId(requestdata["user_id"])},{"hash":0}))
+                    dbsession.thirdpartyintegration.update_many({"type":"TOKENS","userid":ObjectId(requestdata["user_id"]),"deactivated":"active","expireson":{"$lt":datetime.today()}},{"$set":{"deactivated":"expired"}})
+                    query=list(dbsession.thirdpartyintegration.find({"type":"TOKENS","userid":ObjectId(requestdata["user_id"])},{"hash":0}))
                     res={'rows':query}
         except Exception as getCIUserssexc:
             servicesException("getCIUsersDetails", getCIUserssexc, True)
@@ -201,21 +201,21 @@ def LoadServices(app, redissession, n68session,licensedata,*args):
             if not isemptyrequest(requestdata):
                 if action == "create":
                     if all(key in requestdata for key in ('userid', 'hash','name')):
-                        query=n68session.thirdpartyintegration.find_one({"name":requestdata["name"],"userid":ObjectId(requestdata["userid"])})
+                        query=dbsession.thirdpartyintegration.find_one({"name":requestdata["name"],"userid":ObjectId(requestdata["userid"])})
                         if(query==None):
                             requestdata["projects"]=[]
                             requestdata["userid"]=ObjectId(requestdata["userid"])
                             requestdata["generatedon"]=datetime.now()
                             requestdata["expireson"]=datetime.strptime(str(requestdata["expireson"]),'%d-%m-%Y %H:%M')
-                            result=n68session.thirdpartyintegration.insert_one(requestdata)
+                            result=dbsession.thirdpartyintegration.insert_one(requestdata)
                             res= {'rows':{'token':requestdata["hash"]}}
                         else:
                             res={'rows':'duplicate'}
                 if action == "deactivate":
                     if all(key in requestdata for key in ('userid','name')):
-                        val=n68session.thirdpartyintegration.find_one({"userid":ObjectId(requestdata["userid"]),"name":requestdata["name"]},{"hash":1})
-                        n68session.thirdpartyintegration.update_one({"hash":val["hash"],"userid":ObjectId(requestdata["userid"])},{"$set":{"deactivated":"deactivated"}})
-                        result=list(n68session.thirdpartyintegration.find({"type":"TOKENS","userid":ObjectId(requestdata["userid"])},{"hash":0}))
+                        val=dbsession.thirdpartyintegration.find_one({"userid":ObjectId(requestdata["userid"]),"name":requestdata["name"]},{"hash":1})
+                        dbsession.thirdpartyintegration.update_one({"hash":val["hash"],"userid":ObjectId(requestdata["userid"])},{"$set":{"deactivated":"deactivated"}})
+                        result=list(dbsession.thirdpartyintegration.find({"type":"TOKENS","userid":ObjectId(requestdata["userid"])},{"hash":0}))
                         res={'rows':result}
         except Exception as getCITokensexc:
             servicesException("manageCIUsers", getCITokensexc, True)
@@ -231,13 +231,13 @@ def LoadServices(app, redissession, n68session,licensedata,*args):
             app.logger.debug("Inside getNames_ICE. Query: "+str(requestdata["type"]))
             if not isemptyrequest(requestdata):
                 if requestdata["type"] =="domainsall" :
-                    result=list(n68session.projects.find({"domain":requestdata["id"][0]},{"_id":1,"name":1}))
+                    result=list(dbsession.projects.find({"domain":requestdata["id"][0]},{"_id":1,"name":1}))
                     res={'rows':result}
                 elif requestdata["type"]=="projects":
                     projectids=[]
                     for i in requestdata["id"]:
                         projectids.append(ObjectId(i))
-                    result=list(n68session.projects.find({"_id":{"$in":projectids}}))
+                    result=list(dbsession.projects.find({"_id":{"$in":projectids}}))
                     res={'rows':result}
                 else:
                     res={'rows':'fail'}
@@ -256,7 +256,7 @@ def LoadServices(app, redissession, n68session,licensedata,*args):
             app.logger.debug("Inside createProject_ICE. Query: create Project")
             if not isemptyrequest(requestdata):
                 requestdata["createdon"]=requestdata["modifiedon"]=datetime.now()
-                requestdata["type"]=n68session.projecttypekeywords.find_one({"name":requestdata["type"]},{"_id":1})["_id"]
+                requestdata["type"]=dbsession.projecttypekeywords.find_one({"name":requestdata["type"]},{"_id":1})["_id"]
                 requestdata["createdon"]=requestdata["modifiedon"]=datetime.now()
                 requestdata["createdbyrole"]=ObjectId(requestdata["createdbyrole"])
                 requestdata["createdby"]=ObjectId(requestdata["createdby"])
@@ -277,7 +277,7 @@ def LoadServices(app, redissession, n68session,licensedata,*args):
                         j["createdby"]=requestdata["createdby"]
                         j["modifiedby"]=requestdata["modifiedby"]
                         j["modifiedbyrole"]=requestdata["modifiedbyrole"]
-                n68session.projects.insert_one(requestdata)
+                dbsession.projects.insert_one(requestdata)
                 res={"rows":"success"}
             else:
                 app.logger.warn('Empty data received. create project.')
@@ -294,13 +294,13 @@ def LoadServices(app, redissession, n68session,licensedata,*args):
             app.logger.debug("Inside updateProject_ICE. Query: "+str(requestdata["query"]))
             if not isemptyrequest(requestdata):
                 if(requestdata['query'] == 'deleterelease'):
-                    # n68session.projects.update({"id":ObjectId(requestdata["projectid"])},{"$pull":{"releases.name":requestdata["releasename"]}})
+                    # dbsession.projects.update({"id":ObjectId(requestdata["projectid"])},{"$pull":{"releases.name":requestdata["releasename"]}})
                     res={"rows":"success"}
                 elif(requestdata['query'] == 'deletecycle'):
-                    # n68session.projects.update({"_id":ObjectId(requestdata["projectid"])},{"$pull":{"releases.cycles._id":ObjectId(requestdata["cycleid"]),"releases.cycles.name":requestdata["name"]}})
+                    # dbsession.projects.update({"_id":ObjectId(requestdata["projectid"])},{"$pull":{"releases.cycles._id":ObjectId(requestdata["cycleid"]),"releases.cycles.name":requestdata["name"]}})
                     res={'rows':'success'}
                 elif(requestdata['query'] == 'createrelease'):
-                    releases=n68session.projects.find_one({"_id":ObjectId(requestdata["projectid"])})["releases"]
+                    releases=dbsession.projects.find_one({"_id":ObjectId(requestdata["projectid"])})["releases"]
                     a={}
                     a["createdby"]=a["modifiedby"]=ObjectId(requestdata["createdby"])
                     a["createdbyrole"]=a["modifiedbyrole"]=ObjectId(requestdata["createdbyrole"])
@@ -314,10 +314,10 @@ def LoadServices(app, redissession, n68session,licensedata,*args):
                     a["cycles"]=requestdata["cycles"]
                     a["name"]=requestdata["releasename"]
                     releases.append(a)
-                    n68session.projects.update({"_id":ObjectId(requestdata["projectid"])},{"$set":{"releases":releases}})
+                    dbsession.projects.update({"_id":ObjectId(requestdata["projectid"])},{"$set":{"releases":releases}})
                     res={'rows':'success'}
                 elif(requestdata['query'] == 'createcycle'):
-                    result=n68session.projects.find_one({"_id":ObjectId(requestdata["projectid"])},{"releases":1})["releases"]
+                    result=dbsession.projects.find_one({"_id":ObjectId(requestdata["projectid"])},{"releases":1})["releases"]
                     for i in result:
                         if i["name"]== requestdata["releaseid"]:
                             cycles={}
@@ -327,20 +327,20 @@ def LoadServices(app, redissession, n68session,licensedata,*args):
                             cycles["_id"]=ObjectId()
                             cycles["name"]=requestdata["name"]
                             i["cycles"].append(cycles)
-                    n68session.projects.update({"_id":ObjectId(requestdata["projectid"])},{"$set":{"releases":result}})
+                    dbsession.projects.update({"_id":ObjectId(requestdata["projectid"])},{"$set":{"releases":result}})
                     res={'rows':'success'}
                 elif(requestdata['query'] == 'editrelease'):
-                    releases=n68session.projects.find_one({"_id":ObjectId(requestdata["projectid"])})["releases"]
+                    releases=dbsession.projects.find_one({"_id":ObjectId(requestdata["projectid"])})["releases"]
                     for i in releases:
                         if i["name"] == requestdata["releasename"]:
                             i["modifiedbyrole"]=ObjectId(requestdata["modifiedbyrole"])
                             i["modifiedby"]=ObjectId(requestdata["modifiedby"])
                             i["modifiedon"]=datetime.now()
                             i["name"]=requestdata["newreleasename"]
-                    n68session.projects.update({"_id":ObjectId(requestdata["projectid"])},{"$set":{"releases":releases}})
+                    dbsession.projects.update({"_id":ObjectId(requestdata["projectid"])},{"$set":{"releases":releases}})
                     res={'rows':'success'}
                 elif(requestdata['query'] == 'editcycle'):
-                    releases=n68session.projects.find_one({"_id":ObjectId(requestdata["projectid"])})["releases"]
+                    releases=dbsession.projects.find_one({"_id":ObjectId(requestdata["projectid"])})["releases"]
                     for i in releases:
                         if i["name"]==requestdata["releaseid"]:
                             cycles=i["cycles"]
@@ -350,7 +350,7 @@ def LoadServices(app, redissession, n68session,licensedata,*args):
                                     j["modifiedbyrole"]=ObjectId(requestdata["modifiedbyrole"])
                                     j["modifiedby"]=ObjectId(requestdata["modifiedby"])
                                     j["modifiedon"]=datetime.now()
-                    n68session.projects.update({"_id":ObjectId(requestdata["projectid"])},{"$set":{"releases":releases}})
+                    dbsession.projects.update({"_id":ObjectId(requestdata["projectid"])},{"$set":{"releases":releases}})
                     res={'rows':'success'}
                 else:
                     res={'rows':'fail'}
@@ -371,11 +371,11 @@ def LoadServices(app, redissession, n68session,licensedata,*args):
             app.logger.debug("Inside getDetails_ICE.")
             if not isemptyrequest(requestdata):
                 if requestdata["type"] == "domaindetails":
-                    result=list(n68session.projects.find({"domain":requestdata["id"]},{"name":1}))
+                    result=list(dbsession.projects.find({"domain":requestdata["id"]},{"name":1}))
                     res={"rows":result}
                 elif requestdata["type"] == "projectsdetails":
-                    result=n68session.projects.find_one({"_id":ObjectId(requestdata["id"])},{"releases":1,"domain":1,"name":1,"type":1})
-                    result["type"]=n68session.projecttypekeywords.find_one({"_id":result["type"]},{"name":1})["name"]
+                    result=dbsession.projects.find_one({"_id":ObjectId(requestdata["id"])},{"releases":1,"domain":1,"name":1,"type":1})
+                    result["type"]=dbsession.projecttypekeywords.find_one({"_id":result["type"]},{"name":1})["name"]
                     res={"rows":result}
                 else:
                     res={'rows':'fail'}
@@ -393,12 +393,12 @@ def LoadServices(app, redissession, n68session,licensedata,*args):
             app.logger.info("Inside manageLDAPConfig. Action is "+str(requestdata['action']))
             if not isemptyrequest(requestdata):
                 query_filter = {"type":"LDAP","name":requestdata["name"]}
-                result=n68session.thirdpartyintegration.find_one(query_filter)
+                result=dbsession.thirdpartyintegration.find_one(query_filter)
                 if "bindcredentials" in requestdata: requestdata["bindcredentials"]=wrap(requestdata["bindcredentials"],ldap_key)
                 else: requestdata["bindcredentials"] = ""
                 if (requestdata['action'] == "delete"):
                     if result != None:
-                        n68session.thirdpartyintegration.delete_one(query_filter)
+                        dbsession.thirdpartyintegration.delete_one(query_filter)
                     res["rows"] = "success"
                 elif (requestdata['action'] == "create"):
                     if result != None: res["rows"] = "exists"
@@ -406,12 +406,12 @@ def LoadServices(app, redissession, n68session,licensedata,*args):
                         del requestdata["action"]
                         requestdata["fieldmap"]=json.loads(requestdata["fieldmap"])
                         requestdata["type"]="LDAP"
-                        n68session.thirdpartyintegration.insert_one(requestdata)
+                        dbsession.thirdpartyintegration.insert_one(requestdata)
                         res["rows"] = "success"
                 elif (requestdata['action'] == "update"):
                     if result != None:
                         requestdata["fieldmap"]=json.loads(requestdata["fieldmap"])
-                        n68session.thirdpartyintegration.update_one({"name":requestdata["name"]},{"$set":{"url":requestdata["url"],"bindcredentials":requestdata["bindcredentials"],"basedn":requestdata["basedn"],"auth":requestdata["auth"],"binddn":requestdata["binddn"],"fieldmap":requestdata["fieldmap"]}})
+                        dbsession.thirdpartyintegration.update_one({"name":requestdata["name"]},{"$set":{"url":requestdata["url"],"bindcredentials":requestdata["bindcredentials"],"basedn":requestdata["basedn"],"auth":requestdata["auth"],"binddn":requestdata["binddn"],"fieldmap":requestdata["fieldmap"]}})
                         res["rows"] = "success"
                 else:
                     res={'rows':'fail'}
@@ -431,7 +431,7 @@ def LoadServices(app, redissession, n68session,licensedata,*args):
                 query_filter = {"type":"LDAP"}
                 if "name" in requestdata:
                     query_filter["name"] = requestdata["name"]
-                    result = n68session.thirdpartyintegration.find_one(query_filter)
+                    result = dbsession.thirdpartyintegration.find_one(query_filter)
                     if result is None: result = []
                     else:
                         password = result["bindcredentials"]
@@ -439,7 +439,7 @@ def LoadServices(app, redissession, n68session,licensedata,*args):
                             password = unwrap(password, ldap_key)
                             result["bindcredentials"] = password
                 else:
-                    result = list(n68session.thirdpartyintegration.find(query_filter,{"name":1}))
+                    result = list(dbsession.thirdpartyintegration.find(query_filter,{"name":1}))
                 res["rows"] = result
             else:
                 app.logger.warn('Empty data received. LDAP config fetch.')
@@ -455,23 +455,23 @@ def LoadServices(app, redissession, n68session,licensedata,*args):
             app.logger.info("Inside manageSAMLConfig. Action is "+str(requestdata['action']))
             if not isemptyrequest(requestdata):
                 query_filter = {"type":"SAML","name":requestdata["name"]}
-                result=n68session.thirdpartyintegration.find_one(query_filter)
+                result=dbsession.thirdpartyintegration.find_one(query_filter)
                 if requestdata['action'] == "delete":
                     if result != None:
-                        n68session.thirdpartyintegration.delete_one(query_filter)
+                        dbsession.thirdpartyintegration.delete_one(query_filter)
                     res["rows"] = "success"
                 elif (requestdata['action'] == "create"):
                     if result != None: res["rows"] = "exists"
                     else:
                         del requestdata["action"]
                         requestdata["type"]="SAML"
-                        n68session.thirdpartyintegration.insert_one(requestdata)
+                        dbsession.thirdpartyintegration.insert_one(requestdata)
                         res["rows"] = "success"
                 elif (requestdata['action'] == "update"):
                     if result != None:
                         del requestdata["action"]
                         del requestdata["name"]
-                        n68session.thirdpartyintegration.update_one(query_filter,{"$set":requestdata})
+                        dbsession.thirdpartyintegration.update_one(query_filter,{"$set":requestdata})
                         res["rows"] = "success"
             else:
                 app.logger.warn('Empty data received. SAML config manage.')
@@ -489,10 +489,10 @@ def LoadServices(app, redissession, n68session,licensedata,*args):
                 query_filter = {"type":"SAML"}
                 if "name" in requestdata:
                     query_filter["name"] = requestdata["name"]
-                    result = n68session.thirdpartyintegration.find_one(query_filter)
+                    result = dbsession.thirdpartyintegration.find_one(query_filter)
                     if result is None: result = []
                 else:
-                    result = list(n68session.thirdpartyintegration.find(query_filter,{"name":1}))
+                    result = list(dbsession.thirdpartyintegration.find(query_filter,{"name":1}))
                 res["rows"] = result
             else:
                 app.logger.warn('Empty data received. SAML config fetch.')
@@ -508,23 +508,23 @@ def LoadServices(app, redissession, n68session,licensedata,*args):
             app.logger.info("Inside manageOIDCConfig. Action is "+str(requestdata['action']))
             if not isemptyrequest(requestdata):
                 query_filter = {"type":"OIDC","name":requestdata["name"]}
-                result=n68session.thirdpartyintegration.find_one(query_filter)
+                result=dbsession.thirdpartyintegration.find_one(query_filter)
                 if requestdata['action'] == "delete":
                     if result != None:
-                        n68session.thirdpartyintegration.delete_one(query_filter)
+                        dbsession.thirdpartyintegration.delete_one(query_filter)
                     res["rows"] = "success"
                 elif (requestdata['action'] == "create"):
                     if result != None: res["rows"] = "exists"
                     else:
                         del requestdata["action"]
                         requestdata["type"]="OIDC"
-                        n68session.thirdpartyintegration.insert_one(requestdata)
+                        dbsession.thirdpartyintegration.insert_one(requestdata)
                         res["rows"] = "success"
                 elif (requestdata['action'] == "update"):
                     if result != None:
                         del requestdata["action"]
                         del requestdata["name"]
-                        n68session.thirdpartyintegration.update_one(query_filter,{"$set":requestdata})
+                        dbsession.thirdpartyintegration.update_one(query_filter,{"$set":requestdata})
                         res["rows"] = "success"
             else:
                 app.logger.warn('Empty data received. OIDC config manage.')
@@ -542,10 +542,10 @@ def LoadServices(app, redissession, n68session,licensedata,*args):
                 query_filter = {"type":"OIDC"}
                 if "name" in requestdata:
                     query_filter["name"] = requestdata["name"]
-                    result = n68session.thirdpartyintegration.find_one(query_filter)
+                    result = dbsession.thirdpartyintegration.find_one(query_filter)
                     if result is None: result = []
                 else:
-                    result = list(n68session.thirdpartyintegration.find(query_filter,{"name":1}))
+                    result = list(dbsession.thirdpartyintegration.find(query_filter,{"name":1}))
                 res["rows"] = result
             else:
                 app.logger.warn('Empty data received. OIDC config fetch.')
@@ -561,19 +561,19 @@ def LoadServices(app, redissession, n68session,licensedata,*args):
         try:
             requestdata=json.loads(request.data)
             if not isemptyrequest(requestdata):
-                domains=n68session.projects.distinct("domain")
+                domains=dbsession.projects.distinct("domain")
                 project={}
                 for i in domains:
-                    projects=list(n68session.projects.find({"domain":i},{"_id":1}))
+                    projects=list(dbsession.projects.find({"domain":i},{"_id":1}))
                     project[i]=[]
                     for j in projects:
                         project[i].append(j["_id"])
-                assigned_pro=n68session.users.find_one({"_id":ObjectId(requestdata["userid"])},{"projects":1})["projects"]
+                assigned_pro=dbsession.users.find_one({"_id":ObjectId(requestdata["userid"])},{"projects":1})["projects"]
                 if (requestdata['alreadyassigned'] != True):
                     projects=assigned_pro
                     for i in requestdata["projectids"]:
                         projects.append(ObjectId(i))
-                    result=n68session.users.update_one({"_id":ObjectId(requestdata["userid"])},{"$set":{"projects":projects}})
+                    result=dbsession.users.update_one({"_id":ObjectId(requestdata["userid"])},{"$set":{"projects":projects}})
                     res={'rows':'success'}
                 elif (requestdata['alreadyassigned'] == True):
                     result=[]
@@ -588,10 +588,10 @@ def LoadServices(app, redissession, n68session,licensedata,*args):
                             elif k == requestdata["domainid"] and diff_pro[i] in v:
                                 remove_pro.append(diff_pro[i])
 
-                    result=n68session.users.update_one({"_id":ObjectId(requestdata["userid"])},{"$set":{"projects":result}})
-                    n68session.tasks.delete_many({"projectid":{"$in":remove_pro},"assignedto":ObjectId(requestdata["userid"]),"status":{"$ne":'complete'}})
-                    n68session.tasks.delete_many({"projectid":{"$in":remove_pro},"owner":ObjectId(requestdata["userid"]),"status":{"$ne":'complete'}})
-                    n68session.tasks.update_many({"projectid":{"$in":remove_pro},"reviewer":ObjectId(requestdata["userid"]),"status":{"$ne":'complete'}},{"$set":{"status":"inprogress","reviewer":""}})
+                    result=dbsession.users.update_one({"_id":ObjectId(requestdata["userid"])},{"$set":{"projects":result}})
+                    dbsession.tasks.delete_many({"projectid":{"$in":remove_pro},"assignedto":ObjectId(requestdata["userid"]),"status":{"$ne":'complete'}})
+                    dbsession.tasks.delete_many({"projectid":{"$in":remove_pro},"owner":ObjectId(requestdata["userid"]),"status":{"$ne":'complete'}})
+                    dbsession.tasks.update_many({"projectid":{"$in":remove_pro},"reviewer":ObjectId(requestdata["userid"]),"status":{"$ne":'complete'}},{"$set":{"status":"inprogress","reviewer":""}})
                     res={'rows':'success'}
                 else:
                    res={'rows':'fail'}
@@ -611,13 +611,13 @@ def LoadServices(app, redissession, n68session,licensedata,*args):
                 +str(requestdata["query"]))
             if not isemptyrequest(requestdata):
                 if(requestdata['query'] == 'projectid'):
-                    result=n68session.users.find_one({"_id":ObjectId(requestdata["userid"])},{"projects":1,"_id":0})
+                    result=dbsession.users.find_one({"_id":ObjectId(requestdata["userid"])},{"projects":1,"_id":0})
                     res={"rows":result}
                 elif(requestdata['query'] == 'projectname'):
                     projectids=[]
                     for i in requestdata["projectid"]:
                         projectids.append(ObjectId(i))
-                    result=list(n68session.projects.find({"_id":{"$in":projectids},"domain":requestdata["domain"]},{"name":1}))
+                    result=list(dbsession.projects.find({"_id":{"$in":projectids},"domain":requestdata["domain"]},{"name":1}))
                     res={"rows":result}
                 else:
                     res={'rows':'fail'}
@@ -627,19 +627,19 @@ def LoadServices(app, redissession, n68session,licensedata,*args):
             servicesException("getAssignedProjects_ICE", e, True)
         return jsonify(res)
 
-    @app.route('/admin/getUsers_Nineteen68',methods=['POST'])
-    def getUsers_Nineteen68():
-        app.logger.debug("Inside getUsers_Nineteen68")
+    @app.route('/admin/getUsers',methods=['POST'])
+    def getUsers():
+        app.logger.debug("Inside getUsers")
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
             if not isemptyrequest(requestdata):
-                result=list(n68session.users.find({"projects":{"$in":[ObjectId(requestdata["projectid"])]}},{"name":1,"defaultrole":1,"addroles":1}))
+                result=list(dbsession.users.find({"projects":{"$in":[ObjectId(requestdata["projectid"])]}},{"name":1,"defaultrole":1,"addroles":1}))
                 res={"rows":result}
             else:
                 app.logger.warn('Empty data received. get users - Mind Maps.')
         except Exception as getUsersexc:
-            servicesException("getUsers_Nineteen68", getUsersexc, True)
+            servicesException("getUsers", getUsersexc, True)
         return jsonify(res)
 
     @app.route('/admin/getPreferences',methods=['POST'])
@@ -649,7 +649,7 @@ def LoadServices(app, redissession, n68session,licensedata,*args):
         try:
             requestdata=json.loads(request.data)
             if not isemptyrequest(requestdata):
-                result = list(n68session.permissions.find({"name":{"$ne":"CI_CD"}},{"name":1,"plugins":1,"_id":0}))
+                result = list(dbsession.permissions.find({"name":{"$ne":"CI_CD"}},{"name":1,"plugins":1,"_id":0}))
                 res = {'rows':result}
             else:
                 app.logger.warn('Empty data received. get user preferences.')
@@ -667,16 +667,16 @@ def LoadServices(app, redissession, n68session,licensedata,*args):
                 find_args = {}
                 if "user" in requestdata:
                     find_args["provisionedto"] = ObjectId(requestdata["user"])
-                result=list(n68session.icetokens.find(find_args))
+                result=list(dbsession.icetokens.find(find_args))
                 user_ids=[i["provisionedto"] for i in result if "provisionedto" in i]
-                result1=list(n68session.users.find({"_id":{"$in":user_ids}},{"name":1}))
+                result1=list(dbsession.users.find({"_id":{"$in":user_ids}},{"name":1}))
                 user_ids={x["_id"]: x["name"] for x in result1}
                 for row in result:
                     if row["icetype"]=="normal":
                         prv_to = row["provisionedto"]
                         if prv_to in user_ids: row["username"] = user_ids[prv_to]
                         else:
-                            n68session.icetokens.delete_one({"_id": row["_id"]})
+                            dbsession.icetokens.delete_one({"_id": row["_id"]})
                             row["provisionedto"] = "--Deleted--"
                     else: row["username"]="N/A"
                 res={'rows':result}
@@ -697,7 +697,7 @@ def LoadServices(app, redissession, n68session,licensedata,*args):
                 app.logger.debug("Inside provisionICE. Query: "+query)
                 token=str(uuid.uuid4())
                 token_query={"icetype": requestdata["icetype"], "icename": requestdata["icename"]}
-                token_exists = len(list(n68session.icetokens.find(token_query, {"icename":1})))!=0
+                token_exists = len(list(dbsession.icetokens.find(token_query, {"icename":1})))!=0
                 if query==PROVISION:
                     requestdata["token"]=token
                     requestdata["status"]=PROVISION_STATUS
@@ -706,22 +706,22 @@ def LoadServices(app, redissession, n68session,licensedata,*args):
                     #To restrict multiple ICE provsioning for the same user
                     if requestdata["icetype"]=="normal":
                         requestdata["provisionedto"]=ObjectId(requestdata["provisionedto"])
-                        user_notexists = len(list(n68session.icetokens.find({"provisionedto":requestdata["provisionedto"]},{"provisionedto":1})))==0
+                        user_notexists = len(list(dbsession.icetokens.find({"provisionedto":requestdata["provisionedto"]},{"provisionedto":1})))==0
                     if not token_exists and user_notexists:
                         #currently only icetype and user combination is unique
-                        n68session.icetokens.insert_one(requestdata)
-                        enc_token=wrap(token+'@'+requestdata["icetype"]+'@'+requestdata["icename"],ice_ndac_key)
+                        dbsession.icetokens.insert_one(requestdata)
+                        enc_token=wrap(token+'@'+requestdata["icetype"]+'@'+requestdata["icename"],ice_das_key)
                         res["rows"] = enc_token
                     else:
                         res["rows"] = "DuplicateIceName"
                 elif query == DEREGISTER:
                     if token_exists:
-                        n68session.icetokens.update_one(token_query,{"$set":{"status":DEREGISTER_STATUS,"deregisteredon":datetime.now()}})
+                        dbsession.icetokens.update_one(token_query,{"$set":{"status":DEREGISTER_STATUS,"deregisteredon":datetime.now()}})
                         res["rows"] = 'success'
                 elif query == 're'+REGISTER:
                     if token_exists:
-                        n68session.icetokens.update_one(token_query,{"$set":{"status":PROVISION_STATUS,"token":token,"provisionedon":datetime.now()}})
-                        enc_token = wrap(token+'@'+requestdata["icetype"]+'@'+requestdata["icename"],ice_ndac_key)
+                        dbsession.icetokens.update_one(token_query,{"$set":{"status":PROVISION_STATUS,"token":token,"provisionedon":datetime.now()}})
+                        enc_token = wrap(token+'@'+requestdata["icetype"]+'@'+requestdata["icename"],ice_das_key)
                         res["rows"] = enc_token
             else:
                 app.logger.warn('Empty data received. provisionICE - Admin.')

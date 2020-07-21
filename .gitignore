@@ -1,6 +1,7 @@
-ndac_internals/*
+das_internals/logs/*
 server_config.json
 *.pyc
+*.pyo
 *.DS_Store
 *.dll
 *.exe
@@ -9,4 +10,4 @@ Lib/*
 Scripts/*
 include/*
 libs/*
-.project
+*.bat

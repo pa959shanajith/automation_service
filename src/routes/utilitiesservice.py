@@ -6,7 +6,7 @@ from utils import *
 from Crypto.Cipher import AES
 import base64
 
-def LoadServices(app, redissession, n68session):
+def LoadServices(app, redissession, dbsession):
     setenv(app)
 
 ################################################################################
@@ -51,7 +51,7 @@ def LoadServices(app, redissession, n68session):
                 if requestdata['query'] == 'testsuites':
                     count = requestdata['count']
                     userid = ObjectId(requestdata['userid']) if 'userid' in requestdata else ""
-                    response = counterupdator(n68session,'testsuites',userid,count)
+                    response = counterupdator(dbsession,'testsuites',userid,count)
                     if response != True:
                         res={'rows':'fail'}
                     else:
@@ -65,9 +65,9 @@ def LoadServices(app, redissession, n68session):
         return jsonify(res)
 
     #directly updates user access
-    @app.route('/utility/userAccess_Nineteen68',methods=['POST'])
-    def userAccess_Nineteen68():
-        app.logger.debug("Inside userAccess_Nineteen68")
+    @app.route('/utility/userAccess',methods=['POST'])
+    def userAccess():
+        app.logger.debug("Inside userAccess")
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
@@ -77,7 +77,7 @@ def LoadServices(app, redissession, n68session):
             elif (not emptyRequestCheck) and (requestdata['roleid']=="ignore"):
                 res={'rows':'True'}
             elif not emptyRequestCheck:
-                result=n68session.permissions.find_one({"_id":ObjectId(requestdata["roleid"])},{"servicelist":1,"_id":1})
+                result=dbsession.permissions.find_one({"_id":ObjectId(requestdata["roleid"])},{"servicelist":1,"_id":1})
                 servicename=requestdata['servicename']
                 statusflag = False
                 for each in result['servicelist']:
@@ -91,7 +91,7 @@ def LoadServices(app, redissession, n68session):
             else:
                 app.logger.warn('Empty data received. user Access Permission.')
         except Exception as useraccessexc:
-            servicesException("userAccess_Nineteen68", useraccessexc, True)
+            servicesException("userAccess", useraccessexc, True)
         return jsonify(res)
 ################################################################################
 # END OF UTILITIES

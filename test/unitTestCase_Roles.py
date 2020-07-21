@@ -1,5 +1,5 @@
 #-------------------------------------------------------------------------------
-# Name:        ndac.py
+# Name:        das.py
 # Purpose:     Security Aspects, Licensing components and ProfJ
 #
 # Author:      vishvas.a
@@ -38,15 +38,15 @@ import uuid
 ##
 
 ##os.chdir("..")
-#nineteen68 folder location is parent directory
+#Avo Assure folder location is parent directory
 ##currdir=os.getcwd()
 ##config_path = currdir+'/server_config.json'
-##assistpath = currdir + "/ndac_internals/assist"
-##logspath= currdir + "/ndac_internals/logs"
+##assistpath = currdir + "/das_internals/assist"
+##logspath= currdir + "/das_internals/logs"
 ##
-##ndac_conf = json.loads(open(config_path).read())
+##das_conf = json.loads(open(config_path).read())
 ##
-##lsip = ndac_conf['ndac']['licenseserver']
+##lsip = das_conf['licenseserver']
 from cassandra.cluster import Cluster
 #from flask_cassandra import CassandraCluster
 from cassandra.auth import PlainTextAuthProvider
@@ -56,16 +56,16 @@ try:
     cluster = Cluster(['10.41.31.120'],port=9042,auth_provider=auth)
 
     icesession = cluster.connect()
-    n68session = cluster.connect()
+    dbsession = cluster.connect()
     icehistorysession = cluster.connect()
-    n68historysession = cluster.connect()
+    dbhistorysession = cluster.connect()
 
     from cassandra.query import dict_factory
     icesession.row_factory = dict_factory
     icesession.set_keyspace('icetestautomation')
 
-    n68session.row_factory = dict_factory
-    n68session.set_keyspace('nineteen68')
+    dbsession.row_factory = dict_factory
+    dbsession.set_keyspace('nineteen68')
     dbup = True
 except Exception as dbexception:
     print ('Error in Database connectivity...');
@@ -96,9 +96,9 @@ def server_ready():
 # INCLUDES : Login components
 ################################################################################
 
-#service for login to Nineteen68
-#@app.route('/login/authenticateUser_Nineteen68',methods=['POST'])
-def authenticateUser_Nineteen68():
+#service for login to Avo Assure
+#@app.route('/login/authenticateUser',methods=['POST'])
+def authenticateUser():
     res={'rows':'fail'}
     try:
         #requestdata=json.loads(request.data)
@@ -106,7 +106,7 @@ def authenticateUser_Nineteen68():
             authenticateuser = ("select password from users where username = '"
                                 +requestdata["username"]+"' "
                                 +" ALLOW FILTERING;")
-            queryresult = n68session.execute(authenticateuser)
+            queryresult = dbsession.execute(authenticateuser)
             res= {"rows":queryresult.current_rows}
             res=closehonor(res)
 ##            if 'dayone' in res:
@@ -132,8 +132,8 @@ def authenticateUser_Nineteen68():
         return res
 
 #service for user ldap validation
-#@app.route('/login/authenticateUser_Nineteen68/ldap',methods=['POST'])
-def authenticateUser_Nineteen68_ldap():
+#@app.route('/login/authenticateUser/ldap',methods=['POST'])
+def authenticateUser_ldap():
     res={'rows':'fail'}
     try:
 ##        requestdata=json.loads(request.data)
@@ -141,7 +141,7 @@ def authenticateUser_Nineteen68_ldap():
             authenticateuserldap = ("select ldapuser from users where "
                                     +"username = '"+requestdata["username"]+"'"
                                     +"allow filtering;")
-            queryresult = n68session.execute(authenticateuserldap)
+            queryresult = dbsession.execute(authenticateuserldap)
             res= {"rows":queryresult.current_rows}
             res=closehonor(res)
             return res
@@ -155,8 +155,8 @@ def authenticateUser_Nineteen68_ldap():
         return res
 
 #service for getting rolename by roleid
-#@app.route('/login/getRoleNameByRoleId_Nineteen68',methods=['POST'])
-def getRoleNameByRoleId_Nineteen68():
+#@app.route('/login/getRoleNameByRoleId',methods=['POST'])
+def getRoleNameByRoleId():
     res={'rows':'fail'}
     try:
 ##        requestdata=json.loads(request.data)
@@ -164,7 +164,7 @@ def getRoleNameByRoleId_Nineteen68():
             rolename = ("select rolename from roles where "
                         +"roleid = "+requestdata["roleid"]
                         +" allow filtering;")
-            queryresult = n68session.execute(rolename)
+            queryresult = dbsession.execute(rolename)
             res = {"rows":queryresult.current_rows}
             return res
 ##        else:
@@ -172,12 +172,12 @@ def getRoleNameByRoleId_Nineteen68():
 ##
 ##            return jsonify(res)
     except Exception as rolenameexc:
-        print ('Error in getRoleNameByRoleId_Nineteen68.')
+        print ('Error in getRoleNameByRoleId.')
         return res
 
 #utility checks whether user is having projects assigned
-#@app.route('/login/authenticateUser_Nineteen68/projassigned',methods=['POST'])
-def authenticateUser_Nineteen68_projassigned():
+#@app.route('/login/authenticateUser/projassigned',methods=['POST'])
+def authenticateUser_projassigned():
     res={'rows':'fail'}
     try:
 ##        requestdata=json.loads(request.data)
@@ -188,13 +188,13 @@ def authenticateUser_Nineteen68_projassigned():
                                                 +"username = '"
                                                 +requestdata["username"]
                                                 +"' allow filtering;")
-                queryresult = n68session.execute(authenticateuserprojassigned1)
+                queryresult = dbsession.execute(authenticateuserprojassigned1)
             elif(requestdata["query"] == 'getUserRole'):
                 authenticateuserprojassigned2= ("select rolename from roles"
                                                 +" where roleid = "
                                                 +requestdata["roleid"]
                                                 +" allow filtering;")
-                queryresult = n68session.execute(authenticateuserprojassigned2)
+                queryresult = dbsession.execute(authenticateuserprojassigned2)
             elif(requestdata["query"] == 'getAssignedProjects'):
                 authenticateuserprojassigned3= ("select projectids from"
                                             +" icepermissions where userid = "
@@ -213,8 +213,8 @@ def authenticateUser_Nineteen68_projassigned():
         return res
 
 #service for loading user information
-#@app.route('/login/loadUserInfo_Nineteen68',methods=['POST'])
-def loadUserInfo_Nineteen68():
+#@app.route('/login/loadUserInfo',methods=['POST'])
+def loadUserInfo():
     res={'rows':'fail'}
     try:
 ##        requestdata=json.loads(request.data)
@@ -224,7 +224,7 @@ def loadUserInfo_Nineteen68():
                                 +"defaultrole, ldapuser, additionalroles, username "
                                 +"from users where username = "+
                                 "'"+requestdata["username"]+"' allow filtering")
-                queryresult = n68session.execute(loaduserinfo1)
+                queryresult = dbsession.execute(loaduserinfo1)
                 rows=[]
                 for eachkey in queryresult.current_rows:
                     additionalroles=[]
@@ -248,12 +248,12 @@ def loadUserInfo_Nineteen68():
                 loaduserinfo2 = ("select rolename from roles where "
                                     +"roleid = "+requestdata["roleid"]
                                     +" allow filtering")
-                queryresult = n68session.execute(loaduserinfo2)
+                queryresult = dbsession.execute(loaduserinfo2)
             elif(requestdata["query"] == 'userPlugins'):
                 loaduserinfo3 = ("select * from "
                                 +"userpermissions where roleid = "
                                 +requestdata["roleid"]+" allow filtering")
-                queryresult = n68session.execute(loaduserinfo3)
+                queryresult = dbsession.execute(loaduserinfo3)
             else:
                 return res
             res= {"rows":queryresult.current_rows}
@@ -262,7 +262,7 @@ def loadUserInfo_Nineteen68():
 ##            print ('Empty data received. loadUserInfo')
 ##            return jsonify(res)
     except Exception as loaduserinfoexc:
-        print ('Error in loadUserInfo_Nineteen68.')
+        print ('Error in loadUserInfo.')
         return res
 
 ################################################################################
@@ -276,8 +276,8 @@ def loadUserInfo_Nineteen68():
 ################################################################################
 
 #getting Release_iDs of Project
-#@app.route('/create_ice/getReleaseIDs_Ninteen68',methods=['POST'])
-def getReleaseIDs_Ninteen68():
+#@app.route('/create_ice/getReleaseIDs',methods=['POST'])
+def getReleaseIDs():
     res={'rows':'fail'}
     try:
 ##       requestdata=json.loads(request.data)
@@ -288,14 +288,14 @@ def getReleaseIDs_Ninteen68():
             queryresult = icesession.execute(getReleaseDetails)
             res={'rows':queryresult.current_rows}
 ##       else:
-##            print ("Empty data received. getReleaseIDs_Ninteen68")
+##            print ("Empty data received. getReleaseIDs")
     except Exception as e:
-        print ('Error in getReleaseIDs_Ninteen68.')
+        print ('Error in getReleaseIDs.')
     return res
 
 
-#@app.route('/create_ice/getCycleIDs_Ninteen68',methods=['POST'])
-def getCycleIDs_Ninteen68():
+#@app.route('/create_ice/getCycleIDs',methods=['POST'])
+def getCycleIDs():
     res={'rows':'fail'}
     try:
 ##       requestdata=json.loads(request.data)
@@ -306,13 +306,13 @@ def getCycleIDs_Ninteen68():
             queryresult = icesession.execute(getCycleDetails)
             res={'rows':queryresult.current_rows}
 ##       else:
-##            print ("Empty data received. getCycleIDs_Ninteen68")
+##            print ("Empty data received. getCycleIDs")
     except Exception as e:
-        print ('Error in getCycleIDs_Ninteen68.')
+        print ('Error in getCycleIDs.')
     return res
 
-#@app.route('/create_ice/getProjectType_Nineteen68',methods=['POST'])
-def getProjectType_Nineteen68():
+#@app.route('/create_ice/getProjectType',methods=['POST'])
+def getProjectType():
     res={'rows':'fail'}
     try:
 ##       requestdata=json.loads(request.data)
@@ -323,14 +323,14 @@ def getProjectType_Nineteen68():
             queryresult = icesession.execute(getProjectType)
             res={'rows':queryresult.current_rows}
 ##       else:
-##            print ("Empty data received. getProjectType_Nineteen68")
+##            print ("Empty data received. getProjectType")
     except Exception as e:
-        print ('Error in getProjectType_Nineteen68.')
+        print ('Error in getProjectType.')
     return res
 
 #getting ProjectID and names of project sassigned to particular user
-#@app.route('/create_ice/getProjectIDs_Nineteen68',methods=['POST'])
-def getProjectIDs_Nineteen68():
+#@app.route('/create_ice/getProjectIDs',methods=['POST'])
+def getProjectIDs():
     res={'rows':'fail'}
     try:
 ##       requestdata=json.loads(request.data)
@@ -348,13 +348,13 @@ def getProjectIDs_Nineteen68():
                 queryresult = icesession.execute(getprojectname)
                 res={'rows':queryresult.current_rows}
 ##       else:
-##            print ("Empty data received. getProjectIDs_Nineteen68")
+##            print ("Empty data received. getProjectIDs")
     except Exception as e:
-        print ('Error in getProjectIDs_Nineteen68.')
+        print ('Error in getProjectIDs.')
     return res
 
 #getting names of module/scenario/screen/testcase name of given id
-#@app.route('/create_ice/getNames_Ninteen68',methods=['POST'])
+#@app.route('/create_ice/getNames',methods=['POST'])
 def getAllNames_ICE():
     res={'rows':'fail'}
     try:
@@ -1157,7 +1157,7 @@ def getTestcasesByScenarioId_ICE():
         print ('Error in getTestcasesByScenarioId_ICE.')
     return res
 
-#read test suite nineteen68
+#read test suite Avo Assure
 #@app.route('/suite/readTestSuite_ICE',methods=['POST'])
 def readTestSuite_ICE(requestdata):
     res={'rows':'fail'}
@@ -1511,16 +1511,16 @@ def viewQcMappedList_ICE():
 ################################################################################
 
 #fetches the user roles for assigning during creation/updation user
-#@app.route('/admin/getUserRoles_Nineteen68',methods=['POST'])
+#@app.route('/admin/getUserRoles',methods=['POST'])
 def getUserRoles():
     res={'rows':'fail'}
     try:
         userrolesquery="select roleid, rolename from roles"
-        queryresult = n68session.execute(userrolesquery)
+        queryresult = dbsession.execute(userrolesquery)
         res={'rows':queryresult.current_rows}
         return (res)
     except Exception as userrolesexc:
-        print ('Error in getUserRoles_Nineteen68.')
+        print ('Error in getUserRoles.')
         return (res)
 
 
@@ -1648,16 +1648,16 @@ def getAssignedProjects_ICE():
         print ('Error in getAssignedProjects_ICE.')
         return (res)
 
-#service creates new users into Nineteen68
-#@app.route('/admin/createUser_Nineteen68',methods=['POST'])
-def createUser_Nineteen68(requestdata):
+#service creates new users into Avo Assure
+#@app.route('/admin/createUser',methods=['POST'])
+def createUser(requestdata):
     res={'rows':'fail'}
     try:
 ##        requestdata=json.loads(request.data)
 ##        if not isemptyrequest(requestdata):
             if(requestdata['query'] == 'allusernames'):
                 createuserquery1=("select username from users")
-                queryresult = n68session.execute(createuserquery1)
+                queryresult = dbsession.execute(createuserquery1)
                 res={'rows':queryresult.current_rows}
             elif(requestdata['query'] == 'createuser'):
                 userid = str(uuid.uuid4())
@@ -1672,7 +1672,7 @@ def createUser_Nineteen68(requestdata):
                 +requestdata['firstname']+"' , '"+requestdata['lastname']+"' , "
                 +str(history)+" , "+str(requestdata['ldapuser'])+" , '"+requestdata['password']+"' , '"
                 +requestdata['username']+"')")
-                queryresult = n68session.execute(createuserquery2)
+                queryresult = dbsession.execute(createuserquery2)
                 res={'rows':'Success'}
             else:
                 return (res)
@@ -1681,19 +1681,19 @@ def createUser_Nineteen68(requestdata):
 ##            print ('Empty data received. create user.')
 ##            return (res)
     except Exception as createusersexc:
-        print ('Error in createUser_Nineteen68.')
+        print ('Error in createUser.')
         return (res)
 
-#service fetch user data from Nineteen68
-#@app.route('/admin/getUserData_Nineteen68',methods=['POST'])
-def getUserData_Nineteen68():
+#service fetch user data from Avo Assure
+#@app.route('/admin/getUserData',methods=['POST'])
+def getUserData():
     res={'rows':'fail'}
     try:
 ##        requestdata=json.loads(request.data)
 ##        if not isemptyrequest(requestdata):
             getuserdataquery=("select username,firstname,lastname,emailid,ldapuser,"
                +"defaultrole,additionalroles from users where userid="+str(requestdata['userid']))
-            queryresult = n68session.execute(getuserdataquery)
+            queryresult = dbsession.execute(getuserdataquery)
             rows=[]
             for eachkey in queryresult.current_rows:
                 additionalroles=[]
@@ -1716,13 +1716,13 @@ def getUserData_Nineteen68():
 ##            print ('Empty data received. Get user data.')
 ##            return (res)
     except Exception as updateUserexc:
-        print ('Error in getUserData_Nineteen68')
+        print ('Error in getUserData')
         res={'rows':'fail'}
         return (res)
 
-#service update user data into Nineteen68
-#@app.route('/admin/updateUser_Nineteen68',methods=['POST'])
-def updateUser_Nineteen68(requestdata):
+#service update user data into Avo Assure
+#@app.route('/admin/updateUser',methods=['POST'])
+def updateUser(requestdata):
     res={'rows':'fail'}
     try:
 ##        requestdata=json.loads(request.data)
@@ -1756,14 +1756,14 @@ def updateUser_Nineteen68(requestdata):
                 + ", modifiedbyrole= '" + str(requestdata['modifiedbyrole'])
                 + "', additionalroles= {" + str(requestdata['additionalroles'])
                 + "} where userid=" + str(requestdata['userid']))
-            queryresult = n68session.execute(updateuserquery2)
+            queryresult = dbsession.execute(updateuserquery2)
             res={'rows':'Success'}
             return (res)
 ##        else:
 ##            print ('Empty data received. update user.')
 ##            return (res)
     except Exception as updateUserexc:
-        print ('Error in updateUser_nineteen68')
+        print ('Error in updateUser')
         res={'rows':'fail'}
         return (res)
 
@@ -1866,9 +1866,9 @@ def updateProject_ICE():
             print ('Error in updateProject_ICE')
             return (res)
 
-#fetches user data into Nineteen68
-#@app.route('/admin/getUsers_Nineteen68',methods=['POST'])
-def getUsers_Nineteen68():
+#fetches user data into Avo Assure
+#@app.route('/admin/getUsers',methods=['POST'])
+def getUsers():
     res={'rows':'fail'}
     try:
 ##        requestdata=json.loads(request.data)
@@ -1887,7 +1887,7 @@ def getUsers_Nineteen68():
             for row in queryresultuserids.current_rows:
                 queryforuser=("select userid, username, defaultrole from users "
                         +"where userid="+str(row['userid']))
-                queryresultusername=n68session.execute(queryforuser)
+                queryresultusername=dbsession.execute(queryforuser)
                 if not(len(queryresultusername.current_rows) == 0):
                     if not (str(queryresultusername.current_rows[0]['defaultrole']) in userrolesarr):
                         rids.append(row['userid'])
@@ -1899,7 +1899,7 @@ def getUsers_Nineteen68():
 ##            return (res)
             return (res)
     except Exception as getUsersexc:
-        print ('Error in getUsers_Nineteen68')
+        print ('Error in getUsers')
         return (res)
 
 #service assigns projects to a specific user
@@ -1944,16 +1944,16 @@ def assignProjects_ICE(requestdata):
         return (res)
 
 # service fetches all users
-#@app.route('/admin/getAllUsers_Nineteen68',methods=['POST'])
-def getAllUsers_Nineteen68():
+#@app.route('/admin/getAllUsers',methods=['POST'])
+def getAllUsers():
     res={'rows':'fail'}
     try:
         queryforallusers=("select userid, username, defaultrole from users")
-        queryresult = n68session.execute(queryforallusers)
+        queryresult = dbsession.execute(queryforallusers)
         res={'rows':queryresult.current_rows}
         return (res)
     except Exception as getallusersexc:
-        print ('Error in getAllUsers_Nineteen68')
+        print ('Error in getAllUsers')
         return (res)
 
 ################################################################################
@@ -2072,8 +2072,8 @@ def reportStatusScenarios_ICE():
         return (res)
 
 #fetching the reports
-#@app.route('/reports/getReport_Nineteen68',methods=['POST'])
-def getReport_Nineteen68():
+#@app.route('/reports/getReport',methods=['POST'])
+def getReport():
     res={'rows':'fail'}
     try:
 ##        requestdata=json.loads(request.data)
@@ -2119,7 +2119,7 @@ def getReport_Nineteen68():
 ##            return (res)
     except Exception as getreportexc:
         print (getreportexc)
-        print ('Error in getReport_Nineteen68.')
+        print ('Error in getReport.')
         return (res)
 
 #export json feature on reports
@@ -2194,7 +2194,7 @@ def createHistory(query, table, requestdata):
         else:
             versionquery="select getversions(history) from "+table+" where "+primary_keys[table][0]+"="+str(requestdata[primary_keys[table][0]])
         if(table=='users'):
-            queryresult=n68session.execute(versionquery)
+            queryresult=dbsession.execute(versionquery)
         else:
             queryresult=icesession.execute(versionquery)
         if(query=='submit' and requestdata['status']=='complete'):
@@ -2364,7 +2364,7 @@ query['testcase_details']='select * from testcases where testcaseid='
 query['delete_flag'] = ' and deleted=false allow filtering'
 numberofdays=1
 omgall="\x4e\x69\x6e\x65\x74\x65\x65\x6e\x36\x38\x6e\x64\x61\x74\x63\x6c\x69\x63\x65\x6e\x73\x69\x6e\x67"
-ndacinfo = {
+dasinfo = {
     "action": "",
     "sysinfo": {"mac": "","tkn": ""},
     "btchinfo": {
@@ -2418,7 +2418,7 @@ def isemptyrequest(requestdata):
                 handler.setLevel(logging.CRITICAL)
                 app.logger.addHandler(handler)
                 app.logger.critical("User validity expired... "
-                +"Please contact Nineteen68 Team for Enabling")
+                +"Please contact Avo Assure Team for Enabling")
                 handler.setLevel(logging.disable(logging.CRITICAL))
                 app.logger.addHandler(handler)
                 usersession = False
@@ -2426,7 +2426,7 @@ def isemptyrequest(requestdata):
         else:
             if offlineuser != True:
                 flag = True
-                app.logger.critical("Access to Nineteen68 Expired.")
+                app.logger.critical("Access to Avo Assure Expired.")
                 handler.setLevel(logging.disable(logging.CRITICAL))
                 app.logger.addHandler(handler)
             else:
@@ -2435,7 +2435,7 @@ def isemptyrequest(requestdata):
                 handler.setLevel(logging.CRITICAL)
                 app.logger.addHandler(handler)
                 app.logger.critical("User validity expired... "
-                +"Please contact Nineteen68 Team for Enabling")
+                +"Please contact Avo Assure Team for Enabling")
                 handler.setLevel(logging.disable(logging.CRITICAL))
                 app.logger.addHandler(handler)
     return flag
@@ -2475,8 +2475,8 @@ def get_delete_query(node_id,node_name,node_version_number,node_parentid,project
     query['delete_testcase']="delete FROM testcases WHERE testcaseid="+node_id+" and testcasename='"+node_name+"' and versionnumber="+node_version_number+" and screenid="+node_parentid
 
 #directly updates user access
-##@app.route('/utility/userAccess_Nineteen68',methods=['POST'])
-def userAccess_Nineteen68(requestdata):
+##@app.route('/utility/userAccess',methods=['POST'])
+def userAccess(requestdata):
     res={'rows':'fail'}
     try:
         #requestdata=json.loads(request.data)
@@ -2486,7 +2486,7 @@ def userAccess_Nineteen68(requestdata):
         servicename=requestdata['servicename']
         roleaccessquery = ("select servicelist from userpermissions "
             +"where roleid ="+ roleid + " ALLOW FILTERING ")
-        queryresult = n68session.execute(roleaccessquery)
+        queryresult = dbsession.execute(roleaccessquery)
         statusflag = False
         for each in queryresult.current_rows[0]['servicelist']:
             if servicename == str(each):
@@ -2501,7 +2501,7 @@ def userAccess_Nineteen68(requestdata):
     except Exception as useraccessexc:
         import traceback
         traceback.print_exc()
-        print('Error in userAccess_Nineteen68.')
+        print('Error in userAccess.')
     return res
 ############################
 # END OF GENERIC FUNCTIONS
@@ -2586,7 +2586,7 @@ if __name__ == '__main__':
 ##    data = {
 ##        'testcaseid': ['2a3f8555-cc85-47c6-85de-c6c69facce2b'],
 ##		'modifiedby': 'sakshi.goyal',
-##		'modifiedbyrole': 'Nineteen68_Admin',
+##		'modifiedbyrole': 'Admin',
 ##		'projectid': '803f2330-4a4a-4611-99ad-6c319f4811fb',
 ##		'testscenarioid': 'f94e6ae8-77a0-442f-b699-bb47ba17ef52',
 ##		'modifiedflag': True,
@@ -2603,7 +2603,7 @@ if __name__ == '__main__':
 ##    	'modulename': 'Module_batch',
 ##    	'modifiedflag': True,
 ##    	'modifiedby': 'sakshi.goyal',
-##    	'modifiedbyrole':'Nineteen68_Admin',
+##    	'modifiedbyrole':'Admin',
 ##    	'versionnumber': '0'
 ##    }
 ##    response = updateModule_ICE(data)
@@ -2615,7 +2615,7 @@ if __name__ == '__main__':
 ##		'moduleid': 'da9b196d-8021-4a68-be2b-753ec267305e',
 ##		'versionnumber': '0',
 ##		'modifiedby': 'sakshi.goyal',
-##		'modifiedbyrole': 'Nineteen68_Admin',
+##		'modifiedbyrole': 'Admin',
 ##		'modifiedon': str(getcurrentdate()),
 ##		'history':{'000.001': '{\"timestamp\": \"1508862935184\", \"description\": \"Updated properties: {u\"testscenarioids\": \"23f78264-e13e-4d91-93e5-1c3563fe26d4,daf650d4-9c22-4fd0-9d5e-4f4f42f0ffaa\", u\"modifiedflag\": True}\", \"user\": \"sakshi.goyal\"}'},
 ##		'createdby': 'sakshi.goyal',
@@ -2635,7 +2635,7 @@ if __name__ == '__main__':
 ##		'testscenarioid': 'f94e6ae8-77a0-442f-b699-bb47ba17ef52',
 ##		'versionnumber': '0',
 ##		'modifiedby': 'sakshi.goyal',
-##		'modifiedbyrole': 'Nineteen68_Admin',
+##		'modifiedbyrole': 'Admin',
 ##		'modifiedon': str(getcurrentdate()),
 ##		'history':{'000.001': '{\"timestamp\": \"1508862935184\", \"description\": \"Updated properties: {u\"testscenarioids\": \"23f78264-e13e-4d91-93e5-1c3563fe26d4,daf650d4-9c22-4fd0-9d5e-4f4f42f0ffaa\", u\"modifiedflag\": True}\", \"user\": \"sakshi.goyal\"}'},
 ##		'createdon': '2017-09-04 12:07:47+0000',
@@ -2653,7 +2653,7 @@ if __name__ == '__main__':
 ##		'screenname': 'Screen_batch_new',
 ##		'screenid': '3cff8b89-ce90-4df5-a411-0f6463fbf894',
 ##		'modifiedby': 'sakshi.goyal',
-##		'modifiedbyrole': 'Nineteen68_Admin',
+##		'modifiedbyrole': 'Admin',
 ##		'modifiedon': str(getcurrentdate()),
 ##		'history':{'000.001': '{\"timestamp\": \"1508862935184\", \"description\": \"Updated properties: {u\"testscenarioids\": \"23f78264-e13e-4d91-93e5-1c3563fe26d4,daf650d4-9c22-4fd0-9d5e-4f4f42f0ffaa\", u\"modifiedflag\": True}\", \"user\": \"sakshi.goyal\"}'},
 ##		'createdon': '2017-09-11 18:26:20+0000',
@@ -2673,7 +2673,7 @@ if __name__ == '__main__':
 ##		'testcasename': 'Testcase_batch1_new',
 ##		'testcaseid': 'bbdc3479-bf09-4e17-b4fc-98e97ca1cb62',
 ##		'modifiedby': 'sakshi.goyal',
-##		'modifiedbyrole': 'Nineteen68_Admin',
+##		'modifiedbyrole': 'Admin',
 ##		'modifiedon': str(getcurrentdate()),
 ##		'history':{'000.001': '{\"timestamp\": \"1508862935184\", \"description\": \"Updated properties: {u\"testscenarioids\": \"23f78264-e13e-4d91-93e5-1c3563fe26d4,daf650d4-9c22-4fd0-9d5e-4f4f42f0ffaa\", u\"modifiedflag\": True}\", \"user\": \"sakshi.goyal\"}'},
 ##		'createdon': '2017-09-11 18:26:20+0000',
@@ -2738,7 +2738,7 @@ if __name__ == '__main__':
 ##		"testsuiteid": 'a07bad1c-e467-4ff3-8158-83180cf95981',
 ##		"versionnumber": '0',
 ##		"conditioncheck": [0],
-##		"createdby": "Ninteen68_admin",
+##		"createdby": "Admin",
 ##		"createdthrough": "createdthrough",
 ##		"deleted": False,
 ##		"donotexecute": [1],
@@ -2754,7 +2754,7 @@ if __name__ == '__main__':
 ##		"testsuiteid": 'a07bad1c-e467-4ff3-8158-83180cf95981',
 ##		"versionnumber": 0,
 ##		"conditioncheck": [0],
-##		"createdby": 'Ninteen68_admin',
+##		"createdby": 'Admin',
 ##		"createdon": '2017-10-24 15:16:23+0000',
 ##		"createdthrough": "createdthrough",
 ##		"deleted": False,
@@ -2778,7 +2778,7 @@ if __name__ == '__main__':
 ##		"getparampaths": [''],
 ##		"testscenarioids": ['f94e6ae8-77a0-442f-b699-bb47ba17ef52'],
 ##		"modifiedby": 'sakshi.goyal',
-##		"modifiedbyrole": 'Ninteen68_admin',
+##		"modifiedbyrole": 'Admin',
 ##		"cycleid": '434211f4-0089-4662-ae6b-492b47504ca5',
 ##		"testsuiteid": 'a07bad1c-e467-4ff3-8158-83180cf95981',
 ##		"testsuitename": 'Module_sap',
@@ -2814,35 +2814,35 @@ if __name__ == '__main__':
 ##    }
 ##    response = ScheduleTestSuite_ICE(data)
 ##
-    #createUser_Nineteen68
+    #createUser
 ##    data = {
 ##        "query": "createuser",
 ##		"createdby": 'admin',
 ##		"defaultrole": '566702ae-8caf-42e9-9b20-fc2381c4cc0f',
-##		"emailid": 'test@ndac.com',
+##		"emailid": 'test@avo.com',
 ##		"firstname": 'test',
-##		"lastname": 'ndac',
+##		"lastname": 'das',
 ##		"ldapuser": False,
 ##		"password": '$2a$10$YoK5z0QdFn3yijy0WuyB/.i6XhaLbwE3pdkd3/MlWtIA.13XcQJO2',
-##		"username": 'test_ndac'
+##		"username": 'test_das'
 ##    }
-##    response = createUser_Nineteen68(data)
+##    response = createUser(data)
 ##
-    #updateUser_Nineteen68
+    #updateUser
 ##    data = {
 ##        "userid": 'b89440ff-2b93-4311-a0a9-b53475a7eb2d',
 ##		"additionalroles": 'null',
 ##		"deactivated": False,
-##		"emailid": 'test@ndac.com',
+##		"emailid": 'test@avo.com',
 ##		"firstname": 'test',
-##		"lastname": 'ndac',
+##		"lastname": 'das',
 ##		"ldapuser": False,
 ##		"modifiedby": 'admin',
 ##		"modifiedbyrole": 'b5e9cb4a-5299-4806-b7d7-544c30593a6e',
 ##		"password": '$2a$10$YoK5z0QdFn3yijy0WuyB/.i6XhaLbwE3pdkd3/MlWtIA.13XcQJO2',
-##		"username": 'test_ndac'
+##		"username": 'test_das'
 ##    }
-##    response = updateUser_Nineteen68(data)
+##    response = updateUser(data)
 ##
     #createProject_ICE
 ##    data = {
@@ -2868,7 +2868,7 @@ if __name__ == '__main__':
 
 
 
-    #userAccess_Nineteen68
+    #userAccess
 ##    data = {
 ##            "roleid": "b5e9cb4a-5299-4806-b7d7-544c30593a6e",
 ####            "servicename":"assignProjects_ICE",

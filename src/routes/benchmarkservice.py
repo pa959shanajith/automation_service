@@ -11,7 +11,7 @@ import datetime
 import statistics
 
 
-def LoadServices(app, redissession, n68session):
+def LoadServices(app, redissession, dbsession):
     setenv(app)
 
 ################################################################################
@@ -39,7 +39,7 @@ def LoadServices(app, redissession, n68session):
         try:
             x = DP.parse(requestdata["time"])
             dtm = datetime.datetime(x.year,x.month,x.day,x.hour,x.minute) 
-            result_arr = n68session.benchmark.find({"hostname":requestdata['hostname'],"time":{"$lt": dtm}})
+            result_arr = dbsession.benchmark.find({"hostname":requestdata['hostname'],"time":{"$lt": dtm}})
             index = result_arr.count() - 1
             result = None
             if index >= 0:
@@ -58,7 +58,7 @@ def LoadServices(app, redissession, n68session):
                 inputdata["averagesystemscore"] = requestdata["systemscore"]
                 inputdata["runcount"] = 1
                 inputdata['time'].append(dtm)
-                n68session.benchmark.insert_one(inputdata)
+                dbsession.benchmark.insert_one(inputdata)
                 res={"benchmark_store":"success"}
             else:
                 inputdata["cpuscore"].append(requestdata['cpuscore'])
@@ -80,7 +80,7 @@ def LoadServices(app, redissession, n68session):
                 inputdata["runcount"] = result["runcount"] + 1
                 inputdata['time'].append(dtm)  
                 inputdata['time'].extend(result['time'])      
-                n68session.benchmark.update_one({"_id":result["_id"]},{"$set":{"cpuscore":inputdata["cpuscore"],"networkscore":inputdata["networkscore"],"memoryscore":inputdata["memoryscore"],"percent_received":inputdata["percent_received"],"hostip":inputdata["hostip"],"averagesystemscore":inputdata["averagesystemscore"],"time":inputdata["time"],"runcount":inputdata["runcount"],"systemscore":inputdata["systemscore"],"averagecpuscore":inputdata['averagecpuscore'],"averagenetworkscore":inputdata['averagenetworkscore'],"averagememoryscore":inputdata['averagememoryscore']}})
+                dbsession.benchmark.update_one({"_id":result["_id"]},{"$set":{"cpuscore":inputdata["cpuscore"],"networkscore":inputdata["networkscore"],"memoryscore":inputdata["memoryscore"],"percent_received":inputdata["percent_received"],"hostip":inputdata["hostip"],"averagesystemscore":inputdata["averagesystemscore"],"time":inputdata["time"],"runcount":inputdata["runcount"],"systemscore":inputdata["systemscore"],"averagecpuscore":inputdata['averagecpuscore'],"averagenetworkscore":inputdata['averagenetworkscore'],"averagememoryscore":inputdata['averagememoryscore']}})
                 res={"benchmark_store":"success"}
         except Exception as e:
             app.logger.debug(traceback.format_exc())

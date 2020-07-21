@@ -5,10 +5,10 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "NDAC",
+            "name": "DAS",
             "type": "python",
             "request": "launch",
-            "program": "${workspaceRoot}/src/ndac.py",
+            "program": "${workspaceRoot}/src/das.py",
             "args": ["-D"],
             "cwd": "${workspaceRoot}",
             "pythonPath": "${workspaceRoot}/python.exe",

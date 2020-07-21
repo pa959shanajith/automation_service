@@ -21,7 +21,7 @@ class Test:
             print "************* Begining the test****************"
             self.on = True
         else:
-            print "!!!!!!!!!!!!!!! NDAC Unavailable !!!!!!!!!!!!!!!!!!!"
+            print "!!!!!!!!!!!!!!! Avo Assure DAS Unavailable !!!!!!!!!!!!!!!!!!!"
             self.on = False
     def insertreportquery(self):
         # /suite/ExecuteTestSuite_ICE   insertreportquery
@@ -56,7 +56,7 @@ class Test:
 
     def getcycleidfromreportid(self):
         requesteddata["query"] = "cycleid"
-        r = requests.post(url+'reports/getReport_Nineteen68', data = json.dumps(requesteddata))
+        r = requests.post(url+'reports/getReport', data = json.dumps(requesteddata))
         print r.text,r.status_code
         if(r.status_code == 200 and json.loads(r.text)['rows']!='fail' and json.loads(r.text)['rows'][0]['cycleid']==requesteddata["cycleid"]):
             print "getcycleidfromreportid successful!"

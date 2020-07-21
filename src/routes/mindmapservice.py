@@ -10,7 +10,7 @@ from Crypto.Cipher import AES
 import codecs
 from pymongo import InsertOne
 
-def LoadServices(app, redissession, n68session):
+def LoadServices(app, redissession, dbsession):
     setenv(app)
 
 ################################################################################
@@ -24,8 +24,10 @@ def LoadServices(app, redissession, n68session):
 
     def getScrapeData(hex_data):
         try:
+            key = "".join(['N','i','n','e','e','t','e','e','n','6','8','@','S','e',
+                'c','u','r','e','S','c','r','a','p','e','D','a','t','a','P','a','t','h'])
             data = codecs.decode(hex_data, 'hex')
-            aes = AES.new(b"Nineeteen68@SecureScrapeDataPath", AES.MODE_CBC, b'0'*16)
+            aes = AES.new(key.encode("utf-8"), AES.MODE_CBC, b'0'*16)
             data = aes.decrypt(data).decode('utf-8')
             return data[0:-ord(data[-1])]
         except:
@@ -39,8 +41,8 @@ def LoadServices(app, redissession, n68session):
             if "custname" not in row: row["custname"] = "object"+str(row["_id"])
             row["parent"] = [pid]
             req.append(InsertOne(row))
-        n68session.dataobjects.bulk_write(req)
-        queryresult=list(n68session.dataobjects.find({"parent":pid},{"custname":1,"_id":1,"parent":1}))
+        dbsession.dataobjects.bulk_write(req)
+        queryresult=list(dbsession.dataobjects.find({"parent":pid},{"custname":1,"_id":1,"parent":1}))
         return queryresult
 
     def createdataobjects(scrid, objs):
@@ -100,35 +102,35 @@ def LoadServices(app, redissession, n68session):
             return scrid
 
     # API to get the project type name using the ProjectID
-    @app.route('/create_ice/getProjectType_Nineteen68',methods=['POST'])
-    def getProjectType_Nineteen68():
-        app.logger.debug("Inside getProjectType_Nineteen68")
+    @app.route('/create_ice/getProjectType',methods=['POST'])
+    def getProjectType():
+        app.logger.debug("Inside getProjectType")
         res={'rows':'fail'}
         try:
            requestdata=json.loads(request.data)
            if not isemptyrequest(requestdata):
                 projectid=requestdata['projectid']
-                dbconn=n68session["projects"]
+                dbconn=dbsession["projects"]
                 getProjectType=list(dbconn.find({"_id":ObjectId(projectid)},{"type":1,"releases.name":1,"releases.cycles.name":1,"releases.cycles._id":1,"domain":1}))
-                dbconn=n68session["projecttypekeywords"]
+                dbconn=dbsession["projecttypekeywords"]
                 getProjectTypeName= list(dbconn.find({"_id":ObjectId(getProjectType[0]["type"])},{"name":1}))
                 res={'rows':getProjectType,'projecttype':getProjectTypeName}
            else:
-                app.logger.warn("Empty data received. getProjectType_Nineteen68")
+                app.logger.warn("Empty data received. getProjectType")
         except Exception as e:
-            servicesException("getProjectType_Nineteen68", e, True)
+            servicesException("getProjectType", e, True)
         return jsonify(res)
 
     #API to get ProjectID and Names of project assigned to particular user
-    @app.route('/create_ice/getProjectIDs_Nineteen68',methods=['POST'])
-    def getProjectIDs_Nineteen68():
+    @app.route('/create_ice/getProjectIDs',methods=['POST'])
+    def getProjectIDs():
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
-            app.logger.debug("Inside getProjectIDs_Nineteen68. Query: "+str(requestdata["query"]))
+            app.logger.debug("Inside getProjectIDs. Query: "+str(requestdata["query"]))
             if not isemptyrequest(requestdata):
                 if len(projecttype_names)==0:
-                    result=list(n68session.projecttypekeywords.find({},{"_id":1,"name":1}))
+                    result=list(dbsession.projecttypekeywords.find({},{"_id":1,"name":1}))
                     for p in result:
                         projecttype_names[str(p["_id"])]=p["name"]
                 prjDetails={
@@ -142,10 +144,10 @@ def LoadServices(app, redissession, n68session):
                     'domains':[]
                 }
                 userid=requestdata['userid']
-                dbconn=n68session["users"]
+                dbconn=dbsession["users"]
                 projectIDResult=list(dbconn.find({"_id":ObjectId(userid)},{"projects":1}))
                 if(len(projectIDResult)!=0):
-                    dbconn=n68session["mindmaps"]
+                    dbconn=dbsession["mindmaps"]
                     prjids=[]
                     for pid in projectIDResult[0]["projects"]:
                         prjids.append(str(pid))
@@ -161,13 +163,13 @@ def LoadServices(app, redissession, n68session):
                                 emppid.append(pid)
                         prjids=emppid
                     for pid in prjids:
-                        dbconn=n68session["projects"]
+                        dbconn=dbsession["projects"]
                         prjDetail=list(dbconn.find({"_id":ObjectId(pid)},{"_id":1,"name":1,"type":1,"domain":1,"releases.name":1,"releases.cycles.name":1,"releases.cycles._id":1}))
                         if(len(prjDetail)!=0):
                             prjDetails['projectId'].append(str(prjDetail[0]['_id']))
                             prjDetails['projectName'].append(prjDetail[0]['name'])
                             prjDetails['appType'].append(str(prjDetail[0]['type']))
-                            prjDetails['appTypeName'].append(n68session.projecttypekeywords.find_one({"_id":ObjectId(prjDetail[0]['type'])})["name"])
+                            prjDetails['appTypeName'].append(dbsession.projecttypekeywords.find_one({"_id":ObjectId(prjDetail[0]['type'])})["name"])
                             prjDetails['releases'].append(prjDetail[0]["releases"])
                             prjDetails['domains'].append(prjDetail[0]["domain"])
                             for rel in prjDetail[0]["releases"]:
@@ -177,9 +179,9 @@ def LoadServices(app, redissession, n68session):
 
                 res={'rows':prjDetails}
             else:
-                app.logger.warn("Empty data received. getProjectIDs_Nineteen68")
+                app.logger.warn("Empty data received. getProjectIDs")
         except Exception as e:
-            servicesException("getProjectIDs_Nineteen68", e, True)
+            servicesException("getProjectIDs", e, True)
         return jsonify(res)
 
     @app.route('/create_ice/updateScreenname_ICE',methods=['POST'])
@@ -193,7 +195,7 @@ def LoadServices(app, redissession, n68session):
             projectid = requestdata['projectid']
             screenid = getScreenID(screenname,projectid)
             if(screenid==None):
-                queryresult=n68session.screens.insert_one({"name":requestdata['screenname'],"projectid":ObjectId(requestdata['projectid']),"versionnumber":requestdata['versionnumber'],"parent":[],"createdby":ObjectId(requestdata['createdby']),"createdon":modifiedon,"createdbyrole":ObjectId(requestdata['createdbyrole']),"modifiedby":ObjectId(requestdata['modifiedby']),"modifiedon":modifiedon,"modifiedbyrole":ObjectId(requestdata['modifiedbyrole']),"deleted":requestdata['deleted'],"screenshot":requestdata['screenshot'],"scrapedurl":requestdata['scrapedurl']}).inserted_id
+                queryresult=dbsession.screens.insert_one({"name":requestdata['screenname'],"projectid":ObjectId(requestdata['projectid']),"versionnumber":requestdata['versionnumber'],"parent":[],"createdby":ObjectId(requestdata['createdby']),"createdon":modifiedon,"createdbyrole":ObjectId(requestdata['createdbyrole']),"modifiedby":ObjectId(requestdata['modifiedby']),"modifiedon":modifiedon,"modifiedbyrole":ObjectId(requestdata['modifiedbyrole']),"deleted":requestdata['deleted'],"screenshot":requestdata['screenshot'],"scrapedurl":requestdata['scrapedurl']}).inserted_id
                 result = createdataobjects(queryresult,requestdata)
             else:
                 result = createdataobjects(screenid,requestdata)
@@ -220,7 +222,7 @@ def LoadServices(app, redissession, n68session):
                         for j in range(len(data2)):
                             if(data2[j]['custname']==data1[i]['custname']):
                                 data2[j]['custname']=ObjectId(data1[i]['_id'])
-                    queryresult=n68session.testcases.insert_one({"name":requestdata['testcasename'],"screenid":ObjectId(requestdata['screenid']),"versionnumber":requestdata['versionnumber'],"createdby":ObjectId(requestdata['createdby']),"createdon":modifiedon,"createdbyrole":ObjectId(requestdata['createdbyrole']),"modifiedby":ObjectId(requestdata['modifiedby']),"modifiedon":modifiedon,"modifiedbyrole":ObjectId(requestdata['modifiedbyrole']),"deleted":requestdata['deleted'],"steps":data2,"parent":requestdata["parent"]})
+                    queryresult=dbsession.testcases.insert_one({"name":requestdata['testcasename'],"screenid":ObjectId(requestdata['screenid']),"versionnumber":requestdata['versionnumber'],"createdby":ObjectId(requestdata['createdby']),"createdon":modifiedon,"createdbyrole":ObjectId(requestdata['createdbyrole']),"modifiedby":ObjectId(requestdata['modifiedby']),"modifiedon":modifiedon,"modifiedbyrole":ObjectId(requestdata['modifiedbyrole']),"deleted":requestdata['deleted'],"steps":data2,"parent":requestdata["parent"]})
                 res={'rows':'Success'}
             else:
                 app.logger.warn("Empty data received. updateTestcasename_ICE")
@@ -238,7 +240,7 @@ def LoadServices(app, redissession, n68session):
             tab=requestdata['tab']
             app.logger.debug("Inside getModules. Query: "+str(requestdata["name"]))
             if 'moduleid' in requestdata and requestdata['moduleid']!=None:
-                mindmapdata=n68session.mindmaps.find_one({"_id":ObjectId(requestdata["moduleid"])},{"testscenarios":1,"_id":1,"name":1,"projectid":1,"type":1,"versionnumber":1})
+                mindmapdata=dbsession.mindmaps.find_one({"_id":ObjectId(requestdata["moduleid"])},{"testscenarios":1,"_id":1,"name":1,"projectid":1,"type":1,"versionnumber":1})
                 mindmaptype=mindmapdata["type"]
                 scenarioids=[]
                 screenids=[]
@@ -264,11 +266,11 @@ def LoadServices(app, redissession, n68session):
                 taskids.extend(screenids)
                 taskids.extend(testcaseids)
                 taskids.append(ObjectId(requestdata['moduleid']))
-                taskdetails=list(n68session.tasks.find({"nodeid":{"$in":taskids}}))
+                taskdetails=list(dbsession.tasks.find({"nodeid":{"$in":taskids}}))
 
-                scenariodetails=list(n68session.testscenarios.find({"_id":{"$in":scenarioids}},{"_id":1,"name":1,"parent":1}))
-                screendetails=list(n68session.screens.find({"_id":{"$in":screenids}},{"_id":1,"name":1,"parent":1}))
-                testcasedetails=list(n68session.testcases.find({"_id":{"$in":testcaseids}},{"_id":1,"name":1,"parent":1}))
+                scenariodetails=list(dbsession.testscenarios.find({"_id":{"$in":scenarioids}},{"_id":1,"name":1,"parent":1}))
+                screendetails=list(dbsession.screens.find({"_id":{"$in":screenids}},{"_id":1,"name":1,"parent":1}))
+                testcasedetails=list(dbsession.testcases.find({"_id":{"$in":testcaseids}},{"_id":1,"name":1,"parent":1}))
                 moduledata={}
                 scenariodata={}
                 screendata={}
@@ -407,7 +409,7 @@ def LoadServices(app, redissession, n68session):
             else:
                 findquery = {"projectid":ObjectId(requestdata["projectid"])}
                 if tab=="tabCreate": findquery["type"] = "basic"
-                queryresult=list(n68session.mindmaps.find(findquery, {"name":1,"_id":1,"type":1}))
+                queryresult=list(dbsession.mindmaps.find(findquery, {"name":1,"_id":1,"type":1}))
                 res={'rows':queryresult}
         except Exception as e:
             servicesException("getModules", e, True)
@@ -422,7 +424,7 @@ def LoadServices(app, redissession, n68session):
             app.logger.debug("Inside getTasksJSON.")
             if not isemptyrequest(requestdata):
                 userid=requestdata["userid"]
-                tasks=list(n68session.tasks.find({"assignedto":ObjectId(userid)}))
+                tasks=list(dbsession.tasks.find({"assignedto":ObjectId(userid)}))
                 res={'rows':tasks}
             else:
                 app.logger.warn("Empty data received. getTasksJSON")
@@ -438,13 +440,13 @@ def LoadServices(app, redissession, n68session):
             app.logger.debug("Inside getScenarios.")
             if not isemptyrequest(requestdata):
                 moduleid=requestdata["moduleid"]
-                moduledetails=list(n68session.mindmaps.find({"_id":ObjectId(moduleid)},{"testscenarios":1}))
+                moduledetails=list(dbsession.mindmaps.find({"_id":ObjectId(moduleid)},{"testscenarios":1}))
                 scenarioids=[]
                 for mod in moduledetails:
                     if "testscenarios" in mod:
                         for sce in mod["testscenarios"]:
                             scenarioids.append(ObjectId(sce["_id"]))
-                scenarioslist=list(n68session.testscenarios.find({"_id":{"$in":scenarioids}},{"name":1}))
+                scenarioslist=list(dbsession.testscenarios.find({"_id":{"$in":scenarioids}},{"name":1}))
                 res={'rows':scenarioslist}
             else:
                 app.logger.warn("Empty data received. getScenarios")
@@ -547,7 +549,7 @@ def LoadServices(app, redissession, n68session):
         "type": moduletype,
         "testscenarios":[]
         }
-        queryresult=n68session.mindmaps.insert_one(data).inserted_id
+        queryresult=dbsession.mindmaps.insert_one(data).inserted_id
         return queryresult
 
     def saveTestScenario(projectid,testscenarioname,versionnumber,createdby,createdbyrole,moduleid,testcaseids=[]):
@@ -567,7 +569,7 @@ def LoadServices(app, redissession, n68session):
             "modifiedon":createdon,
             "testcaseids":testcaseids
         }
-        queryresult=n68session.testscenarios.insert_one(data).inserted_id
+        queryresult=dbsession.testscenarios.insert_one(data).inserted_id
         return queryresult
 
     def saveScreen(projectid,screenname,versionnumber,createdby,createdbyrole,scenarioid):
@@ -588,7 +590,7 @@ def LoadServices(app, redissession, n68session):
         "screenshot":"",
         "scrapedurl":""
         }
-        queryresult=n68session.screens.insert_one(data).inserted_id
+        queryresult=dbsession.screens.insert_one(data).inserted_id
         return queryresult
 
     def saveTestcase(screenid,testcasename,versionnumber,createdby,createdbyrole):
@@ -608,7 +610,7 @@ def LoadServices(app, redissession, n68session):
             "parent":1,
             "deleted":False
         }
-        queryresult=n68session.testcases.insert_one(data).inserted_id
+        queryresult=dbsession.testcases.insert_one(data).inserted_id
         return queryresult
 
     @app.route('/mindmap/manageTask',methods=['POST'])
@@ -629,7 +631,7 @@ def LoadServices(app, redissession, n68session):
                             i["startdate"]=datetime.strptime(i["startdate"],"%d/%m/%Y")
                         if i['enddate'].find('/') > -1:
                             i["enddate"]=datetime.strptime(i["enddate"],"%d/%m/%Y")
-                        n68session.tasks.update({"_id":ObjectId(i["_id"]),"cycleid":ObjectId(i["cycleid"])},{"$set":{"assignedtime":i["assignedtime"],"startdate":i["startdate"],"enddate":i["enddate"],"assignedto":ObjectId(i["assignedto"]),"reviewer":ObjectId(i["reviewer"]),"status":i["status"],"reestimation":i["reestimation"],"complexity":i["complexity"],"history":i["history"]}})
+                        dbsession.tasks.update({"_id":ObjectId(i["_id"]),"cycleid":ObjectId(i["cycleid"])},{"$set":{"assignedtime":i["assignedtime"],"startdate":i["startdate"],"enddate":i["enddate"],"assignedto":ObjectId(i["assignedto"]),"reviewer":ObjectId(i["reviewer"]),"status":i["status"],"reestimation":i["reestimation"],"complexity":i["complexity"],"history":i["history"]}})
                     tasks_insert=requestdata["insert"]
                     for i in tasks_insert:
                         i["startdate"]=datetime.strptime(i["startdate"],"%d/%m/%Y")
@@ -647,17 +649,17 @@ def LoadServices(app, redissession, n68session):
                         if i['details']=='':
                             i['details']=i['tasktype']+" "+i['nodetype']+" "+i['name']
                     if len(tasks_insert)>0:
-                        n68session.tasks.insert_many(tasks_insert)
+                        dbsession.tasks.insert_many(tasks_insert)
                     if len(tasks_remove)>0:
                         tasks_remove=[ObjectId(t) for t in tasks_remove]
-                        n68session.tasks.delete_many({"_id":{"$in":tasks_remove}})
+                        dbsession.tasks.delete_many({"_id":{"$in":tasks_remove}})
                     res={"rows":"success"}
                 elif action=="updatestatus":
                     status=requestdata['status']
-                    n68session.tasks.update({"_id":ObjectId(requestdata["id"])},{"$set":{"status":status}})
+                    dbsession.tasks.update({"_id":ObjectId(requestdata["id"])},{"$set":{"status":status}})
                     res={"rows":"success"}
                 elif action=="updatetaskstatus":  
-                    task=n68session.tasks.find_one({"_id":ObjectId(requestdata["id"])})
+                    task=dbsession.tasks.find_one({"_id":ObjectId(requestdata["id"])})
                     history=[]
                     status=assignedto=owner=reviewer=''
                     if requestdata["status"] == "underReview":
@@ -665,13 +667,13 @@ def LoadServices(app, redissession, n68session):
                         assignedto=''
                         owner=task["owner"]
                         reviewer=task["reviewer"]
-                        # n68session.tasks.update({"_id":ObjectId(requestdata["id"])},{"$set":{"status":status,"history":history,"assignedto":''}})
+                        # dbsession.tasks.update({"_id":ObjectId(requestdata["id"])},{"$set":{"status":status,"history":history,"assignedto":''}})
                     elif (requestdata["status"] == "inprogress" or requestdata["status"] == "assigned" or requestdata["status"] == "reassigned") and task['reviewer'] != "select reviewer":
                         status="underReview"
                         assignedto=task["reviewer"]
                         owner=task["owner"]
                         reviewer=task["reviewer"]
-                        # n68session.tasks.update({"_id":ObjectId(requestdata["id"])},{"$set":{"status":status,"history":history,"assignedto":task["reviewer"]}})
+                        # dbsession.tasks.update({"_id":ObjectId(requestdata["id"])},{"$set":{"status":status,"history":history,"assignedto":task["reviewer"]}})
                     elif (requestdata["status"] == "reassign"):
                         status="reassigned"
                         assignedto=task["owner"]
@@ -685,10 +687,10 @@ def LoadServices(app, redissession, n68session):
                         history=task["history"]
                         requestdata["history"]["userid"]=ObjectId(requestdata["history"]["userid"])
                         history.append(requestdata["history"])
-                    n68session.tasks.update({"_id":ObjectId(requestdata["id"])},{"$set":{"status":status,"history":history,"assignedto":assignedto,"owner":owner,"reviewer":reviewer}})
+                    dbsession.tasks.update({"_id":ObjectId(requestdata["id"])},{"$set":{"status":status,"history":history,"assignedto":assignedto,"owner":owner,"reviewer":reviewer}})
                     res={"rows":"success"}
                 elif action == "delete":
-                    n68session.tasks.delete({"_id":ObjectId(requestdata["id"]),"cycle":ObjectId(requestdata["cycleid"])})
+                    dbsession.tasks.delete({"_id":ObjectId(requestdata["id"]),"cycle":ObjectId(requestdata["cycleid"])})
                     res={"rows":"success"}
             else:
                 app.logger.warn('Empty data received. manage users.')
@@ -800,14 +802,14 @@ def LoadServices(app, redissession, n68session):
             return error
 
     def checkModuleNameExists(name,projectid):
-        res=list(n68session.mindmaps.find({"projectid":ObjectId(projectid),"name":name},{"_id":1}))
+        res=list(dbsession.mindmaps.find({"projectid":ObjectId(projectid),"name":name},{"_id":1}))
         if len(res)>0:
             return True
         else:
             return False
 
     def checkScreenNameExists(name,projectid):
-        res = list(n68session.screens.find({"projectid": ObjectId(projectid), "name": name}, {"_id": 1}))
+        res = list(dbsession.screens.find({"projectid": ObjectId(projectid), "name": name}, {"_id": 1}))
         if len(res) > 0:
             return True
         else:
@@ -816,23 +818,23 @@ def LoadServices(app, redissession, n68session):
     def updateparent(type,nodeid,parentid,action):
         if action=="add":
             if type=="scenarios":
-                parentlist=list(n68session.testscenarios.find({"_id":ObjectId(nodeid)},{"parent":1}))
+                parentlist=list(dbsession.testscenarios.find({"_id":ObjectId(nodeid)},{"parent":1}))
                 updateparentlist=parentlist[0]['parent']
                 updateparentlist.append(ObjectId(parentid))
-                n68session.testscenarios.update_one({'_id':ObjectId(nodeid)},{'$set':{'parent':updateparentlist}})
+                dbsession.testscenarios.update_one({'_id':ObjectId(nodeid)},{'$set':{'parent':updateparentlist}})
             elif type=="screens":
-                parentlist=list(n68session.screens.find({"_id":ObjectId(nodeid)},{"parent":1}))
+                parentlist=list(dbsession.screens.find({"_id":ObjectId(nodeid)},{"parent":1}))
                 updateparentlist=parentlist[0]['parent']
                 updateparentlist.append(ObjectId(parentid))
-                n68session.screens.update_one({'_id':ObjectId(nodeid)},{'$set':{'parent':updateparentlist}})
+                dbsession.screens.update_one({'_id':ObjectId(nodeid)},{'$set':{'parent':updateparentlist}})
             elif type=="testcases":
-                parentlist=list(n68session.testcases.find({"_id":ObjectId(nodeid)},{"parent":1}))
+                parentlist=list(dbsession.testcases.find({"_id":ObjectId(nodeid)},{"parent":1}))
                 updateparentlist=parentlist[0]['parent']
                 updateparentlist+=1
-                n68session.testcases.update_one({'_id':ObjectId(nodeid)},{'$set':{'parent':updateparentlist}})
+                dbsession.testcases.update_one({'_id':ObjectId(nodeid)},{'$set':{'parent':updateparentlist}})
         elif action=="delete":
             if type=="scenarios":
-                parentlist=list(n68session.testscenarios.find({"_id":ObjectId(nodeid)},{"parent":1}))
+                parentlist=list(dbsession.testscenarios.find({"_id":ObjectId(nodeid)},{"parent":1}))
                 oldparentlist=parentlist[0]['parent']
                 newparentlist=[]
                 flag=False
@@ -841,9 +843,9 @@ def LoadServices(app, redissession, n68session):
                         newparentlist.append(pid)
                     else:
                         flag=True
-                n68session.testscenarios.update_one({'_id':ObjectId(nodeid)},{'$set':{'parent':newparentlist}})
+                dbsession.testscenarios.update_one({'_id':ObjectId(nodeid)},{'$set':{'parent':newparentlist}})
             elif type=="screens":
-                parentlist=list(n68session.screens.find({"_id":ObjectId(nodeid)},{"parent":1}))
+                parentlist=list(dbsession.screens.find({"_id":ObjectId(nodeid)},{"parent":1}))
                 oldparentlist=parentlist[0]['parent']
                 newparentlist=[]
                 flag=False
@@ -852,26 +854,26 @@ def LoadServices(app, redissession, n68session):
                         newparentlist.append(pid)
                     else:
                         flag=True
-                n68session.screens.update_one({'_id':ObjectId(nodeid)},{'$set':{'parent':newparentlist}})
+                dbsession.screens.update_one({'_id':ObjectId(nodeid)},{'$set':{'parent':newparentlist}})
             elif type=="testcases":
-                parentlist=list(n68session.testcases.find({"_id":ObjectId(nodeid)},{"parent":1}))
+                parentlist=list(dbsession.testcases.find({"_id":ObjectId(nodeid)},{"parent":1}))
                 updateparentlist=parentlist[0]['parent']
                 updateparentlist-=1
-                n68session.testcases.update_one({'_id':ObjectId(nodeid)},{'$set':{'parent':updateparentlist}})
+                dbsession.testcases.update_one({'_id':ObjectId(nodeid)},{'$set':{'parent':updateparentlist}})
 
         
     def updateTestcaseIDsInScenario(currentscenarioid,testcaseidsforscenario):
-        n68session.testscenarios.update_one({'_id':ObjectId(currentscenarioid)},{'$set':{'testcaseids':testcaseidsforscenario}})
+        dbsession.testscenarios.update_one({'_id':ObjectId(currentscenarioid)},{'$set':{'testcaseids':testcaseidsforscenario}})
         return
 
     def updateTestScenariosInModule(currentmoduleid,idsforModule):
-        n68session.mindmaps.update_one({"_id":ObjectId(currentmoduleid)},{'$set':{'testscenarios':idsforModule}})
+        dbsession.mindmaps.update_one({"_id":ObjectId(currentmoduleid)},{'$set':{'testscenarios':idsforModule}})
         return
 
     def updateScreenAndTestcase(screenid,createdby,createdbyrole):
         createdon = datetime.now()
-        n68session.screens.update_one({"_id":ObjectId(screenid)},{'$set':{"createdby":ObjectId(createdby),"createdbyrole":ObjectId(createdbyrole),"createdon":createdon,"modifiedby":ObjectId(createdby),"modifiedbyrole":ObjectId(createdbyrole),"modifiedon":createdon}})
-        n68session.testcases.update_one({"screenid":ObjectId(screenid)},{'$set':{"createdby":ObjectId(createdby),"createdbyrole":ObjectId(createdbyrole),"createdon":createdon,"modifiedby":ObjectId(createdby),"modifiedbyrole":ObjectId(createdbyrole),"modifiedon":createdon}})
+        dbsession.screens.update_one({"_id":ObjectId(screenid)},{'$set':{"createdby":ObjectId(createdby),"createdbyrole":ObjectId(createdbyrole),"createdon":createdon,"modifiedby":ObjectId(createdby),"modifiedbyrole":ObjectId(createdbyrole),"modifiedon":createdon}})
+        dbsession.testcases.update_one({"screenid":ObjectId(screenid)},{'$set':{"createdby":ObjectId(createdby),"createdbyrole":ObjectId(createdbyrole),"createdon":createdon,"modifiedby":ObjectId(createdby),"modifiedbyrole":ObjectId(createdbyrole),"modifiedon":createdon}})
         return
 
     @app.route('/mindmap/getScreens',methods=['POST'])
@@ -882,7 +884,7 @@ def LoadServices(app, redissession, n68session):
             app.logger.debug("Inside getScreens.")
             if not isemptyrequest(requestdata):
                 projectid=requestdata["projectid"]
-                moduledetails=list(n68session.mindmaps.find({"projectid":ObjectId(projectid)},{"testscenarios":1}))
+                moduledetails=list(dbsession.mindmaps.find({"projectid":ObjectId(projectid)},{"testscenarios":1}))
                 screenidsset=set()
                 screenids=[]
                 screen_testcase={}
@@ -905,8 +907,8 @@ def LoadServices(app, redissession, n68session):
                                             screen_testcase[scr["_id"]].append(tc)
                                         else:
                                             screen_testcase[scr["_id"]].append(tc)
-                screendetails=list(n68session.screens.find({"_id":{"$in":screenids}},{"_id":1,"name":1,"parent":1}))
-                testcasedetails=list(n68session.testcases.find({"_id":{"$in":testcaseids}},{"_id":1,"name":1,"parent":1,"screenid":1}))
+                screendetails=list(dbsession.screens.find({"_id":{"$in":screenids}},{"_id":1,"name":1,"parent":1}))
+                testcasedetails=list(dbsession.testcases.find({"_id":{"$in":testcaseids}},{"_id":1,"name":1,"parent":1,"screenid":1}))
                 res={'rows':{'screenList':screendetails,'testCaseList':testcasedetails}}
             else:
                 app.logger.warn("Empty data received. getScreens")
@@ -915,7 +917,7 @@ def LoadServices(app, redissession, n68session):
         return jsonify(res)
 
     def checkScenarioNameExists(projectid,name):
-        res=list(n68session.testscenarios.find({"projectid":ObjectId(projectid),"name":name},{"_id":1}))
+        res=list(dbsession.testscenarios.find({"projectid":ObjectId(projectid),"name":name},{"_id":1}))
         if len(res)>0:
             return True
         else:
@@ -968,7 +970,7 @@ def LoadServices(app, redissession, n68session):
                             scenarioids.append({"_id":ObjectId(scenariodata["testscenarioid"]),"screens":[]})
                 if currentmoduleid is not None:
                     updateTestScenariosInModule(currentmoduleid,scenarioids)
-                    # n68session.mindmaps.update_one({"_id":ObjectId(currentmoduleid)},{'$set':{'testscenarios':scenarioids}})
+                    # dbsession.mindmaps.update_one({"_id":ObjectId(currentmoduleid)},{'$set':{'testscenarios':scenarioids}})
                 for node in requestdata['deletednodes']:
                     updateparent(node[1],node[0],node[2],"delete")
                 if error==None:
@@ -982,7 +984,7 @@ def LoadServices(app, redissession, n68session):
         return jsonify(res)
 
     def checkScenarioIDexists(name,id):
-        res=list(n68session.testscenarios.find({"_id":ObjectId(id),"name":name,"deleted":False},{"_id":1}))
+        res=list(dbsession.testscenarios.find({"_id":ObjectId(id),"name":name,"deleted":False},{"_id":1}))
         if len(res)==1:
             return True
         else:
@@ -990,26 +992,26 @@ def LoadServices(app, redissession, n68session):
 
     def updateModuleName(modulename,projectid,moduleid,userid,userroleid):
         modifiedon=datetime.now()
-        n68session.mindmaps.update_one({"_id":ObjectId(moduleid)},{"$set":{"name":modulename,"modifiedby":userid,"modifedon":modifiedon,"modifiedbyrole":userroleid}})
+        dbsession.mindmaps.update_one({"_id":ObjectId(moduleid)},{"$set":{"name":modulename,"modifiedby":userid,"modifedon":modifiedon,"modifiedbyrole":userroleid}})
         return
 
     def updateScenarioName(scenarioname,projectid,scenarioid,userid,userroleid):
         modifiedon=datetime.now()
-        n68session.testscenarios.update_one({"_id":ObjectId(scenarioid)},{"$set":{"name":scenarioname,"modifiedby":ObjectId(userid),"modifedon":modifiedon,"modifiedbyrole":ObjectId(userroleid)}})
+        dbsession.testscenarios.update_one({"_id":ObjectId(scenarioid)},{"$set":{"name":scenarioname,"modifiedby":ObjectId(userid),"modifedon":modifiedon,"modifiedbyrole":ObjectId(userroleid)}})
         return
 
     def updateScreenName(screenname,projectid,screenid,userid,userroleid):
         modifiedon=datetime.now()
-        n68session.screens.update_one({"_id":ObjectId(screenid)},{"$set":{"name":screenname,"modifiedby":ObjectId(userid),"modifedon":modifiedon,"modifiedbyrole":ObjectId(userroleid)}})
+        dbsession.screens.update_one({"_id":ObjectId(screenid)},{"$set":{"name":screenname,"modifiedby":ObjectId(userid),"modifedon":modifiedon,"modifiedbyrole":ObjectId(userroleid)}})
         return
 
     def updateTestcaseName(testcasename,projectid,testcaseid,userid,userroleid):
         modifiedon=datetime.now()
-        n68session.testcases.update_one({"_id":ObjectId(testcaseid)},{"$set":{"name":testcasename,"modifiedby":ObjectId(userid),"modifedon":modifiedon,"modifiedbyrole":ObjectId(userroleid)}})
+        dbsession.testcases.update_one({"_id":ObjectId(testcaseid)},{"$set":{"name":testcasename,"modifiedby":ObjectId(userid),"modifedon":modifiedon,"modifiedbyrole":ObjectId(userroleid)}})
         return
 
     def getModuleName(moduleid):
-        modulename=list(n68session.mindmaps.find({"_id":ObjectId(moduleid),"deleted":False},{"name":1}))
+        modulename=list(dbsession.mindmaps.find({"_id":ObjectId(moduleid),"deleted":False},{"name":1}))
         if len(modulename)!=0:
             res=modulename[0]["name"]
         else:
@@ -1017,7 +1019,7 @@ def LoadServices(app, redissession, n68session):
         return res
     
     def getScenarioName(scenarioid):
-        scenarioname=list(n68session.testscenarios.find({"_id":ObjectId(scenarioid),"deleted":False},{"name":1}))
+        scenarioname=list(dbsession.testscenarios.find({"_id":ObjectId(scenarioid),"deleted":False},{"name":1}))
         if len(scenarioname)!=0:
             res=scenarioname[0]["name"]
         else:
@@ -1025,7 +1027,7 @@ def LoadServices(app, redissession, n68session):
         return res
 
     def getScreenName(screenid):
-        screename=list(n68session.screens.find({"_id":ObjectId(screenid),"deleted":False},{"name":1}))
+        screename=list(dbsession.screens.find({"_id":ObjectId(screenid),"deleted":False},{"name":1}))
         if len(screename)!=0:
             res=screename[0]["name"]
         else:
@@ -1033,7 +1035,7 @@ def LoadServices(app, redissession, n68session):
         return res
 
     def getTestcaseName(testcaseid):
-        testcasename=list(n68session.testcases.find({"_id":ObjectId(testcaseid),"deleted":False},{"name":1}))
+        testcasename=list(dbsession.testcases.find({"_id":ObjectId(testcaseid),"deleted":False},{"name":1}))
         if len(testcasename)!=0:
             res=testcasename[0]["name"]
         else:
@@ -1041,7 +1043,7 @@ def LoadServices(app, redissession, n68session):
         return res
 
     def getTestcaseID(screenid,testcasename):
-        testcaseid = list(n68session.testcases.find({"screenid": ObjectId(screenid),"name": testcasename,"deleted": False}, {"_id": 1}))
+        testcaseid = list(dbsession.testcases.find({"screenid": ObjectId(screenid),"name": testcasename,"deleted": False}, {"_id": 1}))
         if len(testcaseid) != 0:
             res = str(testcaseid[0]["_id"])
         else:
@@ -1049,7 +1051,7 @@ def LoadServices(app, redissession, n68session):
         return res
 
     def getScreenID(screenname,projectid):
-        screenname=list(n68session.screens.find({"name":screenname,"projectid":ObjectId(projectid),"deleted":False},{"_id":1}))
+        screenname=list(dbsession.screens.find({"name":screenname,"projectid":ObjectId(projectid),"deleted":False},{"_id":1}))
         if len(screenname)==1:
             return str(screenname[0]["_id"])
         else:   
