@@ -160,7 +160,7 @@ def LoadServices(app, redissession, dbsession):
         correctScenarios=[]
         try:
             requestdata=json.loads(request.data)
-            app.logger.debug("Inside getReport_API. Query: "+str(requestdata["query"]))
+            app.logger.debug("Inside getReport_API")
             if not isemptyrequest(requestdata):
                 errMsgVal=str(requestdata["executionId"])
                 queryresult1 = dbsession.reports.find({"executionid":ObjectId(requestdata["executionId"])})
