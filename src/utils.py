@@ -25,7 +25,7 @@ dasport = "1990"
 debugcounter = 0
 scenarioscounter = 0
 
-ui_plugins = {"alm":"ALM","apg":"APG","dashboard":"Dashboard",
+ui_plugins = {"alm":"Integration","apg":"APG","dashboard":"Dashboard",
     "mindmap":"Mindmap","neurongraphs":"Neuron Graphs","performancetesting":"Performance Testing",
     "reports":"Reports","utility":"Utility","weboccular":"Webocular"}
 
