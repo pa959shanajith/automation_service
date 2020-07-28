@@ -40,12 +40,12 @@ def LoadServices(app, redissession, dbsession):
             servicesException("qcProjectDetails_ICE", e, True)
         return jsonify(res)
 
-    @app.route('/qualityCenter/saveQcDetails_ICE',methods=['POST'])
+    @app.route('/qualityCenter/saveIntegrationDetails_ICE',methods=['POST'])
     def saveQcDetails_ICE():
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
-            app.logger.debug("Inside saveQcDetails_ICE. Query: "+str(requestdata["query"]))
+            app.logger.debug("Inside saveIntegrationDetails_ICE. Query: "+str(requestdata["query"]))
             if not isemptyrequest(requestdata):
                 if(requestdata["query"] == 'saveQcDetails_ICE'):
                     requestdata["type"] = "ALM"
@@ -54,26 +54,36 @@ def LoadServices(app, redissession, dbsession):
                     dbsession.thirdpartyintegration.delete_many({"type":"ALM","qctestcase":requestdata["qctestcase"]})
                     dbsession.thirdpartyintegration.insert_one(requestdata)
                     res= {"rows":"success"}
+                elif(requestdata["query"] == 'saveQtestDetails_ICE'):
+                    requestdata["type"] = "qTest"
+                    dbsession.thirdpartyintegration.insert_one(requestdata)
+                    dbsession.thirdpartyintegration.delete_many({"type":"qTest","testscenarioid":requestdata["testscenarioid"]})
+                    dbsession.thirdpartyintegration.delete_many({"type":"qTest","qtestsuite":requestdata["qtestsuite"]})
+                    dbsession.thirdpartyintegration.insert_one(requestdata)
+                    res= {"rows":"success"}
             else:
-                app.logger.warn('Empty data received. getting saveQcDetails.')
+                app.logger.warn('Empty data received. getting saveIntegrationDetails_ICE.')
         except Exception as e:
-            servicesException("saveQcDetails_ICE", e, True)
+            servicesException("saveIntegrationDetails_ICE", e, True)
         return jsonify(res)
 
-    @app.route('/qualityCenter/viewQcMappedList_ICE',methods=['POST'])
+    @app.route('/qualityCenter/viewIntegrationMappedList_ICE',methods=['POST'])
     def viewQcMappedList_ICE():
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
-            app.logger.debug("Inside viewQcMappedList_ICE. Query: "+str(requestdata["query"]))
+            app.logger.debug("Inside viewIntegrationMappedList_ICE. Query: "+str(requestdata["query"]))
             if not isemptyrequest(requestdata):
                 if(requestdata["query"] == 'qcdetails'):
                     result=list(dbsession.thirdpartyintegration.find({"type":"ALM","testscenarioid":requestdata["testscenarioid"]}))
                     res= {"rows":result}
+                elif(requestdata["query"] == 'qtestdetails'):
+                    result=list(dbsession.thirdpartyintegration.find({"type":"qTest","testscenarioid":requestdata["testscenarioid"]}))
+                    res= {"rows":result}
             else:
                 app.logger.warn('Empty data received. getting QcMappedList.')
         except Exception as e:
-            servicesException("viewQcMappedList_ICE", e, True)
+            servicesException("viewIntegrationMappedList_ICE", e, True)
         return jsonify(res)
 ################################################################################
 # END OF QUALITYCENTRE
