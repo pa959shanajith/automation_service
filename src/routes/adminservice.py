@@ -95,21 +95,30 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
                         requestdata["deactivated"]="false"
                         requestdata["addroles"]=[]
                         requestdata["projects"]=[]
-                        if not (requestdata["ldapuser"]):requestdata["ldapuser"]={}
-                        else : requestdata["ldapuser"]=json.loads(requestdata["ldapuser"])
                         dbsession.users.insert_one(requestdata)
                         res={"rows":"success"}
                 elif (action=="update"):
-                    requestdata["modifiedby"]=ObjectId(requestdata["createdby"])
-                    requestdata["modifiedbyrole"]=ObjectId(requestdata["createdbyrole"])
-                    requestdata["modifiedon"]=datetime.now()
-                    addroles=[]
-                    for i in requestdata["additionalroles"]:
-                        addroles.append(ObjectId(i))
-                    if "password" in requestdata:
-                        dbsession.users.update_one({"_id":ObjectId(requestdata["userid"])},{"$set":{"name":requestdata["name"],"firstname":requestdata["firstname"],"lastname":requestdata["lastname"],"email":requestdata["email"],"password":requestdata["password"],"addroles":addroles,"modifiedby":requestdata["modifiedby"],"modifiedbyrole":requestdata["modifiedbyrole"],"modifiedon":requestdata["modifiedon"]}})
-                    else:
-                        dbsession.users.update_one({"_id":ObjectId(requestdata["userid"])},{"$set":{"name":requestdata["name"],"firstname":requestdata["firstname"],"lastname":requestdata["lastname"],"email":requestdata["email"],"addroles":addroles,"modifiedby":requestdata["modifiedby"],"modifiedbyrole":requestdata["modifiedbyrole"],"modifiedon":requestdata["modifiedon"]}})
+                    update_query = {
+                        "name":requestdata["name"],
+                        "firstname":requestdata["firstname"],
+                        "lastname":requestdata["lastname"],
+                        "email":requestdata["email"],
+                        "addroles":[ObjectId(i) for i in requestdata["additionalroles"]],
+                        "auth":requestdata["auth"],
+                        "modifiedby":ObjectId(requestdata["createdby"]),
+                        "modifiedbyrole":ObjectId(requestdata["createdbyrole"]),
+                        "modifiedon":datetime.now()
+                    }
+                    dbsession.users.update_one({"_id":ObjectId(requestdata["userid"])},{"$set":update_query})
+                    res={"rows":"success"}
+                elif (action=="resetpassword"):
+                    update_query = {
+                        "auth.password":requestdata["password"],
+                        "modifiedby":ObjectId(requestdata["modifiedby"]),
+                        "modifiedbyrole":ObjectId(requestdata["modifiedbyrole"]),
+                        "modifiedon":datetime.now()
+                    }
+                    dbsession.users.update_one({"_id":ObjectId(requestdata["userid"])},{"$set":update_query})
                     res={"rows":"success"}
             else:
                 app.logger.warn('Empty data received. manage users.')
@@ -122,14 +131,15 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
         app.logger.info("Inside getUserDetails")
         res={'rows':'fail'}
         try:
-            requestdata={}
-            if request.data:
-                requestdata=json.loads(request.data)
+            requestdata=json.loads(request.data)
             if not isemptyrequest(requestdata):
                 if "userid" in requestdata:
-                    result=dbsession.users.find_one({"_id":ObjectId(requestdata["userid"])},{"name":1,"firstname":1,"lastname":1,"email":1,"ldapuser":1,"defaultrole":1,"addroles":1})
-                    if result["name"] in ["support.avoassure","ci_cd"]: result = None
-                    else: result["rolename"]=dbsession.permissions.find_one({"_id":result["defaultrole"]})["name"]
+                    result=dbsession.users.find_one({"_id":ObjectId(requestdata["userid"])},{"name":1,"firstname":1,"lastname":1,"email":1,"defaultrole":1,"addroles":1,"auth":1})
+                    if result is not None:
+                        if result["name"] in ["support.avoassure","ci_cd"]: result = None
+                        else: result["rolename"]=dbsession.permissions.find_one({"_id":result["defaultrole"]})["name"]
+                        if "auth" not in result: result["auth"] = {"type": "inhouse"}
+                        elif "password" in result["auth"]: del result["auth"]["password"]
                     res={'rows':result}
                 else:
                     perms_list = dbsession.permissions.find({},{"_id":1,"name":1})
