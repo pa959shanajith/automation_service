@@ -72,12 +72,13 @@ def LoadServices(app, redissession, dbsession):
                         continue
                     elif len(ob) == 4: legend = legend[:4]
                     elif len(ob) == 8: del legend[3]
+                    elif len(ob) == 11: dodata["tag"] = ob[-1]
                     try:
                         for i in range(len(legend)):
                             if (i>=4 and i<=7):
                                 if ob[i].isnumeric(): dodata[legend[i]] = int(ob[i])
                             else:
-                                if ob[i] != "null": dodata[legend[i]] = ob[i]
+                                if (ob[i] != "null") and (legend[i] not in dodata): dodata[legend[i]] = ob[i]
                     except: pass
                     if "tag" in dodata: dodata["tag"] = dodata["tag"].split("[")[0]
                     if "class" in dodata: dodata["class"] = dodata["class"].split("[")[0]
