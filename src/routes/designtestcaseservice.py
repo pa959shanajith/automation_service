@@ -198,17 +198,16 @@ def LoadServices(app, redissession, dbsession):
                                     s_cname = cname.split('_')
                                     ind = int(s_cname.pop())
                                     n_cname = '_'.join(s_cname)
-                                except ValueError:
+                                except:
                                     ind = 0
                                     n_cname = cname
                                 while True:
                                     if n_cname+'_'+str(ind+1) not in custnames:
                                         so["custname"] = n_cname+'_'+str(ind+1)
                                         break
-                                    else:
-                                        if ('objectName' in so) and ('xpath' in custnames[n_cname+'_'+str(ind+1)]) and (so["objectName"] == custnames[n_cname+'_'+str(ind+1)]['xpath']):
-                                            cid = custnames[n_cname+'_'+str(ind+1)]["_id"]
-                                            break
+                                    elif ('objectName' in so) and ('xpath' in custnames[n_cname+'_'+str(ind+1)]) and (so["objectName"] == custnames[n_cname+'_'+str(ind+1)]['xpath']):
+                                        cid = custnames[n_cname+'_'+str(ind+1)]["_id"]
+                                        break
                                     ind += 1
                                 if so["custname"] not in custnames:
                                     custnames[so["custname"]] = {"_id":cid,"xpath":so["objectName"],"url":so['url'] if 'url' in so else ""}
