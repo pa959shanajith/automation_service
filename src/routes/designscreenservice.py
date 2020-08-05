@@ -73,12 +73,20 @@ def LoadServices(app, redissession, dbsession):
                                 data_push.append(ObjectId(data_obj[i]["_id"]))
                         dbsession.dataobjects.update_many({"_id":{"$in":data_push},"$and":[{"parent.1":{"$exists":True}},{"parent":screenID}]},{"$pull":{"parent":screenID}})
                         dbsession.dataobjects.delete_many({"_id":{"$in":data_push},"$and":[{"parent":{"$size": 1}},{"parent":screenID}]})
-                    if 'update_list' in data and (data['update_list'] != [] and data['update_list'] != ''):
-                        data_obj=json.loads(data['update_list'])
-                        for i in range(len(data_obj)):
-                            data_id=ObjectId(data_obj[i][0])
-                            cust_name=data_obj[i][1]
-                            dbsession.dataobjects.update({"_id": data_id},{"$set":{"custname":cust_name}})
+                        if 'insert_list' in data and (data['insert_list'] != [] and data['insert_list'] != ''):    
+                            data_push=[]
+                            data_obj=data['insert_list']
+                            for i in range(len(data_obj)):
+                                data_obj[i]["parent"] = [ObjectId(data["screenid"])]
+                                data_push.append(data_obj[i])
+                            if (data_push != []):
+                                dbsession.dataobjects.insert(data_push)
+                        if 'update_list' in data and (data['update_list'] != [] and data['update_list'] != ''):
+                            data_obj=json.loads(data['update_list'])
+                            for i in range(len(data_obj)):
+                                data_id=ObjectId(data_obj[i][0])
+                                cust_name=data_obj[i][1]
+                                dbsession.dataobjects.update({"_id": data_id},{"$set":{"custname":cust_name}})
                     dbsession.screens.update({"_id":screenID},{"$set":{"modifiedby":modifiedby,'modifiedbyrole':modifiedbyrole,"modifiedon" : datetime.now()}})
                     res = {"rows":"Success"}
                 elif data["type"] == "update_obj":
@@ -93,6 +101,14 @@ def LoadServices(app, redissession, dbsession):
                             data_id=ObjectId(data_obj[i][0])
                             cust_name=data_obj[i][1]
                             dbsession.dataobjects.update({"_id": data_id},{"$set":{"custname":cust_name}})
+                        if 'insert_list' in data and (data['insert_list'] != [] and data['insert_list'] != ''):    
+                            data_push=[]
+                            data_obj=data['insert_list']
+                            for i in range(len(data_obj)):
+                                data_obj[i]["parent"] = [ObjectId(data["screenid"])]
+                                data_push.append(data_obj[i])
+                            if (data_push != []):
+                                dbsession.dataobjects.insert(data_push)
                         dbsession.screens.update({"_id":screenID},{"$set":{"modifiedby":modifiedby,'modifiedbyrole':modifiedbyrole,"modifiedon" : datetime.now()}})
                         res = {"rows":"Success"}
                     except:
