@@ -67,6 +67,7 @@ def LoadServices(app, redissession, dbsession):
                         #1-drop document for single parent element #2- pop out screen id from parent for multiple parent element
                         dbsession.dataobjects.update_many({"$and":[{"parent.1":{"$exists":True}},{"parent":screenID}]},{"$pull":{"parent":screenID}})
                         dbsession.dataobjects.delete_many({"$and":[{"parent":{"$size": 1}},{"parent":screenID}]})
+                        dbsession.screens.update({"_id":screenID},{"$set":{"screenshot":'',"scrapedurl":'',"modifiedby":modifiedby, 'modifiedbyrole':modifiedbyrole,"modifiedon" : datetime.now()}})
                     else:
                         for i in range(len(data_obj)):
                             if "_id" in data_obj[0]:
