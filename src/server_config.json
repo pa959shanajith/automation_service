@@ -3,8 +3,8 @@
     "avoassuredb": {
         "host": "127.0.0.1",
         "port": "27017",
-        "username": "c07adb85b280adad3cd78a2e25c6a9f6",
-        "password": "7b66b62edcf8a8f74a4d4108a513f565"
+        "username": "26baa3f4b8058f1e9c1d826d8d7ef401",
+        "password": "c46b3569ea731f14ef4ddce8c9c077dc"
     },
     "cachedb": {
         "host": "127.0.0.1",

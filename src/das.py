@@ -1156,11 +1156,11 @@ def main():
         mongo_user=unwrap(mongodb_conf["username"],db_keys)
         mongo_pass=unwrap(mongodb_conf['password'],db_keys)
         client = MongoClient('mongodb://%s:%s/' % (mongodb_conf["host"],mongodb_conf["port"]),
-            username = mongo_user, password = mongo_pass, authSource = 'Nineteen68',
+            username = mongo_user, password = mongo_pass, authSource = 'avoassure',
             authMechanism = 'SCRAM-SHA-1')
         if client.server_info():
             mongo_dbup = True
-        dbsession = client.Nineteen68
+        dbsession = client.avoassure
     except Exception as e:
         app.logger.debug(e)
         app.logger.critical(printErrorCodes('206'))
