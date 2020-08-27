@@ -99,7 +99,6 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
                         res={"rows":"success"}
                 elif (action=="update"):
                     update_query = {
-                        "name":requestdata["name"],
                         "firstname":requestdata["firstname"],
                         "lastname":requestdata["lastname"],
                         "email":requestdata["email"],
@@ -404,8 +403,7 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
             if not isemptyrequest(requestdata):
                 query_filter = {"type":"LDAP","name":requestdata["name"]}
                 result=dbsession.thirdpartyintegration.find_one(query_filter)
-                if "bindcredentials" in requestdata: requestdata["bindcredentials"]=wrap(requestdata["bindcredentials"],ldap_key)
-                else: requestdata["bindcredentials"] = ""
+                bc = "bindcredentials"
                 if (requestdata['action'] == "delete"):
                     if result != None:
                         dbsession.thirdpartyintegration.delete_one(query_filter)
@@ -414,14 +412,24 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
                     if result != None: res["rows"] = "exists"
                     else:
                         del requestdata["action"]
+                        requestdata[bc] = wrap(requestdata[bc],ldap_key) if bc in requestdata else ''
                         requestdata["fieldmap"]=json.loads(requestdata["fieldmap"])
                         requestdata["type"]="LDAP"
                         dbsession.thirdpartyintegration.insert_one(requestdata)
                         res["rows"] = "success"
                 elif (requestdata['action'] == "update"):
                     if result != None:
-                        requestdata["fieldmap"]=json.loads(requestdata["fieldmap"])
-                        dbsession.thirdpartyintegration.update_one({"name":requestdata["name"]},{"$set":{"url":requestdata["url"],"bindcredentials":requestdata["bindcredentials"],"basedn":requestdata["basedn"],"auth":requestdata["auth"],"binddn":requestdata["binddn"],"fieldmap":requestdata["fieldmap"]}})
+                        update_query = {
+                            "url":requestdata["url"],
+                            "basedn":requestdata["basedn"],
+                            "secure":requestdata["secure"],
+                            "auth":requestdata["auth"],
+                            "binddn":requestdata["binddn"],
+                            "fieldmap":json.loads(requestdata["fieldmap"])
+                        }
+                        if "cert" in requestdata: update_query["cert"] = requestdata["cert"],
+                        if bc in requestdata: update_query[bc] = wrap(requestdata[bc], ldap_key)
+                        dbsession.thirdpartyintegration.update_one(query_filter,{"$set":update_query})
                         res["rows"] = "success"
                 else:
                     res={'rows':'fail'}
@@ -444,6 +452,7 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
                     result = dbsession.thirdpartyintegration.find_one(query_filter)
                     if result is None: result = []
                     else:
+                        if "secure" not in result: result["secure"] = "false"
                         password = result["bindcredentials"]
                         if len(password) > 0:
                             password = unwrap(password, ldap_key)
