@@ -86,6 +86,8 @@ def LoadServices(app, redissession, dbsession):
                     dodata["cord"] = so["cord"] if "cord" in so else ""
                 elif so["apptype"] == "SAP":
                     if so["tag"]=="GuiOkCodeField": so["tag"]="input"
+                    if so["tag"]=="GuiSimpleContainer": so["tag"]="scontainer"
+                    if so["tag"]=="GuiLabel": so["tag"]="label"
                     dodata = {
                         'xpath': so['xpath'],
                         'id': so['id'],
