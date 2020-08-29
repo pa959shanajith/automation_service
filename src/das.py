@@ -147,7 +147,7 @@ def addroutes():
     loginservice.LoadServices(app, redissession, dbsession, licensedata)
 
     import adminservice
-    adminservice.LoadServices(app, redissession, dbsession, licensedata,ice_das_key)
+    adminservice.LoadServices(app, redissession, dbsession, licensedata, ice_das_key, ldap_key)
 
     import mindmapservice
     mindmapservice.LoadServices(app, redissession, dbsession)

@@ -10,9 +10,6 @@ from Crypto.Cipher import AES
 import codecs
 import uuid
 
-ldap_key = "".join(['l','!','g','#','t','W','3','l','g','G','h','1','3','@','(',
-    'c','E','s','$','T','p','R','0','T','c','O','I','-','k','3','y','S'])
-
 def wrap(data, key, iv=b'0'*16):
     aes = AES.new(key.encode('utf-8'), AES.MODE_CBC, iv)
     hex_data = aes.encrypt(pad(data.encode('utf-8')))
@@ -33,7 +30,8 @@ def unwrap(hex_data, key, iv=b'0'*16):
 
 def LoadServices(app, redissession, dbsession,licensedata,*args):
     setenv(app)
-    ice_das_key=args[0]
+    ice_das_key = args[0]
+    ldap_key = args[1]
 
 ################################################################################
 # END OF DEFAULT METHODS AND IMPORTS       -----------DO NOT EDIT
@@ -746,4 +744,81 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
                 app.logger.warn('Empty data received. provisionICE - Admin.')
         except Exception as provisionICEexc:
             servicesException("provisionICE", provisionICEexc, True)
+        return jsonify(res)
+
+    @app.route('/admin/manageNotificationChannels',methods=['POST'])
+    def manageNotificationChannels():
+        res={'rows':'fail'}
+        try:
+            requestdata=json.loads(request.data)
+            action = str(requestdata['action'])
+            channel = str(requestdata['channel'] if 'channel' in requestdata else '')
+            app.logger.info("Inside manageNotificationChannels. Action is "+action+". Channel is "+channel)
+            if not isemptyrequest(requestdata):
+                query_filter = {"channel":channel,"name":requestdata["name"]}
+                result=dbsession.notifications.find_one(query_filter)
+                if result is None:
+                    if action == "create":
+                        del requestdata["action"]
+                        requestdata["active"] = True
+                        if requestdata["auth"] and "password" in requestdata["auth"]:
+                            requestdata["auth"]["password"] = wrap(requestdata["auth"]["password"],ldap_key)
+                        dbsession.notifications.insert_one(requestdata)
+                        res["rows"] = "success"
+                    else:
+                        res["rows"] = "dne"
+                else:
+                    if action == "create": res["rows"] = "exists"
+                    elif action == "disable":
+                        dbsession.notifications.update_one(query_filter,{"$set":{"active":False}})
+                        res["rows"] = "success"
+                    elif action == "enable":
+                        dbsession.notifications.update_one(query_filter,{"$set":{"active":True}})
+                        res["rows"] = "success"
+                    elif action == "delete":
+                        dbsession.notifications.delete_one(query_filter)
+                        res["rows"] = "success"
+                    elif action == "update":
+                        del requestdata["action"]
+                        del requestdata["name"]
+                        if requestdata["auth"] and "password" in requestdata["auth"]:
+                            requestdata["auth"]["password"] = wrap(requestdata["auth"]["password"],ldap_key)
+                        dbsession.notifications.update_one(query_filter,{"$set":requestdata})
+                        res["rows"] = "success"
+            else:
+                app.logger.warn('Empty data received. Noifications channels manage.')
+        except Exception as managenotfexec:
+            servicesException("manageNotificationChannels", managenotfexec, True)
+        return jsonify(res)
+
+    @app.route('/admin/getNotificationChannels',methods=['POST'])
+    def getNotificationChannels():
+        app.logger.info("Inside getNotificationChannels")
+        res={'rows':'fail'}
+        try:
+            requestdata=json.loads(request.data)
+            action = str(requestdata['action'])
+            channel = str(requestdata['channel'] if 'channel' in requestdata else '')
+            if not isemptyrequest(requestdata):
+                query_filter = {"channel":channel}
+                if action == "specific":
+                    query_filter["name"] = requestdata["name"]
+                    result = dbsession.notifications.find_one(query_filter)
+                    if result is None: result = []
+                    elif "auth" in result and "password" in result["auth"]:
+                        password = result["auth"]["password"]
+                        if len(password) > 0:
+                            password = unwrap(password, ldap_key)
+                            result["auth"]["password"] = password
+                elif action == "provider":
+                    query_filter["provider"] = requestdata["name"]
+                    result = list(dbsession.notifications.find(query_filter))
+                elif action == "list":
+                    result = list(dbsession.notifications.find({},{"name":1,"provider":1,"channel":1}))
+                else: result = []
+                res["rows"] = result
+            else:
+                app.logger.warn('Empty data received. Noifications channels fetch.')
+        except Exception as getnotfexc:
+            servicesException("getNotificationChannels", getnotfexc, True)
         return jsonify(res)
