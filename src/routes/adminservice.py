@@ -761,7 +761,7 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
                     if action == "create":
                         del requestdata["action"]
                         requestdata["active"] = True
-                        if requestdata["auth"] and "password" in requestdata["auth"]:
+                        if requestdata["auth"] and type(result["auth"]) != bool and "password" in requestdata["auth"]:
                             requestdata["auth"]["password"] = wrap(requestdata["auth"]["password"],ldap_key)
                         dbsession.notifications.insert_one(requestdata)
                         res["rows"] = "success"
@@ -781,7 +781,7 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
                     elif action == "update":
                         del requestdata["action"]
                         del requestdata["name"]
-                        if requestdata["auth"] and "password" in requestdata["auth"]:
+                        if requestdata["auth"] and type(result["auth"]) != bool and "password" in requestdata["auth"]:
                             requestdata["auth"]["password"] = wrap(requestdata["auth"]["password"],ldap_key)
                         dbsession.notifications.update_one(query_filter,{"$set":requestdata})
                         res["rows"] = "success"
@@ -801,18 +801,16 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
             channel = str(requestdata['channel'] if 'channel' in requestdata else '')
             if not isemptyrequest(requestdata):
                 query_filter = {"channel":channel}
-                if action == "specific":
-                    query_filter["name"] = requestdata["name"]
-                    result = dbsession.notifications.find_one(query_filter)
-                    if result is None: result = []
-                    elif "auth" in result and "password" in result["auth"]:
+                if action in ["specific", "provider"]:
+                    if action == "provider": query_filter["provider"] = requestdata["name"]
+                    else: query_filter["name"] = requestdata["name"]
+                    result = list(dbsession.notifications.find(query_filter))
+                    if len(result) != 0: result = result[0] # Return First provider only.
+                    if len(result) != 0 and "auth" in result and type(result["auth"]) != bool and "password" in result["auth"]:
                         password = result["auth"]["password"]
                         if len(password) > 0:
                             password = unwrap(password, ldap_key)
                             result["auth"]["password"] = password
-                elif action == "provider":
-                    query_filter["provider"] = requestdata["name"]
-                    result = list(dbsession.notifications.find(query_filter))
                 elif action == "list":
                     result = list(dbsession.notifications.find({},{"name":1,"provider":1,"channel":1}))
                 else: result = []
