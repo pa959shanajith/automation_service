@@ -80,11 +80,16 @@ def LoadServices(app, redissession, dbsession):
                             else:
                                 if (ob[i] != "null") and (legend[i] not in dodata): dodata[legend[i]] = ob[i]
                     except: pass
-                    if "tag" in dodata: dodata["tag"] = dodata["tag"].split("[")[0]
+                    gettag = {"btn":"button","txtbox":"input","lnk":"a","radiobtn":"radiobutton","select":"select","chkbox":"checkbox","lst":"list","tab":"tab","tree":"tree","dtp":"datepicker","table":"table","elmnt":"label"}
+                    tag = so["custname"].split("_")[-1]
+                    if tag in gettag: dodata["tag"] = gettag[tag]
                     if "class" in dodata: dodata["class"] = dodata["class"].split("[")[0]
                     dodata["url"] = so["url"] if 'url' in so else ""
                     dodata["cord"] = so["cord"] if "cord" in so else ""
                 elif so["apptype"] == "SAP":
+                    if so["tag"]=="GuiOkCodeField": so["tag"]="input"
+                    if so["tag"]=="GuiSimpleContainer": so["tag"]="scontainer"
+                    if so["tag"]=="GuiLabel": so["tag"]="label"
                     dodata = {
                         'xpath': so['xpath'],
                         'id': so['id'],
