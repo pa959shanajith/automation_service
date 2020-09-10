@@ -801,19 +801,21 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
             channel = str(requestdata['channel'] if 'channel' in requestdata else '')
             if not isemptyrequest(requestdata):
                 query_filter = {"channel":channel}
-                if action in ["specific", "provider"]:
-                    if action == "provider": query_filter["provider"] = requestdata["name"]
-                    else: query_filter["name"] = requestdata["name"]
-                    result = list(dbsession.notifications.find(query_filter))
-                    if len(result) != 0: result = result[0] # Return First provider only.
-                    if len(result) != 0 and "auth" in result and type(result["auth"]) != bool and "password" in result["auth"]:
-                        password = result["auth"]["password"]
+                data_filter = None
+                name = requestdata["name"] if "name" in requestdata else ""
+                if action == "provider": query_filter["provider"] = name
+                elif action == "list":
+                    query_filter = {}
+                    if "filter" in requestdata and requestdata["filter"] == "active": query_filter["active"] = True
+                    # data_filter = {"name":1,"provider":1,"channel":1}
+                else: query_filter["name"] = name
+                result = list(dbsession.notifications.find(query_filter, data_filter))
+                for row in result:
+                    if "auth" in row and type(row["auth"]) != bool and "password" in row["auth"]:
+                        password = row["auth"]["password"]
                         if len(password) > 0:
                             password = unwrap(password, ldap_key)
-                            result["auth"]["password"] = password
-                elif action == "list":
-                    result = list(dbsession.notifications.find({},{"name":1,"provider":1,"channel":1}))
-                else: result = []
+                            row["auth"]["password"] = password
                 res["rows"] = result
             else:
                 app.logger.warn('Empty data received. Noifications channels fetch.')
