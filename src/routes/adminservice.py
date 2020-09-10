@@ -427,7 +427,7 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
                             "binddn":requestdata["binddn"],
                             "fieldmap":json.loads(requestdata["fieldmap"])
                         }
-                        if "cert" in requestdata: update_query["cert"] = requestdata["cert"],
+                        if "cert" in requestdata: update_query["cert"] = requestdata["cert"]
                         if bc in requestdata: update_query[bc] = wrap(requestdata[bc], ldap_key)
                         dbsession.thirdpartyintegration.update_one(query_filter,{"$set":update_query})
                         res["rows"] = "success"
