@@ -31,6 +31,7 @@ def LoadServices(app, redissession, dbsession):
                         if "scrapeinfo" in screen_query and 'header' in screen_query["scrapeinfo"]:
                             dataobj_query = [screen_query["scrapeinfo"]]
                         res["rows"] = { "view": dataobj_query, "name":screen_query["name"],
+                                        "createdthrough": (screen_query["createdthrough"] if ("createdthrough" in screen_query) else ""),
                                         "scrapedurl": (screen_query["scrapedurl"] if ("scrapedurl" in screen_query) else ""),
                                         "mirror": (screen_query["screenshot"] if ("screenshot" in screen_query) else ""),
                                         "reuse": True if(len(screen_query["parent"])>1) else False
