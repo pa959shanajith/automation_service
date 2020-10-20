@@ -63,7 +63,7 @@ def LoadServices(app, redissession, dbsession):
                     }
                     if obn.strip() == '' :
                         custnameToAdd.append(dodata)
-                    legend = ['id', 'name', 'tag', 'class', 'left', 'top', 'height', 'width', 'text']
+                    legend = ['id', 'name', 'tag', 'left', 'top', 'height', 'width', 'text', 'class']
                     for i in obn.split(';'): ob.append(getScrapeData(i))
                     ob = ";".join(ob).split(';')
                     ob = ob[1:2] + ob[3:]
