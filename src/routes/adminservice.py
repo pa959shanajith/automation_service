@@ -781,8 +781,10 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
                     elif action == "update":
                         del requestdata["action"]
                         del requestdata["name"]
-                        if requestdata["auth"] and type(result["auth"]) != bool and "password" in requestdata["auth"]:
+                        if requestdata["auth"] and type(requestdata["auth"]) != bool and "password" in requestdata["auth"]:
                             requestdata["auth"]["password"] = wrap(requestdata["auth"]["password"],ldap_key)
+                        if requestdata["proxy"] and "pass" in requestdata["proxy"]:
+                            requestdata["proxy"]["pass"] = wrap(requestdata["proxy"]["pass"],ldap_key)
                         dbsession.notifications.update_one(query_filter,{"$set":requestdata})
                         res["rows"] = "success"
             else:
@@ -816,6 +818,11 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
                         if len(password) > 0:
                             password = unwrap(password, ldap_key)
                             row["auth"]["password"] = password
+                    if "proxy" in row and "pass" in row["proxy"]:
+                        password = row["proxy"]["pass"]
+                        if len(password) > 0:
+                            password = unwrap(password, ldap_key)
+                            row["proxy"]["pass"] = password
                 res["rows"] = result
             else:
                 app.logger.warn('Empty data received. Noifications channels fetch.')
