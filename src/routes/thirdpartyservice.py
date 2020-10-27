@@ -49,10 +49,18 @@ def LoadServices(app, redissession, dbsession):
             if not isemptyrequest(requestdata):
                 if(requestdata["query"] == 'saveQcDetails_ICE'):
                     requestdata["type"] = "ALM"
-                    dbsession.thirdpartyintegration.insert_one(requestdata)
-                    dbsession.thirdpartyintegration.delete_many({"type":"ALM","testscenarioid":requestdata["testscenarioid"]})
-                    dbsession.thirdpartyintegration.delete_many({"type":"ALM","qctestcase":requestdata["qctestcase"]})
-                    dbsession.thirdpartyintegration.insert_one(requestdata)
+                    # dbsession.thirdpartyintegration.insert_one(requestdata)
+                    # dbsession.thirdpartyintegration.delete_many({"type":"ALM","testscenarioid":requestdata["testscenarioid"]})
+                    # dbsession.thirdpartyintegration.delete_many({"type":"ALM","qctestcase":requestdata["qctestcase"]})
+                    # dbsession.thirdpartyintegration.insert_one(requestdata)
+                    sc=list(dbsession.thirdpartyintegration.find({"testscenarioid":requestdata["testscenarioid"]}))
+                    if len(sc)>0:
+                        qc_tc_insert=sc[0]['qctestcase']
+                        for a in requestdata["qctestcase"]:
+                            qc_tc_insert.append(a)
+                        dbsession.thirdpartyintegration.update_one({"testscenarioid":requestdata["testscenarioid"]}, {'$set': {"qctestcase":qc_tc_insert}})
+                    else:
+                        dbsession.thirdpartyintegration.insert_one(requestdata)
                     res= {"rows":"success"}
                 elif(requestdata["query"] == 'saveQtestDetails_ICE'):
                     requestdata["type"] = "qTest"
