@@ -126,7 +126,49 @@ def LoadServices(app, redissession, dbsession):
         except Exception as e:
             servicesException("getNeuronGraphsData", e, True)
         return jsonify(res)
+    #fetching the reports for NG
+    @app.route('/neurongraphs/getReportNG',methods=['POST'])
+    def getReportNG():
+        res={'rows':'fail'}
+        try:
+            requestdata=json.loads(request.data)
+            app.logger.debug("Inside getReport. Query: "+str(requestdata["query"]))
+            if not isemptyrequest(requestdata):
+                 if(requestdata["query"] == 'getReportNG'):
+                    queryresult1 = list(dbsession.executions.find({"parent":ObjectId(requestdata["suiteId"])},{"_id":1,"status":1}))
+                    # scenarioid = queryresult1['testscenarioid']
+                    for execution in queryresult1:
+                        #execution['reports'] = list(dbsession.reports.find({"executionid":queryresult1['_id']},{"_id":1}))
+                        execution['reports'] = list(dbsession.reports.find({"executionid":ObjectId(execution['_id'])},{"_id":1}))
+                        for reportid in execution['reports']:
+                            reportid['jiraId'] = list(dbsession.thirdpartyintegration.find({"reportid":reportid["_id"],"type":"JIRA"},{"_id":0,"defectid":1}))
+                    # queryresult1.update(queryresult2)
+                    #queryresult3 = dbsession.projects.find_one({"_id":queryresult2['projectid']},{"domain":1,"_id":0})
+                    # queryresult1.update(queryresult3)
+                    # queryresult1['testscenarioid'] = scenarioid
+                    # queryresult.append(queryresult1)
+                    res= {"rows":queryresult1}
+                    #app.logger.warn(res)
+            else:
+                app.logger.warn('Empty data received. report.')
+        except Exception as getreportexc:
+            servicesException("getReport_NG",getreportexc)
+        return res
 
-
+    #fetching the Execution status for NG
+    @app.route('/neurongraphs/getReportExecutionStatus_NG',methods=['POST'])
+    def getReportExecutionStatusNG():
+        app.logger.debug("Inside getReportExecutionStatus_NG")
+        res={'rows':'fail'}
+        try:
+            requestdata=json.loads(request.data)
+            if not isemptyrequest(requestdata):
+                queryresult = list(dbsession.executions.find({"parent":ObjectId(requestdata["suiteID"])}))
+                res= {"rows":queryresult}
+            else:
+                app.logger.warn('Empty data received. report suites details execution.')
+        except Exception as getsuitedetailsexc:
+            servicesException("getReportExecutionStatus_NG",getsuitedetailsexc)
+        return jsonify(res)
 
 
