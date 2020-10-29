@@ -20,7 +20,7 @@ def LoadServices(app, redissession, dbsession):
 # INCLUDES : all reports related actions
 
 
-#fetching all the suite details
+    #fetching all the suite details
     @app.route('/reports/getAllSuites_ICE',methods=['POST'])
     def getAllSuites_ICE():
         res={'rows':'fail'}
@@ -85,26 +85,38 @@ def LoadServices(app, redissession, dbsession):
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
-            app.logger.debug("Inside getReport. Query: "+str(requestdata["query"]))
+            app.logger.debug("Inside getReport")
             if not isemptyrequest(requestdata):
-                if(requestdata["query"] == 'projectsUnderDomain'):
-                    queryresult1 = dbsession.reports.find_one({"_id":ObjectId(requestdata["reportid"])},{"executedtime":1,"report":1,"testscenarioid":1})
-                    # scenarioid = queryresult1['testscenarioid']
-                    queryresult2 = dbsession.testscenarios.find_one({"_id":queryresult1['testscenarioid']},{"name":1,"projectid":1,"_id":0})
-                    # queryresult1.update(queryresult2)
-                    queryresult3 = dbsession.projects.find_one({"_id":queryresult2['projectid']},{"domain":1,"_id":0})
-                    # queryresult1.update(queryresult3)
-                    # queryresult1['testscenarioid'] = scenarioid
-                    # queryresult.append(queryresult1)
-                    query={
-                        'report': queryresult1["report"],
-                        'executedtime': queryresult1["executedtime"],
-                        'testscenarioid': queryresult1["testscenarioid"],
-                        'name': queryresult2["name"],
-                        'projectid': queryresult2["projectid"],
-                        'domain': queryresult3["domain"]
-                        }
-                    res= {"rows":query}
+                reportobj = dbsession.reports.find_one({"_id":ObjectId(requestdata["reportid"])},{"executedtime":1,"report":1,"testscenarioid":1,"executionid":1})
+                if reportobj is None:
+                    res['rows'] = []
+                    return res
+                scenarioname = dbsession.testscenarios.find_one({"_id":reportobj['testscenarioid']},{"name":1,"_id":0})["name"]
+                suiteid = dbsession.executions.find_one({"_id":reportobj['executionid']},{"parent":1,"_id":0})["parent"][0]
+                suiteobj = dbsession.testsuites.find_one({"_id":suiteid},{"name":1,"cycleid":1,"_id":0})
+                cycleid = suiteobj['cycleid']
+                prjobj = dbsession.projects.find_one({"releases.cycles._id":cycleid},{"domain":1,"name":1,"releases":1})
+                query = {
+                    'report': reportobj["report"],
+                    'executionid': reportobj['executionid'],
+                    'executedtime': reportobj["executedtime"],
+                    'testscenarioid': reportobj["testscenarioid"],
+                    'testscenarioname': scenarioname,
+                    'testsuitename': suiteobj["name"],
+                    'projectid': prjobj["_id"],
+                    'domainname': prjobj["domain"],
+                    'projectname': prjobj["name"]
+                }
+                found = False
+                for rel in prjobj["releases"]:
+                    for cyc in rel["cycles"]:
+                        if cyc["_id"] == cycleid:
+                            query["releasename"] = rel["name"]
+                            query["cyclename"] = cyc["name"]
+                            found = True
+                            break
+                    if found: break
+                res= {"rows":query}
             else:
                 app.logger.warn('Empty data received. report.')
         except Exception as getreportexc:
