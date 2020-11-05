@@ -63,7 +63,7 @@ def LoadServices(app, redissession, dbsession):
                     }
                     if obn.strip() == '' :
                         custnameToAdd.append(dodata)
-                    legend = ['id', 'name', 'tag', 'class', 'left', 'top', 'height', 'width', 'text']
+                    legend = ['id', 'name', 'tag', 'left', 'top', 'height', 'width', 'text', 'class']
                     for i in obn.split(';'): ob.append(getScrapeData(i))
                     ob = ";".join(ob).split(';')
                     ob = ob[1:2] + ob[3:]
@@ -201,7 +201,7 @@ def LoadServices(app, redissession, dbsession):
             projectid = requestdata['projectid']
             screenid = getScreenID(screenname,projectid)
             if(screenid==None):
-                queryresult=dbsession.screens.insert_one({"name":requestdata['screenname'],"projectid":ObjectId(requestdata['projectid']),"versionnumber":requestdata['versionnumber'],"parent":[],"createdby":ObjectId(requestdata['createdby']),"createdon":modifiedon,"createdbyrole":ObjectId(requestdata['createdbyrole']),"modifiedby":ObjectId(requestdata['modifiedby']),"modifiedon":modifiedon,"modifiedbyrole":ObjectId(requestdata['modifiedbyrole']),"deleted":requestdata['deleted'],"screenshot":requestdata['screenshot'],"scrapedurl":requestdata['scrapedurl']}).inserted_id
+                queryresult=dbsession.screens.insert_one({"name":requestdata['screenname'],"projectid":ObjectId(requestdata['projectid']),"versionnumber":requestdata['versionnumber'],"parent":[],"createdby":ObjectId(requestdata['createdby']),"createdon":modifiedon,"createdbyrole":ObjectId(requestdata['createdbyrole']),"modifiedby":ObjectId(requestdata['modifiedby']),"modifiedon":modifiedon,"modifiedbyrole":ObjectId(requestdata['modifiedbyrole']),"deleted":requestdata['deleted'],"createdthrough":requestdata['createdthrough'],"screenshot":requestdata['screenshot'],"scrapedurl":requestdata['scrapedurl']}).inserted_id
                 result = createdataobjects(queryresult,requestdata)
             else:
                 result = createdataobjects(screenid,requestdata)
