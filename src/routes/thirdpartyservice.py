@@ -61,6 +61,13 @@ def LoadServices(app, redissession, dbsession):
                     dbsession.thirdpartyintegration.delete_many({"type":"qTest","qtestsuite":requestdata["qtestsuite"]})
                     dbsession.thirdpartyintegration.insert_one(requestdata)
                     res= {"rows":"success"}
+                elif(requestdata["query"] == 'saveZephyrDetails_ICE'):
+                    requestdata["type"] = "Zephyr"
+                    dbsession.thirdpartyintegration.insert_one(requestdata)
+                    dbsession.thirdpartyintegration.delete_many({"type":"Zephyr","testscenarioid":requestdata["testscenarioid"]})
+                    dbsession.thirdpartyintegration.delete_many({"type":"Zephyr","testid":requestdata["testid"]})
+                    dbsession.thirdpartyintegration.insert_one(requestdata)
+                    res= {"rows":"success"}                  
             else:
                 app.logger.warn('Empty data received. getting saveIntegrationDetails_ICE.')
         except Exception as e:
@@ -80,6 +87,9 @@ def LoadServices(app, redissession, dbsession):
                 elif(requestdata["query"] == 'qtestdetails'):
                     result=list(dbsession.thirdpartyintegration.find({"type":"qTest","testscenarioid":requestdata["testscenarioid"]}))
                     res= {"rows":result}
+                elif(requestdata["query"] == 'zephyrdetails'):
+                    result=list(dbsession.thirdpartyintegration.find({"type":"Zephyr","testscenarioid":requestdata["testscenarioid"]}))
+                    res= {"rows":result}                    
             else:
                 app.logger.warn('Empty data received. getting QcMappedList.')
         except Exception as e:
