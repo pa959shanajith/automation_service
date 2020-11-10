@@ -147,7 +147,7 @@ def addroutes():
     loginservice.LoadServices(app, redissession, dbsession, licensedata)
 
     import adminservice
-    adminservice.LoadServices(app, redissession, dbsession, licensedata,ice_das_key)
+    adminservice.LoadServices(app, redissession, dbsession, licensedata, ice_das_key, ldap_key)
 
     import mindmapservice
     mindmapservice.LoadServices(app, redissession, dbsession)
@@ -1155,9 +1155,15 @@ def main():
         mongodb_conf = das_conf['avoassuredb']
         mongo_user=unwrap(mongodb_conf["username"],db_keys)
         mongo_pass=unwrap(mongodb_conf['password'],db_keys)
-        client = MongoClient('mongodb://%s:%s/' % (mongodb_conf["host"],mongodb_conf["port"]),
-            username = mongo_user, password = mongo_pass, authSource = 'avoassure',
-            authMechanism = 'SCRAM-SHA-1')
+        hosts = [mongodb_conf["host"] + ':' + str(mongodb_conf["port"])]
+        if "replicanodes" in mongodb_conf and len(mongodb_conf["replicanodes"]) > 0:
+            rnodes = mongodb_conf["replicanodes"]
+            for rn in rnodes:
+                if "host" in rn and "port" in rn:
+                    hosts += [rn["host"] + ':' + str(rn["port"])]
+        client = MongoClient(hosts, username = mongo_user, password = mongo_pass,
+            authSource = 'avoassure', appname = 'AvoAssureDAS', authMechanism = 'SCRAM-SHA-1',
+            replicaSet = 'avoassuredbreplica', readPreference = 'primaryPreferred')
         if client.server_info():
             mongo_dbup = True
         dbsession = client.avoassure
