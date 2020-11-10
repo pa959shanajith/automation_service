@@ -32,6 +32,8 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
     setenv(app)
     ice_das_key = args[0]
     ldap_key = args[1]
+    defcn = ['@Window', '@Object', '@System', '@Excel', '@Mobile', '@Android_Custom', '@Word', '@Custom', '@CustomiOS',
+             '@Generic', '@Browser', '@Action', '@Email', '@BrowserPopUp', '@Sap','@Oebs', 'WebService List', 'Mainframe List', 'OBJECT_DELETED']
 
 ################################################################################
 # END OF DEFAULT METHODS AND IMPORTS       -----------DO NOT EDIT
@@ -828,4 +830,76 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
                 app.logger.warn('Empty data received. Noifications channels fetch.')
         except Exception as getnotfexc:
             servicesException("getNotificationChannels", getnotfexc, True)
+        return jsonify(res)
+
+    def update_steps(steps,dataObjects):
+        del_flag = False
+        try:
+            for j in steps:
+                j['objectName'], j['url'], j['addTestCaseDetailsInfo'], j['addTestCaseDetails'] = '', '', '', ''
+                if 'addDetails' in j:
+                    j['addTestCaseDetailsInfo'] = j['addDetails']
+                    del j['addDetails']
+                if j['custname'] == "@Custom":
+                    j['objectName'] = "@Custom"
+                    continue
+                if 'custname' in j.keys():
+                    if j['custname'] in dataObjects.keys():
+                        j['objectName'] = dataObjects[j['custname']]['xpath']
+                        j['url'] = dataObjects[j['custname']]['url'] if 'url' in dataObjects[j['custname']] else ""
+                        j['cord'] = dataObjects[j['custname']]['cord'] if 'cord' in dataObjects[j['custname']] else ""
+                        if 'original_device_width' in dataObjects[j['custname']].keys():
+                            j['original_device_width'] = dataObjects[j['custname']]['original_device_width']
+                            j['original_device_height'] = dataObjects[j['custname']]['original_device_height']
+                        j['custname'] = dataObjects[j['custname']]['custname']
+                    elif (j['custname'] not in defcn or j['custname']=='OBJECT_DELETED'):
+                        j['custname'] = 'OBJECT_DELETED'
+                        if j['outputVal'].split(';')[-1] != '##':
+                            del_flag = True
+        except Exception as e:
+            servicesException('exportProject', e, True)
+        return del_flag
+
+    @app.route('/admin/exportProject',methods=['POST'])
+    def exportProject():
+        app.logger.debug("Inside exportProject")
+        res={'rows':'fail'}
+        try:
+            requestdata=json.loads(request.data)
+            if not isemptyrequest(requestdata):
+                projectId = ObjectId(requestdata['projectId'])
+                del_flag = False
+                del_testcases = []
+                mindMapsList = list(dbsession.mindmaps.find({'projectid':projectId},{"projectid":1,"name":1,"versionnumber":1,"deleted":1,"type":1,"testscenarios":1}))
+                for i in mindMapsList:
+                    scenarios = [s['_id'] for s in i['testscenarios']]
+                    i['screens'] = []
+                    i['testcases'] = []
+                    screenList = list(dbsession.screens.find({'parent':{"$in":scenarios}}))
+                    testcaseList = []
+                    for j in screenList:
+                        dataobj_query = list(dbsession.dataobjects.find({"parent" :j['_id']}))
+                        if "scrapeinfo" in j and 'header' in j["scrapeinfo"]:
+                            dataobj_query = [j["scrapeinfo"]]
+                        screen_json = { "view": dataobj_query, "name":j["name"],
+                                        "createdthrough": (j["createdthrough"] if ("createdthrough" in j) else ""),
+                                        "scrapedurl": (j["scrapedurl"] if ("scrapedurl" in j) else ""),
+                                        "mirror": (j["screenshot"] if ("screenshot" in j) else ""),
+                                        "reuse": True if(len(j["parent"])>1) else False
+                                      }
+                        i['screens'].append(screen_json)
+                        dataObjects = {}
+                        if (dataobj_query != []):
+                            for dos in dataobj_query:
+                                if 'custname' in dos: dos['custname'] = dos['custname'].strip()
+                                dataObjects[dos['_id']] = dos
+                        testcaseList = list(dbsession.testcases.find({'screenid':j['_id']},{'screenid':1,'steps':1,'name':1,'parent':1}))
+                        for k in testcaseList:
+                            del_flag = update_steps(k['steps'],dataObjects)
+                        i['testcases'] += testcaseList
+                res =  {'rows': mindMapsList}
+            else:
+                app.logger.warn('Empty data received. exportProject - Admin.')
+        except Exception as exportProjectexc:
+            servicesException("exportProject", exportProjectexc, True)
         return jsonify(res)

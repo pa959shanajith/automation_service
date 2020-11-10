@@ -1062,3 +1062,57 @@ def LoadServices(app, redissession, dbsession):
             return str(screenname[0]["_id"])
         else:   
             return None
+
+
+    @app.route('/mindmap/exportMindmap',methods=['POST'])
+    def exportMindmap():
+        res={'rows':'fail'}
+        try:
+            requestdata=json.loads(request.data)
+            app.logger.debug("Inside exportMindmap.")
+            if not isemptyrequest(requestdata):
+                if (requestdata['query'] == 'exportMindmap'):
+                    mindmapid=ObjectId(requestdata['mindmapId'])
+                    queryresult = dbsession.mindmaps.find_one({"_id":mindmapid,"deleted":False},{"projectid":1,"name":1,"versionnumber":1,"deleted":1,"type":1,"testscenarios":1})
+                    if queryresult:
+                        res={'rows':queryresult}
+            else:
+                app.logger.warn('Empty data received while exporting mindmap')
+        except Exception as exportmindmapexc:
+            servicesException("exportMindmap",exportmindmapexc, True)
+        return jsonify(res)
+    
+
+    def update_scenarios(scenarios):
+        #converting all strings to ObjectIds
+        for i in scenarios:
+            i['_id'] = ObjectId(i['_id'])
+            if 'screens' in i:
+                for j in i['screens']:
+                    j['_id'] = ObjectId(j['_id'])
+                    if 'testcases' in j:
+                        testcases =[]
+                        for k in j['testcases']:
+                            testcases.append(ObjectId(k))
+                        j['testcases'] = testcases
+
+
+    @app.route('/mindmap/importMindmap',methods=['POST'])
+    def importMindmap():
+        res={'rows':'fail'}
+        try:
+            requestdata=json.loads(request.data)
+            app.logger.debug("Inside importMindmap.")
+            if not isemptyrequest(requestdata):
+                if (requestdata['query'] == 'importMindmap'):
+                    mindmapid=ObjectId(requestdata['mindmap']['_id'])
+                    update_scenarios(requestdata['mindmap']['testscenarios'])
+                    #query below can be improved
+                    queryresult = dbsession.mindmaps.update_one({"_id":mindmapid},{'$set':{"deleted":False,"name":requestdata['mindmap']['name'],"projectid": ObjectId(requestdata['mindmap']['projectid']),"testscenarios":requestdata['mindmap']['testscenarios'],"type":requestdata['mindmap']['type'],"versionnumber":requestdata['mindmap']['versionnumber']}})
+                    if queryresult:
+                        res={'rows':'pass'}
+            else:
+                app.logger.warn('Empty data received while importing mindmap')
+        except Exception as importmindmapexc:
+            servicesException("importMindmap",importmindmapexc, True)
+        return jsonify(res)
