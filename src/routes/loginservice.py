@@ -87,9 +87,10 @@ def LoadServices(app, redissession, dbsession, licensedata):
                     # Fetch the token with given token name
                     query = dbsession.thirdpartyintegration.find_one({"userid":userid,"name":requestdata["tokenname"],"type":"TOKENS"})
                 if query is not None:
-                    user_res=dbsession.users.find_one(user_query,{"defaultrole":1})
+                    user_res=dbsession.users.find_one(user_query,{"defaultrole":1,"name":1})
                     query["userid"] = user_res["_id"]
                     query["role"] = user_res["defaultrole"]
+                    query["username"] = user_res["name"]
                 else: query = "invalid"
                 res= {"rows":query}
             else:
