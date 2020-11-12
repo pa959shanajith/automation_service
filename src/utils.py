@@ -155,7 +155,12 @@ ecodeServices = {
     "write_execution_times": "393",
     "fetchICEUser": "394",
     "getPreferences": "395",
-    "getReport_API": "396"
+    "getReport_API": "396",
+    "manageNotificationChannels": "397",
+    "getNotificationChannels": "398",
+    "exportProject": "399",
+    "exportMindmap": "400",
+    "importMindmap": "401"
 }
 
 

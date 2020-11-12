@@ -4,6 +4,7 @@
 #----------DEFAULT METHODS AND IMPORTS------------DO NOT EDIT-------------------
 from utils import *
 from datetime import datetime
+from pymongo import InsertOne
 
 def LoadServices(app, redissession, dbsession):
     setenv(app)
@@ -227,6 +228,34 @@ def LoadServices(app, redissession, dbsession):
                             remove_data=[o["_id"] for o in Old_obj]
                             dbsession.dataobjects.delete_many({"_id":{"$in":remove_data}})
                     res={"rows":"Success"}
+
+                elif data["type"] == "importScreen":
+                    screenID = ObjectId(data["screenid"])
+                    data_obj = json.loads(data["scrapedata"])
+                    modifiedbyrole= data["modifiedByrole"]
+                    modifiedby = data["modifiedby"]
+                    screenshot = data_obj['mirror']
+                    data_push=[]
+                    req = []
+                    for i in range(len(data_obj["view"])):
+                        if '_id' not in data_obj["view"][i]:
+                            data_obj["view"][i]['_id'] = ObjectId()
+                        data_obj["view"][i]["parent"] = [screenID]
+                        data_push.append(data_obj["view"][i])
+                    if len(data_push) > 0:
+                        dbsession.dataobjects.update_many({"$and":[{"parent.1":{"$exists":True}},{"parent":screenID}]},{"$pull":{"parent":screenID}})
+                        dbsession.dataobjects.delete_many({"$and":[{"parent":{"$size": 1}},{"parent":screenID}]})
+                        for row in data_push:
+                            req.append(InsertOne(row))
+                        dbsession.dataobjects.bulk_write(req)
+                        if "scrapedurl" in data_obj:
+                            scrapedurl = data_obj["scrapedurl"]
+                            dbsession.screens.update({"_id":screenID},{"$set":{"screenshot":screenshot,"scrapedurl":scrapedurl,"modifiedby":modifiedby, 'modifiedbyrole':modifiedbyrole,"modifiedon" : datetime.now()}})
+                        else:
+                            dbsession.screens.update({"_id":screenID},{"$set":{"screenshot":screenshot,"modifiedby":modifiedby, 'modifiedbyrole':modifiedbyrole,"modifiedon" : datetime.now()}})
+                        res={"rows":"Success"}
+                    else:
+                        res={"rows":"fail"}
 
             else:
                 app.logger.warn('Empty data received. updating screen')
