@@ -1108,9 +1108,14 @@ def LoadServices(app, redissession, dbsession):
                     mindmapid=ObjectId(requestdata['mindmap']['_id'])
                     update_scenarios(requestdata['mindmap']['testscenarios'])
                     #query below can be improved
-                    queryresult = dbsession.mindmaps.update_one({"_id":mindmapid},{'$set':{"deleted":False,"name":requestdata['mindmap']['name'],"projectid": ObjectId(requestdata['mindmap']['projectid']),"testscenarios":requestdata['mindmap']['testscenarios'],"type":requestdata['mindmap']['type'],"versionnumber":requestdata['mindmap']['versionnumber']}})
+                    result=dbsession.mindmaps.find_one({"_id":mindmapid})
+                    if result != None:
+                        queryresult = dbsession.mindmaps.update_one({"_id":mindmapid},{'$set':{"deleted":False,"name":requestdata['mindmap']['name'],"projectid": ObjectId(requestdata['mindmap']['projectid']),"testscenarios":requestdata['mindmap']['testscenarios'],"type":requestdata['mindmap']['type'],"versionnumber":requestdata['mindmap']['versionnumber']}})
+                    else:
+                        queryresult = dbsession.mindmaps.insert_one(requestdata)
+                    result=dbsession.mindmaps.find_one({"_id":mindmapid},{"_id":1})
                     if queryresult:
-                        res={'rows':'pass'}
+                        res={'rows':result}
             else:
                 app.logger.warn('Empty data received while importing mindmap')
         except Exception as importmindmapexc:
