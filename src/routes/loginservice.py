@@ -149,15 +149,13 @@ def LoadServices(app, redissession, dbsession, licensedata):
             if not isemptyrequest(requestdata):
                 if requestdata["query"]=='loadUserInfo':
                     user_data = None
-                    # no_of_users = dbsession.eularecords.count()
                     user_data = list(dbsession.eularecords.find({"username":requestdata["input_name"]}))
                     if len(user_data)>0:
-                        # check details of user
                         pre_acceptance = user_data[-1]["acceptance"]
                         if pre_acceptance=="Accept":
                             res={'rows': 'success'}
-                        # res={'rows': 'success'}
                 elif(requestdata["query"]=='checkTandC'):
+                    del requestdata["query"]
                     dbsession.eularecords.insert_one(requestdata)
                     res={'rows': 'success'}
             else:
@@ -165,26 +163,3 @@ def LoadServices(app, redissession, dbsession, licensedata):
         except Exception as checkTandCexc:
             servicesException('checkTandC', checkTandCexc, True)
         return jsonify(res)
-
-    #DAS service to insert details in eularecords
-    # @app.route('/login/insertUserInfo',methods=['POST'])
-    # def insertUserInfo():
-    #     app.logger.debug("Inside insertUserInfo.")
-    #     res={'rows':'fail'}
-    #     try:
-    #         requestdata=json.loads(request.data)
-    #         if not isemptyrequest(requestdata):
-    #             user_data = None
-    #             # no_of_users = dbsession.eularecords.count()
-    #             user_data = list(dbsession.eularecords.find({"name":requestdata["username"]}))
-    #             if len(user_data)==0:
-    #                 # insert details of user
-    #                 dbsession.eularecords.insert_one(requestdata)
-    #             if len(user_data)>0:
-    #                 pre_acceptance = user_data[-1]["acceptance"]
-    #                 res={'rows': 'success'}
-    #         else:
-    #             app.logger.warn('Empty data received. in insertUserInfo')
-    #     except Exception as insertUserInfoexc:
-    #         servicesException('insertUserInfo', insertUserInfoexc, True)
-    #     return jsonify(res)
