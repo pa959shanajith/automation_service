@@ -139,7 +139,7 @@ def LoadServices(app, redissession, dbsession, licensedata):
             servicesException("fetchICEUser", fetchICEexc, True)
         return jsonify(res)
 
-    #DAS service to check terms and conditions
+    # service to check terms and conditions
     @app.route('/login/checkTandC',methods=['POST'])
     def checkTandC():
         app.logger.debug("Inside checkTandC.")
@@ -148,12 +148,23 @@ def LoadServices(app, redissession, dbsession, licensedata):
             requestdata=json.loads(request.data)
             if not isemptyrequest(requestdata):
                 if requestdata["query"]=='loadUserInfo':
-                    user_data = None
-                    user_data = list(dbsession.eularecords.find({"username":requestdata["input_name"]}))
-                    if len(user_data)>0:
-                        pre_acceptance = user_data[-1]["acceptance"]
-                        if pre_acceptance=="Accept":
-                            res={'rows': 'success'}
+                    username = ''
+                    if 'username' in requestdata:
+                        username = requestdata['username']
+                    elif 'icename' in requestdata:
+                        ice_detail = dbsession.icetokens.find_one({"icename":requestdata["icename"]}, {"provisionedto": 1, "icetype": 1})
+                        if ice_detail is not None:
+                            if ice_detail['icetype'] == 'ci-cd': # EULA check doesn't apply on CI-CD ICE
+                                res['rows'] = 'success'
+                            else:
+                                user = dbsession.users.find_one({"_id": ice_detail["provisionedto"]}, {"name":1})
+                                if user is not None: username = user["name"]
+                    if username != '':
+                        user_data = list(dbsession.eularecords.find({"username": username}))
+                        if len(user_data) > 0:
+                            pre_acceptance = user_data[-1]["acceptance"]
+                            if pre_acceptance == "Accept":
+                                res = {'rows': 'success'}
                 elif(requestdata["query"]=='checkTandC'):
                     del requestdata["query"]
                     dbsession.eularecords.insert_one(requestdata)
