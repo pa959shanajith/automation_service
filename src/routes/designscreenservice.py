@@ -240,6 +240,8 @@ def LoadServices(app, redissession, dbsession):
                     for i in range(len(data_obj["view"])):
                         if '_id' not in data_obj["view"][i]:
                             data_obj["view"][i]['_id'] = ObjectId()
+                        else:
+                            data_obj["view"][i]['_id'] = ObjectId(data_obj["view"][i]['_id'])
                         data_obj["view"][i]["parent"] = [screenID]
                         data_push.append(data_obj["view"][i])
                     if len(data_push) > 0:
