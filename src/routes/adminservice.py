@@ -10,9 +10,6 @@ from Crypto.Cipher import AES
 import codecs
 import uuid
 
-ldap_key = "".join(['l','!','g','#','t','W','3','l','g','G','h','1','3','@','(',
-    'c','E','s','$','T','p','R','0','T','c','O','I','-','k','3','y','S'])
-
 def wrap(data, key, iv=b'0'*16):
     aes = AES.new(key.encode('utf-8'), AES.MODE_CBC, iv)
     hex_data = aes.encrypt(pad(data.encode('utf-8')))
@@ -33,7 +30,10 @@ def unwrap(hex_data, key, iv=b'0'*16):
 
 def LoadServices(app, redissession, dbsession,licensedata,*args):
     setenv(app)
-    ice_das_key=args[0]
+    ice_das_key = args[0]
+    ldap_key = args[1]
+    defcn = ['@Window', '@Object', '@System', '@Excel', '@Mobile', '@Android_Custom', '@Word', '@Custom', '@CustomiOS',
+             '@Generic', '@Browser', '@Action', '@Email', '@BrowserPopUp', '@Sap','@Oebs', 'WebService List', 'Mainframe List', 'OBJECT_DELETED']
 
 ################################################################################
 # END OF DEFAULT METHODS AND IMPORTS       -----------DO NOT EDIT
@@ -748,6 +748,162 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
             servicesException("provisionICE", provisionICEexc, True)
         return jsonify(res)
 
+    @app.route('/admin/manageNotificationChannels',methods=['POST'])
+    def manageNotificationChannels():
+        res={'rows':'fail'}
+        try:
+            requestdata=json.loads(request.data)
+            action = str(requestdata['action'])
+            channel = str(requestdata['channel'] if 'channel' in requestdata else '')
+            app.logger.info("Inside manageNotificationChannels. Action is "+action+". Channel is "+channel)
+            if not isemptyrequest(requestdata):
+                query_filter = {"channel":channel,"name":requestdata["name"]}
+                result=dbsession.notifications.find_one(query_filter)
+                if result is None:
+                    if action == "create":
+                        del requestdata["action"]
+                        requestdata["active"] = True
+                        if requestdata["auth"] and type(result["auth"]) != bool and "password" in requestdata["auth"]:
+                            requestdata["auth"]["password"] = wrap(requestdata["auth"]["password"],ldap_key)
+                        dbsession.notifications.insert_one(requestdata)
+                        res["rows"] = "success"
+                    else:
+                        res["rows"] = "dne"
+                else:
+                    if action == "create": res["rows"] = "exists"
+                    elif action == "disable":
+                        dbsession.notifications.update_one(query_filter,{"$set":{"active":False}})
+                        res["rows"] = "success"
+                    elif action == "enable":
+                        dbsession.notifications.update_one(query_filter,{"$set":{"active":True}})
+                        res["rows"] = "success"
+                    elif action == "delete":
+                        dbsession.notifications.delete_one(query_filter)
+                        res["rows"] = "success"
+                    elif action == "update":
+                        del requestdata["action"]
+                        del requestdata["name"]
+                        if requestdata["auth"] and type(requestdata["auth"]) != bool and "password" in requestdata["auth"]:
+                            requestdata["auth"]["password"] = wrap(requestdata["auth"]["password"],ldap_key)
+                        if requestdata["proxy"] and "pass" in requestdata["proxy"]:
+                            requestdata["proxy"]["pass"] = wrap(requestdata["proxy"]["pass"],ldap_key)
+                        dbsession.notifications.update_one(query_filter,{"$set":requestdata})
+                        res["rows"] = "success"
+            else:
+                app.logger.warn('Empty data received. Noifications channels manage.')
+        except Exception as managenotfexec:
+            servicesException("manageNotificationChannels", managenotfexec, True)
+        return jsonify(res)
+
+    @app.route('/admin/getNotificationChannels',methods=['POST'])
+    def getNotificationChannels():
+        app.logger.info("Inside getNotificationChannels")
+        res={'rows':'fail'}
+        try:
+            requestdata=json.loads(request.data)
+            action = str(requestdata['action'])
+            channel = str(requestdata['channel'] if 'channel' in requestdata else '')
+            if not isemptyrequest(requestdata):
+                query_filter = {"channel":channel}
+                data_filter = None
+                name = requestdata["name"] if "name" in requestdata else ""
+                if action == "provider": query_filter["provider"] = name
+                elif action == "list":
+                    query_filter = {}
+                    if "filter" in requestdata and requestdata["filter"] == "active": query_filter["active"] = True
+                    # data_filter = {"name":1,"provider":1,"channel":1}
+                else: query_filter["name"] = name
+                result = list(dbsession.notifications.find(query_filter, data_filter))
+                for row in result:
+                    if "auth" in row and type(row["auth"]) != bool and "password" in row["auth"]:
+                        password = row["auth"]["password"]
+                        if len(password) > 0:
+                            password = unwrap(password, ldap_key)
+                            row["auth"]["password"] = password
+                    if "proxy" in row and "pass" in row["proxy"]:
+                        password = row["proxy"]["pass"]
+                        if len(password) > 0:
+                            password = unwrap(password, ldap_key)
+                            row["proxy"]["pass"] = password
+                res["rows"] = result
+            else:
+                app.logger.warn('Empty data received. Noifications channels fetch.')
+        except Exception as getnotfexc:
+            servicesException("getNotificationChannels", getnotfexc, True)
+        return jsonify(res)
+
+    def update_steps(steps,dataObjects):
+        del_flag = False
+        try:
+            for j in steps:
+                j['objectName'], j['url'], j['addTestCaseDetailsInfo'], j['addTestCaseDetails'] = '', '', '', ''
+                if 'addDetails' in j:
+                    j['addTestCaseDetailsInfo'] = j['addDetails']
+                    del j['addDetails']
+                if j['custname'] == "@Custom":
+                    j['objectName'] = "@Custom"
+                    continue
+                if 'custname' in j.keys():
+                    if j['custname'] in dataObjects.keys():
+                        j['objectName'] = dataObjects[j['custname']]['xpath']
+                        j['url'] = dataObjects[j['custname']]['url'] if 'url' in dataObjects[j['custname']] else ""
+                        j['cord'] = dataObjects[j['custname']]['cord'] if 'cord' in dataObjects[j['custname']] else ""
+                        if 'original_device_width' in dataObjects[j['custname']].keys():
+                            j['original_device_width'] = dataObjects[j['custname']]['original_device_width']
+                            j['original_device_height'] = dataObjects[j['custname']]['original_device_height']
+                        j['custname'] = dataObjects[j['custname']]['custname']
+                    elif (j['custname'] not in defcn or j['custname']=='OBJECT_DELETED'):
+                        j['custname'] = 'OBJECT_DELETED'
+                        if j['outputVal'].split(';')[-1] != '##':
+                            del_flag = True
+        except Exception as e:
+            servicesException('exportProject', e, True)
+        return del_flag
+
+    @app.route('/admin/exportProject',methods=['POST'])
+    def exportProject():
+        app.logger.debug("Inside exportProject")
+        res={'rows':'fail'}
+        try:
+            requestdata=json.loads(request.data)
+            if not isemptyrequest(requestdata):
+                projectId = ObjectId(requestdata['projectId'])
+                del_flag = False
+                del_testcases = []
+                mindMapsList = list(dbsession.mindmaps.find({'projectid':projectId},{"projectid":1,"name":1,"versionnumber":1,"deleted":1,"type":1,"testscenarios":1}))
+                for i in mindMapsList:
+                    scenarios = [s['_id'] for s in i['testscenarios']]
+                    i['screens'] = []
+                    i['testcases'] = []
+                    screenList = list(dbsession.screens.find({'parent':{"$in":scenarios}}))
+                    testcaseList = []
+                    for j in screenList:
+                        dataobj_query = list(dbsession.dataobjects.find({"parent" :j['_id']}))
+                        if "scrapeinfo" in j and 'header' in j["scrapeinfo"]:
+                            dataobj_query = [j["scrapeinfo"]]
+                        screen_json = { "view": dataobj_query, "name":j["name"],
+                                        "createdthrough": (j["createdthrough"] if ("createdthrough" in j) else ""),
+                                        "scrapedurl": (j["scrapedurl"] if ("scrapedurl" in j) else ""),
+                                        "mirror": (j["screenshot"] if ("screenshot" in j) else ""),
+                                        "reuse": True if(len(j["parent"])>1) else False
+                                      }
+                        i['screens'].append(screen_json)
+                        dataObjects = {}
+                        if (dataobj_query != []):
+                            for dos in dataobj_query:
+                                if 'custname' in dos: dos['custname'] = dos['custname'].strip()
+                                dataObjects[dos['_id']] = dos
+                        testcaseList = list(dbsession.testcases.find({'screenid':j['_id']},{'screenid':1,'steps':1,'name':1,'parent':1}))
+                        for k in testcaseList:
+                            del_flag = update_steps(k['steps'],dataObjects)
+                        i['testcases'] += testcaseList
+                res =  {'rows': mindMapsList}
+            else:
+                app.logger.warn('Empty data received. exportProject - Admin.')
+        except Exception as exportProjectexc:
+            servicesException("exportProject", exportProjectexc, True)
+        return jsonify(res)
+
     #Create a new ICE pool
     @app.route('/admin/createPool_ICE',methods=['POST'])
     def create_pool():
@@ -755,21 +911,23 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
         requestdata=json.loads(request.data)
         res={'rows':'fail'}
         inputdata = {}
+        error = True
         try:
             result = dbsession.icepools.find({"poolname":requestdata['poolname']})
             index = result.count() - 1
             result = None
             if index >= 0:
-                res["error"] = "pool exists"
+                result = "Pool exists"
             elif result == None or result.count() == 0:
                 inputdata["poolname"] = requestdata["poolname"]
                 inputdata['createdby'] = ObjectId(requestdata["createdby"])
                 inputdata['createdon'] = requestdata['createdon']
                 inputdata['projectids'] = convert_objectids(requestdata['projectids'])
-                inputdata['updatedby'] = ""
-                inputdata['updatedon'] = ""
+                inputdata['modifiedby'] = ""
+                inputdata['modifiedon'] = ""
                 dbsession.icepools.insert_one(inputdata)
-                res={"rows":"success"}
+                result = "success"
+            res['rows'] = result
         except Exception as e:
             app.logger.debug(traceback.format_exc())
             servicesException("create_pool",e)
@@ -798,16 +956,52 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
             servicesException("configure_pool",e)
         return jsonify(res)
 
+    @app.route('/admin/getAll_projects',methods=['POST'])
+    def get_all_projects():
+        app.logger.debug("Inside get all projects")
+        requestdata=json.loads(request.data)
+        res={'rows':'fail'}
+        result = []
+        try:
+            projects = dbsession.projects.find({})
+            for project in projects:
+                result.append(project)
+            res["rows"] = result
+        except Exception as e:
+            app.logger.debug(traceback.format_exc())
+            servicesException("get_all_projects",e)
+        return jsonify(res)
+
+    @app.route('/admin/deleteICE_pools',methods=['POST'])
+    def deleteICE_pools():
+        app.logger.debug("Inside get all projects")
+        requestdata=json.loads(request.data)
+        res={'rows':'fail'}
+        poolids = convert_objectids(requestdata['poolids'])
+        try:
+            for pool in poolids:
+                dbsession.icepools.delete_one({"_id":pool})
+            res["rows"] = "success"
+        except Exception as e:
+            app.logger.debug(traceback.format_exc())
+            servicesException("get_all_projects",e)
+        return jsonify(res)
+
     @app.route('/admin/getAvailable_ICE',methods=['POST'])
     def get_available_ICE():
         app.logger.debug("Inside get get available ICE")
         requestdata=json.loads(request.data)
         res={'rows':'fail'}
-        result = []
-        projectids = requestdata['projectid']
-        available_ICE = requestdata['available_ICE']
+        result = {}
+        result['available_ice'] = {}
+        result['unavailable_ice'] = {}
         try:
-            #TODO 1: ADD check to return relevant avaialble ICE
+            unavailable_ice = dbsession.icetokens.find({"poolid":{"$ne":"None"}})
+            available_ice = dbsession.icetokens.find({"poolid":"None"})
+            for ice in available_ice:
+                result['available_ice'][str(ice["_id"])] = ice
+            for ice in unavailable_ice:
+                result['unavailable_ice'][str(ice["_id"])] = ice
             res["rows"] = result
         except Exception as e:
             app.logger.debug(traceback.format_exc())
@@ -820,14 +1014,14 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
         app.logger.debug("Inside get ice in pools")
         requestdata=json.loads(request.data)
         res={'rows':'fail'}
-        result = []
+        result = {}
         ice_list = []
         poolids = requestdata['poolids']
         try:
             for pool in poolids:
                 ice_list = dbsession.icetokens.find({"poolid":ObjectId(pool)})
                 for ice in ice_list:
-                    result.append(ice['icename'])
+                    result[str(ice["_id"])] = ice
             res["rows"] = result
         except Exception as e:
             app.logger.debug(traceback.format_exc())
@@ -840,23 +1034,25 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
         app.logger.debug("Inside get pools in projects")
         requestdata=json.loads(request.data)
         res={'rows':'fail'}
-        result = []
+        result = {}
         pool_list = []
-        projectids = requestdata['projectids']
+        projectids = convert_objectids(requestdata['projectids'])
         poolid = requestdata["poolid"]
         try:
             if projectids is not None and len(projectids) > 0:
-                pool_list = dbsession.icepools.find({"projectids":projectid})
+                pool_list = dbsession.icepools.find({"projectids":{"$in":projectids}})
             elif poolid is not None and poolid == "all":
                 pool_list = dbsession.icepools.find({})
             elif poolid is not None:
                 pool_list = dbsession.icepools.find({"_id":poolid})
             for pool in pool_list:
-                result.append(pool)
+                ice_list = get_ice([pool["_id"]])
+                pool["ice_list"] = ice_list
+                result[str(pool["_id"])] = pool
             res["rows"] = result
         except Exception as e:
             app.logger.debug(traceback.format_exc())
-            servicesException("configure_pool",e)
+            servicesException("get_pools",e)
         return jsonify(res) 
 
     #ADD/DELETE ICE from pool, ADD/DELETE projects from pool, Update poolname
@@ -865,27 +1061,35 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
         app.logger.debug("Inside get pool")
         requestdata=json.loads(request.data)
         res={'rows':'fail'}
+        poolid = requestdata["poolid"]
         addition = requestdata["ice_added"]
         deletion = requestdata["ice_deleted"]
         poolname = requestdata["poolname"]
         projectids = convert_objectids(requestdata["projectids"])
-        updatedby = requestdata["updatedby"]
-        updatedon = requestdata["updatedon"]
+        modifiedby = requestdata["modifiedby"]
+        modifiedon = requestdata["modifiedon"]
         try:
-            pool = dbsession.icepools.find({"poolname":poolname})
+            pool = dbsession.icepools.find({"_id":ObjectId(poolid)})
             if not pool or pool.count() == 0:
-                res["rows"] = "Pool: " + poolname + " does not exist" 
+                res["rows"] = "Pool does not exist"; 
             else:
                 pool = pool[0]
                 updatePoolid_ICE(pool["_id"], addition, deletion)
                 if check_array_exists(projectids):
                     pool["projectids"] = projectids 
-                pool['updatedon'] = updatedon
-                pool['updatedby'] = ObjectId(updatedby)
-                if requestdata["poolname"] is not None:
-                    pool['poolname'] = requestdata["poolname"]
-                dbsession.icepools.update_one({"_id":pool["_id"]},{"$set":pool})
-                res["rows"] = pool
+                pool['modifiedby'] = datetime.now()
+                pool['modifiedon'] = ObjectId(modifiedby)
+                if poolname is not None and poolname != pool['poolname']:
+                    existing_pools = dbsession.icepools.find({"poolname":poolname})
+                    if existing_pools and existing_pools.count() > 0:
+                        res["rows"] = "Pool exists"
+                    else:
+                        pool['poolname'] = requestdata["poolname"]
+                        dbsession.icepools.update_one({"_id":pool["_id"]},{"$set":pool})
+                        res["rows"] = "success"
+                else:
+                    dbsession.icepools.update_one({"_id":pool["_id"]},{"$set":pool})
+                    res["rows"] = "success"
         except Exception as e:
             app.logger.debug(traceback.format_exc())
             servicesException("configure_pool",e)
@@ -898,14 +1102,23 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
 
     def updatePoolid_ICE(poolid = "", addition = [], deletion = []):
         if check_array_exists(addition):
-            for ice_name in addition:
-                dbsession.icetokens.update_one({"icename":ice_name},{"$set":{"poolid":poolid}})
+            for id in addition:
+                dbsession.icetokens.update_one({"_id":ObjectId(id)},{"$set":{"poolid":poolid}})
         if check_array_exists(deletion):
-            for ice_name in deletion:
-                dbsession.icetokens.update_one({"icename":ice_name},{"$set":{"poolid":"None"}})
+            for id in deletion:
+                dbsession.icetokens.update_one({"_id":ObjectId(id)},{"$set":{"poolid":"None"}})
 
     def convert_objectids(projectids):
         objectids = []
         for project in projectids:
             objectids.append(ObjectId(project))
         return objectids
+
+    def get_ice(poolids):
+        result = {}
+        for pool in poolids:
+                ice_list = dbsession.icetokens.find({"poolid":ObjectId(pool)})
+                for ice in ice_list:
+                    result[str(ice["_id"])] = ice
+            
+        return result
