@@ -164,7 +164,18 @@ ecodeServices = {
     "checkTandC": "402",
     "updateMapDetails_ICE": "403",
     "getReport_NG": "405",
-    "getReportExecutionStatus_NG": "406"
+    "getReportExecutionStatus_NG": "406",
+    "updatePool_ICE":"407",
+    "getPools":"408",
+    "getICE_userid":"409",
+    "getICE_pools":"410",
+    "getAvailable_ICE":"411",
+    "deleteICE_pools":"412",
+    "getAll_projects":"413",
+    "getUnassgined_ICE":"414",
+    "createPool_ICE":"415"
+
+
 }
 
 

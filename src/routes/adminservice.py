@@ -903,3 +903,243 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
         except Exception as exportProjectexc:
             servicesException("exportProject", exportProjectexc, True)
         return jsonify(res)
+
+    #Create a new ICE pool
+    @app.route('/admin/createPool_ICE',methods=['POST'])
+    def create_pool():
+        app.logger.debug("Inside pool create")
+        requestdata=json.loads(request.data)
+        res={'rows':'fail'}
+        inputdata = {}
+        error = True
+        try:
+            result = dbsession.icepools.find({"poolname":requestdata['poolname']})
+            index = result.count() - 1
+            result = None
+            if index >= 0:
+                result = "Pool exists"
+            elif result == None or result.count() == 0:
+                inputdata["poolname"] = requestdata["poolname"]
+                inputdata['createdby'] = ObjectId(requestdata["createdby"])
+                inputdata['createdon'] = requestdata['createdon']
+                inputdata['projectids'] = convert_objectids(requestdata['projectids'])
+                inputdata['modifiedby'] = ""
+                inputdata['modifiedon'] = ""
+                dbsession.icepools.insert_one(inputdata)
+                result = "success"
+            res['rows'] = result
+        except Exception as e:
+            app.logger.debug(traceback.format_exc())
+            servicesException("create_pool",e)
+        return jsonify(res)
+
+    #Get ICE which are unassigned
+    @app.route('/admin/getUnassgined_ICE',methods=['POST'])
+    def get_unassigned_ICE():
+        app.logger.debug("Inside get unassigned ICE")
+        requestdata=json.loads(request.data)
+        res={'rows':'fail'}
+        result = []
+        projectids = convert_objectids(requestdata['projectids'])
+        try:
+            project_users = dbsession.users.find({"projects": { "$in": projectids}})
+            for user in project_users:
+                user_ice = dbsession.icetokens.find({"provisionedto":user["_id"],"poolid":{"$ne":"None"}})
+                for ice in user_ice:
+                    result.append(ice["icename"])
+            ci_cd_ice = dbsession.icetokens.find({"icetype":"ci-cd","poolid":{"$ne":"None"}})
+            for ice in ci_cd_ice:
+                result.append(ice["icename"])
+            res["rows"] = result
+        except Exception as e:
+            app.logger.debug(traceback.format_exc())
+            servicesException("configure_pool",e)
+        return jsonify(res)
+
+    @app.route('/admin/getAll_projects',methods=['POST'])
+    def get_all_projects():
+        app.logger.debug("Inside get all projects")
+        requestdata=json.loads(request.data)
+        res={'rows':'fail'}
+        result = []
+        try:
+            projects = dbsession.projects.find({})
+            for project in projects:
+                result.append(project)
+            res["rows"] = result
+        except Exception as e:
+            app.logger.debug(traceback.format_exc())
+            servicesException("get_all_projects",e)
+        return jsonify(res)
+
+    @app.route('/admin/deleteICE_pools',methods=['POST'])
+    def deleteICE_pools():
+        app.logger.debug("Inside get all projects")
+        requestdata=json.loads(request.data)
+        res={'rows':'fail'}
+        poolids = convert_objectids(requestdata['poolids'])
+        try:
+            for pool in poolids:
+                dbsession.icepools.delete_one({"_id":pool})
+            res["rows"] = "success"
+        except Exception as e:
+            app.logger.debug(traceback.format_exc())
+            servicesException("get_all_projects",e)
+        return jsonify(res)
+
+    @app.route('/admin/getAvailable_ICE',methods=['POST'])
+    def get_available_ICE():
+        app.logger.debug("Inside get get available ICE")
+        requestdata=json.loads(request.data)
+        res={'rows':'fail'}
+        result = {}
+        result['available_ice'] = {}
+        result['unavailable_ice'] = {}
+        try:
+            unavailable_ice = dbsession.icetokens.find({"poolid":{"$ne":"None"}})
+            available_ice = dbsession.icetokens.find({"poolid":"None"})
+            for ice in available_ice:
+                result['available_ice'][str(ice["_id"])] = ice
+            for ice in unavailable_ice:
+                result['unavailable_ice'][str(ice["_id"])] = ice
+            res["rows"] = result
+        except Exception as e:
+            app.logger.debug(traceback.format_exc())
+            servicesException("configure_pool",e)
+        return jsonify(res) 
+
+    #Get all ICE in a list of pools (list of Pool => all ICE in all the pools) (one pool in list => all ICE in that pool)
+    @app.route('/admin/getICE_pools',methods=['POST'])
+    def get_ICE_in_pools():
+        app.logger.debug("Inside get ice in pools")
+        requestdata=json.loads(request.data)
+        res={'rows':'fail'}
+        result = {}
+        ice_list = []
+        poolids = requestdata['poolids']
+        try:
+            for pool in poolids:
+                ice_list = dbsession.icetokens.find({"poolid":ObjectId(pool)})
+                for ice in ice_list:
+                    result[str(ice["_id"])] = ice
+            res["rows"] = result
+        except Exception as e:
+            app.logger.debug(traceback.format_exc())
+            servicesException("configure_pool",e)
+        return jsonify(res)  
+
+    #Get all ICE in a list of pools (list of Pool => all ICE in all the pools) (one pool in list => all ICE in that pool)
+    @app.route('/admin/getICE_userid',methods=['POST'])
+    def get_ICE_by_userid():
+        app.logger.debug("Inside get ice by username")
+        requestdata=json.loads(request.data)
+        res={'rows':'fail'}
+        result = {}
+        userid = requestdata['userid']
+        ice_list = []
+        poolids = requestdata['poolids']
+        try:
+            ice_list = dbsession.icetokens.find({"provisionedto":ObjectId(userid)})
+            for ice in ice_list:
+                if not ice["poolid"] or str(ice["poolid"]) in poolids or str(ice["poolid"]) == "None":
+                    result[str(ice["_id"])] = ice
+            res["rows"] = result
+        except Exception as e:
+            app.logger.debug(traceback.format_exc())
+            servicesException("configure_pool",e)
+        return jsonify(res)       
+
+    #Get all pools corresponding to a project or a pool id
+    @app.route('/admin/getPools',methods=['POST'])
+    def get_pools():
+        app.logger.debug("Inside get pools in projects")
+        requestdata=json.loads(request.data)
+        res={'rows':'fail'}
+        result = {}
+        pool_list = []
+        projectids = convert_objectids(requestdata['projectids'])
+        poolid = requestdata["poolid"]
+        try:
+            if projectids is not None and len(projectids) > 0:
+                pool_list = dbsession.icepools.find({"projectids":{"$in":projectids}})
+            elif poolid is not None and poolid == "all":
+                pool_list = dbsession.icepools.find({})
+            elif poolid is not None:
+                pool_list = dbsession.icepools.find({"_id":poolid})
+            for pool in pool_list:
+                ice_list = get_ice([pool["_id"]])
+                pool["ice_list"] = ice_list
+                result[str(pool["_id"])] = pool
+            res["rows"] = result
+        except Exception as e:
+            app.logger.debug(traceback.format_exc())
+            servicesException("get_pools",e)
+        return jsonify(res) 
+
+    #ADD/DELETE ICE from pool, ADD/DELETE projects from pool, Update poolname
+    @app.route('/admin/updatePool_ICE',methods=['POST'])
+    def update_pool():
+        app.logger.debug("Inside get pool")
+        requestdata=json.loads(request.data)
+        res={'rows':'fail'}
+        poolid = requestdata["poolid"]
+        addition = requestdata["ice_added"]
+        deletion = requestdata["ice_deleted"]
+        poolname = requestdata["poolname"]
+        projectids = convert_objectids(requestdata["projectids"])
+        modifiedby = requestdata["modifiedby"]
+        modifiedon = requestdata["modifiedon"]
+        try:
+            pool = dbsession.icepools.find({"_id":ObjectId(poolid)})
+            if not pool or pool.count() == 0:
+                res["rows"] = "Pool does not exist"; 
+            else:
+                pool = pool[0]
+                updatePoolid_ICE(pool["_id"], addition, deletion)
+                if check_array_exists(projectids):
+                    pool["projectids"] = projectids 
+                pool['modifiedby'] = datetime.now()
+                pool['modifiedon'] = ObjectId(modifiedby)
+                if poolname is not None and poolname != pool['poolname']:
+                    existing_pools = dbsession.icepools.find({"poolname":poolname})
+                    if existing_pools and existing_pools.count() > 0:
+                        res["rows"] = "Pool exists"
+                    else:
+                        pool['poolname'] = requestdata["poolname"]
+                        dbsession.icepools.update_one({"_id":pool["_id"]},{"$set":pool})
+                        res["rows"] = "success"
+                else:
+                    dbsession.icepools.update_one({"_id":pool["_id"]},{"$set":pool})
+                    res["rows"] = "success"
+        except Exception as e:
+            app.logger.debug(traceback.format_exc())
+            servicesException("configure_pool",e)
+        return jsonify(res) 
+
+    def check_array_exists(data_arr):
+        if data_arr is not None and len(data_arr) > 0:
+            return True
+        return False
+
+    def updatePoolid_ICE(poolid = "", addition = [], deletion = []):
+        if check_array_exists(addition):
+            for id in addition:
+                dbsession.icetokens.update_one({"_id":ObjectId(id)},{"$set":{"poolid":poolid}})
+        if check_array_exists(deletion):
+            for id in deletion:
+                dbsession.icetokens.update_one({"_id":ObjectId(id)},{"$set":{"poolid":"None"}})
+
+    def convert_objectids(projectids):
+        objectids = []
+        for project in projectids:
+            objectids.append(ObjectId(project))
+        return objectids
+
+    def get_ice(poolids):
+        result = {}
+        for pool in poolids:
+                ice_list = dbsession.icetokens.find({"poolid":ObjectId(pool)})
+                for ice in ice_list:
+                    result[str(ice["_id"])] = ice
+            
+        return result
