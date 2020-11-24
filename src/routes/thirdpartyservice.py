@@ -49,12 +49,32 @@ def LoadServices(app, redissession, dbsession):
             if not isemptyrequest(requestdata):
                 if(requestdata["query"] == 'saveQcDetails_ICE'):
                     requestdata["type"] = "ALM"
+                    testcases = requestdata["qctestcase"]
+                    scenarios = requestdata["testscenarioid"]
+                    testcase_id=list(dbsession.thirdpartyintegration.find({"qctestcase":requestdata["qctestcase"]}))
                     testscn_id=list(dbsession.thirdpartyintegration.find({"testscenarioid":requestdata["testscenarioid"]}))
-                    if len(testscn_id)>0:
+                    if len(testcases) >1 and len(testscn_id)>0:
                         qc_tc=testscn_id[0]['qctestcase']
-                        for a in requestdata["qctestcase"]:
-                            qc_tc.append(a)
+                        update_tc = []
+                        requestdata_tc = requestdata["qctestcase"]
+                        for a in requestdata_tc:
+                            if a not in qc_tc:
+                                update_tc.append(a)
+                        if len(update_tc) > 0:
+                            for a in update_tc:
+                                qc_tc.append(a)
                         dbsession.thirdpartyintegration.update_one({"testscenarioid":requestdata["testscenarioid"]}, {'$set': {"qctestcase":qc_tc}})
+                    if len(scenarios) >1 and len(testcase_id)>0:
+                        qc_tc=testcase_id[0]['testscenarioid']
+                        update_tc = []
+                        requestdata_tc = requestdata["testscenarioid"]
+                        for a in requestdata_tc:
+                            if a not in qc_tc:
+                                update_tc.append(a)
+                        if len(update_tc) > 0:
+                            for a in update_tc:
+                                qc_tc.append(a)
+                        dbsession.thirdpartyintegration.update_one({"qctestcase":requestdata["qctestcase"]}, {'$set': {"testscenarioid":qc_tc}})
                     else:
                         dbsession.thirdpartyintegration.insert_one(requestdata)
                     res= {"rows":"success"}
@@ -65,6 +85,13 @@ def LoadServices(app, redissession, dbsession):
                     dbsession.thirdpartyintegration.delete_many({"type":"qTest","qtestsuite":requestdata["qtestsuite"]})
                     dbsession.thirdpartyintegration.insert_one(requestdata)
                     res= {"rows":"success"}
+                elif(requestdata["query"] == 'saveZephyrDetails_ICE'):
+                    requestdata["type"] = "Zephyr"
+                    dbsession.thirdpartyintegration.insert_one(requestdata)
+                    dbsession.thirdpartyintegration.delete_many({"type":"Zephyr","testscenarioid":requestdata["testscenarioid"]})
+                    dbsession.thirdpartyintegration.delete_many({"type":"Zephyr","testid":requestdata["testid"]})
+                    dbsession.thirdpartyintegration.insert_one(requestdata)
+                    res= {"rows":"success"}                  
             else:
                 app.logger.warn('Empty data received. getting saveIntegrationDetails_ICE.')
         except Exception as e:
@@ -79,15 +106,55 @@ def LoadServices(app, redissession, dbsession):
             app.logger.debug("Inside viewIntegrationMappedList_ICE. Query: "+str(requestdata["query"]))
             if not isemptyrequest(requestdata):
                 if(requestdata["query"] == 'qcdetails'):
-                    result=list(dbsession.thirdpartyintegration.find({"type":"ALM","testscenarioid":requestdata["testscenarioid"]}))
+                    if "testscenarioid" in requestdata:
+                        result=list(dbsession.thirdpartyintegration.find({"type":"ALM","testscenarioid":requestdata["testscenarioid"]}))
+                    else:
+                        result=list(dbsession.thirdpartyintegration.find({"type":"ALM"}))
                     res= {"rows":result}
                 elif(requestdata["query"] == 'qtestdetails'):
                     result=list(dbsession.thirdpartyintegration.find({"type":"qTest","testscenarioid":requestdata["testscenarioid"]}))
+                    res= {"rows":result}
+                elif(requestdata["query"] == 'zephyrdetails'):
+                    result=list(dbsession.thirdpartyintegration.find({"type":"Zephyr","testscenarioid":requestdata["testscenarioid"]}))
                     res= {"rows":result}
             else:
                 app.logger.warn('Empty data received. getting QcMappedList.')
         except Exception as e:
             servicesException("viewIntegrationMappedList_ICE", e, True)
+        return jsonify(res)
+        
+    @app.route('/qualityCenter/updateMapDetails_ICE',methods=['POST'])
+    def updateMapDetails_ICE():
+        res={'rows':'fail'}
+        try:
+            requestdata=json.loads(request.data)
+            app.logger.debug("Inside updateMapDetails_ICE. Query: "+str(requestdata["query"]))
+            if not isemptyrequest(requestdata):
+                if(requestdata["query"] == 'updateMapDetails_ICE'):
+                    result1 = list(dbsession.thirdpartyintegration.find({"_id":ObjectId(requestdata["mapid"]),"type":"ALM"}))
+                    if "testscenarioid" in requestdata:
+                        #updating scenarioid
+                        scenarioid = requestdata["testscenarioid"]
+                        for i in scenarioid:
+                            result1[0]['testscenarioid'].remove(i)
+                        if len(result1[0]['testscenarioid']) == 0 :
+                            dbsession.thirdpartyintegration.delete_one({"_id":ObjectId(requestdata["mapid"]),"type":"ALM"})
+                        else:
+                            dbsession.thirdpartyintegration.update_one({"_id":ObjectId(requestdata["mapid"])}, {'$set': {"testscenarioid":result1[0]['testscenarioid']}})
+                    elif "qctestcase" in requestdata:
+                        #updating testcase
+                        testcase = requestdata["qctestcase"]
+                        for i in testcase:
+                            result1[0]['qctestcase'].remove(i)
+                        if len(result1[0]['qctestcase']) == 0 :
+                            dbsession.thirdpartyintegration.delete_one({"_id":ObjectId(requestdata["mapid"]),"type":"ALM"})
+                        else:
+                            dbsession.thirdpartyintegration.update_one({"_id":ObjectId(requestdata["mapid"])}, {'$set': {"qctestcase":result1[0]['qctestcase']}})
+                    res= {"rows":"success"}                  
+            else:
+                app.logger.warn('Empty data received. updating after unsyc.')
+        except Exception as e:
+            servicesException("updateMapDetails_ICE", e, True)
         return jsonify(res)
 ################################################################################
 # END OF QUALITYCENTRE
