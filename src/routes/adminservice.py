@@ -1026,7 +1026,28 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
         except Exception as e:
             app.logger.debug(traceback.format_exc())
             servicesException("configure_pool",e)
-        return jsonify(res)     
+        return jsonify(res)  
+
+    #Get all ICE in a list of pools (list of Pool => all ICE in all the pools) (one pool in list => all ICE in that pool)
+    @app.route('/admin/getICE_userid',methods=['POST'])
+    def get_ICE_by_userid():
+        app.logger.debug("Inside get ice by username")
+        requestdata=json.loads(request.data)
+        res={'rows':'fail'}
+        result = {}
+        userid = requestdata['userid']
+        ice_list = []
+        poolids = requestdata['poolids']
+        try:
+            ice_list = dbsession.icetokens.find({"provisionedto":ObjectId(userid)})
+            for ice in ice_list:
+                if not ice["poolid"] or str(ice["poolid"]) in poolids or str(ice["poolid"]) == "None":
+                    result[str(ice["_id"])] = ice
+            res["rows"] = result
+        except Exception as e:
+            app.logger.debug(traceback.format_exc())
+            servicesException("configure_pool",e)
+        return jsonify(res)       
 
     #Get all pools corresponding to a project or a pool id
     @app.route('/admin/getPools',methods=['POST'])
