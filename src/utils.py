@@ -161,7 +161,10 @@ ecodeServices = {
     "exportProject": "399",
     "exportMindmap": "400",
     "importMindmap": "401",
-    "checkTandC": "402"
+    "checkTandC": "402",
+    "updateMapDetails_ICE": "403",
+    "getReport_NG": "405",
+    "getReportExecutionStatus_NG": "406"
 }
 
 
