@@ -160,7 +160,8 @@ ecodeServices = {
     "getNotificationChannels": "398",
     "exportProject": "399",
     "exportMindmap": "400",
-    "importMindmap": "401"
+    "importMindmap": "401",
+    "checkTandC": "402"
 }
 
 
