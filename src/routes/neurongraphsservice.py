@@ -136,19 +136,11 @@ def LoadServices(app, redissession, dbsession):
             if not isemptyrequest(requestdata):
                  if(requestdata["query"] == 'getReportNG'):
                     queryresult1 = list(dbsession.executions.find({"parent":ObjectId(requestdata["suiteId"])},{"_id":1,"status":1}))
-                    # scenarioid = queryresult1['testscenarioid']
                     for execution in queryresult1:
-                        #execution['reports'] = list(dbsession.reports.find({"executionid":queryresult1['_id']},{"_id":1}))
                         execution['reports'] = list(dbsession.reports.find({"executionid":ObjectId(execution['_id'])},{"_id":1}))
                         for reportid in execution['reports']:
                             reportid['jiraId'] = list(dbsession.thirdpartyintegration.find({"reportid":reportid["_id"],"type":"JIRA"},{"_id":0,"defectid":1}))
-                    # queryresult1.update(queryresult2)
-                    #queryresult3 = dbsession.projects.find_one({"_id":queryresult2['projectid']},{"domain":1,"_id":0})
-                    # queryresult1.update(queryresult3)
-                    # queryresult1['testscenarioid'] = scenarioid
-                    # queryresult.append(queryresult1)
                     res= {"rows":queryresult1}
-                    #app.logger.warn(res)
             else:
                 app.logger.warn('Empty data received. report.')
         except Exception as getreportexc:
