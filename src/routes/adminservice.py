@@ -1065,7 +1065,7 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
             elif poolid is not None and poolid == "all":
                 pool_list = dbsession.icepools.find({})
             elif poolid is not None:
-                pool_list = dbsession.icepools.find({"_id":poolid})
+                pool_list = dbsession.icepools.find({"_id":ObjectId(poolid)})
             for pool in pool_list:
                 ice_list = get_ice([pool["_id"]])
                 pool["ice_list"] = ice_list
