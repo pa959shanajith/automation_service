@@ -390,7 +390,7 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
                     project_list = {}
                     result=dbsession.projects.find({},{"_id":1,"name":1,"domain":1,"type":1})
                     for project in result:
-                        project[str(project["_id"])] = project
+                        project_list[str(project["_id"])] = project
                     res["rows"] = project_list
                 else:
                     res={'rows':'fail'}
