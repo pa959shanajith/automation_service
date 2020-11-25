@@ -1096,7 +1096,7 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
             else:
                 pool = pool[0]
                 updatePoolid_ICE(pool["_id"], addition, deletion)
-                if check_array_exists(projectids):
+                if projectids is not None:
                     pool["projectids"] = projectids 
                 pool['modifiedby'] = datetime.now()
                 pool['modifiedon'] = ObjectId(modifiedby)
