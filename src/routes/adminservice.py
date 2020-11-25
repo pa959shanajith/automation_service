@@ -732,7 +732,7 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
                     if requestdata["icetype"]=="normal":
                         requestdata["provisionedto"]=ObjectId(requestdata["provisionedto"])
                         #user_notexists = len(list(dbsession.icetokens.find({"provisionedto":requestdata["provisionedto"]},{"provisionedto":1})))==0
-                    if not token_exists:
+                    if not token_exists: # and user_notexists
                         #currently only icetype and user combination is unique
                         dbsession.icetokens.insert_one(requestdata)
                         enc_token=wrap(token+'@'+requestdata["icetype"]+'@'+requestdata["icename"],ice_das_key)
