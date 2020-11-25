@@ -386,6 +386,12 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
                     result=dbsession.projects.find_one({"_id":ObjectId(requestdata["id"])},{"releases":1,"domain":1,"name":1,"type":1})
                     result["type"]=dbsession.projecttypekeywords.find_one({"_id":result["type"]},{"name":1})["name"]
                     res={"rows":result}
+                elif requestdata["type"] == "all":
+                    project_list = {}
+                    result=dbsession.projects.find({},{"_id":1,"name":1,"domain":1,"type":1})
+                    for project in result:
+                        project[str(project["_id"])] = project
+                    res["rows"] = project_list
                 else:
                     res={'rows':'fail'}
             else:
@@ -721,12 +727,12 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
                     requestdata["token"]=token
                     requestdata["status"]=PROVISION_STATUS
                     requestdata[PROVISION_STATUS+"on"]=datetime.now()
-                    user_notexists = True
+                    #user_notexists = True
                     #To restrict multiple ICE provsioning for the same user
                     if requestdata["icetype"]=="normal":
                         requestdata["provisionedto"]=ObjectId(requestdata["provisionedto"])
-                        user_notexists = len(list(dbsession.icetokens.find({"provisionedto":requestdata["provisionedto"]},{"provisionedto":1})))==0
-                    if not token_exists and user_notexists:
+                        #user_notexists = len(list(dbsession.icetokens.find({"provisionedto":requestdata["provisionedto"]},{"provisionedto":1})))==0
+                    if not token_exists:
                         #currently only icetype and user combination is unique
                         dbsession.icetokens.insert_one(requestdata)
                         enc_token=wrap(token+'@'+requestdata["icetype"]+'@'+requestdata["icename"],ice_das_key)
@@ -921,10 +927,12 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
             elif result == None or result.count() == 0:
                 inputdata["poolname"] = requestdata["poolname"]
                 inputdata['createdby'] = ObjectId(requestdata["createdby"])
-                inputdata['createdon'] = requestdata['createdon']
+                inputdata['createdon'] = datetime.now()
                 inputdata['projectids'] = convert_objectids(requestdata['projectids'])
-                inputdata['modifiedby'] = ""
-                inputdata['modifiedon'] = ""
+                inputdata['modifiedby'] = ObjectId(requestdata["createdby"])
+                inputdata['modifiedon'] = datetime.now()
+                inputdata['createdbyrole'] = requestdata['createdbyrole']
+                inputdata['modifiedbyrole'] =  requestdata['createdbyrole']
                 dbsession.icepools.insert_one(inputdata)
                 result = "success"
             res['rows'] = result
@@ -956,21 +964,6 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
             servicesException("configure_pool",e)
         return jsonify(res)
 
-    @app.route('/admin/getAll_projects',methods=['POST'])
-    def get_all_projects():
-        app.logger.debug("Inside get all projects")
-        requestdata=json.loads(request.data)
-        res={'rows':'fail'}
-        result = []
-        try:
-            projects = dbsession.projects.find({})
-            for project in projects:
-                result.append(project)
-            res["rows"] = result
-        except Exception as e:
-            app.logger.debug(traceback.format_exc())
-            servicesException("get_all_projects",e)
-        return jsonify(res)
 
     @app.route('/admin/deleteICE_pools',methods=['POST'])
     def deleteICE_pools():
@@ -1088,7 +1081,7 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
         poolname = requestdata["poolname"]
         projectids = convert_objectids(requestdata["projectids"])
         modifiedby = requestdata["modifiedby"]
-        modifiedon = requestdata["modifiedon"]
+        modifiedbyrole = requestdata["modifiedbyrole"]
         try:
             pool = dbsession.icepools.find({"_id":ObjectId(poolid)})
             if not pool or pool.count() == 0:
@@ -1098,8 +1091,9 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
                 updatePoolid_ICE(pool["_id"], addition, deletion)
                 if projectids is not None:
                     pool["projectids"] = projectids 
-                pool['modifiedby'] = datetime.now()
-                pool['modifiedon'] = ObjectId(modifiedby)
+                pool['modifiedon'] = datetime.now()
+                pool['modifiedby'] = ObjectId(modifiedby)
+                pool['modifiedbyrole'] = ObjectId(modifiedbyrole)
                 if poolname is not None and poolname != pool['poolname']:
                     existing_pools = dbsession.icepools.find({"poolname":poolname})
                     if existing_pools and existing_pools.count() > 0:
