@@ -150,7 +150,9 @@ def LoadServices(app, redissession, dbsession, licensedata):
                 if requestdata["query"]=='loadUserInfo':
                     username = ''
                     if 'username' in requestdata:
-                        username = requestdata['username']
+                        user = dbsession.users.find_one({"name": requestdata['username']}, {"name":1})
+                        if user is None: res['rows'] = 'nouser'
+                        else: username = requestdata['username']
                     elif 'icename' in requestdata:
                         ice_detail = dbsession.icetokens.find_one({"icename":requestdata["icename"]}, {"provisionedto": 1, "icetype": 1})
                         if ice_detail is not None:
@@ -159,6 +161,7 @@ def LoadServices(app, redissession, dbsession, licensedata):
                             else:
                                 user = dbsession.users.find_one({"_id": ice_detail["provisionedto"]}, {"name":1})
                                 if user is not None: username = user["name"]
+                                else: res['rows'] = 'nouser'
                     if username != '':
                         user_data = list(dbsession.eularecords.find({"username": username}))
                         if len(user_data) > 0:
