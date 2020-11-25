@@ -925,14 +925,15 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
             if index >= 0:
                 result = "Pool exists"
             elif result == None or result.count() == 0:
+                current_time = datetime.now()
                 inputdata["poolname"] = requestdata["poolname"]
                 inputdata['createdby'] = ObjectId(requestdata["createdby"])
-                inputdata['createdon'] = datetime.now()
+                inputdata['createdon'] = current_time
                 inputdata['projectids'] = convert_objectids(requestdata['projectids'])
                 inputdata['modifiedby'] = ObjectId(requestdata["createdby"])
-                inputdata['modifiedon'] = datetime.now()
-                inputdata['createdbyrole'] = requestdata['createdbyrole']
-                inputdata['modifiedbyrole'] =  requestdata['createdbyrole']
+                inputdata['modifiedon'] = current_time
+                inputdata['createdbyrole'] = ObjectId(requestdata['createdbyrole'])
+                inputdata['modifiedbyrole'] =  ObjectId(requestdata['createdbyrole'])
                 dbsession.icepools.insert_one(inputdata)
                 result = "success"
             res['rows'] = result
