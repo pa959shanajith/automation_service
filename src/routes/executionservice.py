@@ -233,6 +233,8 @@ def LoadServices(app, redissession, dbsession):
                 if(param == 'insertscheduledata'):
                     for tscos in requestdata["scenarios"]:
                         for tsco in tscos: tsco["scenarioId"] = ObjectId(tsco["scenarioId"])
+                    invokinguser = requestdata["scheduledby"]
+                    scheduledby = {"invokinguser":ObjectId(invokinguser["invokinguser"]),"invokingusername":invokinguser["invokingusername"],"invokinguserrole":invokinguser["invokinguserrole"]}
                     dataquery = {
                         "scheduledon": datetime.fromtimestamp(int(requestdata['timestamp'])/1000,pytz.UTC),
                         "executeon": requestdata["executeon"],
@@ -241,7 +243,8 @@ def LoadServices(app, redissession, dbsession):
                         "scenariodetails": requestdata["scenarios"],
                         "status": "scheduled",
                         "testsuiteids": [ObjectId(i) for i in requestdata['testsuiteIds']],
-                        "scheduledby": ObjectId(requestdata['userid'])
+                        "scheduledby": scheduledby,
+                        "poolid": ObjectId(requestdata["poolid"])
                     }
                     if "smartid" in requestdata: dataquery["smartid"] = uuid.UUID(requestdata["smartid"])
                     scheduleid = dbsession.scheduledexecutions.insert(dataquery)
