@@ -5,6 +5,7 @@
 from utils import *
 from datetime import datetime
 from pymongo import InsertOne
+from pymongo import UpdateOne
 
 def LoadServices(app, redissession, dbsession):
     setenv(app)
@@ -234,27 +235,44 @@ def LoadServices(app, redissession, dbsession):
                     data_obj = json.loads(data["scrapedata"])
                     modifiedbyrole= data["modifiedByrole"]
                     modifiedby = data["modifiedby"]
-                    screenshot = data_obj['mirror']
                     data_push=[]
+                    data_up=[]
                     req = []
                     for i in range(len(data_obj["view"])):
                         if '_id' not in data_obj["view"][i]:
                             data_obj["view"][i]['_id'] = ObjectId()
                         else:
                             data_obj["view"][i]['_id'] = ObjectId(data_obj["view"][i]['_id'])
-                        data_obj["view"][i]["parent"] = [screenID]
-                        data_push.append(data_obj["view"][i])
-                    if len(data_push) > 0:
+                        result=dbsession.dataobjects.find_one({'_id':data_obj["view"][i]['_id']},{"parent":1})
+                        if result == None:
+                            data_obj["view"][i]["parent"] = [screenID]
+                            data_push.append(data_obj["view"][i])
+                        else:
+                            temp=result['parent']
+                            temp.append(screenID)
+                            data_obj["view"][i]["parent"] = temp
+                            data_up.append(data_obj["view"][i])
+                    if len(data_push)>0 or len(data_up)>0:
                         dbsession.dataobjects.update_many({"$and":[{"parent.1":{"$exists":True}},{"parent":screenID}]},{"$pull":{"parent":screenID}})
                         dbsession.dataobjects.delete_many({"$and":[{"parent":{"$size": 1}},{"parent":screenID}]})
                         for row in data_push:
                             req.append(InsertOne(row))
+                        for row in data_up:
+                            req.append(UpdateOne({"_id":row['_id']},{"$set":{"parent":row["parent"]}}))
                         dbsession.dataobjects.bulk_write(req)
-                        if "scrapedurl" in data_obj:
-                            scrapedurl = data_obj["scrapedurl"]
-                            dbsession.screens.update({"_id":screenID},{"$set":{"screenshot":screenshot,"scrapedurl":scrapedurl,"modifiedby":modifiedby, 'modifiedbyrole':modifiedbyrole,"modifiedon" : datetime.now()}})
+                        if "mirror" in data_obj:
+                            screenshot = data_obj['mirror']
+                            if "scrapedurl" in data_obj:
+                                scrapedurl = data_obj["scrapedurl"]
+                                dbsession.screens.update({"_id":screenID},{"$set":{"screenshot":screenshot,"scrapedurl":scrapedurl,"modifiedby":modifiedby, 'modifiedbyrole':modifiedbyrole,"modifiedon" : datetime.now()}})
+                            else:
+                                dbsession.screens.update({"_id":screenID},{"$set":{"screenshot":screenshot,"modifiedby":modifiedby, 'modifiedbyrole':modifiedbyrole,"modifiedon" : datetime.now()}})
+                        elif 'scrapeinfo' in data_obj:
+                            scrapeinfo=data_obj['scrapeinfo']
+                            dbsession.screens.update({"_id":screenID},{"$set":{"scrapedurl":scrapeinfo["endPointURL"],"modifiedby":modifiedby,'modifiedbyrole':modifiedbyrole, 'scrapeinfo':scrapeinfo,"modifiedon" : datetime.now()}})
+                            # dbsession.screens.update({"_id":screenID},{"$set":{"screenshot":screenshot,"modifiedby":modifiedby, 'modifiedbyrole':modifiedbyrole,"modifiedon" : datetime.now()}})
                         else:
-                            dbsession.screens.update({"_id":screenID},{"$set":{"screenshot":screenshot,"modifiedby":modifiedby, 'modifiedbyrole':modifiedbyrole,"modifiedon" : datetime.now()}})
+                            dbsession.screens.update({"_id":screenID},{"$set":{"modifiedby":modifiedby, 'modifiedbyrole':modifiedbyrole,"modifiedon" : datetime.now()}})
                         res={"rows":"Success"}
                     else:
                         res={"rows":"fail"}
