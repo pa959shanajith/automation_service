@@ -170,6 +170,7 @@ def LoadServices(app, redissession, dbsession, licensedata):
                                 res = {'rows': 'success'}
                 elif(requestdata["query"]=='checkTandC'):
                     del requestdata["query"]
+                    requestdata["userId"]=ObjectId(requestdata["userId"])
                     dbsession.eularecords.insert_one(requestdata)
                     res={'rows': 'success'}
             else:
