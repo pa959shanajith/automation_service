@@ -156,7 +156,7 @@ def LoadServices(app, redissession, dbsession, licensedata):
                     elif 'icename' in requestdata:
                         ice_detail = dbsession.icetokens.find_one({"icename":requestdata["icename"]}, {"provisionedto": 1, "icetype": 1})
                         if ice_detail is None: res['rows'] = 'nouser'
-                        if ice_detail is not None:
+                        else:
                             if ice_detail['icetype'] == 'ci-cd': # EULA check doesn't apply on CI-CD ICE
                                 res['rows'] = 'success'
                             else:
