@@ -131,25 +131,26 @@ def LoadServices(app, redissession, dbsession):
             app.logger.debug("Inside updateMapDetails_ICE. Query: "+str(requestdata["query"]))
             if not isemptyrequest(requestdata):
                 if(requestdata["query"] == 'updateMapDetails_ICE'):
-                    result1 = list(dbsession.thirdpartyintegration.find({"_id":ObjectId(requestdata["mapid"]),"type":"ALM"}))
-                    if "testscenarioid" in requestdata:
-                        #updating scenarioid
-                        scenarioid = requestdata["testscenarioid"]
-                        for i in scenarioid:
-                            result1[0]['testscenarioid'].remove(i)
-                        if len(result1[0]['testscenarioid']) == 0 :
-                            dbsession.thirdpartyintegration.delete_one({"_id":ObjectId(requestdata["mapid"]),"type":"ALM"})
-                        else:
-                            dbsession.thirdpartyintegration.update_one({"_id":ObjectId(requestdata["mapid"])}, {'$set': {"testscenarioid":result1[0]['testscenarioid']}})
-                    elif "qctestcase" in requestdata:
-                        #updating testcase
-                        testcase = requestdata["qctestcase"]
-                        for i in testcase:
-                            result1[0]['qctestcase'].remove(i)
-                        if len(result1[0]['qctestcase']) == 0 :
-                            dbsession.thirdpartyintegration.delete_one({"_id":ObjectId(requestdata["mapid"]),"type":"ALM"})
-                        else:
-                            dbsession.thirdpartyintegration.update_one({"_id":ObjectId(requestdata["mapid"])}, {'$set': {"qctestcase":result1[0]['qctestcase']}})
+                    for mapObj in requestdata["mapList"]:
+                        result1 = list(dbsession.thirdpartyintegration.find({"_id":ObjectId(mapObj["mapid"]),"type":"ALM"}))
+                        if "testscenarioid" in mapObj:
+                            #updating scenarioid
+                            scenarioid = mapObj["testscenarioid"]
+                            for i in scenarioid:
+                                result1[0]['testscenarioid'].remove(i)
+                            if len(result1[0]['testscenarioid']) == 0 :
+                                dbsession.thirdpartyintegration.delete_one({"_id":ObjectId(mapObj["mapid"]),"type":"ALM"})
+                            else:
+                                dbsession.thirdpartyintegration.update_one({"_id":ObjectId(mapObj["mapid"])}, {'$set': {"testscenarioid":result1[0]['testscenarioid']}})
+                        elif "qctestcase" in mapObj:
+                            #updating testcase
+                            testcase = mapObj["qctestcase"]
+                            for i in testcase:
+                                result1[0]['qctestcase'].remove(i)
+                            if len(result1[0]['qctestcase']) == 0 :
+                                dbsession.thirdpartyintegration.delete_one({"_id":ObjectId(mapObj["mapid"]),"type":"ALM"})
+                            else:
+                                dbsession.thirdpartyintegration.update_one({"_id":ObjectId(mapObj["mapid"])}, {'$set': {"qctestcase":result1[0]['qctestcase']}})
                     res= {"rows":"success"}                  
             else:
                 app.logger.warn('Empty data received. updating after unsyc.')
