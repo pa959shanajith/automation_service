@@ -1162,8 +1162,7 @@ def main():
                 if "host" in rn and "port" in rn:
                     hosts += [rn["host"] + ':' + str(rn["port"])]
         client = MongoClient(hosts, username = mongo_user, password = mongo_pass,
-            authSource = 'avoassure', appname = 'AvoAssureDAS', authMechanism = 'SCRAM-SHA-1',
-            replicaSet = 'avoassuredbreplica', readPreference = 'primaryPreferred')
+            authSource = 'avoassure', appname = 'AvoAssureDAS', authMechanism = 'SCRAM-SHA-1', readPreference = 'primaryPreferred')
         if client.server_info():
             mongo_dbup = True
         dbsession = client.avoassure
