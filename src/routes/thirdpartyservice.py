@@ -55,11 +55,17 @@ def LoadServices(app, redissession, dbsession):
                     testscenarios=list(dbsession.thirdpartyintegration.find({"type":"ALM","qctestcase":requestdata["qctestcase"]}))
                     if len(scenarios) == 1 and len(testcaselist) != 0:
                         qc_tc=testcaselist[0]['qctestcase']
+                        qc_fld=testcaselist[0]['qcfolderpath']
+                        qc_tst=testcaselist[0]['qctestset']
                         requestdata_tc = requestdata["qctestcase"]
-                        for a in requestdata_tc:
-                            if a not in qc_tc:
-                                qc_tc.append(a)
-                        dbsession.thirdpartyintegration.update_one({"type":"ALM","testscenarioid":requestdata["testscenarioid"]}, {'$set': {"qctestcase":qc_tc}})
+                        requestdata_folder = requestdata["qcfolderpath"]
+                        requestdata_testset = requestdata["qctestset"]
+                        for a in range(len(requestdata_tc)):
+                            if requestdata_tc[a] not in qc_tc:
+                                qc_tc.append(requestdata_tc[a])
+                                qc_fld.append(requestdata_folder[a])
+                                qc_tst.append(requestdata_testset[a])
+                        dbsession.thirdpartyintegration.update_one({"type":"ALM","testscenarioid":requestdata["testscenarioid"]}, {'$set': {"qctestcase":qc_tc,"qcfolderpath":qc_fld,"qctestset":qc_tst}})
                     elif len(testcases) == 1 and len(testscenarios) != 0:
                         qc_tc=testscenarios[0]['testscenarioid']
                         requestdata_tc = requestdata["testscenarioid"]
@@ -137,12 +143,17 @@ def LoadServices(app, redissession, dbsession):
                         elif "qctestcase" in mapObj:
                             #updating testcase
                             testcase = mapObj["qctestcase"]
-                            for i in testcase:
-                                result1[0]['qctestcase'].remove(i)
+                            folderpath = mapObj["qcfolderpath"]
+                            testset = mapObj["qctestset"]
+                            for i in range(len(testcase)):
+                                index = result1[0]['qctestcase'].index(testcase[i])
+                                del result1[0]['qcfolderpath'][index]
+                                del result1[0]['qctestset'][index]
+                                del result1[0]['qctestcase'][index]
                             if len(result1[0]['qctestcase']) == 0 :
                                 dbsession.thirdpartyintegration.delete_one({"_id":ObjectId(mapObj["mapid"]),"type":"ALM"})
                             else:
-                                dbsession.thirdpartyintegration.update_one({"_id":ObjectId(mapObj["mapid"])}, {'$set': {"qctestcase":result1[0]['qctestcase']}})
+                                dbsession.thirdpartyintegration.update_one({"_id":ObjectId(mapObj["mapid"])}, {'$set': {"qctestcase":result1[0]['qctestcase'], "qcfolderpath":result1[0]['qcfolderpath'], "qctestset":result1[0]['qctestset']}})
                     res= {"rows":"success"}                  
             else:
                 app.logger.warn('Empty data received. updating after unsyc.')
