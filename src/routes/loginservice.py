@@ -125,9 +125,9 @@ def LoadServices(app, redissession, dbsession, licensedata):
                         #else: dbsession.icetokens.delete_one({"_id": row["_id"]})
                         del row["provisionedto"]
                     else:
-                        row["userid"] = cicd_user["_id"]
-                        row["name"] = cicd_user["name"]
-                        row["role"] = cicd_user["defaultrole"]
+                        row["userid"] = cicd_user[0]["_id"]
+                        row["name"] = cicd_user[0]["name"]
+                        row["role"] = cicd_user[0]["defaultrole"]
                 if "icename" in requestdata:
                     if len(ice_list) == 0: ice_list = None
                     else: ice_list = ice_list[0]

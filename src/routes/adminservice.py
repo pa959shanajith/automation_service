@@ -726,6 +726,7 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
                 if query==PROVISION:
                     requestdata["token"]=token
                     requestdata["status"]=PROVISION_STATUS
+                    requestdata["poolid"] = "None"
                     requestdata[PROVISION_STATUS+"on"]=datetime.now()
                     #user_notexists = True
                     #To restrict multiple ICE provsioning for the same user
@@ -741,7 +742,7 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
                         res["rows"] = "DuplicateIceName"
                 elif query == DEREGISTER:
                     if token_exists:
-                        dbsession.icetokens.update_one(token_query,{"$set":{"status":DEREGISTER_STATUS,"deregisteredon":datetime.now()}})
+                        dbsession.icetokens.update_one(token_query,{"$set":{"status":DEREGISTER_STATUS,"deregisteredon":datetime.now(),"poolid":"None"}})
                         res["rows"] = 'success'
                 elif query == 're'+REGISTER:
                     if token_exists:
