@@ -51,30 +51,22 @@ def LoadServices(app, redissession, dbsession):
                     requestdata["type"] = "ALM"
                     testcases = requestdata["qctestcase"]
                     scenarios = requestdata["testscenarioid"]
-                    testcase_id=list(dbsession.thirdpartyintegration.find({"qctestcase":requestdata["qctestcase"]}))
-                    testscn_id=list(dbsession.thirdpartyintegration.find({"testscenarioid":requestdata["testscenarioid"]}))
-                    if len(testcases) >1 and len(testscn_id)>0:
-                        qc_tc=testscn_id[0]['qctestcase']
-                        update_tc = []
+                    testcaselist=list(dbsession.thirdpartyintegration.find({"type":"ALM","testscenarioid":requestdata["testscenarioid"]}))
+                    testscenarios=list(dbsession.thirdpartyintegration.find({"type":"ALM","qctestcase":requestdata["qctestcase"]}))
+                    if len(scenarios) == 1 and len(testcaselist) != 0:
+                        qc_tc=testcaselist[0]['qctestcase']
                         requestdata_tc = requestdata["qctestcase"]
                         for a in requestdata_tc:
                             if a not in qc_tc:
-                                update_tc.append(a)
-                        if len(update_tc) > 0:
-                            for a in update_tc:
                                 qc_tc.append(a)
-                        dbsession.thirdpartyintegration.update_one({"testscenarioid":requestdata["testscenarioid"]}, {'$set': {"qctestcase":qc_tc}})
-                    if len(scenarios) >1 and len(testcase_id)>0:
-                        qc_tc=testcase_id[0]['testscenarioid']
-                        update_tc = []
+                        dbsession.thirdpartyintegration.update_one({"type":"ALM","testscenarioid":requestdata["testscenarioid"]}, {'$set': {"qctestcase":qc_tc}})
+                    elif len(testcases) == 1 and len(testscenarios) != 0:
+                        qc_tc=testscenarios[0]['testscenarioid']
                         requestdata_tc = requestdata["testscenarioid"]
                         for a in requestdata_tc:
                             if a not in qc_tc:
-                                update_tc.append(a)
-                        if len(update_tc) > 0:
-                            for a in update_tc:
                                 qc_tc.append(a)
-                        dbsession.thirdpartyintegration.update_one({"qctestcase":requestdata["qctestcase"]}, {'$set': {"testscenarioid":qc_tc}})
+                        dbsession.thirdpartyintegration.update_one({"type":"ALM","qctestcase":requestdata["qctestcase"]}, {'$set': {"testscenarioid":qc_tc}})
                     else:
                         dbsession.thirdpartyintegration.insert_one(requestdata)
                     res= {"rows":"success"}
