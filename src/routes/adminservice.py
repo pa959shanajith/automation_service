@@ -887,13 +887,20 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
                     for j in screenList:
                         dataobj_query = list(dbsession.dataobjects.find({"parent" :j['_id']}))
                         if "scrapeinfo" in j and 'header' in j["scrapeinfo"]:
-                            dataobj_query = [j["scrapeinfo"]]
-                        screen_json = { "view": dataobj_query, "name":j["name"],
-                                        "createdthrough": (j["createdthrough"] if ("createdthrough" in j) else ""),
-                                        "scrapedurl": (j["scrapedurl"] if ("scrapedurl" in j) else ""),
-                                        "mirror": (j["screenshot"] if ("screenshot" in j) else ""),
-                                        "reuse": True if(len(j["parent"])>1) else False
-                                      }
+                            screen_json = j['scrapeinfo'] if 'scrapeinfo' in j else {}
+                            screen_json["reuse"] = True if(len(j["parent"])>1) else False
+                            screen_json["view"] = dataobj_query
+                            screen_json["name"] = j["name"]
+                        else:
+                            screen_json = { "view": dataobj_query, "name":j["name"],
+                                            "createdthrough": (j["createdthrough"] if ("createdthrough" in j) else ""),
+                                            "scrapedurl": (j["scrapedurl"] if ("scrapedurl" in j) else ""),
+                                            "mirror": (j["screenshot"] if ("screenshot" in j) else ""),
+                                            "reuse": True if(len(j["parent"])>1) else False
+                                        }
+                        app_type=dbsession.projects.find_one({'_id':j["projectid"]},{'type':1})['type']
+                        screen_json["appType"] = dbsession.projecttypekeywords.find_one({'_id':app_type},{'name':1})['name']
+                        screen_json["screenId"] = j['_id']
                         i['screens'].append(screen_json)
                         dataObjects = {}
                         if (dataobj_query != []):
