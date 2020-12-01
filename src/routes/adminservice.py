@@ -983,6 +983,7 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
         try:
             for pool in poolids:
                 dbsession.icepools.delete_one({"_id":pool})
+                ice_list = dbsession.icetokens.update_many({"poolid":pool},{"$set":{"poolid":"None"}})
             res["rows"] = "success"
         except Exception as e:
             app.logger.debug(traceback.format_exc())
