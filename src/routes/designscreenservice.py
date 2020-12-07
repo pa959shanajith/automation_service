@@ -289,9 +289,11 @@ def LoadServices(app, redissession, dbsession):
         try:
             requestdata = json.loads(request.data)
             app.logger.debug("Inside updateIrisObjectType")
-            if("_id" not in requestdata or requestdata["_id"] == ""):
-                res={'rows':'unsavedObject'}
+            if "_id" in requestdata and requestdata["_id"] == "": del requestdata["_id"]
             if not isemptyrequest(requestdata):
+                if "_id" not in requestdata:
+                    res={'rows':'unsavedObject'}
+                else:
                     dbsession.dataobjects.update({"_id": ObjectId(requestdata["_id"])},{"$set":{"objectType":requestdata["type"]}})
                     res={'rows':'success'}
         except Exception as updateirisobjexc:

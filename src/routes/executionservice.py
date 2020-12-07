@@ -276,7 +276,12 @@ def LoadServices(app, redissession, dbsession):
                     tscomap = {}
                     for tsco in tscos: tscomap[tsco["_id"]] = prjmap[tsco["projectid"]] if tsco["projectid"] in prjmap else "-"
                     schedules = list(dbsession.scheduledexecutions.find({}))
+                    poollist={}
+                    pool = list(dbsession.icepools.find({}, {"poolname": 1}))
+                    for pid in pool: poollist[pid['_id']] = pid['poolname']
                     for sch in schedules:
+                        if "poolid" in sch and sch["poolid"] in poollist: 
+                            sch["poolname"]=poollist[sch["poolid"]]
                         testsuitenames = []
                         for tsuid in sch["testsuiteids"]: testsuitenames.append(tsumap[tsuid] if tsuid in tsumap else "")
                         sch["testsuitenames"] = testsuitenames
