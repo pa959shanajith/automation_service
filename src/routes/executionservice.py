@@ -19,6 +19,7 @@ from datetime import datetime, timedelta
 import pytz
 import time
 import uuid
+import dateutil.parser as DP
 
 query = {'delete_flag': False}
 
@@ -236,7 +237,7 @@ def LoadServices(app, redissession, dbsession):
                     invokinguser = requestdata["scheduledby"]
                     scheduledby = {"invokinguser":ObjectId(invokinguser["invokinguser"]),"invokingusername":invokinguser["invokingusername"],"invokinguserrole":invokinguser["invokinguserrole"]}
                     dataquery = {
-                        "scheduledon": datetime.fromtimestamp(int(requestdata['timestamp'])/1000,pytz.UTC),
+                        "scheduledon": DP.parse(requestdata['timestamp']),
                         "executeon": requestdata["executeon"],
                         "executemode": requestdata["executemode"],
                         "target": requestdata["targetaddress"],
@@ -317,7 +318,7 @@ def LoadServices(app, redissession, dbsession):
                     timelist = requestdata["scheduledatetime"]
                     flag = -1
                     for i in range(len(timelist)):
-                        timestamp =  datetime.fromtimestamp(int(timelist[i])/1000,pytz.UTC)
+                        timestamp = DP.parse(timelist[i])
                         address = requestdata["targetaddress"][i]
                         count = dbsession.scheduledexecutions.find({"scheduledon": timestamp, "target": address, "status": "scheduled"}).count()
                         if count > 0:
