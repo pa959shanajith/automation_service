@@ -291,8 +291,12 @@ def LoadServices(app, redissession, dbsession):
                             if sch["status"] == "scheduled":
                                 missed_executions.append(UpdateOne({"_id":sch['_id']},{"$set":{"status":"Missed"}}))
                             sch["status"] = "Missed"
-                        elif sch["status"] == "Failed 01": sch["status"] = "Missed"
-                        elif sch["status"] == "Failed 02": sch["status"] = "Failed"
+                        elif sch["status"] == "Failed 01": 
+                            sch["status"] = "Missed"
+                            missed_executions.append(UpdateOne({"_id":sch['_id']},{"$set":{"status":"Missed"}}))
+                        elif sch["status"] == "Failed 02": 
+                            sch["status"] = "Failed"
+                            missed_executions.append(UpdateOne({"_id":sch['_id']},{"$set":{"status":"Failed"}}))
                         for tscos in sch["scenariodetails"]:
                             if type(tscos) == dict: break
                             for tsco in tscos: tsco["appType"] = tscomap[tsco["scenarioId"]]
