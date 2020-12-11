@@ -80,7 +80,7 @@ def LoadServices(app, redissession, dbsession):
                             else:
                                 if (ob[i] != "null") and (legend[i] not in dodata): dodata[legend[i]] = ob[i]
                     except: pass
-                    gettag = {"btn":"button","txtbox":"input","lnk":"a","radiobtn":"radiobutton","select":"select","chkbox":"checkbox","lst":"list","tab":"tab","tree":"tree","dtp":"datepicker","table":"table","elmnt":"label"}
+                    gettag = {"btn":"button","txtbox":"input","lnk":"a","radiobtn":"radiobutton","select":"select","chkbox":"checkbox","lst":"list","tab":"tab","tree":"tree","dtp":"datepicker","tbl":"table","elmnt":"label"}
                     tag = so["custname"].split("_")[-1]
                     if tag in gettag: dodata["tag"] = gettag[tag]
                     if "class" in dodata: dodata["class"] = dodata["class"].split("[")[0]
