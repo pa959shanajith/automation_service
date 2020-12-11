@@ -19,7 +19,7 @@ from datetime import datetime, timedelta
 import pytz
 import time
 import uuid
-import dateutil.parser as DP
+from pymongo import UpdateOne
 
 query = {'delete_flag': False}
 
@@ -230,6 +230,7 @@ def LoadServices(app, redissession, dbsession):
             requestdata=json.loads(request.data)
             param = str(requestdata['query'])
             app.logger.debug("Inside ScheduleTestSuite_ICE. Query: " + param)
+            missed_executions = []
             if not isemptyrequest(requestdata):
                 if(param == 'insertscheduledata'):
                     for tscos in requestdata["scenarios"]:
@@ -237,7 +238,7 @@ def LoadServices(app, redissession, dbsession):
                     invokinguser = requestdata["scheduledby"]
                     scheduledby = {"invokinguser":ObjectId(invokinguser["invokinguser"]),"invokingusername":invokinguser["invokingusername"],"invokinguserrole":invokinguser["invokinguserrole"]}
                     dataquery = {
-                        "scheduledon": DP.parse(requestdata['timestamp']),
+                        "scheduledon": datetime.fromtimestamp(int(requestdata['timestamp'])/1000,pytz.UTC),
                         "executeon": requestdata["executeon"],
                         "executemode": requestdata["executemode"],
                         "target": requestdata["targetaddress"],
@@ -286,13 +287,18 @@ def LoadServices(app, redissession, dbsession):
                         testsuitenames = []
                         for tsuid in sch["testsuiteids"]: testsuitenames.append(tsumap[tsuid] if tsuid in tsumap else "")
                         sch["testsuitenames"] = testsuitenames
-                        if sch["status"] == "Failed 01": sch["status"] = "Missed"
+                        if sch['scheduledon'] and sch['scheduledon'] < datetime.utcnow():
+                            if sch["status"] == "scheduled":
+                                missed_executions.append(UpdateOne({"_id":sch['_id']},{"$set":{"status":"Missed"}}))
+                            sch["status"] = "Missed"
+                        elif sch["status"] == "Failed 01": sch["status"] = "Missed"
                         elif sch["status"] == "Failed 02": sch["status"] = "Failed"
                         for tscos in sch["scenariodetails"]:
                             if type(tscos) == dict: break
                             for tsco in tscos: tsco["appType"] = tscomap[tsco["scenarioId"]]
                     res["rows"] = schedules
-
+                    if len(missed_executions) > 0: dbsession.scheduledexecutions.bulk_write(missed_executions)
+                    
                 elif(param == 'gettestsuiteproject'):
                     testsuiteids = [ObjectId(i) for i in requestdata["testsuiteids"]]
                     testsuites = list(dbsession.testsuites.find({"_id": { "$in": testsuiteids}},
@@ -318,7 +324,7 @@ def LoadServices(app, redissession, dbsession):
                     timelist = requestdata["scheduledatetime"]
                     flag = -1
                     for i in range(len(timelist)):
-                        timestamp = DP.parse(timelist[i])
+                        timestamp =  datetime.fromtimestamp(int(timelist[i])/1000,pytz.UTC)
                         address = requestdata["targetaddress"][i]
                         count = dbsession.scheduledexecutions.find({"scheduledon": timestamp, "target": address, "status": "scheduled"}).count()
                         if count > 0:
