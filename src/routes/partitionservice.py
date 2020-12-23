@@ -33,9 +33,12 @@ def LoadServices(app, redissession, dbsession):
         ipPartitions = {}
         modPartitions = {}
         users = bench_mark_sort(requestdata['ipAddressList'])
-        users,flag = load_sort(users,requestdata["time"])
+        if requestdata["time"] != "Now":
+            users,flag = load_sort(users,requestdata["time"])
+        else:
+            flag = False
         try:
-            if requestdata['type'] == 'Scenario Smart Scheduling':
+            if 'scenario' in requestdata['type'].lower():
                 for i in range(len(requestdata['scenarios'])):
                     time = 0
                     scid = requestdata['scenarios'][i]['scenarioId']
@@ -48,7 +51,7 @@ def LoadServices(app, redissession, dbsession):
                     if i < len(partitions["seq_partitions"]):
                         ipPartitions[users[i]] = str(
                             partitions["seq_partitions"][i]).strip("['']")
-            elif requestdata['type'] == 'Module Smart Scheduling':
+            elif 'module' in requestdata["type"].lower():
                 modules = requestdata['modules']
                 mod_scn = {}
                 for i in range(len(modules)):
