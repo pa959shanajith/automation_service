@@ -288,9 +288,12 @@ def LoadServices(app, redissession, dbsession):
                         for tsuid in sch["testsuiteids"]: testsuitenames.append(tsumap[tsuid] if tsuid in tsumap else "")
                         sch["testsuitenames"] = testsuitenames
                         if sch['scheduledon']:
-                            if (sch["status"] == "scheduled"  and datetime.utcnow() - sch['scheduledon'] >= timedelta(days=3)) or (sch["status"] == "inprogress"  and datetime.utcnow() - sch['scheduledon'] >= timedelta(days=15)):
+                            if sch["status"] == "scheduled" and datetime.utcnow() - sch['scheduledon'] >= timedelta(days=3):
                                 missed_executions.append(UpdateOne({"_id":sch['_id']},{"$set":{"status":"Missed"}}))
                                 sch["status"] = "Missed"
+                            elif sch["status"] == "inprogress" and datetime.utcnow() - sch['scheduledon'] >= timedelta(days=15):
+                                missed_executions.append(UpdateOne({"_id":sch['_id']},{"$set":{"status":"Failed"}}))
+                                sch["status"] = "Failed"
                         if sch["status"] == "Failed 01": sch["status"] = "Missed"
                         elif sch["status"] == "Failed 02": sch["status"] = "Failed"
                         for tscos in sch["scenariodetails"]:
