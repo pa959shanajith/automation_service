@@ -287,12 +287,17 @@ def LoadServices(app, redissession, dbsession):
                         testsuitenames = []
                         for tsuid in sch["testsuiteids"]: testsuitenames.append(tsumap[tsuid] if tsuid in tsumap else "")
                         sch["testsuitenames"] = testsuitenames
+                        if sch['scheduledon']:
+                            if (sch["status"] == "scheduled"  and datetime.utcnow() - sch['scheduledon'] >= timedelta(days=3)) or (sch["status"] == "inprogress"  and datetime.utcnow() - sch['scheduledon'] >= timedelta(days=15)):
+                                missed_executions.append(UpdateOne({"_id":sch['_id']},{"$set":{"status":"Missed"}}))
+                                sch["status"] = "Missed"
                         if sch["status"] == "Failed 01": sch["status"] = "Missed"
                         elif sch["status"] == "Failed 02": sch["status"] = "Failed"
                         for tscos in sch["scenariodetails"]:
                             if type(tscos) == dict: break
                             for tsco in tscos: tsco["appType"] = tscomap[tsco["scenarioId"]]
                     res["rows"] = schedules
+                    if len(missed_executions) > 0: dbsession.scheduledexecutions.bulk_write(missed_executions)
                     
                 elif(param == 'gettestsuiteproject'):
                     testsuiteids = [ObjectId(i) for i in requestdata["testsuiteids"]]
