@@ -287,13 +287,9 @@ def LoadServices(app, redissession, dbsession):
                         requestdata['testcaseid'] = [requestdata['testcaseid']]
                     for i in requestdata['testcaseid']:
                         tc_id_list.append(ObjectId(i))
-                    query = [
-                        {"$match":{"_id":{"$in":tc_id_list}}},
-                        {"$addFields":{"__order":{"$indexOfArray":[tc_id_list,"$_id"]}}},
-                        {"$sort":{"__order":1}},
-                        {"$project":{'steps':1,'name':1,'screenid':1,'parent':1,'_id':0}}
-                    ]
-                    queryresult = list(dbsession.testcases.aggregate(query))
+                    tc_id_list = list(set(tc_id_list))
+                    queryresult = list(dbsession.testcases.find({"_id":{"$in":tc_id_list}}, 
+                        {'steps':1,'name':1,'screenid':1,'parent':1}))
                     for k in queryresult:
                         queryresult1 = list(dbsession.dataobjects.find({'parent':k['screenid']},{'parent':0}))
                         dataObjects = {}
