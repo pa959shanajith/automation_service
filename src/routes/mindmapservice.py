@@ -273,7 +273,6 @@ def LoadServices(app, redissession, dbsession):
                 taskids.extend(testcaseids)
                 taskids.append(ObjectId(requestdata['moduleid']))
                 taskdetails=list(dbsession.tasks.find({"nodeid":{"$in":taskids}}))
-
                 scenariodetails=list(dbsession.testscenarios.find({"_id":{"$in":scenarioids}},{"_id":1,"name":1,"parent":1}))
                 screendetails=list(dbsession.screens.find({"_id":{"$in":screenids}},{"_id":1,"name":1,"parent":1}))
                 testcasedetails=list(dbsession.testcases.find({"_id":{"$in":testcaseids}},{"_id":1,"name":1,"parent":1}))
@@ -289,7 +288,7 @@ def LoadServices(app, redissession, dbsession):
                 if tab=="tabAssign":
                     assignTab=True
                     for t in taskdetails:
-                        if assignTab and ( t['nodetype']=="screens" or t['nodetype']=="testcases" or cycleid==str(t['cycleid'])):
+                        if assignTab and (mindmaptype=="endtoend" or t['nodetype']=="screens" or t['nodetype']=="testcases" or cycleid==str(t['cycleid'])):
                             data_dict[t['nodetype']][t['nodeid']]={'task':t}
                 else:
                     for t in taskdetails:
@@ -346,7 +345,7 @@ def LoadServices(app, redissession, dbsession):
                 projectid=mindmapdata["projectid"]
 
                 # Preparing final data in format needed
-                if len(mindmapdata["testscenarios"])==0 and mindmaptype=="basic":
+                if len(mindmapdata["testscenarios"])==0 :
                     finaldata["completeFlow"]=False
                 i=1
                 if "testscenarios" in mindmapdata:
@@ -889,32 +888,10 @@ def LoadServices(app, redissession, dbsession):
             requestdata=json.loads(request.data)
             app.logger.debug("Inside getScreens.")
             if not isemptyrequest(requestdata):
-                projectid=requestdata["projectid"]
-                moduledetails=list(dbsession.mindmaps.find({"projectid":ObjectId(projectid)},{"testscenarios":1}))
-                screenidsset=set()
-                screenids=[]
-                screen_testcase={}
-                testcaseidsset=set()
-                testcaseids=[]
-                for mod in moduledetails:
-                    for sce in mod["testscenarios"]:
-                        if "screens" in sce:
-                            for scr in sce["screens"]:
-                                if scr["_id"] not in screenidsset:
-                                    screenidsset.add(scr["_id"])
-                                    screenids.append(scr["_id"])
-                                if "testcases" in scr:
-                                    for tc in scr["testcases"]:
-                                        if tc not in testcaseidsset:
-                                            testcaseids.append(tc)
-                                            testcaseidsset.add(tc)
-                                        if scr["_id"] not in screen_testcase:
-                                            screen_testcase[scr["_id"]]=[]
-                                            screen_testcase[scr["_id"]].append(tc)
-                                        else:
-                                            screen_testcase[scr["_id"]].append(tc)
-                screendetails=list(dbsession.screens.find({"_id":{"$in":screenids}},{"_id":1,"name":1,"parent":1}))
-                testcasedetails=list(dbsession.testcases.find({"_id":{"$in":testcaseids}},{"_id":1,"name":1,"parent":1,"screenid":1}))
+                projectid=ObjectId(requestdata["projectid"])
+                screendetails=list(dbsession.screens.find({"projectid":projectid},{"_id":1,"name":1,"parent":1}))
+                screenids = [scr["_id"] for scr in screendetails]
+                testcasedetails=list(dbsession.testcases.find({"screenid":{"$in":screenids}},{"_id":1,"name":1,"parent":1,"screenid":1}))
                 res={'rows':{'screenList':screendetails,'testCaseList':testcasedetails}}
             else:
                 app.logger.warn("Empty data received. getScreens")
