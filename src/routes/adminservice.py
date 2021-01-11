@@ -361,6 +361,9 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
                                     j["modifiedon"]=datetime.now()
                     dbsession.projects.update({"_id":ObjectId(requestdata["projectid"])},{"$set":{"releases":releases}})
                     res={'rows':'success'}
+                elif(requestdata['query'] == 'updateprojectname'):
+                    dbsession.projects.update({"_id":ObjectId(requestdata["projectid"])},{"$set":{"name":requestdata["newprojectname"],"modifiedbyrole":ObjectId(requestdata["modifiedbyrole"]),"modifiedby":ObjectId(requestdata["modifiedby"]),"modifiedon":datetime.now()}})
+                    res={'rows':'success'}
                 else:
                     res={'rows':'fail'}
             else:
