@@ -225,4 +225,35 @@ def LoadServices(app, redissession, dbsession):
             servicesException("getReport_API", getreportexc, True)
         return jsonify(res)
 
+    @app.route('/reports/getWebocularData_ICE',methods=['POST'])
+    def getWebocularData_ICE():
+        res={'rows':'fail'}
+        try:
+            requestdata=json.loads(request.data)
+            accessibility_reports = dbsession.accessibilityreports
+            if requestdata["query"] == 'moduledata':
+                reports_data = list(dbsession.accessibilityreports.find({},{"_id":1,"modulename":1}))
+                res={'rows':reports_data}
+            elif requestdata["query"] == 'reportdata':
+                reports_data = list(dbsession.accessibilityreports.find({"_id":ObjectId(requestdata["id"])}))
+                res={'rows':reports_data}
+            elif requestdata["query"] == 'insertdata':
+                reports_data = {}
+                reports = requestdata['reports']
+                for report in reports:
+                    reports_data['level'] = reports[report]['level']
+                    reports_data['agent'] = reports[report]['agent']
+                    reports_data['url'] = reports[report]['url']
+                    reports_data['accessrules'] = reports[report]['access-rules']
+                    reports_data['accessibility'] = reports[report]['accessibility']
+                    reports_data['title'] = reports[report]['title']
+                    dbsession.accessibilityreports.insert_one(reports_data)
+                    del reports_data
+                res={'rows':'success'}
+            return jsonify(res)
+        except Exception as e:
+            app.logger.debug(getweboculardataexec)
+            servicesException("getWebocularData_ICE",getweboculardataexec)
+            res={'rows':'fail'}
+        return jsonify(res)
 # END OF REPORTS
