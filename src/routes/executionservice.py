@@ -174,6 +174,7 @@ def LoadServices(app, redissession, dbsession):
                         for i in tsc['testcaseids']:
                             for j in range(0,len(testcases)):
                                 if i==testcases[j]['_id']:
+                                    testcases[j]['screenname'] = dbsession.screens.find({"_id":ObjectId(testcases[j]['screenid'])})[0]['name']
                                     testcase.append(testcases[j])
                         res["rows"] = testcase
                     if 'userid' in requestdata:    # Update the Counter

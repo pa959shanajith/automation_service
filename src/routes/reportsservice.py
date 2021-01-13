@@ -3,6 +3,7 @@
 ################################################################################
 #----------DEFAULT METHODS AND IMPORTS------------DO NOT EDIT-------------------
 from utils import *
+from datetime import datetime
 
 def LoadServices(app, redissession, dbsession):
     setenv(app)
@@ -231,29 +232,40 @@ def LoadServices(app, redissession, dbsession):
         try:
             requestdata=json.loads(request.data)
             accessibility_reports = dbsession.accessibilityreports
-            if requestdata["query"] == 'moduledata':
-                reports_data = list(dbsession.accessibilityreports.find({},{"_id":1,"modulename":1}))
-                res={'rows':reports_data}
+            if requestdata["query"] == 'screendata':
+                reports_data = dbsession.accessibilityreports.find({"cycleid": requestdata['cycleid']},{"screenid":1,"screenname":1})
+                result = {}
+                for screen in reports_data:
+                    result[str(screen["screenid"])]= screen["screenname"]
+                res={'rows':result}
             elif requestdata["query"] == 'reportdata':
-                reports_data = list(dbsession.accessibilityreports.find({"_id":ObjectId(requestdata["id"])}))
+                reports_data = list(dbsession.accessibilityreports.find({"screenname":requestdata['screenname']}))
                 res={'rows':reports_data}
             elif requestdata["query"] == 'insertdata':
                 reports_data = {}
                 reports = requestdata['reports']
                 for report in reports:
-                    reports_data['level'] = reports[report]['level']
-                    reports_data['agent'] = reports[report]['agent']
-                    reports_data['url'] = reports[report]['url']
-                    reports_data['accessrules'] = reports[report]['access-rules']
-                    reports_data['accessibility'] = reports[report]['accessibility']
-                    reports_data['title'] = reports[report]['title']
+                    if "_id" in report:
+                        del report["_id"]
+                    reports_data['level'] = report['level']
+                    reports_data['agent'] = report['agent']
+                    reports_data['url'] = report['url']
+                    reports_data['data'] = {}
+                    reports_data['cycleid'] = report['cycleid']
+                    reports_data['executionid'] = report['executionid']
+                    reports_data['screenname'] = report['screenname']
+                    reports_data['screenid'] = report['screenid']
+                    reports_data['data']['access-rules'] = report['access-rules']
+                    reports_data['data']['accessibility'] = report['accessibility']
+                    reports_data['title'] = report['title']
+                    reports_data['executedtime'] = datetime.utcnow()
                     dbsession.accessibilityreports.insert_one(reports_data)
                     del reports_data
                 res={'rows':'success'}
             return jsonify(res)
         except Exception as e:
-            app.logger.debug(getweboculardataexec)
-            servicesException("getWebocularData_ICE",getweboculardataexec)
+            app.logger.debug(e)
+            servicesException("getWebocularData_ICE",e)
             res={'rows':'fail'}
         return jsonify(res)
 # END OF REPORTS
