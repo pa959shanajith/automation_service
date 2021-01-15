@@ -1121,3 +1121,20 @@ def LoadServices(app, redissession, dbsession):
         except Exception as importmindmapexc:
             servicesException("importMindmap",importmindmapexc, True)
         return jsonify(res)
+
+
+    @app.route('/mindmap/updateScenario',methods=['POST'])
+    def updateAccesaibiltiyTestingState():
+        res={'rows':'fail'}
+        try:
+            requestdata=json.loads(request.data)
+            app.logger.debug("Inside importMindmap.")
+            if not isemptyrequest(requestdata):
+                for scenario in requestdata['scenarios']:
+                    dbsession.testscenarios.update_one({'_id':ObjectId(scenario)},{'$set':{'accessibilitytesting':requestdata['scenarios'][scenario]}})
+                res={'rows':'success'}
+            else:
+                app.logger.warn('Empty data received while importing mindmap')
+        except Exception as importmindmapexc:
+            servicesException("importMindmap",importmindmapexc, True)
+        return jsonify(res)
