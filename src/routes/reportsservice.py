@@ -170,7 +170,6 @@ def LoadServices(app, redissession, dbsession):
         errMsg='Invalid '
         errIds=[]
         finalQuery=[]
-        final_report = {}
         correctScenarios=[]
         try:
             requestdata=json.loads(request.data)
@@ -179,8 +178,6 @@ def LoadServices(app, redissession, dbsession):
                 errMsgVal=str(requestdata["executionId"])
                 queryresult1 = dbsession.reports.find({"executionid":ObjectId(requestdata["executionId"])})
                 queryresult4 = dbsession.executions.find_one({"_id": ObjectId(requestdata["executionId"])})
-                accessibility_reports = dbsession.accessibilityreports.find({"executionid": ObjectId(requestdata["executionId"])})
-                final_report['accessibilityReports'] = list(accessibility_reports)
                 parent = queryresult4["parent"]
                 errMsgVal=''
                 if("scenarioIds" in requestdata):
@@ -218,8 +215,7 @@ def LoadServices(app, redissession, dbsession):
                         'moduleName': queryresult5["name"]
                     }
                     finalQuery.append(query)
-                final_report['functionalReports'] = finalQuery
-                res["rows"] = final_report
+                res["rows"] = finalQuery
                 if len(errIds) != 0:
                     res["errMsg"] = errMsg+'Scenario Id(s): '+(','.join(errIds))
             else:
@@ -272,4 +268,20 @@ def LoadServices(app, redissession, dbsession):
             servicesException("getWebocularData_ICE",e)
             res={'rows':'fail'}
         return jsonify(res)
+
+    @app.route('/reports/getAccessibilityReports_API',methods=['POST'])
+    def getAccessibilityReports_API():
+        res={'rows':'fail'}
+        result = {}
+        try:
+            requestdata=json.loads(request.data)
+            reports = dbsession.accessibilityreports.find({"executionid":ObjectId(requestdata["executionid"])})
+            result = list(reports)
+            res['rows'] = result
+            return jsonify(res)
+        except Exception as e:
+            app.logger.debug(e)
+            servicesException("getAccessibilityReports_ICE",e)
+            res={'rows':'fail'}
+        return jsonify(res)    
 # END OF REPORTS
