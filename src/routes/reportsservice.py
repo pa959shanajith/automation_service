@@ -226,8 +226,8 @@ def LoadServices(app, redissession, dbsession):
             servicesException("getReport_API", getreportexc, True)
         return jsonify(res)
 
-    @app.route('/reports/getWebocularData_ICE',methods=['POST'])
-    def getWebocularData_ICE():
+    @app.route('/reports/getAccessibilityTestingData_ICE',methods=['POST'])
+    def getAccessibilityData_ICE():
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
@@ -265,7 +265,7 @@ def LoadServices(app, redissession, dbsession):
             return jsonify(res)
         except Exception as e:
             app.logger.debug(e)
-            servicesException("getWebocularData_ICE",e)
+            servicesException("getAccessibilityTestingData_ICE",e)
             res={'rows':'fail'}
         return jsonify(res)
 
