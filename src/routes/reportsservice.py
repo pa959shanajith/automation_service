@@ -170,6 +170,7 @@ def LoadServices(app, redissession, dbsession):
         errMsg='Invalid '
         errIds=[]
         finalQuery=[]
+        final_report = {}
         correctScenarios=[]
         try:
             requestdata=json.loads(request.data)
@@ -178,6 +179,8 @@ def LoadServices(app, redissession, dbsession):
                 errMsgVal=str(requestdata["executionId"])
                 queryresult1 = dbsession.reports.find({"executionid":ObjectId(requestdata["executionId"])})
                 queryresult4 = dbsession.executions.find_one({"_id": ObjectId(requestdata["executionId"])})
+                accessibility_reports = dbsession.accessibilityreports.find({"executionid": ObjectId(requestdata["executionId"])})
+                final_report['accessibilityReports'] = list(accessibility_reports)
                 parent = queryresult4["parent"]
                 errMsgVal=''
                 if("scenarioIds" in requestdata):
@@ -215,7 +218,8 @@ def LoadServices(app, redissession, dbsession):
                         'moduleName': queryresult5["name"]
                     }
                     finalQuery.append(query)
-                res["rows"] = finalQuery
+                final_report['functionalReports'] = finalQuery
+                res["rows"] = final_report
                 if len(errIds) != 0:
                     res["errMsg"] = errMsg+'Scenario Id(s): '+(','.join(errIds))
             else:
@@ -251,10 +255,10 @@ def LoadServices(app, redissession, dbsession):
                     reports_data['agent'] = report['agent']
                     reports_data['url'] = report['url']
                     reports_data['data'] = {}
-                    reports_data['cycleid'] = report['cycleid']
-                    reports_data['executionid'] = report['executionid']
+                    reports_data['cycleid'] = ObjectId(report['cycleid'])
+                    reports_data['executionid'] = ObjectId(report['executionid'])
                     reports_data['screenname'] = report['screenname']
-                    reports_data['screenid'] = report['screenid']
+                    reports_data['screenid'] = ObjectId(report['screenid'])
                     reports_data['data']['access-rules'] = report['access-rules']
                     reports_data['data']['accessibility'] = report['accessibility']
                     reports_data['title'] = report['title']
