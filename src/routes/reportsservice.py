@@ -4,6 +4,8 @@
 #----------DEFAULT METHODS AND IMPORTS------------DO NOT EDIT-------------------
 from utils import *
 from datetime import datetime
+from pymongo import InsertOne
+
 
 def LoadServices(app, redissession, dbsession):
     setenv(app)
@@ -233,7 +235,7 @@ def LoadServices(app, redissession, dbsession):
             requestdata=json.loads(request.data)
             accessibility_reports = dbsession.accessibilityreports
             if requestdata["query"] == 'screendata':
-                reports_data = dbsession.accessibilityreports.find({"cycleid": requestdata['cycleid']},{"screenid":1,"screenname":1})
+                reports_data = dbsession.accessibilityreports.find({"cycleid": ObjectId(requestdata['cycleid'])},{"screenid":1,"screenname":1})
                 result = {}
                 for screen in reports_data:
                     result[str(screen["screenid"])]= screen["screenname"]
@@ -242,9 +244,10 @@ def LoadServices(app, redissession, dbsession):
                 reports_data = list(dbsession.accessibilityreports.find({"screenname":requestdata['screenname']}))
                 res={'rows':reports_data}
             elif requestdata["query"] == 'insertdata':
-                reports_data = {}
+                data = []
                 reports = requestdata['reports']
                 for report in reports:
+                    reports_data = {}
                     if "_id" in report:
                         del report["_id"]
                     reports_data['level'] = report['level']
@@ -259,8 +262,9 @@ def LoadServices(app, redissession, dbsession):
                     reports_data['data']['accessibility'] = report['accessibility']
                     reports_data['title'] = report['title']
                     reports_data['executedtime'] = datetime.utcnow()
-                    dbsession.accessibilityreports.insert_one(reports_data)
-                    del reports_data
+                    data.append(InsertOne(reports_data))
+                dbsession.accessibilityreports.bulk_write(data)
+                del reports_data
                 res={'rows':'success'}
             return jsonify(res)
         except Exception as e:
