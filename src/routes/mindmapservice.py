@@ -101,6 +101,22 @@ def LoadServices(app, redissession, dbsession):
                         'height': so['height'],
                         'width': so['width']
                     }
+                elif so["apptype"] == "OEBS":
+                    if so['hiddentag']=="No": so['hiddentag']="False"
+                    if so['custname']=="":so['custname']=so['tag']+"_elmnt"
+                    dodata = {
+                        'xpath': so['xpath'],
+                        'id': so['id'],
+                        'text': so['text'].split("  ")[0],
+                        "url":"Oracle Applications - EBSDB",
+                        'tag': so['tag'],
+                        'hiddentag' : so['hiddentag'],
+                        'custname': so['custname'],
+                        'left': so['y_coor'],
+                        'top': so['x_coor'],
+                        'height': so['height'],
+                        'width': so['width']
+                    }
                 custnameToAdd.append(dodata)
             res = adddataobjects(scrid, custnameToAdd)
             return res
