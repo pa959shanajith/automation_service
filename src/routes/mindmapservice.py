@@ -274,7 +274,7 @@ def LoadServices(app, redissession, dbsession):
                 taskids.append(ObjectId(requestdata['moduleid']))
                 taskdetails=list(dbsession.tasks.find({"nodeid":{"$in":taskids}}))
 
-                scenariodetails=list(dbsession.testscenarios.find({"_id":{"$in":scenarioids}},{"_id":1,"name":1,"parent":1}))
+                scenariodetails=list(dbsession.testscenarios.find({"_id":{"$in":scenarioids}},{"_id":1,"name":1,"parent":1,"accessibilitytesting":1}))
                 screendetails=list(dbsession.screens.find({"_id":{"$in":screenids}},{"_id":1,"name":1,"parent":1}))
                 testcasedetails=list(dbsession.testcases.find({"_id":{"$in":testcaseids}},{"_id":1,"name":1,"parent":1}))
                 moduledata={}
@@ -302,7 +302,8 @@ def LoadServices(app, redissession, dbsession):
                     else:
                         scenariodata[ts["_id"]]={
                             'name':ts["name"],
-                            'reuse': True if len(ts["parent"])>1 else False
+                            'reuse': True if len(ts["parent"])>1 else False,
+                            'accessibilityTesting': ts["accessibilitytesting"]
                         }
 
                 for sc in screendetails:
@@ -355,6 +356,7 @@ def LoadServices(app, redissession, dbsession):
                         finalscenariodata["projectID"]=projectid
                         finalscenariodata["_id"]=ts["_id"]
                         finalscenariodata["name"]=scenariodata[ts["_id"]]["name"]
+                        finalscenariodata['accessibilityTesting'] = scenariodata[ts["_id"]]["accessibilityTesting"]
                         finalscenariodata["type"]="scenarios"
                         finalscenariodata["childIndex"]=i
                         finalscenariodata["children"]=[]
@@ -570,6 +572,7 @@ def LoadServices(app, redissession, dbsession):
             "createdbyrole":ObjectId(createdbyrole),
             "createdon":createdon,
             "deleted":False,
+            "accessibilitytesting": "Disable",
             "modifiedby":ObjectId(createdby),
             "modifiedbyrole":ObjectId(createdbyrole),
             "modifiedon":createdon,
