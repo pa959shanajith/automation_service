@@ -126,17 +126,6 @@ def LoadServices(app, redissession, dbsession):
                         dbsession.dataobjects.delete_many({"_id":{"$in":del_obj},"$and":[{"parent":{"$size": 1}},{"parent":screenId}]})
                     dbsession.screens.update({"_id":screenId},{"$set":{"modifiedby":modifiedby,'modifiedbyrole':modifiedbyrole,"modifiedon" : datetime.now()}})
                     res = {"rows":"Success"}
-                # elif data["param"] == "compare_obj":
-                #     data_obj=json.loads(data["scrapedata"])
-                #     screenId = ObjectId(data["screenid"])
-                #     modifiedbyrole= data["modifiedByrole"]
-                #     modifiedby = data["modifiedby"]
-                #     for i in range(len(data_obj["view"])):
-                #         ObjId=data_obj["view"][i]["_id"]
-                #         del data_obj["view"][i]["_id"]
-                #         dbsession.dataobjects.update({"_id" : ObjectId(ObjId)},{"$set":data_obj["view"][i]})
-                #     dbsession.screens.update({"_id":screenId},{"$set":{"modifiedby":modifiedby,'modifiedbyrole':modifiedbyrole,"modifiedon" : datetime.now()}})
-                #     res = {"rows":"Success"}
                 # elif data["param"] == "WS_obj":
                 #     screenId = ObjectId(data["screenId"])
                 #     scrapeinfo = json.loads(data["scrapedata"])
