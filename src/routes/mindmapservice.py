@@ -299,6 +299,7 @@ def LoadServices(app, redissession, dbsession):
                     if ts["_id"] in scenariodata:
                         scenariodata[ts["_id"]]['name']=ts["name"]
                         scenariodata[ts["_id"]]['reuse']=True if len(ts["parent"])>1 else False
+                        scenariodata[ts["_id"]]['accessibilityTesting'] =  ts["accessibilitytesting"]
                     else:
                         scenariodata[ts["_id"]]={
                             'name':ts["name"],
@@ -572,7 +573,7 @@ def LoadServices(app, redissession, dbsession):
             "createdbyrole":ObjectId(createdbyrole),
             "createdon":createdon,
             "deleted":False,
-            "accessibilitytesting": "Disable",
+            "accessibilitytesting": str("Disable"),
             "modifiedby":ObjectId(createdby),
             "modifiedbyrole":ObjectId(createdbyrole),
             "modifiedon":createdon,
