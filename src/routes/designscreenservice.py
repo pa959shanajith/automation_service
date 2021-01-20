@@ -63,23 +63,24 @@ def LoadServices(app, redissession, dbsession):
                     modifiedbyrole= ObjectId(data["roleId"])
                     modifiedby = ObjectId(data["userId"])
                     screenId = ObjectId(data['screenId'])
-                    if(len(data['deletedObj'])>0):
+                    if('deletedObj' in data and len(data['deletedObj'])>0):
                         update_flag = True
                         print(data['deletedObj'])
                         data_push = [ObjectId(i) for i in data['deletedObj']]
                         dbsession.dataobjects.update_many({"_id":{"$in":data_push},"$and":[{"parent.1":{"$exists":True}},{"parent":screenId}]},{"$pull":{"parent":screenId}})
                         dbsession.dataobjects.delete_many({"_id":{"$in":data_push},"$and":[{"parent":{"$size": 1}},{"parent":screenId}]})
-                    if(len(data['modifiedObj'])>0):
+                    if('modifiedObj' in data and len(data['modifiedObj'])>0):
                         update_flag = True
                         print(data['modifiedObj'])
                         data_obj=data["modifiedObj"]
                         for i in data_obj:
-                            data_id=ObjectId(data_obj[i]["_id"])
-                            for j in range(len(data_obj[i]['parent'])):
-                                data_obj[i]['parent'][j] = ObjectId(data_obj[i]['parent'][j])
-                            del data_obj[i]["_id"]
-                            dbsession.dataobjects.update({"_id": data_id},{"$set":data_obj[i]})
-                    if(len(data['addedObj']['view'])>0):
+                            data_id=ObjectId(i["_id"])
+                            if 'parent' in i:
+                                for j in range(len(i['parent'])):
+                                    i['parent'][j] = ObjectId(i['parent'][j])
+                            del i["_id"]
+                            dbsession.dataobjects.update({"_id": data_id},{"$set":i})
+                    if('addedObj' in data and len(data['addedObj']['view'])>0):
                         update_flag = True
                         print(data['addedObj'])
                         data_obj = data['addedObj']['view']
@@ -96,23 +97,23 @@ def LoadServices(app, redissession, dbsession):
                                 dbsession.screens.update({"_id":screenId},{"$set":{"screenshot":screenshot,"scrapedurl":scrapedurl}})
                             else:
                                 dbsession.screens.update({"_id":screenId},{"$set":{"screenshot":screenshot}})
-                        elif 'scrapeinfo' in data_obj:
-                            scrapeinfo=data_obj['scrapeinfo']
+                        elif 'scrapeinfo' in data['addedObj']:
+                            scrapeinfo=data['addedObj']['scrapeinfo']
                             dbsession.screens.update({"_id":screenId},{"$set":{"scrapedurl":scrapeinfo["endPointURL"], 'scrapeinfo':scrapeinfo}})
 
                     if (update_flag):
                         dbsession.screens.update({"_id":screenId},{"$set":{"modifiedby":modifiedby,'modifiedbyrole':modifiedbyrole,"modifiedon" : datetime.now()}})
                         res={"rows":"Success"}
                 elif data["param"] == "mapScrapeData":
-                    toMerge = data["objList"]
+                    objList = data["objList"]
                     del_obj = []
-                    for i in toMerge:
+                    for i in objList:
                         del_obj.append(ObjectId(i[0]))
                     screenId = ObjectId(data["screenId"])
                     modifiedbyrole= data["roleId"]
                     modifiedby = data["userId"]
                     data_push=[]
-                    for i in toMerge:
+                    for i in objList:
                         new_id=ObjectId(i[1])
                         old_id=ObjectId(i[0])
                         new_custname=i[2]
