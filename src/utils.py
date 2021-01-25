@@ -173,7 +173,10 @@ ecodeServices = {
     "deleteICE_pools":"412",
     "getAll_projects":"413",
     "getUnassgined_ICE":"414",
-    "createPool_ICE":"415"
+    "createPool_ICE":"415",
+    "updateScenario":"416",
+    "getAccessibilityReports_API":"417",
+    "getAccessibilityTestingData_ICE":"418",
 
 
 }

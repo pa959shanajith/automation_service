@@ -263,12 +263,11 @@ def LoadServices(app, redissession, dbsession):
                     reports_data['title'] = report['title']
                     reports_data['executedtime'] = datetime.utcnow()
                     data.append(InsertOne(reports_data))
-                dbsession.accessibilityreports.bulk_write(data)
-                del reports_data
+                if len(data) > 0:
+                    dbsession.accessibilityreports.bulk_write(data)
                 res={'rows':'success'}
             return jsonify(res)
         except Exception as e:
-            app.logger.debug(e)
             servicesException("getAccessibilityTestingData_ICE",e)
             res={'rows':'fail'}
         return jsonify(res)
@@ -284,8 +283,7 @@ def LoadServices(app, redissession, dbsession):
             res['rows'] = result
             return jsonify(res)
         except Exception as e:
-            app.logger.debug(e)
-            servicesException("getAccessibilityReports_ICE",e)
+            servicesException("getAccessibilityReports_API",e)
             res={'rows':'fail'}
         return jsonify(res)    
 # END OF REPORTS
