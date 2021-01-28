@@ -98,6 +98,9 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
                         dbsession.users.insert_one(requestdata)
                         res={"rows":"success"}
                 elif (action=="update"):
+                    if(requestdata["auth"]["password"] == ""):
+                        result=dbsession.users.find_one({"_id":ObjectId(requestdata["userid"])})["auth"]["password"]
+                        requestdata["auth"]["password"] = result;
                     update_query = {
                         "firstname":requestdata["firstname"],
                         "lastname":requestdata["lastname"],
