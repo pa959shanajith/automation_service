@@ -113,20 +113,22 @@ def LoadServices(app, redissession, dbsession):
                     prj_map = {}
                     for prj in projects:
                         prj_map[prj["_id"]] = prj["name"]
-                    testscenarios = dbsession.testscenarios.find({"_id": {"$in": testscenarioids}, "deleted":query['delete_flag']}, {"name": 1, "projectid": 1})
+                    testscenarios = dbsession.testscenarios.find({"_id": {"$in": testscenarioids}, "deleted":query['delete_flag']}, {"name": 1, "projectid": 1, "accessibilitytesting":1})
                     tsc_map = {}
                     for tsc in testscenarios:
-                        tsc_map[tsc["_id"]] = [tsc["name"], prj_map[tsc["projectid"]]]
+                        tsc_map[tsc["_id"]] = [tsc["name"], prj_map[tsc["projectid"]], tsc["accessibilitytesting"]]
                     testscenarionames = []
                     projectnames = []
+                    acc_scenario_map = {}
                     for tsc in testscenarioids:
                         if tsc in tsc_map:
+                            acc_scenario_map[str(tsc)] = tsc_map[tsc][2]
                             testscenarionames.append(tsc_map[tsc][0])
                             projectnames.append(tsc_map[tsc][1])
                         else:
                             testscenarionames.append('N/A')
                             projectnames.append('N/A')
-                    res['rows'] = {"testscenarionames": testscenarionames, "projectnames": projectnames}
+                    res['rows'] = {"testscenarionames": testscenarionames, "projectnames": projectnames, "accessibilitytestingmap": acc_scenario_map}
                 app.logger.info("Executed readTestSuite_ICE. Query: " + param)
             else:
                 app.logger.warn('Empty data received. read testsuite.')
@@ -174,6 +176,7 @@ def LoadServices(app, redissession, dbsession):
                         for i in tsc['testcaseids']:
                             for j in range(0,len(testcases)):
                                 if i==testcases[j]['_id']:
+                                    testcases[j]['screenname'] = dbsession.screens.find({"_id":ObjectId(testcases[j]['screenid'])})[0]['name']
                                     testcase.append(testcases[j])
                         res["rows"] = testcase
                     if 'userid' in requestdata:    # Update the Counter

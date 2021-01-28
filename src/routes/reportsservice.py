@@ -3,6 +3,9 @@
 ################################################################################
 #----------DEFAULT METHODS AND IMPORTS------------DO NOT EDIT-------------------
 from utils import *
+from datetime import datetime
+from pymongo import InsertOne
+
 
 def LoadServices(app, redissession, dbsession):
     setenv(app)
@@ -225,4 +228,62 @@ def LoadServices(app, redissession, dbsession):
             servicesException("getReport_API", getreportexc, True)
         return jsonify(res)
 
+    @app.route('/reports/getAccessibilityTestingData_ICE',methods=['POST'])
+    def getAccessibilityData_ICE():
+        res={'rows':'fail'}
+        try:
+            requestdata=json.loads(request.data)
+            accessibility_reports = dbsession.accessibilityreports
+            if requestdata["query"] == 'screendata':
+                reports_data = dbsession.accessibilityreports.find({"cycleid": ObjectId(requestdata['cycleid'])},{"screenid":1,"screenname":1})
+                result = {}
+                for screen in reports_data:
+                    result[str(screen["screenid"])]= screen["screenname"]
+                res={'rows':result}
+            elif requestdata["query"] == 'reportdata':
+                reports_data = list(dbsession.accessibilityreports.find({"screenname":requestdata['screenname']}))
+                res={'rows':reports_data}
+            elif requestdata["query"] == 'insertdata':
+                data = []
+                reports = requestdata['reports']
+                for report in reports:
+                    reports_data = {}
+                    if "_id" in report:
+                        del report["_id"]
+                    reports_data['level'] = report['level']
+                    reports_data['agent'] = report['agent']
+                    reports_data['url'] = report['url']
+                    reports_data['data'] = {}
+                    reports_data['cycleid'] = ObjectId(report['cycleid'])
+                    reports_data['executionid'] = ObjectId(report['executionid'])
+                    reports_data['screenname'] = report['screenname']
+                    reports_data['screenid'] = ObjectId(report['screenid'])
+                    reports_data['data']['access-rules'] = report['access-rules']
+                    reports_data['data']['accessibility'] = report['accessibility']
+                    reports_data['title'] = report['title']
+                    reports_data['executedtime'] = datetime.utcnow()
+                    data.append(InsertOne(reports_data))
+                if len(data) > 0:
+                    dbsession.accessibilityreports.bulk_write(data)
+                res={'rows':'success'}
+            return jsonify(res)
+        except Exception as e:
+            servicesException("getAccessibilityTestingData_ICE",e)
+            res={'rows':'fail'}
+        return jsonify(res)
+
+    @app.route('/reports/getAccessibilityReports_API',methods=['POST'])
+    def getAccessibilityReports_API():
+        res={'rows':'fail'}
+        result = {}
+        try:
+            requestdata=json.loads(request.data)
+            reports = dbsession.accessibilityreports.find({"executionid":ObjectId(requestdata["executionid"])})
+            result = list(reports)
+            res['rows'] = result
+            return jsonify(res)
+        except Exception as e:
+            servicesException("getAccessibilityReports_API",e)
+            res={'rows':'fail'}
+        return jsonify(res)    
 # END OF REPORTS
