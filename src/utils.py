@@ -177,9 +177,11 @@ ecodeServices = {
     "updateScenario":"416",
     "getAccessibilityReports_API":"417",
     "getAccessibilityTestingData_ICE":"418",
-
-
 }
+
+
+EXEMPTED_SERVICES = ["checkUser", "validateUserState", "loadUserInfo", "logoutUser",
+  "ExecuteTestSuite_ICE_SVN", "getReport_API", "ICE_provisioning_register"]
 
 
 def setenv(flaskapp=None, licactive=None):
@@ -201,12 +203,10 @@ def isemptyrequest(requestdata):
     flag = False
     if (onlineuser == True):
         for key in requestdata:
-            value = requestdata[key]
-            if (key != 'additionalroles'
-                and key != 'getparampaths' and key != 'testcasesteps'):
-                if value == 'undefined' or value == '' or value == 'null' or value == None:
-                    app.logger.warn(str(key)+" is empty")
-                    flag = True
+            if (key not in ['additionalroles', 'getparampaths', 'testcasesteps'] and
+              requestdata[key] in ['undefined', '', 'null', None]):
+                app.logger.warn(str(key)+" is empty")
+                flag = True
     else:
         flag = 0
         app.logger.critical(printErrorCodes('203'))

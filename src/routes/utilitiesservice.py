@@ -67,32 +67,30 @@ def LoadServices(app, redissession, dbsession):
     #directly updates user access
     @app.route('/utility/userAccess',methods=['POST'])
     def userAccess():
-        app.logger.debug("Inside userAccess")
+        app.logger.debug('Inside userAccess')
         res={'rows':'fail'}
         try:
-            requestdata=json.loads(request.data)
+            requestdata = json.loads(request.data)
             emptyRequestCheck = isemptyrequest(requestdata)
             if type(emptyRequestCheck) != bool:
-                res={'rows':'off'}
-            elif (not emptyRequestCheck) and (requestdata['roleid']=="ignore"):
-                res={'rows':'True'}
+                res['rows'] = 'off'
             elif not emptyRequestCheck:
-                result=dbsession.permissions.find_one({"_id":ObjectId(requestdata["roleid"])},{"servicelist":1,"_id":1})
-                servicename=requestdata['servicename']
-                statusflag = False
-                for each in result['servicelist']:
-                    if servicename == str(each):
-                        statusflag = True
-                        break
-                if statusflag:
-                    res={'rows':'True'}
+                servicename = requestdata.get('servicename', '')
+                roleid = requestdata.get('roleid', '')
+                if servicename in EXEMPTED_SERVICES:
+                    res['rows'] = True
+                elif roleid != 'blank':
+                    filter_query = {'_id': ObjectId(roleid), 'servicelist': servicename}
+                    result = dbsession.permissions.find_one(filter_query, {"_id":1})
+                    res['rows'] = result != None
                 else:
-                    res={'rows':'False'}
+                    res['rows'] = True
             else:
                 app.logger.warn('Empty data received. user Access Permission.')
         except Exception as useraccessexc:
-            servicesException("userAccess", useraccessexc, True)
+            servicesException('userAccess', useraccessexc, True)
         return jsonify(res)
+
 ################################################################################
 # END OF UTILITIES
 ################################################################################
