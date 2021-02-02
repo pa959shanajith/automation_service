@@ -95,6 +95,12 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
                         requestdata["deactivated"]="false"
                         requestdata["addroles"]=[]
                         requestdata["projects"]=[]
+                        requestdata["passwordhistory"]=[]
+                        requestdata["invalidCredCount"]=0
+                        requestdata["defaultpasstime"]=""
+                        requestdata["defaultpassword"]=""
+                        requestdata["verificationpasstime"]=""
+                        requestdata["verificationpassword"]=""
                         dbsession.users.insert_one(requestdata)
                         res={"rows":"success"}
                 elif (action=="update"):
@@ -106,8 +112,15 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
                         "auth":requestdata["auth"],
                         "modifiedby":ObjectId(requestdata["createdby"]),
                         "modifiedbyrole":ObjectId(requestdata["createdbyrole"]),
-                        "modifiedon":datetime.now()
+                        "modifiedon":datetime.now(),
                     }
+                    if "oldPassword" in requestdata:
+                        result=dbsession.users.find_one({"_id":ObjectId(requestdata["userid"])})
+                        if len(result["passwordhistory"]) == 4:
+                            result["passwordhistory"].pop(0)
+                        result["passwordhistory"].append(result["auth"]["password"])
+                        update_query["passwordhistory"]=result["passwordhistory"]
+                        update_query["invalidCredCount"]=0
                     dbsession.users.update_one({"_id":ObjectId(requestdata["userid"])},{"$set":update_query})
                     res={"rows":"success"}
                 elif (action=="resetpassword"):
@@ -117,7 +130,31 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
                         "modifiedbyrole":ObjectId(requestdata["modifiedbyrole"]),
                         "modifiedon":datetime.now()
                     }
+                    if "oldPassword" in requestdata:
+                        result=dbsession.users.find_one({"_id":ObjectId(requestdata["userid"])})
+                        if len(result["passwordhistory"]) == 4:
+                            result["passwordhistory"].pop(0)
+                        result["passwordhistory"].append(result["auth"]["password"])
+                        update_query["passwordhistory"]=result["passwordhistory"]
+                        update_query["invalidCredCount"]=0
                     dbsession.users.update_one({"_id":ObjectId(requestdata["userid"])},{"$set":update_query})
+                    res={"rows":"success"}
+                elif (action=="changepassword"):
+                    update_query = {
+                        "auth.password":requestdata["password"],
+                        "modifiedon":datetime.now()
+                    }
+                    result=dbsession.users.find_one({"name":requestdata["name"]})
+                    update_query["modifiedby"]=result["_id"]
+                    update_query["modifiedbyrole"]=result["defaultrole"]
+                    update_query["defaultpassword"]=""
+                    if len(result["passwordhistory"]) == 4:
+                        result["passwordhistory"].pop(0)
+                    result["passwordhistory"].append(result["auth"]["password"])
+                    update_query["passwordhistory"]=result["passwordhistory"]
+                    update_query["invalidCredCount"]=0
+                    update_query['defaultpassword'] = ""
+                    dbsession.users.update_one({"_id":result["_id"]},{"$set":update_query})
                     res={"rows":"success"}
             else:
                 app.logger.warn('Empty data received. manage users.')
@@ -151,6 +188,38 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
                 app.logger.warn('Empty data received. users fetch.')
         except Exception as e:
             servicesException("getUserDetails", e, True)
+        return jsonify(res)
+        
+    @app.route('/admin/fetchLockedUsers',methods=['POST'])
+    def fetchLockedUsers():
+        app.logger.info("Inside fetchLockedUsers")
+        res={'rows':'fail'}
+        try:
+            requestdata=json.loads(request.data)
+            if not isemptyrequest(requestdata):
+                result = list(dbsession.users.find({'invalidCredCount': 5}))
+                res={'rows':result}
+            else:
+                app.logger.warn('Empty data received. users fetch.')
+        except Exception as e:
+            servicesException("fetchLockedUsers", e, True)
+        return jsonify(res)
+        
+    @app.route('/admin/unlockUser',methods=['POST'])
+    def unlockUser():
+        app.logger.info("Inside unlockUser")
+        res={'rows':'fail'}
+        try:
+            requestdata=json.loads(request.data)
+            if not isemptyrequest(requestdata):
+                result = dbsession.users.find_one({'name': requestdata['username']},{"invalidCredCount": 1})
+                result["invalidCredCount"] = 0
+                dbsession.users.update_one({'name':requestdata['username']},{"$set":result})
+                res={'rows': 'success'}
+            else:
+                app.logger.warn('Empty data received. user unlock.')
+        except Exception as e:
+            servicesException("unlockUser", e, True)
         return jsonify(res)
 
     @app.route('/admin/getUserRoles',methods=['POST'])
@@ -1119,6 +1188,24 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
             app.logger.debug(traceback.format_exc())
             servicesException("configure_pool",e)
         return jsonify(res) 
+        
+    #fetch Password History
+    @app.route('/admin/checkPasswordHistory',methods=['POST'])
+    def checkPasswordHistory():
+        app.logger.debug("Inside checkPasswordHistory.")
+        res={'rows':'fail'}
+        try:
+            requestdata=json.loads(request.data)
+            if not isemptyrequest(requestdata):
+                user_data = None
+                if requestdata["username"] != "ci_cd":
+                    user_data = dbsession.users.find_one({"name":requestdata["username"]})
+                res={'rows': user_data}
+            else:
+                app.logger.warn('Empty data received')
+        except Exception as loaduser_exc:
+            servicesException('checkPasswordHistory', loaduser_exc, True)
+        return jsonify(res)
 
     def check_array_exists(data_arr):
         if data_arr is not None and len(data_arr) > 0:
