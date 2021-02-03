@@ -233,6 +233,8 @@ def LoadServices(app, redissession, dbsession):
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
+            param = str(requestdata["query"])
+            app.logger.debug("Inside getAccessibilityTestingData_ICE. Query: " + param)
             accessibility_reports = dbsession.accessibilityreports
             if requestdata["query"] == 'screendata':
                 reports_data = dbsession.accessibilityreports.find({"cycleid": ObjectId(requestdata['cycleid'])},{"screenid":1,"screenname":1})
