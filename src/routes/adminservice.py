@@ -95,12 +95,12 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
                         requestdata["deactivated"]="false"
                         requestdata["addroles"]=[]
                         requestdata["projects"]=[]
-                        requestdata["passwordhistory"]=[]
+                        requestdata["auth.passwordhistory"]=[]
                         requestdata["invalidCredCount"]=0
-                        requestdata["defaultpasstime"]=""
-                        requestdata["defaultpassword"]=""
-                        requestdata["verificationpasstime"]=""
-                        requestdata["verificationpassword"]=""
+                        requestdata["auth.defaultpasstime"]=""
+                        requestdata["auth.defaultpassword"]=""
+                        requestdata["auth.verificationpasstime"]=""
+                        requestdata["auth.verificationpassword"]=""
                         dbsession.users.insert_one(requestdata)
                         res={"rows":"success"}
                 elif (action=="update"):
@@ -109,17 +109,18 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
                         "lastname":requestdata["lastname"],
                         "email":requestdata["email"],
                         "addroles":[ObjectId(i) for i in requestdata["additionalroles"]],
-                        "auth":requestdata["auth"],
+                        "auth.type":requestdata["auth"]["type"],
+                        "auth.password":requestdata["auth"]["password"],
                         "modifiedby":ObjectId(requestdata["createdby"]),
                         "modifiedbyrole":ObjectId(requestdata["createdbyrole"]),
                         "modifiedon":datetime.now(),
                     }
                     if "oldPassword" in requestdata:
                         result=dbsession.users.find_one({"_id":ObjectId(requestdata["userid"])})
-                        if len(result["passwordhistory"]) == 4:
-                            result["passwordhistory"].pop(0)
-                        result["passwordhistory"].append(result["auth"]["password"])
-                        update_query["passwordhistory"]=result["passwordhistory"]
+                        if len(result["auth"]["passwordhistory"]) == 4:
+                            result["auth"]["passwordhistory"].pop(0)
+                        result["auth"]["passwordhistory"].append(result["auth"]["password"])
+                        update_query["auth"]["passwordhistory"]=result["auth"]["passwordhistory"]
                         update_query["invalidCredCount"]=0
                     dbsession.users.update_one({"_id":ObjectId(requestdata["userid"])},{"$set":update_query})
                     res={"rows":"success"}
@@ -132,10 +133,10 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
                     }
                     if "oldPassword" in requestdata:
                         result=dbsession.users.find_one({"_id":ObjectId(requestdata["userid"])})
-                        if len(result["passwordhistory"]) == 4:
-                            result["passwordhistory"].pop(0)
-                        result["passwordhistory"].append(result["auth"]["password"])
-                        update_query["passwordhistory"]=result["passwordhistory"]
+                        if len(result["auth"]["passwordhistory"]) == 4:
+                            result["auth"]["passwordhistory"].pop(0)
+                        result["auth"]["passwordhistory"].append(result["auth"]["password"])
+                        update_query["auth"]["passwordhistory"]=result["auth"]["passwordhistory"]
                         update_query["invalidCredCount"]=0
                     dbsession.users.update_one({"_id":ObjectId(requestdata["userid"])},{"$set":update_query})
                     res={"rows":"success"}
@@ -147,13 +148,13 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
                     result=dbsession.users.find_one({"name":requestdata["name"]})
                     update_query["modifiedby"]=result["_id"]
                     update_query["modifiedbyrole"]=result["defaultrole"]
-                    update_query["defaultpassword"]=""
-                    if len(result["passwordhistory"]) == 4:
-                        result["passwordhistory"].pop(0)
-                    result["passwordhistory"].append(result["auth"]["password"])
-                    update_query["passwordhistory"]=result["passwordhistory"]
+                    update_query["auth.defaultpassword"]=""
+                    if len(result["auth"]["passwordhistory"]) == 4:
+                        result["auth"]["passwordhistory"].pop(0)
+                    result["auth"]["passwordhistory"].append(result["auth"]["password"])
+                    update_query["auth.passwordhistory"]=result["auth"]["passwordhistory"]
                     update_query["invalidCredCount"]=0
-                    update_query['defaultpassword'] = ""
+                    update_query["auth.defaultpassword"] = ""
                     dbsession.users.update_one({"_id":result["_id"]},{"$set":update_query})
                     res={"rows":"success"}
             else:
