@@ -22,8 +22,6 @@ DEREGISTER_STATUS="deregistered"
 
 onlineuser = False
 dasport = "1990"
-debugcounter = 0
-scenarioscounter = 0
 
 ui_plugins = {"alm":"Integration","apg":"APG","dashboard":"Dashboard",
     "mindmap":"Mindmap","neurongraphs":"Neuron Graphs","performancetesting":"Performance Testing",
@@ -177,9 +175,11 @@ ecodeServices = {
     "updateScenario":"416",
     "getAccessibilityReports_API":"417",
     "getAccessibilityTestingData_ICE":"418",
-
-
 }
+
+
+EXEMPTED_SERVICES = ["checkUser", "validateUserState", "loadUserInfo", "logoutUser",
+  "ExecuteTestSuite_ICE_SVN", "getReport_API", "ICE_provisioning_register"]
 
 
 def setenv(flaskapp=None, licactive=None):
@@ -201,22 +201,36 @@ def isemptyrequest(requestdata):
     flag = False
     if (onlineuser == True):
         for key in requestdata:
-            value = requestdata[key]
-            if (key != 'additionalroles'
-                and key != 'getparampaths' and key != 'testcasesteps'):
-                if value == 'undefined' or value == '' or value == 'null' or value == None:
-                    app.logger.warn(str(key)+" is empty")
-                    flag = True
+            if (key not in ['additionalroles', 'getparampaths', 'testcasesteps'] and
+              requestdata[key] in ['undefined', '', 'null', None]):
+                app.logger.warn(str(key)+" is empty")
+                flag = True
     else:
         flag = 0
         app.logger.critical(printErrorCodes('203'))
     return flag
 
+def getupdatetime():
+    x = datetime.utcnow() + timedelta(seconds = 19800)
+    day = None
+    datetime_at_twelve = datetime.strptime(str(x.year)+'-'+str(x.month)+'-'+str(x.day)+' 00:00:00', '%Y-%m-%d %H:%M:%S')
+    datetime_at_nine = datetime.strptime(str(x.year)+'-'+str(x.month)+'-'+str(x.day)+' 9:00:00', '%Y-%m-%d %H:%M:%S')
+    datetime_at_six_thirty = datetime.strptime(str(x.year)+'-'+str(x.month)+'-'+str(x.day)+' 18:30:00', '%Y-%m-%d %H:%M:%S')
+    datetime_at_next_nine = datetime.strptime(str((x + timedelta(days=1)).year)+'-'+str((x + timedelta(days=1)).month)+'-'+str((x + timedelta(days=1)).day)+' 9:00:00', '%Y-%m-%d %H:%M:%S')
+    if(x >= datetime_at_nine and x < datetime_at_six_thirty):
+        #For update at 6:30 PM
+        day = datetime_at_six_thirty
+    elif((x >= datetime_at_six_thirty and x < datetime_at_next_nine) or (x >=datetime_at_twelve and x < datetime_at_nine)):
+        #For update at 9:00 AM
+        day = datetime_at_next_nine
+    return day
+
 def counterupdator(dbsession,updatortype,userid,count):
     status=False
     try:
-        dbsession.counters.find_one_and_update({"countertype":updatortype, "userid":userid},{"$set":{"counter":count},"$currentDate":{"counterdate":True}})
-        status = True
+        filter_query = {"counterdate":getupdatetime(), "countertype":updatortype, "userid":userid} 
+        result = dbsession.counters.update_one(filter_query, {"$inc":{"counter":count}}, upsert= True)
+        status = result.modified_count != 0 or result.upserted_id is not None
     except Exception as counterupdatorexc:
         servicesException("counterupdator",counterupdatorexc)
     return status

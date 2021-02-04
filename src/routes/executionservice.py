@@ -116,7 +116,7 @@ def LoadServices(app, redissession, dbsession):
                     testscenarios = dbsession.testscenarios.find({"_id": {"$in": testscenarioids}, "deleted":query['delete_flag']}, {"name": 1, "projectid": 1, "accessibilitytesting":1})
                     tsc_map = {}
                     for tsc in testscenarios:
-                        tsc_map[tsc["_id"]] = [tsc["name"], prj_map[tsc["projectid"]], tsc["accessibilitytesting"]]
+                        tsc_map[tsc["_id"]] = [tsc["name"], prj_map[tsc["projectid"]], tsc.get("accessibilitytesting", "Disable")]
                     testscenarionames = []
                     projectnames = []
                     acc_scenario_map = {}
@@ -173,17 +173,18 @@ def LoadServices(app, redissession, dbsession):
                     if tsc is not None:
                         testcase=[]
                         testcases = list(dbsession.testcases.find({"_id": {"$in": tsc["testcaseids"]},"deleted":query['delete_flag']},{"name":1,"versionnumber":1,"screenid":1}))
+                        scids = {}
                         for i in tsc['testcaseids']:
-                            for j in range(0,len(testcases)):
-                                if i==testcases[j]['_id']:
-                                    testcases[j]['screenname'] = dbsession.screens.find({"_id":ObjectId(testcases[j]['screenid'])})[0]['name']
-                                    testcase.append(testcases[j])
+                            for tc in testcases:
+                                if i==tc['_id']:
+                                    scid = tc["screenid"]
+                                    if scid not in scids:
+                                        scids[scid] = dbsession.screens.find_one({"_id":scid})['name']
+                                    tc["screenname"] = scids[scid]
+                                    testcase.append(tc)
                         res["rows"] = testcase
                     if 'userid' in requestdata:    # Update the Counter
-                        userid = ObjectId(requestdata['userid'])
-                        global scenarioscounter
-                        scenarioscounter = scenarioscounter + 1
-                        counterupdator(dbsession, 'testscenarios', userid, scenarioscounter)
+                        counterupdator(dbsession, 'testscenarios', ObjectId(requestdata['userid']), 1)
 
                 elif param == 'insertintoexecution':
                     starttime = datetime.now()
