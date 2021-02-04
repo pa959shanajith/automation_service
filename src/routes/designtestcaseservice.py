@@ -318,11 +318,8 @@ def LoadServices(app, redissession, dbsession):
                     if 'screenName' in requestdata and requestdata['screenName']=='fetch':
                         screen = dbsession.screens.find_one({'_id':queryresult[0]['screenid']},{'name':1})
                         res['screenName'] = screen['name']
-                    if ('readonly' not in requestdata):
-                        userid = ObjectId(requestdata['userid']) if 'userid' in requestdata else ""
-                        global debugcounter
-                        debugcounter = debugcounter+1
-                        counterupdator(dbsession,'testcases',userid,debugcounter)
+                    if 'readonly' not in requestdata and 'userid' in requestdata:
+                        counterupdator(dbsession,'testcases',ObjectId(requestdata['userid']),1)
             else:
                 app.logger.warn('Empty data received. reading Testcase')
         except Exception as readtestcaseexc:

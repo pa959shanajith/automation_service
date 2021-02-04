@@ -8,6 +8,7 @@
 #-------------------------------------------------------------------------------
 import sys
 import os
+import re
 import json
 import requests
 import subprocess
@@ -55,6 +56,7 @@ ldap_key = "".join(['l','!','g','#','t','W','3','l','g','G','h','1','3','@','(',
     'c','E','s','$','T','p','R','0','T','c','O','I','-','k','3','y','S'])
 activeicesessions={}
 latest_access_time=datetime.now()
+ip_regex = r"^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$"
 
 currexc = sys.executable
 try: currfiledir = os.path.dirname(os.path.abspath(__file__))
@@ -89,12 +91,6 @@ lsRetryCount=0
 sysMAC=None
 chronographTimer=None
 dbsession=redissession=None
-
-#counters for License
-debugcounter = 0
-scenarioscounter = 0
-gtestsuiteid = []
-suitescounter = 0
 
 #Variables for ProfJ
 questions=[] # to store the questions
@@ -357,14 +353,6 @@ def updateActiveIceSessions():
 ################################################################################
 # BEGIN OF COUNTERS
 ################################################################################
-def counterupdator(updatortype,userid,count):
-    status=False
-    try:
-        dbsession.counters.find_one_and_update({"countertype":updatortype, "userid":ObjectId(userid)},{"$set":{"counter":count},"$currentDate":{"counterdate":True}})
-        status = True
-    except Exception as counterupdatorexc:
-        servicesException("counterupdator",counterupdatorexc)
-    return status
 
 def getreports_in_day(bgnts,endts):
     res = {"rows":"fail"}
@@ -635,21 +623,6 @@ def updateonls():
         app.logger.debug(e)
         app.logger.error(printErrorCodes('202'))
 
-def getupdatetime():
-    x = datetime.utcnow() + timedelta(seconds = 19800)
-    day = None
-    datetime_at_twelve = datetime.strptime(str(x.year)+'-'+str(x.month)+'-'+str(x.day)+' 00:00:00', '%Y-%m-%d %H:%M:%S')
-    datetime_at_nine = datetime.strptime(str(x.year)+'-'+str(x.month)+'-'+str(x.day)+' 9:00:00', '%Y-%m-%d %H:%M:%S')
-    datetime_at_six_thirty = datetime.strptime(str(x.year)+'-'+str(x.month)+'-'+str(x.day)+' 18:30:00', '%Y-%m-%d %H:%M:%S')
-    datetime_at_next_nine = datetime.strptime(str((x + timedelta(days=1)).year)+'-'+str((x + timedelta(days=1)).month)+'-'+str((x + timedelta(days=1)).day)+' 9:00:00', '%Y-%m-%d %H:%M:%S')
-    if(x >= datetime_at_nine and x < datetime_at_six_thirty):
-        #For update at 6:30 PM
-        day = datetime_at_six_thirty
-    elif((x >= datetime_at_six_thirty and x < datetime_at_next_nine) or (x >=datetime_at_twelve and x < datetime_at_nine)):
-        #For update at 9:00 AM
-        day = datetime_at_next_nine
-    return day
-
 def connectingls(data):
     global lsRetryCount,twoDayTimer,grace_period
     lsRetryCount+=1
@@ -803,12 +776,12 @@ def checkSetup():
         app.logger.error(printErrorCodes(errCode))
     return endas
 
-def beginserver():
+def beginserver(host = '127.0.0.1'):
     global profj_sqlitedb
     if redis_dbup and mongo_dbup:
         profj_sqlitedb = SQLite_DataSetup()
         updateWeightages() # ProfJ component
-        serve(app,host='127.0.0.1',port=int(dasport))
+        serve(app,host=host,port=int(dasport))
     else:
         app.logger.critical(printErrorCodes('207'))
 
@@ -1116,6 +1089,7 @@ def main():
     global lsip,lsport,dasport,mongo_dbup,redis_dbup,chronographTimer
     global redissession,dbsession
     cleandas = checkSetup()
+    kwargs = {}
     if not cleandas:
         app.logger.critical(printErrorCodes('214'))
         return False
@@ -1125,8 +1099,14 @@ def main():
         das_conf = json.load(das_conf_obj)
         das_conf_obj.close()
         lsip = das_conf['licenseserverip']
+        if not re.match(ip_regex, lsip):
+            app.logger.warning("License server IP provided in configuration file is not an IP address. Treating the value provided as DNS name")
         if 'licenseserverport' in das_conf:
             lsport = das_conf['licenseserverport']
+        if 'dasserverip' in das_conf:
+            host = das_conf['dasserverip']
+            if not re.match(ip_regex, host):
+                kwargs['host'] = host
         if 'dasserverport' in das_conf:
             dasport = das_conf['dasserverport']
             ERR_CODE["225"] = "Port "+dasport+" already in use"
@@ -1185,7 +1165,7 @@ def main():
             pass
         if err_msg is None:
             chronograph()
-            beginserver()
+            beginserver(**kwargs)
     else:
         app.logger.critical(printErrorCodes('218'))
 

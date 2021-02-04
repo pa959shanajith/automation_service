@@ -36,11 +36,19 @@ def LoadServices(app, redissession, dbsession):
     def adddataobjects(pid, d):
         if len(d) == 0: return False
         req = []
-        for row in d:
-            if type(row) == str and len(row) == 0: continue
-            if "custname" not in row: row["custname"] = "object"+str(row["_id"])
-            row["parent"] = [pid]
-            req.append(InsertOne(row))
+        temp_set=set()
+        n_list=[]
+        for i in d:
+            t1=tuple(sorted(i.items()))
+            if t1 not in temp_set:
+                temp_set.add(t1)
+                n_list.append(i)
+        for row in n_list:
+            if(row['tag']!="GuiMenu"):
+                if type(row) == str and len(row) == 0: continue
+                if "custname" not in row: row["custname"] = "object"+str(row["_id"])
+                row["parent"] = [pid]
+                req.append(InsertOne(row))
         dbsession.dataobjects.bulk_write(req)
         queryresult=list(dbsession.dataobjects.find({"parent":pid},{"custname":1,"_id":1,"parent":1}))
         return queryresult
