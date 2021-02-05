@@ -95,12 +95,12 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
                         requestdata["deactivated"]="false"
                         requestdata["addroles"]=[]
                         requestdata["projects"]=[]
-                        requestdata["auth.passwordhistory"]=[]
+                        requestdata["auth"]["passwordhistory"]=[]
                         requestdata["invalidCredCount"]=0
-                        requestdata["auth.defaultpasstime"]=""
-                        requestdata["auth.defaultpassword"]=""
-                        requestdata["auth.verificationpasstime"]=""
-                        requestdata["auth.verificationpassword"]=""
+                        requestdata["auth"]["defaultpasstime"]=""
+                        requestdata["auth"]["defaultpassword"]=""
+                        requestdata["auth"]["verificationpasstime"]=""
+                        requestdata["auth"]["verificationpassword"]=""
                         dbsession.users.insert_one(requestdata)
                         res={"rows":"success"}
                 elif (action=="update"):
@@ -120,7 +120,7 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
                         if len(result["auth"]["passwordhistory"]) == 4:
                             result["auth"]["passwordhistory"].pop(0)
                         result["auth"]["passwordhistory"].append(result["auth"]["password"])
-                        update_query["auth"]["passwordhistory"]=result["auth"]["passwordhistory"]
+                        update_query["auth.passwordhistory"]=result["auth"]["passwordhistory"]
                         update_query["invalidCredCount"]=0
                     dbsession.users.update_one({"_id":ObjectId(requestdata["userid"])},{"$set":update_query})
                     res={"rows":"success"}
