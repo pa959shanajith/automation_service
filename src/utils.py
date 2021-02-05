@@ -175,6 +175,12 @@ ecodeServices = {
     "updateScenario":"416",
     "getAccessibilityReports_API":"417",
     "getAccessibilityTestingData_ICE":"418",
+    "invalidCredCounter": "419",
+    "passtimeout": "420",
+    "forgotPasswordEmail": "421",
+    "unlockAccountEmail": "422",
+    "fetchLockedUsers": "423",
+    "unlockUser": "423",
 }
 
 
