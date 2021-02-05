@@ -43,17 +43,17 @@ def LoadServices(app, redissession, dbsession, licensedata):
             requestdata=json.loads(request.data)
             action = requestdata["action"]
             if not isemptyrequest(requestdata):
-                user_data = None
-                if requestdata["username"] != "ci_cd":
-                    if action == "increment":
-                        dbsession.users.update_one({"name":requestdata["username"]},{"$inc":{"invalidCredCount":1}})
-                    if action == "clear":
-                        up_data = {
-                            'invalidCredCount': 0,
-                            'auth.defaultpassword': "",
-                            'auth.verificationpassword': ""
-                        }
-                        dbsession.users.update_one({"name":requestdata["username"]},{'$set': up_data})
+                if requestdata["username"] == "ci_cd":
+                    return jsonify(res)
+                if action == "increment":
+                    dbsession.users.update_one({"name":requestdata["username"]},{"$inc":{"invalidCredCount":1}})
+                if action == "clear":
+                    up_data = {
+                        'invalidCredCount': 0,
+                        'auth.defaultpassword': "",
+                        'auth.verificationpassword': ""
+                    }
+                    dbsession.users.update_one({"name":requestdata["username"]},{'$set': up_data})
                 res={'rows': 'success'}
             else:
                 app.logger.warn('Empty data received.')
@@ -66,6 +66,7 @@ def LoadServices(app, redissession, dbsession, licensedata):
     def passtimeout():
         app.logger.debug("Inside passtimeout.")
         result='fail'
+        res = {'rows': result}
         try:
             requestdata=json.loads(request.data)
             action = requestdata["action"]
@@ -92,7 +93,7 @@ def LoadServices(app, redissession, dbsession, licensedata):
                     else:
                         result = "timeout"
                     dbsession.users.update_one({'_id':user_data['_id']},{'$set': up_data})
-                res={'rows': result}
+                res['rows'] = result
             else:
                 app.logger.warn('Empty data received.')
         except Exception as excep:
