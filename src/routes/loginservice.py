@@ -237,8 +237,8 @@ def LoadServices(app, redissession, dbsession, licensedata):
                 if "icename" in requestdata:
                     if len(ice_list) == 0: ice_list = None
                     else:
+                        ice_list = ice_list[0]
                         if "userid" not in ice_list: ice_list = None
-                        else: ice_list = ice_list[0]
                 res={'rows':ice_list}
             else:
                 app.logger.warn('Empty data received. get user profile for ice.')
