@@ -1,4 +1,5 @@
 das_internals/logs/*
+das_internals/.tokens
 server_config.json
 *.pyc
 *.pyo

@@ -34,7 +34,46 @@ from Crypto.Cipher import AES
 import codecs
 app = Flask(__name__)
 
-parser = argparse.ArgumentParser()
+currexc = sys.executable
+try: currfiledir = os.path.dirname(os.path.abspath(__file__))
+except: currfiledir = os.path.dirname(currexc)
+currdir = os.getcwd()
+if os.path.basename(currexc).startswith("AvoAssureDAS"):
+    currdir = os.path.dirname(currexc)
+elif os.path.basename(currexc).startswith("python"):
+    currdir = currfiledir
+    needdir = "das_internals"
+    parent_currdir = os.path.abspath(os.path.join(currdir,".."))
+    if os.path.isdir(os.path.abspath(os.path.join(parent_currdir,"..",needdir))):
+        currdir = os.path.dirname(parent_currdir)
+    elif os.path.isdir(parent_currdir + os.sep + needdir):
+        currdir = parent_currdir
+internalspath = currdir + os.sep + "das_internals"
+config_path = currdir + os.sep + "server_config.json"
+assistpath = internalspath + os.sep + "assist"
+logspath = internalspath + os.sep + "logs"
+verpath = internalspath + os.sep + "version.txt"
+credspath = internalspath + os.sep + ".tokens"
+
+das_ver = "3.0"
+if os.path.isfile(verpath):
+    with open(verpath) as vo:
+        das_ver = vo.read().replace("\n", "").replace("\r", "")
+        vo.close()
+
+parser = argparse.ArgumentParser(description="Avo Assure Data Access Server - Help")
+parser.add_argument("-v", "--version", action="version", version="Avo Assure DAS "+das_ver, help="Show Avo Assure DAS version information")
+# dbcred_group = parser.add_argument_group("Arguments to store database credentials")
+# dbcred_group.add_argument("-db", "--database", type=str, choices=["avoassuredb", "cachedb"], help="Database name")
+# dbcred_group.add_argument("--username", type=str, help="Username for database")
+# dbcred_group.add_argument("--password", type=str, help="Password for database")
+subparsers = parser.add_subparsers(title="Arguments to store database credentials", dest="database",
+    help="Available databases. Run `%(prog)s <database> -h` for more database specific options")
+parser_dbmain = subparsers.add_parser('avoassuredb', description="Avo Assure Data Access Server - Primary Database Credential Store - Help")
+parser_dbmain.add_argument("--username", type=str, required=True, metavar="username", help="Username for Avo Assure database")
+parser_dbmain.add_argument("--password", type=str, required=True, metavar="password", help="Password for Avo Assure database")
+parser_dbcache = subparsers.add_parser('cachedb', description="Avo Assure Data Access Server - Cache Database Credential Store - Help")
+parser_dbcache.add_argument("--password", type=str, required=True, metavar="password", help="Password for Cache database")
 log_group = parser.add_mutually_exclusive_group()
 log_group.add_argument("-T", "--test", action="store_true", help="Set logger level to Test Environment")
 log_group.add_argument("-D", "--debug", action="store_true", help="Set logger level to Debug")
@@ -57,24 +96,6 @@ ldap_key = "".join(['l','!','g','#','t','W','3','l','g','G','h','1','3','@','(',
 activeicesessions={}
 latest_access_time=datetime.now()
 ip_regex = r"^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$"
-
-currexc = sys.executable
-try: currfiledir = os.path.dirname(os.path.abspath(__file__))
-except: currfiledir = os.path.dirname(currexc)
-currdir = os.getcwd()
-if os.path.basename(currexc).startswith("AvoAssureDAS"):
-    currdir = os.path.dirname(currexc)
-elif os.path.basename(currexc).startswith("python"):
-    currdir = currfiledir
-    needdir = "das_internals"
-    parent_currdir = os.path.abspath(os.path.join(currdir,".."))
-    if os.path.isdir(os.path.abspath(os.path.join(parent_currdir,"..",needdir))):
-        currdir = os.path.dirname(parent_currdir)
-    elif os.path.isdir(parent_currdir + os.sep + needdir):
-        currdir = parent_currdir
-config_path = currdir+'/server_config.json'
-assistpath = currdir + "/das_internals/assist"
-logspath = currdir + "/das_internals/logs"
 
 lsip = "127.0.0.1"
 lsport = "5000"
@@ -125,6 +146,11 @@ def server_ready():
     msg = 'Data Server Stopped!!!'
     if onlineuser:
         msg = 'Data Server Ready!!!'
+    return msg
+
+@app.route('/version')
+def version_info():
+    msg = 'Avo Assure Data Access Service v'+das_ver
     return msg
 
 
@@ -1089,10 +1115,61 @@ def main():
     global lsip,lsport,dasport,mongo_dbup,redis_dbup,chronographTimer
     global redissession,dbsession
     cleandas = checkSetup()
+    creds = {}
     kwargs = {}
     if not cleandas:
         app.logger.critical(printErrorCodes('214'))
         return False
+
+    # Save default database credentials if not intitalized
+    if not os.path.isfile(credspath):
+        with open(credspath, 'w') as creds_file:
+            creds_file.write("4d402de9a971543fa56214f3ca955efc4938f277bbb1293"+
+                "9108f140928ec4be44c68b05587ee183b92a885febacafc2ac4f70f42ffe"+
+                "f002fa21a2a0efa7d0dbdb54e1bf8e98e4a07aae7ea8b3c92f7f2b2cc620"+
+                "de26a00869fbc83a6202f685fb5756d9bbb987bb884f20e51f4d4966b160"+
+                "c958afbc11e3f1b1a60ba57d17394d4984b5a0b76ddedb17dbf14811126d"+
+                "93d288ebdd863231592eee2107b7d4cd37bbdae25684b5ee4e02e07f9ef7"+
+                "4ff4b")
+
+    # Load database credentials
+    try:
+        with open(credspath) as creds_file:
+            creds = json.loads(unwrap(creds_file.read(),db_keys))
+        _ = creds['cachedb']['password'] + creds['avoassuredb']['username'] + creds['avoassuredb']['password']
+    except Exception as e:
+        app.logger.debug(e)
+        app.logger.critical(printErrorCodes('226'))
+        os.remove(credspath)
+        return False
+
+    # Set database credentials and exit program
+    if parserArgs.database is not None:
+        db = parserArgs.database
+        if db == 'avoassuredb':
+            username = parserArgs.username
+            password = parserArgs.password
+            if username is None or len(username) == 0:
+                parser.error('--username cannot be empty')
+            else:
+                creds[db]['username'] = username
+            if password is None or len(password) == 0:
+                parser.error('--password cannot be empty')
+            else:
+                creds[db]['password'] = password
+        elif db == 'cachedb':
+            password = parserArgs.password
+            if password is None or len(password) == 0:
+                parser.error('--password cannot be empty')
+            else:
+                creds[db]['password'] = password
+        else:
+            parser.error("Database name has to be 'avoassuredb' or 'cachedb'")
+        creds_file = open(credspath, 'w')
+        creds_file.write(wrap(json.dumps(creds), db_keys))
+        creds_file.close()
+        app.logger.info("Credentials stored for "+db+" database")
+        return True
 
     try:
         das_conf_obj = open(config_path, 'r')
@@ -1120,7 +1197,7 @@ def main():
 
     try:
         redisdb_conf = das_conf['cachedb']
-        redisdb_pass = unwrap(redisdb_conf['password'],db_keys)
+        redisdb_pass = creds['cachedb']['password']
         redissession = redis.StrictRedis(host=redisdb_conf['host'], port=int(redisdb_conf['port']), password=redisdb_pass, db=3)
         if redissession.get('icesessions') is None:
             redissession.set('icesessions',wrap('{}',db_keys))
@@ -1133,8 +1210,8 @@ def main():
 
     try:
         mongodb_conf = das_conf['avoassuredb']
-        mongo_user=unwrap(mongodb_conf["username"],db_keys)
-        mongo_pass=unwrap(mongodb_conf['password'],db_keys)
+        mongo_user=creds['avoassuredb']['username']
+        mongo_pass=creds['avoassuredb']['password']
         hosts = [mongodb_conf["host"] + ':' + str(mongodb_conf["port"])]
         if "replicanodes" in mongodb_conf and len(mongodb_conf["replicanodes"]) > 0:
             rnodes = mongodb_conf["replicanodes"]
