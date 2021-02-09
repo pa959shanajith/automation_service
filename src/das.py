@@ -69,10 +69,10 @@ parser.add_argument("-v", "--version", action="version", version="Avo Assure DAS
 # dbcred_group.add_argument("--password", type=str, help="Password for database")
 subparsers = parser.add_subparsers(title="Arguments to store database credentials", dest="database",
     help="Available databases. Run `%(prog)s <database> -h` for more database specific options")
-parser_dbmain = subparsers.add_parser('avoassuredb')
+parser_dbmain = subparsers.add_parser('avoassuredb', description="Avo Assure Data Access Server - Primary Database Credential Store - Help")
 parser_dbmain.add_argument("--username", type=str, required=True, metavar="username", help="Username for Avo Assure database")
 parser_dbmain.add_argument("--password", type=str, required=True, metavar="password", help="Password for Avo Assure database")
-parser_dbcache = subparsers.add_parser('cachedb')
+parser_dbcache = subparsers.add_parser('cachedb', description="Avo Assure Data Access Server - Cache Database Credential Store - Help")
 parser_dbcache.add_argument("--password", type=str, required=True, metavar="password", help="Password for Cache database")
 log_group = parser.add_mutually_exclusive_group()
 log_group.add_argument("-T", "--test", action="store_true", help="Set logger level to Test Environment")
