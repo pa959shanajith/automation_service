@@ -3,13 +3,10 @@
     "avoassuredb": {
         "host": "127.0.0.1",
         "port": "27017",
-        "username": "26baa3f4b8058f1e9c1d826d8d7ef401",
-        "password": "c46b3569ea731f14ef4ddce8c9c077dc",
         "replicanodes": []
     },
     "cachedb": {
         "host": "127.0.0.1",
-        "port": "8001",
-        "password": "7749645701f332a07fd28abeb6c34a2e9229120094e96037f51c08cdad0554ac526749b78858c2627c2fc0f6b7cb93b80b69c2cfcc22f9a72114772d21b0227d66da43d35b8a31dd69342f53b5a9fe83"
+        "port": "8001"
     }
 }

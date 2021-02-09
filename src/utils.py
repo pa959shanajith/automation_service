@@ -54,7 +54,8 @@ ERR_CODE={
     "222":"Unable to contact storage areas: Assist Components",
     "223":"Critical error in storage areas: Assist Components",
     "224":"Another instance of Avo Assure DAS is already running",
-    "225":"Port "+dasport+" already in use"
+    "225":"Port "+dasport+" already in use",
+    "226":"Invalid database credentials. Re-enter database credentials using commands. Please refer help command using -h/--help"
 }
 
 
@@ -262,16 +263,16 @@ def update_execution_times(dbsession,app):
                         else:
                             statuskey = 'overallstatus'
                         if(result[i]['status'] == 'pass' or result[i]['status'] == 'fail'  ):
-                            time = ostatus[0]['EllapsedTime']
-                            if "days" in time:
-                                time = time.replace(" days, ",":").split(':')
-                                time_sec = float((time[0]))*86400 + float((time[1]))*3600 + float((time[2]))*60 + float((time[3]))
-                            elif "day" in time:
-                                time = time.replace(" day, ",":").split(":")
-                                time_sec = float((time[0]))*86400 + float((time[1]))*3600 + float((time[2]))*60 + float((time[3]))
+                            etime = ostatus[0]['EllapsedTime']
+                            if "days" in etime:
+                                etime = etime.replace(" days, ",":").split(':')
+                                time_sec = float((etime[0]))*86400 + float((etime[1]))*3600 + float((etime[2]))*60 + float((etime[3]))
+                            elif "day" in etime:
+                                etime = etime.replace(" day, ",":").split(":")
+                                time_sec = float((etime[0]))*86400 + float((etime[1]))*3600 + float((etime[2]))*60 + float((etime[3]))
                             else:
-                                time = time.split(":")
-                                time_sec = float((time[0]))*3600 + float((time[1]))*60 + float((time[2]))
+                                etime = etime.split(":")
+                                time_sec = float((etime[0]))*3600 + float((etime[1]))*60 + float((etime[2]))
                             if time_sec >= resultdict[key]['max']:
                                 resultdict[key]['max'] = time_sec
                                 resultdict[key]['max_status'] = ostatus[0][statuskey]
@@ -288,16 +289,16 @@ def update_execution_times(dbsession,app):
                         else:
                             statuskey = 'overallstatus'
                         if(result[i]['status'] == 'pass' or result[i]['status'] == 'fail'):
-                            time = ostatus[0]['EllapsedTime']
-                            if "days" in time:
-                                time = time.replace(" days, ",":").split(':')
-                                time_sec = float((time[0]))*86400 + float((time[1]))*3600 + float((time[2]))*60 + float((time[3]))
-                            elif "day" in time:
-                                time = time.replace(" day, ",":").split(':')
-                                time_sec = float((time[0]))*86400 + float((time[1]))*3600 + float((time[2]))*60 + float((time[3]))
+                            etime = ostatus[0]['EllapsedTime']
+                            if "days" in etime:
+                                etime = etime.replace(" days, ",":").split(':')
+                                time_sec = float((etime[0]))*86400 + float((etime[1]))*3600 + float((etime[2]))*60 + float((etime[3]))
+                            elif "day" in etime:
+                                etime = etime.replace(" day, ",":").split(':')
+                                time_sec = float((etime[0]))*86400 + float((etime[1]))*3600 + float((etime[2]))*60 + float((etime[3]))
                             else:
-                                time = time.split(":")
-                                time_sec = float((time[0]))*3600 + float((time[1]))*60 + float((time[2]))
+                                etime = etime.split(":")
+                                time_sec = float((etime[0]))*3600 + float((etime[1]))*60 + float((etime[2]))
                             resultdict[key] = {}
                             resultdict[key]['max_status'] = ostatus[0][statuskey]
                             resultdict[key]['min_status'] = ostatus[0][statuskey]
