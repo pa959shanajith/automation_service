@@ -126,39 +126,39 @@ def LoadServices(app, redissession, dbsession):
                         dbsession.dataobjects.delete_many({"_id":{"$in":del_obj},"$and":[{"parent":{"$size": 1}},{"parent":screenId}]})
                     dbsession.screens.update({"_id":screenId},{"$set":{"modifiedby":modifiedby,'modifiedbyrole':modifiedbyrole,"modifiedon" : datetime.now()}})
                     res = {"rows":"Success"}
-                # elif data["param"] == "WS_obj":
-                #     screenId = ObjectId(data["screenId"])
-                #     scrapeinfo = json.loads(data["scrapedata"])
-                #     modifiedbyrole= data["roleId"]
-                #     modifiedby = data["userId"]
-                #     data_obj=[]
-                #     data_push=[]
-                #     if "view" in scrapeinfo:
-                #         data_obj=scrapeinfo.pop("view")
-                #     dbsession.screens.update({"_id":screenId},{"$set":{"scrapedurl":scrapeinfo["endPointURL"],"modifiedby":modifiedby,'modifiedbyrole':modifiedbyrole, 'scrapeinfo':scrapeinfo,"modifiedon" : datetime.now()}})
-                #     Old_obj = list(dbsession.dataobjects.find({"parent":screenId}))
-                #     for d in data_obj:
-                #         d["parent"]=[screenId]
-                #         data_push.append(d)
-                #     if len(Old_obj)==0 and len(data_push)>0 :
-                #         dbsession.dataobjects.insert(data_push)
-                #     elif len(data_obj)>0:
-                #         for d in data_obj:
-                #             d["parent"] = [screenId]
-                #             existing_object=False
-                #             for o in Old_obj:
-                #                 #If new_object xpath matches with existing xpath retain the same
-                #                 if d["xpath"]==o["xpath"]:
-                #                     Old_obj.remove(o)
-                #                     existing_object=True
-                #                     break
-                #             if not(existing_object):
-                #                 dbsession.dataobjects.insert(d)
-                #         #Delete the old data objects
-                #         if len(Old_obj) > 0:
-                #             remove_data=[o["_id"] for o in Old_obj]
-                #             dbsession.dataobjects.delete_many({"_id":{"$in":remove_data}})
-                #     res={"rows":"Success"}
+                elif data["param"] == "WS_obj":
+                    screenId = ObjectId(data["screenId"])
+                    scrapeinfo = json.loads(data["scrapedata"])
+                    modifiedbyrole= data["roleId"]
+                    modifiedby = data["userId"]
+                    data_obj=[]
+                    data_push=[]
+                    if "view" in scrapeinfo:
+                        data_obj=scrapeinfo.pop("view")
+                    dbsession.screens.update({"_id":screenId},{"$set":{"scrapedurl":scrapeinfo["endPointURL"],"modifiedby":modifiedby,'modifiedbyrole':modifiedbyrole, 'scrapeinfo':scrapeinfo,"modifiedon" : datetime.now()}})
+                    Old_obj = list(dbsession.dataobjects.find({"parent":screenId}))
+                    for d in data_obj:
+                        d["parent"]=[screenId]
+                        data_push.append(d)
+                    if len(Old_obj)==0 and len(data_push)>0 :
+                        dbsession.dataobjects.insert(data_push)
+                    elif len(data_obj)>0:
+                        for d in data_obj:
+                            d["parent"] = [screenId]
+                            existing_object=False
+                            for o in Old_obj:
+                                #If new_object xpath matches with existing xpath retain the same
+                                if d["xpath"]==o["xpath"]:
+                                    Old_obj.remove(o)
+                                    existing_object=True
+                                    break
+                            if not(existing_object):
+                                dbsession.dataobjects.insert(d)
+                        #Delete the old data objects
+                        if len(Old_obj) > 0:
+                            remove_data=[o["_id"] for o in Old_obj]
+                            dbsession.dataobjects.delete_many({"_id":{"$in":remove_data}})
+                    res={"rows":"Success"}
                 elif data["param"] == "importScrapeData":
                     screenId = ObjectId(data["screenId"])
                     data_obj = data["objList"]
