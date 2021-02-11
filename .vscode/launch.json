@@ -11,7 +11,7 @@
             "program": "${workspaceRoot}/src/das.py",
             "args": ["-D"],
             "cwd": "${workspaceRoot}",
-            "pythonPath": "${workspaceRoot}/python.exe",
+            "python": "${workspaceRoot}/python.exe",
             "console": "integratedTerminal",
             "justMyCode": false
         }

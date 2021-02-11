@@ -22,8 +22,6 @@ DEREGISTER_STATUS="deregistered"
 
 onlineuser = False
 dasport = "1990"
-debugcounter = 0
-scenarioscounter = 0
 
 ui_plugins = {"alm":"Integration","apg":"APG","dashboard":"Dashboard",
     "mindmap":"Mindmap","neurongraphs":"Neuron Graphs","performancetesting":"Performance Testing",
@@ -56,7 +54,8 @@ ERR_CODE={
     "222":"Unable to contact storage areas: Assist Components",
     "223":"Critical error in storage areas: Assist Components",
     "224":"Another instance of Avo Assure DAS is already running",
-    "225":"Port "+dasport+" already in use"
+    "225":"Port "+dasport+" already in use",
+    "226":"Invalid database credentials. Re-enter database credentials using commands. Please refer help command using -h/--help"
 }
 
 
@@ -173,10 +172,21 @@ ecodeServices = {
     "deleteICE_pools":"412",
     "getAll_projects":"413",
     "getUnassgined_ICE":"414",
-    "createPool_ICE":"415"
-
-
+    "createPool_ICE":"415",
+    "updateScenario":"416",
+    "getAccessibilityReports_API":"417",
+    "getAccessibilityTestingData_ICE":"418",
+    "invalidCredCounter": "419",
+    "passtimeout": "420",
+    "forgotPasswordEmail": "421",
+    "unlockAccountEmail": "422",
+    "fetchLockedUsers": "423",
+    "unlockUser": "423",
 }
+
+
+EXEMPTED_SERVICES = ["checkUser", "validateUserState", "loadUserInfo", "logoutUser",
+  "ExecuteTestSuite_ICE_SVN", "getReport_API", "ICE_provisioning_register"]
 
 
 def setenv(flaskapp=None, licactive=None):
@@ -198,22 +208,36 @@ def isemptyrequest(requestdata):
     flag = False
     if (onlineuser == True):
         for key in requestdata:
-            value = requestdata[key]
-            if (key != 'additionalroles'
-                and key != 'getparampaths' and key != 'testcasesteps'):
-                if value == 'undefined' or value == '' or value == 'null' or value == None:
-                    app.logger.warn(str(key)+" is empty")
-                    flag = True
+            if (key not in ['additionalroles', 'getparampaths', 'testcasesteps'] and
+              requestdata[key] in ['undefined', '', 'null', None]):
+                app.logger.warn(str(key)+" is empty")
+                flag = True
     else:
         flag = 0
         app.logger.critical(printErrorCodes('203'))
     return flag
 
+def getupdatetime():
+    x = datetime.utcnow() + timedelta(seconds = 19800)
+    day = None
+    datetime_at_twelve = datetime.strptime(str(x.year)+'-'+str(x.month)+'-'+str(x.day)+' 00:00:00', '%Y-%m-%d %H:%M:%S')
+    datetime_at_nine = datetime.strptime(str(x.year)+'-'+str(x.month)+'-'+str(x.day)+' 9:00:00', '%Y-%m-%d %H:%M:%S')
+    datetime_at_six_thirty = datetime.strptime(str(x.year)+'-'+str(x.month)+'-'+str(x.day)+' 18:30:00', '%Y-%m-%d %H:%M:%S')
+    datetime_at_next_nine = datetime.strptime(str((x + timedelta(days=1)).year)+'-'+str((x + timedelta(days=1)).month)+'-'+str((x + timedelta(days=1)).day)+' 9:00:00', '%Y-%m-%d %H:%M:%S')
+    if(x >= datetime_at_nine and x < datetime_at_six_thirty):
+        #For update at 6:30 PM
+        day = datetime_at_six_thirty
+    elif((x >= datetime_at_six_thirty and x < datetime_at_next_nine) or (x >=datetime_at_twelve and x < datetime_at_nine)):
+        #For update at 9:00 AM
+        day = datetime_at_next_nine
+    return day
+
 def counterupdator(dbsession,updatortype,userid,count):
     status=False
     try:
-        dbsession.counters.find_one_and_update({"countertype":updatortype, "userid":userid},{"$set":{"counter":count},"$currentDate":{"counterdate":True}})
-        status = True
+        filter_query = {"counterdate":getupdatetime(), "countertype":updatortype, "userid":userid} 
+        result = dbsession.counters.update_one(filter_query, {"$inc":{"counter":count}}, upsert= True)
+        status = result.modified_count != 0 or result.upserted_id is not None
     except Exception as counterupdatorexc:
         servicesException("counterupdator",counterupdatorexc)
     return status
@@ -239,16 +263,16 @@ def update_execution_times(dbsession,app):
                         else:
                             statuskey = 'overallstatus'
                         if(result[i]['status'] == 'pass' or result[i]['status'] == 'fail'  ):
-                            time = ostatus[0]['EllapsedTime']
-                            if "days" in time:
-                                time = time.replace(" days, ",":").split(':')
-                                time_sec = float((time[0]))*86400 + float((time[1]))*3600 + float((time[2]))*60 + float((time[3]))
-                            elif "day" in time:
-                                time = time.replace(" day, ",":").split(":")
-                                time_sec = float((time[0]))*86400 + float((time[1]))*3600 + float((time[2]))*60 + float((time[3]))
+                            etime = ostatus[0]['EllapsedTime']
+                            if "days" in etime:
+                                etime = etime.replace(" days, ",":").split(':')
+                                time_sec = float((etime[0]))*86400 + float((etime[1]))*3600 + float((etime[2]))*60 + float((etime[3]))
+                            elif "day" in etime:
+                                etime = etime.replace(" day, ",":").split(":")
+                                time_sec = float((etime[0]))*86400 + float((etime[1]))*3600 + float((etime[2]))*60 + float((etime[3]))
                             else:
-                                time = time.split(":")
-                                time_sec = float((time[0]))*3600 + float((time[1]))*60 + float((time[2]))
+                                etime = etime.split(":")
+                                time_sec = float((etime[0]))*3600 + float((etime[1]))*60 + float((etime[2]))
                             if time_sec >= resultdict[key]['max']:
                                 resultdict[key]['max'] = time_sec
                                 resultdict[key]['max_status'] = ostatus[0][statuskey]
@@ -265,16 +289,16 @@ def update_execution_times(dbsession,app):
                         else:
                             statuskey = 'overallstatus'
                         if(result[i]['status'] == 'pass' or result[i]['status'] == 'fail'):
-                            time = ostatus[0]['EllapsedTime']
-                            if "days" in time:
-                                time = time.replace(" days, ",":").split(':')
-                                time_sec = float((time[0]))*86400 + float((time[1]))*3600 + float((time[2]))*60 + float((time[3]))
-                            elif "day" in time:
-                                time = time.replace(" day, ",":").split(':')
-                                time_sec = float((time[0]))*86400 + float((time[1]))*3600 + float((time[2]))*60 + float((time[3]))
+                            etime = ostatus[0]['EllapsedTime']
+                            if "days" in etime:
+                                etime = etime.replace(" days, ",":").split(':')
+                                time_sec = float((etime[0]))*86400 + float((etime[1]))*3600 + float((etime[2]))*60 + float((etime[3]))
+                            elif "day" in etime:
+                                etime = etime.replace(" day, ",":").split(':')
+                                time_sec = float((etime[0]))*86400 + float((etime[1]))*3600 + float((etime[2]))*60 + float((etime[3]))
                             else:
-                                time = time.split(":")
-                                time_sec = float((time[0]))*3600 + float((time[1]))*60 + float((time[2]))
+                                etime = etime.split(":")
+                                time_sec = float((etime[0]))*3600 + float((etime[1]))*60 + float((etime[2]))
                             resultdict[key] = {}
                             resultdict[key]['max_status'] = ostatus[0][statuskey]
                             resultdict[key]['min_status'] = ostatus[0][statuskey]

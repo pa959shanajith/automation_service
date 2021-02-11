@@ -95,6 +95,13 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
                         requestdata["deactivated"]="false"
                         requestdata["addroles"]=[]
                         requestdata["projects"]=[]
+                        if requestdata["auth"]["type"] in ["inhouse", "ldap"]:
+                            requestdata["invalidCredCount"]=0
+                            requestdata["auth"]["passwordhistory"]=[]
+                            requestdata["auth"]["defaultpasstime"]=""
+                            requestdata["auth"]["defaultpassword"]=""
+                            requestdata["auth"]["verificationpasstime"]=""
+                            requestdata["auth"]["verificationpassword"]=""
                         dbsession.users.insert_one(requestdata)
                         res={"rows":"success"}
                 elif (action=="update"):
@@ -106,21 +113,36 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
                         "lastname":requestdata["lastname"],
                         "email":requestdata["email"],
                         "addroles":[ObjectId(i) for i in requestdata["additionalroles"]],
-                        "auth":requestdata["auth"],
                         "modifiedby":ObjectId(requestdata["createdby"]),
                         "modifiedbyrole":ObjectId(requestdata["createdbyrole"]),
-                        "modifiedon":datetime.now()
+                        "modifiedon":datetime.now(),
                     }
+                    result=dbsession.users.find_one({"_id":ObjectId(requestdata["userid"])})
+                    au = result["auth"]
+                    if "oldPassword" in requestdata:
+                        au["passwordhistory"]=(au["passwordhistory"] + [au["password"]])[-4:]
+                        update_query["invalidCredCount"]=0
+                    for key in requestdata["auth"]:
+                        au[key] = requestdata["auth"][key]
+                    update_query["auth"] = au
                     dbsession.users.update_one({"_id":ObjectId(requestdata["userid"])},{"$set":update_query})
                     res={"rows":"success"}
                 elif (action=="resetpassword"):
+                    result=dbsession.users.find_one({"name":requestdata["name"]})
+                    modifiedby = ObjectId(requestdata.get("modifiedby", result["_id"]))
+                    modifiedbyrole = ObjectId(requestdata.get("modifiedbyrole", result["defaultrole"]))
                     update_query = {
-                        "auth.password":requestdata["password"],
-                        "modifiedby":ObjectId(requestdata["modifiedby"]),
-                        "modifiedbyrole":ObjectId(requestdata["modifiedbyrole"]),
-                        "modifiedon":datetime.now()
+                        "modifiedby": modifiedby,
+                        "modifiedbyrole": modifiedbyrole,
+                        "modifiedon": datetime.now()
                     }
-                    dbsession.users.update_one({"_id":ObjectId(requestdata["userid"])},{"$set":update_query})
+                    au = result["auth"]
+                    au["passwordhistory"]=(au["passwordhistory"] + [au["password"]])[-4:]
+                    au["password"] = requestdata["password"]
+                    au["defaultpassword"] = ""
+                    update_query["invalidCredCount"]=0
+                    update_query["auth"] = au
+                    dbsession.users.update_one({"_id":result["_id"]},{"$set":update_query})
                     res={"rows":"success"}
             else:
                 app.logger.warn('Empty data received. manage users.')
@@ -154,6 +176,41 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
                 app.logger.warn('Empty data received. users fetch.')
         except Exception as e:
             servicesException("getUserDetails", e, True)
+        return jsonify(res)
+
+    @app.route('/admin/fetchLockedUsers',methods=['POST'])
+    def fetchLockedUsers():
+        app.logger.info("Inside fetchLockedUsers")
+        res={'rows':'fail'}
+        try:
+            requestdata=json.loads(request.data)
+            if not isemptyrequest(requestdata):
+                result = list(dbsession.users.find({'invalidCredCount': 5}))
+                res={'rows':result}
+            else:
+                app.logger.warn('Empty data received. users fetch.')
+        except Exception as e:
+            servicesException("fetchLockedUsers", e, True)
+        return jsonify(res)
+
+    @app.route('/admin/unlockUser',methods=['POST'])
+    def unlockUser():
+        app.logger.info("Inside unlockUser")
+        res={'rows':'fail'}
+        try:
+            requestdata=json.loads(request.data)
+            if not isemptyrequest(requestdata):
+                up_data = {
+                    "invalidCredCount": 0,
+                    "auth.verificationpassword": "",
+                    "auth.verificationpasstime": ""
+                }
+                dbsession.users.update_one({'name':requestdata['username']},{"$set":up_data})
+                res={'rows': 'success'}
+            else:
+                app.logger.warn('Empty data received. user unlock.')
+        except Exception as e:
+            servicesException("unlockUser", e, True)
         return jsonify(res)
 
     @app.route('/admin/getUserRoles',methods=['POST'])

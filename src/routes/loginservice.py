@@ -34,6 +34,112 @@ def LoadServices(app, redissession, dbsession, licensedata):
             servicesException('loadUser', loaduser_exc, True)
         return jsonify(res)
 
+    #DAS service for incrementing/clearing invalid password count
+    @app.route('/login/invalidCredCounter',methods=['POST'])
+    def invalidCredCounter():
+        app.logger.debug("Inside invalidCredCounter.")
+        res={'rows':'fail'}
+        try:
+            requestdata=json.loads(request.data)
+            action = requestdata["action"]
+            if not isemptyrequest(requestdata):
+                if requestdata["username"] == "ci_cd":
+                    return jsonify(res)
+                if action == "increment":
+                    dbsession.users.update_one({"name":requestdata["username"]},{"$inc":{"invalidCredCount":1}})
+                if action == "clear":
+                    up_data = {
+                        'invalidCredCount': 0,
+                        'auth.defaultpassword': "",
+                        'auth.verificationpassword': ""
+                    }
+                    dbsession.users.update_one({"name":requestdata["username"]},{'$set': up_data})
+                res={'rows': 'success'}
+            else:
+                app.logger.warn('Empty data received.')
+        except Exception as excep:
+            servicesException('invalidCredCounter', excep, True)
+        return jsonify(res)
+
+    #DAS service for checking password timeout
+    @app.route('/login/passtimeout',methods=['POST'])
+    def passtimeout():
+        app.logger.debug("Inside passtimeout.")
+        result='fail'
+        res = {'rows': result}
+        try:
+            requestdata=json.loads(request.data)
+            action = requestdata["action"]
+            if not isemptyrequest(requestdata):
+                if requestdata["username"] == "ci_cd":
+                    return jsonify(res)
+                user_data = dbsession.users.find_one({"name":requestdata["username"]})
+                if action == "forgotPass":
+                    defpasstime = user_data['auth']["defaultpasstime"]
+                    currtime = datetime.now()
+                    diff = (currtime - defpasstime).seconds/60
+                    if diff<15:
+                        result = "success"
+                    else:
+                        result = "timeout"
+                elif action == "unlock":
+                    defpasstime = user_data['auth']["verificationpasstime"]
+                    up_data = { 'auth.verificationpassword': ""}
+                    currtime = datetime.now()
+                    diff = (currtime - defpasstime).seconds/60
+                    if diff<15:
+                        result = "success"
+                        up_data["invalidCredCount"]=0
+                    else:
+                        result = "timeout"
+                    dbsession.users.update_one({'_id':user_data['_id']},{'$set': up_data})
+                res['rows'] = result
+            else:
+                app.logger.warn('Empty data received.')
+        except Exception as excep:
+            servicesException('passtimeout', excep, True)
+        return jsonify(res)
+
+    #add default password for forgot password
+    @app.route('/login/forgotPasswordEmail',methods=['POST'])
+    def forgotPasswordEmail():
+        app.logger.info("Inside forgotPasswordEmail")
+        res={'rows':'fail'}
+        try:
+            requestdata=json.loads(request.data)
+            if not isemptyrequest(requestdata):
+                up_data = {
+                    "auth.defaultpassword": requestdata["defaultpassword"],
+                    "auth.defaultpasstime": datetime.now()
+                }
+                dbsession.users.update_one({"name":requestdata["username"]},{'$set': up_data})
+                res={'rows':'success'}
+            else:
+                app.logger.warn('Empty data received.')
+        except Exception as e:
+            servicesException("forgotPasswordEmail", e, True)
+        return jsonify(res)
+
+    #add default password for forgot password
+    @app.route('/login/unlockAccountEmail',methods=['POST'])
+    def unlockAccountEmail():
+        app.logger.info("Inside unlockAccountEmail")
+        res={'rows':'fail'}
+        try:
+            requestdata=json.loads(request.data)
+            if not isemptyrequest(requestdata):
+                up_data = {
+                    "auth.verificationpassword": requestdata["verificationpassword"],
+                    "auth.verificationpasstime": datetime.now()
+                }
+                dbsession.users.update_one({"name":requestdata["username"]},{'$set': up_data})
+                res={'rows':'success'}
+            else:
+                app.logger.warn('Empty data received.')
+        except Exception as e:
+            servicesException("unlockAccountEmail", e, True)
+        return jsonify(res)
+
     #DAS service for loading permissions info
     @app.route('/login/loadPermission',methods=['POST'])
     def loadPermission():
@@ -130,8 +236,9 @@ def LoadServices(app, redissession, dbsession, licensedata):
                         row["role"] = cicd_user[0]["defaultrole"]
                 if "icename" in requestdata:
                     if len(ice_list) == 0: ice_list = None
-                    else: ice_list = ice_list[0]
-                    if "userid" not in ice_list: ice_list = None
+                    else:
+                        ice_list = ice_list[0]
+                        if "userid" not in ice_list: ice_list = None
                 res={'rows':ice_list}
             else:
                 app.logger.warn('Empty data received. get user profile for ice.')
