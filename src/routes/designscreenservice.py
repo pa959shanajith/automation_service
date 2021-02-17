@@ -58,6 +58,10 @@ def LoadServices(app, redissession, dbsession):
         try:
             data=json.loads(request.data)
             if not isemptyrequest(data):
+                if data['param'] == 'DebugModeScrapeData':
+                    screenId = dbsession.testcases.find_one({'_id':ObjectId(data['testCaseId']), 'versionnumber':data['versionnumber']},{'screenid':1})
+                    data['screenId'] = str(screenId['screenid'])
+                    data['param'] = 'saveScrapeData'
                 if data['param'] == 'saveScrapeData':
                     update_flag = False
                     modifiedbyrole= ObjectId(data["roleId"])
@@ -82,7 +86,6 @@ def LoadServices(app, redissession, dbsession):
                             dbsession.dataobjects.update({"_id": data_id},{"$set":i})
                     if('addedObj' in data and len(data['addedObj']['view'])>0):
                         update_flag = True
-                        print(data['addedObj'])
                         data_obj = data['addedObj']['view']
                         data_push=[]
                         for i in range(len(data_obj)):
