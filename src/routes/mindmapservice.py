@@ -199,7 +199,7 @@ def LoadServices(app, redissession, dbsession):
                             prjDetails['projectId'].append(str(prjDetail[0]['_id']))
                             prjDetails['projectName'].append(prjDetail[0]['name'])
                             prjDetails['appType'].append(str(prjDetail[0]['type']))
-                            prjDetails['appTypeName'].append(dbsession.projecttypekeywords.find_one({"_id":ObjectId(prjDetail[0]['type'])})["name"])
+                            prjDetails['appTypeName'].append(projecttype_names[str(prjDetail[0]['type'])])
                             prjDetails['releases'].append(prjDetail[0]["releases"])
                             prjDetails['domains'].append(prjDetail[0]["domain"])
                             for rel in prjDetail[0]["releases"]:

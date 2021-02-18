@@ -73,7 +73,7 @@ def LoadServices(app, redissession, dbsession):
                         dbsession.screens.update({"_id":screenID},{"$set":{"screenshot":'',"scrapedurl":'',"modifiedby":modifiedby, 'modifiedbyrole':modifiedbyrole,"modifiedon" : datetime.now()}})
                     else:
                         for i in range(len(data_obj)):
-                            if "_id" in data_obj[0]:
+                            if "_id" in data_obj[i]:
                                 data_push.append(ObjectId(data_obj[i]["_id"]))
                         dbsession.dataobjects.update_many({"_id":{"$in":data_push},"$and":[{"parent.1":{"$exists":True}},{"parent":screenID}]},{"$pull":{"parent":screenID}})
                         dbsession.dataobjects.delete_many({"_id":{"$in":data_push},"$and":[{"parent":{"$size": 1}},{"parent":screenID}]})
