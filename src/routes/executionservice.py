@@ -169,7 +169,7 @@ def LoadServices(app, redissession, dbsession):
             app.logger.debug("Inside ExecuteTestSuite_ICE. Query: " + param)
             if not isemptyrequest(requestdata):
                 if param == 'testcasedetails':
-                    tsc = dbsession.testscenarios.find_one({"_id": ObjectId(requestdata['id']),"deleted":query['delete_flag']},{"testcaseids":1})
+                    tsc = dbsession.testscenarios.find_one({"_id": ObjectId(requestdata['id']),"deleted":query['delete_flag']},{"testcaseids":1,'accessibilitytesting':1})
                     if tsc is not None:
                         testcase=[]
                         testcases = list(dbsession.testcases.find({"_id": {"$in": tsc["testcaseids"]},"deleted":query['delete_flag']},{"name":1,"versionnumber":1,"screenid":1}))
@@ -182,7 +182,7 @@ def LoadServices(app, redissession, dbsession):
                                         scids[scid] = dbsession.screens.find_one({"_id":scid})['name']
                                     tc["screenname"] = scids[scid]
                                     testcase.append(tc)
-                        res["rows"] = testcase
+                        res["rows"] = {"testcases": testcase, "accessibilitytestingtype": tsc['accessibilitytesting']}
                     if 'userid' in requestdata:    # Update the Counter
                         counterupdator(dbsession, 'testscenarios', ObjectId(requestdata['userid']), 1)
 
