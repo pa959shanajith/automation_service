@@ -243,7 +243,7 @@ def LoadServices(app, redissession, dbsession):
                     result[str(screen["screenid"])]= screen["screenname"]
                 res={'rows':result}
             elif requestdata["query"] == 'reportdata':
-                reports_data = list(dbsession.accessibilityreports.find({"screenname":requestdata['screenname']}))
+                reports_data = list(dbsession.accessibilityreports.find({"_id":ObjectId(requestdata['executionid'])}))
                 res={'rows':reports_data}
             elif requestdata["query"] == 'insertdata':
                 data = []
@@ -255,19 +255,32 @@ def LoadServices(app, redissession, dbsession):
                     reports_data['level'] = report['level']
                     reports_data['agent'] = report['agent']
                     reports_data['url'] = report['url']
-                    reports_data['data'] = {}
                     reports_data['cycleid'] = ObjectId(report['cycleid'])
                     reports_data['executionid'] = ObjectId(report['executionid'])
                     reports_data['screenname'] = report['screenname']
                     reports_data['screenid'] = ObjectId(report['screenid'])
-                    reports_data['data']['access-rules'] = report['access-rules']
-                    reports_data['data']['accessibility'] = report['accessibility']
+                    reports_data['access-rules'] = report['access-rules']
+                    del report['accessibility']['url']
+                    del report['accessibility']['timestamp']
+                    reports_data['rulemap'] = {}
+                    for typeofresult in report['accessibility']:
+                        for acc_data in report['accessibility'][typeofresult]:
+                            for ruletype in acc_data['tags']:
+                                ruletype = ruletype.replace(".","_")
+                                if ruletype not in reports_data['rulemap']:
+                                    reports_data['rulemap'][ruletype] = {}
+                                if typeofresult not in reports_data['rulemap'][ruletype]:
+                                    reports_data['rulemap'][ruletype][typeofresult] = []
+                                reports_data['rulemap'][ruletype][typeofresult].append(acc_data)
                     reports_data['title'] = report['title']
                     reports_data['executedtime'] = datetime.utcnow()
                     data.append(InsertOne(reports_data))
                 if len(data) > 0:
                     dbsession.accessibilityreports.bulk_write(data)
                 res={'rows':'success'}
+            elif requestdata["query"] == 'reportdata_names_only':
+                reports_data = list(dbsession.accessibilityreports.find({"screenname":requestdata['screenname']},{"_id":1, "executedtime":1, "title":1}))
+                res={'rows':reports_data}
             return jsonify(res)
         except Exception as e:
             servicesException("getAccessibilityTestingData_ICE",e)
