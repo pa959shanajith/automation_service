@@ -33,7 +33,7 @@ def LoadServices(app, redissession, dbsession):
             if not isemptyrequest(requestdata):
                 if(requestdata["query"] == 'projects'):
                     queryresult1=dbsession.users.find_one({"_id": ObjectId(requestdata["userid"])},{"projects":1,"_id":0})
-                    queryresult=list(dbsession.projects.find({"_id":{"$in":queryresult1["projects"]}},{"name":1,"releases":1}))
+                    queryresult=list(dbsession.projects.find({"_id":{"$in":queryresult1["projects"]}},{"name":1,"releases":1,"type":1}))
                     res= {"rows":queryresult}
                 elif(requestdata["query"] == 'getAlltestSuites'):
                     queryresult=list(dbsession.testsuites.find({"cycleid": ObjectId(requestdata["id"])},{"_id":1,"name":1}))
@@ -262,16 +262,15 @@ def LoadServices(app, redissession, dbsession):
                     reports_data['access-rules'] = report['access-rules']
                     del report['accessibility']['url']
                     del report['accessibility']['timestamp']
-                    reports_data['rulemap'] = {}
+                    reports_data['rulemap'] = {"cat_aria":{},"best-practice":{},"wcag2a":{},"wcag2aa":{},"wcag2aaa":{},"cat_aria":{},"section508":{}}
                     for typeofresult in report['accessibility']:
                         for acc_data in report['accessibility'][typeofresult]:
                             for ruletype in acc_data['tags']:
                                 ruletype = ruletype.replace(".","_")
-                                if ruletype not in reports_data['rulemap']:
-                                    reports_data['rulemap'][ruletype] = {}
-                                if typeofresult not in reports_data['rulemap'][ruletype]:
-                                    reports_data['rulemap'][ruletype][typeofresult] = []
-                                reports_data['rulemap'][ruletype][typeofresult].append(acc_data)
+                                if ruletype in reports_data['rulemap']:
+                                    if typeofresult not in reports_data['rulemap'][ruletype]:
+                                        reports_data['rulemap'][ruletype][typeofresult] = []
+                                    reports_data['rulemap'][ruletype][typeofresult].append(acc_data)
                     reports_data['title'] = report['title']
                     reports_data['executedtime'] = datetime.utcnow()
                     data.append(InsertOne(reports_data))
