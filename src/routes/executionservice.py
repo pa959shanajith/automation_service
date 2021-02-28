@@ -113,22 +113,20 @@ def LoadServices(app, redissession, dbsession):
                     prj_map = {}
                     for prj in projects:
                         prj_map[prj["_id"]] = prj["name"]
-                    testscenarios = dbsession.testscenarios.find({"_id": {"$in": testscenarioids}, "deleted":query['delete_flag']}, {"name": 1, "projectid": 1, "accessibilitytesting":1})
+                    testscenarios = dbsession.testscenarios.find({"_id": {"$in": testscenarioids}, "deleted":query['delete_flag']}, {"name": 1, "projectid": 1})
                     tsc_map = {}
                     for tsc in testscenarios:
-                        tsc_map[tsc["_id"]] = [tsc["name"], prj_map[tsc["projectid"]], tsc.get("accessibilitytesting", "Disable")]
+                        tsc_map[tsc["_id"]] = [tsc["name"], prj_map[tsc["projectid"]]]
                     testscenarionames = []
                     projectnames = []
-                    acc_scenario_map = {}
                     for tsc in testscenarioids:
                         if tsc in tsc_map:
-                            acc_scenario_map[str(tsc)] = tsc_map[tsc][2]
                             testscenarionames.append(tsc_map[tsc][0])
                             projectnames.append(tsc_map[tsc][1])
                         else:
                             testscenarionames.append('N/A')
                             projectnames.append('N/A')
-                    res['rows'] = {"testscenarionames": testscenarionames, "projectnames": projectnames, "accessibilitytestingmap": acc_scenario_map}
+                    res['rows'] = {"testscenarionames": testscenarionames, "projectnames": projectnames}
                 app.logger.info("Executed readTestSuite_ICE. Query: " + param)
             else:
                 app.logger.warn('Empty data received. read testsuite.')
@@ -169,7 +167,7 @@ def LoadServices(app, redissession, dbsession):
             app.logger.debug("Inside ExecuteTestSuite_ICE. Query: " + param)
             if not isemptyrequest(requestdata):
                 if param == 'testcasedetails':
-                    tsc = dbsession.testscenarios.find_one({"_id": ObjectId(requestdata['id']),"deleted":query['delete_flag']},{"testcaseids":1,'accessibilitytesting':1})
+                    tsc = dbsession.testscenarios.find_one({"_id": ObjectId(requestdata['id']),"deleted":query['delete_flag']},{"testcaseids":1})
                     if tsc is not None:
                         testcase=[]
                         testcases = list(dbsession.testcases.find({"_id": {"$in": tsc["testcaseids"]},"deleted":query['delete_flag']},{"name":1,"versionnumber":1,"screenid":1}))
@@ -182,7 +180,7 @@ def LoadServices(app, redissession, dbsession):
                                         scids[scid] = dbsession.screens.find_one({"_id":scid})['name']
                                     tc["screenname"] = scids[scid]
                                     testcase.append(tc)
-                        res["rows"] = {"testcases": testcase, "accessibilitytestingtype": tsc['accessibilitytesting']}
+                        res["rows"] = testcase
                     if 'userid' in requestdata:    # Update the Counter
                         counterupdator(dbsession, 'testscenarios', ObjectId(requestdata['userid']), 1)
 

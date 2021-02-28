@@ -298,7 +298,7 @@ def LoadServices(app, redissession, dbsession):
                 taskids.append(ObjectId(requestdata['moduleid']))
                 taskdetails=list(dbsession.tasks.find({"nodeid":{"$in":taskids}}))
 
-                scenariodetails=list(dbsession.testscenarios.find({"_id":{"$in":scenarioids}},{"_id":1,"name":1,"parent":1,"accessibilitytesting":1}))
+                scenariodetails=list(dbsession.testscenarios.find({"_id":{"$in":scenarioids}},{"_id":1,"name":1,"parent":1}))
                 screendetails=list(dbsession.screens.find({"_id":{"$in":screenids}},{"_id":1,"name":1,"parent":1}))
                 testcasedetails=list(dbsession.testcases.find({"_id":{"$in":testcaseids}},{"_id":1,"name":1,"parent":1}))
                 moduledata={}
@@ -323,12 +323,10 @@ def LoadServices(app, redissession, dbsession):
                     if ts["_id"] in scenariodata:
                         scenariodata[ts["_id"]]['name']=ts["name"]
                         scenariodata[ts["_id"]]['reuse']=True if len(ts["parent"])>1 else False
-                        scenariodata[ts["_id"]]['accessibilityTesting'] =  ts["accessibilitytesting"]
                     else:
                         scenariodata[ts["_id"]]={
                             'name':ts["name"],
-                            'reuse': True if len(ts["parent"])>1 else False,
-                            'accessibilityTesting': ts["accessibilitytesting"]
+                            'reuse': True if len(ts["parent"])>1 else False
                         }
 
                 for sc in screendetails:
@@ -381,7 +379,6 @@ def LoadServices(app, redissession, dbsession):
                         finalscenariodata["projectID"]=projectid
                         finalscenariodata["_id"]=ts["_id"]
                         finalscenariodata["name"]=scenariodata[ts["_id"]]["name"]
-                        finalscenariodata['accessibilityTesting'] = scenariodata[ts["_id"]]["accessibilityTesting"]
                         finalscenariodata["type"]="scenarios"
                         finalscenariodata["childIndex"]=i
                         finalscenariodata["children"]=[]
@@ -463,6 +460,22 @@ def LoadServices(app, redissession, dbsession):
                 app.logger.warn("Empty data received. getTasksJSON")
         except Exception as e:
             servicesException("getTasksJSON", e, True)
+        return jsonify(res)
+
+    @app.route('/plugins/updateAccessibilitySelection',methods=['POST'])
+    def updateAccessibilitySelection():
+        res={'rows':'fail'}
+        try:
+            requestdata=json.loads(request.data)
+            app.logger.debug("Inside updateAccessibilitySelection.")
+            if not isemptyrequest(requestdata):
+                taskid=requestdata["taskId"]
+                dbsession.tasks.update_one({"_id":ObjectId(taskid)},{'$set':{"accessibilityparameters":requestdata["accessibilityParameters"]}})
+                res={'rows':"success"}
+            else:
+                app.logger.warn("Empty data received. updateAccessibilitySelection")
+        except Exception as e:
+            servicesException("updateAccessibilitySelection", e, True)
         return jsonify(res)
 
     @app.route('/mindmap/getScenarios',methods=['POST'])
@@ -597,7 +610,6 @@ def LoadServices(app, redissession, dbsession):
             "createdbyrole":ObjectId(createdbyrole),
             "createdon":createdon,
             "deleted":False,
-            "accessibilitytesting": str("Disable"),
             "modifiedby":ObjectId(createdby),
             "modifiedbyrole":ObjectId(createdbyrole),
             "modifiedon":createdon,
@@ -1150,19 +1162,3 @@ def LoadServices(app, redissession, dbsession):
             servicesException("importMindmap",importmindmapexc, True)
         return jsonify(res)
 
-
-    @app.route('/mindmap/updateScenario',methods=['POST'])
-    def updateAccesaibiltiyTestingState():
-        res={'rows':'fail'}
-        try:
-            requestdata=json.loads(request.data)
-            app.logger.debug("Inside updateScenario")
-            if not isemptyrequest(requestdata):
-                for scenario in requestdata['scenarios']:
-                    dbsession.testscenarios.update_one({'_id':ObjectId(scenario)},{'$set':{'accessibilitytesting':requestdata['scenarios'][scenario]}})
-                res={'rows':'success'}
-            else:
-                app.logger.warn('Empty data received while updating scenario')
-        except Exception as e:
-            servicesException("updateScenario", e)
-        return jsonify(res)
