@@ -462,6 +462,22 @@ def LoadServices(app, redissession, dbsession):
             servicesException("getTasksJSON", e, True)
         return jsonify(res)
 
+    @app.route('/plugins/updateAccessibilitySelection',methods=['POST'])
+    def updateAccessibilitySelection():
+        res={'rows':'fail'}
+        try:
+            requestdata=json.loads(request.data)
+            app.logger.debug("Inside updateAccessibilitySelection.")
+            if not isemptyrequest(requestdata):
+                taskid=requestdata["taskId"]
+                dbsession.tasks.update_one({"_id":ObjectId(taskid)},{'$set':{"accessibilityparameters":requestdata["accessibilityParameters"]}})
+                res={'rows':"success"}
+            else:
+                app.logger.warn("Empty data received. updateAccessibilitySelection")
+        except Exception as e:
+            servicesException("updateAccessibilitySelection", e, True)
+        return jsonify(res)
+
     @app.route('/mindmap/getScenarios',methods=['POST'])
     def getScenarios():
         res={'rows':'fail'}
