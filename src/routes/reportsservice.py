@@ -300,4 +300,80 @@ def LoadServices(app, redissession, dbsession):
             servicesException("getAccessibilityReports_API",e)
             res={'rows':'fail'}
         return jsonify(res)    
+
+    #Fetching Execution Metrics from Reports
+    @app.route('/reports/getExecution_metrics_API',methods=['POST'])
+    def getExecution_metrics_API():
+        res={'rows':'fail','errMsg':''}
+        try:
+            requestdata=json.loads(request.data)
+            app.logger.debug("Inside getExecution_metrics_API")
+            arr = []
+            if not isemptyrequest(requestdata):
+                status_dict={'pass':'Pass','fail':'Fail','skipped':'Skipped','incomplete':'Incomplete','terminate':'Terminate'}
+                if requestdata['fromdate'] and requestdata['todate']:
+                    start=requestdata["fromdate"]
+                    end=requestdata["todate"]
+                    if (not requestdata['api']):
+                        start=start.split('-')
+                        end=end.split('-')
+                        start=start[2]+'-'+start[1]+'-'+start[0]
+                        end=end[2]+'-'+end[1]+'-'+end[0]
+                    start=datetime.strptime(start,'%Y-%m-%d')
+                    end=datetime.strptime(end,'%Y-%m-%d')
+                    end += timedelta(days=1)
+                    query={'executedtime':{"$gte": start, "$lte": end}}
+                if 'executionid' in requestdata:
+                    query['executionid']=ObjectId(requestdata['executionid'])
+                if 'modifiedby' in requestdata:
+                    query['modifiedby']=ObjectId(requestdata['modifiedby'])
+                if 'status' in requestdata and requestdata['status'].lower() in status_dict:
+                    query['status']=status_dict[requestdata['status'].strip().lower()]
+                LOB=requestdata["LOB"]
+                report = dbsession.reports.find(query,{"testscenarioid":1,"status":1,"report":1,"modifiedby":1})
+                details = {}
+                res['rows']=arr
+                for i in report:
+                    scenarioid = i["testscenarioid"]
+                    status = i["status"]
+                    report = i["report"]["overallstatus"]
+                    starttime = i["report"]["overallstatus"][0]["StartTime"]
+                    endtime = i["report"]["overallstatus"][0]["EndTime"]
+                    modifiedby = i["modifiedby"]
+                    details["testresult"] = status
+                    details["teststarttime"] = starttime
+                    details["testendtime"] = endtime
+                    userdetails = list(dbsession.users.find({"_id":modifiedby},{"name":1}))
+                    if len(userdetails)>0:
+                        username = userdetails[0]["name"]
+                        details["username"]= username
+                    else:
+                        details["username"] = modifiedby
+
+                    scenariodetails = list(dbsession.testscenarios.find({"_id":scenarioid},{"name":1,"projectid":1}))
+                    scenarioname = scenariodetails[0]["name"]
+                    projectid = scenariodetails[0]["projectid"]
+                    details["testcasename"] = scenarioname
+
+                    projectdetails = list(dbsession.projects.find({"_id":projectid},{"name":1,"type":1}))
+                    projectname = projectdetails[0]["name"]
+                    details["applicationname"] = projectname
+                    projecttypeid = projectdetails[0]["type"]
+
+                    projecttypedetails = list(dbsession.projecttypekeywords.find({"_id":projecttypeid},{"name":1}))
+                    technology = projecttypedetails[0]["name"]
+                    details["technology"] = 'Avo Assure'
+                    details["lob"] = LOB
+                    arr.append(details)
+                    res['rows']=arr
+            else:
+                app.logger.warn('Empty data received. report.')
+                res['errMsg']='Invalid Request : Empty Parameter not allowed'
+            if len(arr)==0:
+                res['errMsg']='No Records for the given Parameters'
+        except Exception as getmetricsexc:
+            if isinstance(getmetricsexc,KeyError):
+                res['errMsg']='Invalid Request : Parameter missing'
+            servicesException("getExecution_metrics_API", getmetricsexc, True)
+        return jsonify(res)
 # END OF REPORTS
