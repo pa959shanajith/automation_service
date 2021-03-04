@@ -272,7 +272,7 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
                             requestdata["projects"]=[]
                             requestdata["userid"]=ObjectId(requestdata["userid"])
                             requestdata["generatedon"]=datetime.now()
-                            requestdata["expireson"]=datetime.strptime(str(requestdata["expireson"]),'%d-%m-%Y %H:%M')
+                            requestdata["expireson"]=datetime.strptime(str(requestdata["expireson"]),"%Y-%m-%dT%H:%M:%S.%fZ")
                             result=dbsession.thirdpartyintegration.insert_one(requestdata)
                             res= {'rows':{'token':requestdata["hash"]}}
                         else:
