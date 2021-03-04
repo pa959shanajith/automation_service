@@ -212,6 +212,9 @@ def LoadServices(app, redissession, dbsession):
                         data_push.append(d)
                     if len(Old_obj)==0 and len(data_push)>0 :
                         dbsession.dataobjects.insert(data_push)
+                    elif len(Old_obj)>0 and len(data_push)==0 :
+                        remove_data=[o["_id"] for o in Old_obj]
+                        dbsession.dataobjects.delete_many({"_id":{"$in":remove_data}})
                     elif len(data_obj)>0:
                         for d in data_obj:
                             d["parent"] = [screenID]
