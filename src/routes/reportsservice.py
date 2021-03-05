@@ -331,9 +331,9 @@ def LoadServices(app, redissession, dbsession):
                     query['status']=status_dict[requestdata['status'].strip().lower()]
                 LOB=requestdata["LOB"]
                 report = dbsession.reports.find(query,{"testscenarioid":1,"status":1,"report":1,"modifiedby":1})
-                details = {}
                 res['rows']=arr
                 for i in report:
+                    details = {}
                     scenarioid = i["testscenarioid"]
                     status = i["status"]
                     report = i["report"]["overallstatus"]
