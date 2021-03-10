@@ -33,7 +33,7 @@ def LoadServices(app, redissession, dbsession):
             if not isemptyrequest(requestdata):
                 if(requestdata["query"] == 'projects'):
                     queryresult1=dbsession.users.find_one({"_id": ObjectId(requestdata["userid"])},{"projects":1,"_id":0})
-                    queryresult=list(dbsession.projects.find({"_id":{"$in":queryresult1["projects"]}},{"name":1,"releases":1}))
+                    queryresult=list(dbsession.projects.find({"_id":{"$in":queryresult1["projects"]}},{"name":1,"releases":1,"type":1}))
                     res= {"rows":queryresult}
                 elif(requestdata["query"] == 'getAlltestSuites'):
                     queryresult=list(dbsession.testsuites.find({"cycleid": ObjectId(requestdata["id"])},{"_id":1,"name":1}))
@@ -243,7 +243,7 @@ def LoadServices(app, redissession, dbsession):
                     result[str(screen["screenid"])]= screen["screenname"]
                 res={'rows':result}
             elif requestdata["query"] == 'reportdata':
-                reports_data = list(dbsession.accessibilityreports.find({"screenname":requestdata['screenname']}))
+                reports_data = list(dbsession.accessibilityreports.find({"_id":ObjectId(requestdata['executionid'])}))
                 res={'rows':reports_data}
             elif requestdata["query"] == 'insertdata':
                 data = []
@@ -255,19 +255,31 @@ def LoadServices(app, redissession, dbsession):
                     reports_data['level'] = report['level']
                     reports_data['agent'] = report['agent']
                     reports_data['url'] = report['url']
-                    reports_data['data'] = {}
                     reports_data['cycleid'] = ObjectId(report['cycleid'])
                     reports_data['executionid'] = ObjectId(report['executionid'])
                     reports_data['screenname'] = report['screenname']
                     reports_data['screenid'] = ObjectId(report['screenid'])
-                    reports_data['data']['access-rules'] = report['access-rules']
-                    reports_data['data']['accessibility'] = report['accessibility']
+                    reports_data['access-rules'] = report['access-rules']
+                    del report['accessibility']['url']
+                    del report['accessibility']['timestamp']
+                    reports_data['rulemap'] = {"cat_aria":{},"best-practice":{},"wcag2a":{},"wcag2aa":{},"wcag2aaa":{},"cat_aria":{},"section508":{}}
+                    for typeofresult in report['accessibility']:
+                        for acc_data in report['accessibility'][typeofresult]:
+                            for ruletype in acc_data['tags']:
+                                ruletype = ruletype.replace(".","_")
+                                if ruletype in reports_data['rulemap']:
+                                    if typeofresult not in reports_data['rulemap'][ruletype]:
+                                        reports_data['rulemap'][ruletype][typeofresult] = []
+                                    reports_data['rulemap'][ruletype][typeofresult].append(acc_data)
                     reports_data['title'] = report['title']
                     reports_data['executedtime'] = datetime.utcnow()
                     data.append(InsertOne(reports_data))
                 if len(data) > 0:
                     dbsession.accessibilityreports.bulk_write(data)
                 res={'rows':'success'}
+            elif requestdata["query"] == 'reportdata_names_only':
+                reports_data = list(dbsession.accessibilityreports.find({"screenname":requestdata['screenname']},{"_id":1, "executedtime":1, "title":1}))
+                res={'rows':reports_data}
             return jsonify(res)
         except Exception as e:
             servicesException("getAccessibilityTestingData_ICE",e)
@@ -288,4 +300,80 @@ def LoadServices(app, redissession, dbsession):
             servicesException("getAccessibilityReports_API",e)
             res={'rows':'fail'}
         return jsonify(res)    
+
+    #Fetching Execution Metrics from Reports
+    @app.route('/reports/getExecution_metrics_API',methods=['POST'])
+    def getExecution_metrics_API():
+        res={'rows':'fail','errMsg':''}
+        try:
+            requestdata=json.loads(request.data)
+            app.logger.debug("Inside getExecution_metrics_API")
+            arr = []
+            if not isemptyrequest(requestdata):
+                status_dict={'pass':'Pass','fail':'Fail','skipped':'Skipped','incomplete':'Incomplete','terminate':'Terminate'}
+                if requestdata['fromdate'] and requestdata['todate']:
+                    start=requestdata["fromdate"]
+                    end=requestdata["todate"]
+                    if (not requestdata['api']):
+                        start=start.split('-')
+                        end=end.split('-')
+                        start=start[2]+'-'+start[1]+'-'+start[0]
+                        end=end[2]+'-'+end[1]+'-'+end[0]
+                    start=datetime.strptime(start,'%Y-%m-%d')
+                    end=datetime.strptime(end,'%Y-%m-%d')
+                    end += timedelta(days=1)
+                    query={'executedtime':{"$gte": start, "$lte": end}}
+                if 'executionid' in requestdata:
+                    query['executionid']=ObjectId(requestdata['executionid'])
+                if 'modifiedby' in requestdata:
+                    query['modifiedby']=ObjectId(requestdata['modifiedby'])
+                if 'status' in requestdata and requestdata['status'].lower() in status_dict:
+                    query['status']=status_dict[requestdata['status'].strip().lower()]
+                LOB=requestdata["LOB"]
+                report = dbsession.reports.find(query,{"testscenarioid":1,"status":1,"report":1,"modifiedby":1})
+                res['rows']=arr
+                for i in report:
+                    details = {}
+                    scenarioid = i["testscenarioid"]
+                    status = i["status"]
+                    report = i["report"]["overallstatus"]
+                    starttime = i["report"]["overallstatus"][0]["StartTime"]
+                    endtime = i["report"]["overallstatus"][0]["EndTime"]
+                    modifiedby = i["modifiedby"]
+                    details["testresult"] = status
+                    details["teststarttime"] = starttime
+                    details["testendtime"] = endtime
+                    userdetails = list(dbsession.users.find({"_id":modifiedby},{"name":1}))
+                    if len(userdetails)>0:
+                        username = userdetails[0]["name"]
+                        details["username"]= username
+                    else:
+                        details["username"] = modifiedby
+
+                    scenariodetails = list(dbsession.testscenarios.find({"_id":scenarioid},{"name":1,"projectid":1}))
+                    scenarioname = scenariodetails[0]["name"]
+                    projectid = scenariodetails[0]["projectid"]
+                    details["testcasename"] = scenarioname
+
+                    projectdetails = list(dbsession.projects.find({"_id":projectid},{"name":1,"type":1}))
+                    projectname = projectdetails[0]["name"]
+                    details["applicationname"] = projectname
+                    projecttypeid = projectdetails[0]["type"]
+
+                    projecttypedetails = list(dbsession.projecttypekeywords.find({"_id":projecttypeid},{"name":1}))
+                    technology = projecttypedetails[0]["name"]
+                    details["technology"] = 'Avo Assure'
+                    details["lob"] = LOB
+                    arr.append(details)
+                    res['rows']=arr
+            else:
+                app.logger.warn('Empty data received. report.')
+                res['errMsg']='Invalid Request : Empty Parameter not allowed'
+            if len(arr)==0:
+                res['errMsg']='No Records for the given Parameters'
+        except Exception as getmetricsexc:
+            if isinstance(getmetricsexc,KeyError):
+                res['errMsg']='Invalid Request : Parameter missing'
+            servicesException("getExecution_metrics_API", getmetricsexc, True)
+        return jsonify(res)
 # END OF REPORTS

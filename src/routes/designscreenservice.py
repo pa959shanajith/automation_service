@@ -145,6 +145,9 @@ def LoadServices(app, redissession, dbsession):
                         data_push.append(d)
                     if len(Old_obj)==0 and len(data_push)>0 :
                         dbsession.dataobjects.insert(data_push)
+                    elif len(Old_obj)>0 and len(data_push)==0 :
+                        remove_data=[o["_id"] for o in Old_obj]
+                        dbsession.dataobjects.delete_many({"_id":{"$in":remove_data}})
                     elif len(data_obj)>0:
                         for d in data_obj:
                             d["parent"] = [screenId]
@@ -232,7 +235,13 @@ def LoadServices(app, redissession, dbsession):
                 if "_id" not in requestdata:
                     res={'rows':'unsavedObject'}
                 else:
-                    dbsession.dataobjects.update({"_id": ObjectId(requestdata["_id"])},{"$set":{"objectType":requestdata["type"]}})
+                    xpathList = str(requestdata['xpath']).split(';')
+                    if len(xpathList) == 9 :
+                        xpathList[6] = requestdata["type"]
+                        xpath = ';'.join(xpathList)
+                        dbsession.dataobjects.update({"_id": ObjectId(requestdata["_id"])},{"$set":{"objectType":requestdata["type"],"xpath":xpath}})
+                    else:
+                        dbsession.dataobjects.update({"_id": ObjectId(requestdata["_id"])},{"$set":{"objectType":requestdata["type"]}})
                     res={'rows':'success'}
         except Exception as updateirisobjexc:
             servicesException("updateIrisObjectType",updateirisobjexc, True)

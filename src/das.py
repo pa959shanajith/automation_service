@@ -290,6 +290,7 @@ def updateActiveIceSessions():
                 ice_ts = icesession['connect_time']
                 if('.' not in ice_ts): ice_ts = ice_ts + '.000000'
                 latest_access_time = datetime.strptime(ice_ts, '%Y-%m-%d %H:%M:%S.%f')
+                app.logger.debug("icename: "+ice_name+" time: "+str(latest_access_time))
                 res['id']=ice_uuid
                 res['connect_time'] = icesession['connect_time']
                 # ICE which are in "deregistered" status are eliminated for the Registration and Connection
