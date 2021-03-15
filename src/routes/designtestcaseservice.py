@@ -291,9 +291,14 @@ def LoadServices(app, redissession, dbsession):
                         {"$match":{"_id":{"$in":tc_id_list}}},
                         {"$addFields":{"__order":{"$indexOfArray":[tc_id_list,"$_id"]}}},
                         {"$sort":{"__order":1}},
-                        {"$project":{'steps':1,'name':1,'screenid':1,'parent':1,'_id':0}}
+                        {"$project":{'steps':1,'name':1,'screenid':1,'parent':1,'_id':1}}
                     ]
-                    queryresult = list(dbsession.testcases.aggregate(query))
+                    result = list(dbsession.testcases.aggregate(query))
+                    queryresult=[]
+                    for i in tc_id_list:
+                        for j in result:
+                                if i == j["_id"]:
+                                    queryresult.append(j)
                     for k in queryresult:
                         queryresult1 = list(dbsession.dataobjects.find({'parent':k['screenid']},{'parent':0}))
                         dataObjects = {}
