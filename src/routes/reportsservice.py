@@ -366,11 +366,11 @@ def LoadServices(app, redissession, dbsession):
                     details["lob"] = LOB
                     arr.append(details)
                     res['rows']=arr
+                if len(arr)==0:
+                    res['errMsg']='No Records for the given Parameters'
             else:
                 app.logger.warn('Empty data received. report.')
                 res['errMsg']='Invalid Request : Empty Parameter not allowed'
-            if len(arr)==0:
-                res['errMsg']='No Records for the given Parameters'
         except Exception as getmetricsexc:
             if isinstance(getmetricsexc,KeyError):
                 res['errMsg']='Invalid Request : Parameter missing'
