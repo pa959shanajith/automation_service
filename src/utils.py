@@ -182,7 +182,12 @@ ecodeServices = {
     "unlockAccountEmail": "422",
     "fetchLockedUsers": "423",
     "unlockUser": "424",
-    "getExecution_metrics_API":"425"
+    "getExecution_metrics_API":"425",
+    "importFromGit_ICE":"426",
+    "exportToGit":"427",
+    "save_GitConfig":"428",
+    "gitEditConfig":"429",
+    "importGitMindmap":"430"
 }
 
 
