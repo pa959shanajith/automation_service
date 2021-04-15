@@ -185,7 +185,7 @@ ecodeServices = {
     "getExecution_metrics_API":"425",
     "importFromGit_ICE":"426",
     "exportToGit":"427",
-    "save_GitConfig":"428",
+    "gitSaveConfig":"428",
     "gitEditConfig":"429",
     "importGitMindmap":"430"
 }
