@@ -672,9 +672,9 @@ def LoadServices(app, redissession, dbsession):
                     tasks_remove=requestdata["delete"]
                     for i in tasks_update:
                         i["assignedtime"]=datetime.now()
-                        if i['startdate'].find('/') > -1:
+                        if i['startdate'].find('-') > -1:
                             i["startdate"]=datetime.strptime(i["startdate"],"%d-%m-%Y")
-                        if i['enddate'].find('/') > -1:
+                        if i['enddate'].find('-') > -1:
                             i["enddate"]=datetime.strptime(i["enddate"],"%d-%m-%Y")
                         dbsession.tasks.update({"_id":ObjectId(i["_id"]),"cycleid":ObjectId(i["cycleid"])},{"$set":{"assignedtime":i["assignedtime"],"startdate":i["startdate"],"enddate":i["enddate"],"assignedto":ObjectId(i["assignedto"]),"reviewer":ObjectId(i["reviewer"]),"status":i["status"],"reestimation":i["reestimation"],"complexity":i["complexity"],"history":i["history"]}})
                     tasks_insert=requestdata["insert"]
