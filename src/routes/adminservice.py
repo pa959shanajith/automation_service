@@ -1234,6 +1234,8 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
                 result=dbsession.gitconfiguration.find_one({"gituser":ObjectId(requestdata["userId"]),"projectid":ObjectId(requestdata["projectId"])},{'gitaccesstoken':1, 'giturl':1, '_id':0})
                 if result:
                     res={'rows':result}
+                else:
+                    res={'rows':"empty"}    
             else:
                 app.logger.warn('Empty data received in git user fetch.')
         except Exception as e:
