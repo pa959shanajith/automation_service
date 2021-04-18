@@ -27,21 +27,24 @@ def LoadServices(app, redissession, dbsession, *args):
         try:
             requestdata=json.loads(request.data)
             if not isemptyrequest(requestdata):
-                gitAccToken=requestdata['gitAccessToken']
+                # gitAccToken=requestdata['gitAccessToken']
                 versionName=requestdata['gitVersionName']
-                GitRepoClonePath=requestdata['gitRepoClonePath']
+                # GitRepoClonePath=requestdata['gitRepoClonePath']
                 moduleName=requestdata['folderPath']
                 createdBy=requestdata['createdBy']
-                if 'commitId' in requestdata:
-                    commitId=requestdata['commitId']
+                gitbranch=requestdata['gitbranch']
 
-                if(versionName!=''):
-                    commitId = dbsession.gitexportdetails.find_one({'folderpath':moduleName,'versionname':versionName},{"_id":1,"commitid":1})
+                # if(versionName!=''):
+                commitId = dbsession.gitexportdetails.find_one({'branchname':gitbranch,'folderpath':moduleName,'versionname':versionName},{"_id":1,"commitid":1,"parent":1})
+                if not commitId:
+                    result ={'rows':'empty'}
+                    return res
+                
+                gitconfig_data = dbsession.gitconfiguration.find_one({"_id":commitId["parent"]},{"gitaccesstoken":1,"giturl":1})
+                url=gitconfig_data['giturl'].split('://')
+                url=url[0]+"://"+gitconfig_data['gitaccesstoken']+':'+'x-oauth-basic'+"@"+url[1]
 
-                url=GitRepoClonePath.split('://')
-                url=url[0]+"://"+gitAccToken+':'+'x-oauth-basic'+"@"+url[1]
-
-                path1=currdir+os.sep+'importGit'+os.sep+requestdata['userid']+os.sep
+                path1=currdir+os.sep+'importGit'+os.sep+createdBy+os.sep
                 repo = git.Repo.init(path1)
                 origin = repo.create_remote('origin',url)
                 origin.fetch()
@@ -52,11 +55,13 @@ def LoadServices(app, redissession, dbsession, *args):
                 modulePath = modulePath.replace('/','\\')
                 screenpath= modulePath+'Screens'+os.sep
                 testcasepath= modulePath+'Testcases'+os.sep
-                mindmapname=moduleName.split('/')[-1]
+                # mindmapname=moduleName.split('/')[-1]
                 screen_data={}
                 tc_data={}
 
-                with open(modulePath+mindmapname+'.mm', 'r') as mindmapFile:
+                mm_file = [f for f in os.listdir(modulePath) if f.endswith('.mm')]
+
+                with open(modulePath+mm_file[0]) as mindmapFile:
                     data=json.loads(mindmapFile.read())
                     mindmapFile.close()
                 
@@ -104,7 +109,9 @@ def LoadServices(app, redissession, dbsession, *args):
             projectDetails=dbsession.projects.find_one({'_id':ObjectId(projectid)},{"name":1,"domain":1,"releases.name":1,"releases.cycles._id":1,"releases.cycles.name":1})
             
             for i in mindmap_data['testscenarios']: #to fetch list of all scenarioid and name
-                scenarioname_list=dbsession.testscenarios.find_one({"_id":ObjectId(i['_id'])},{"name":1,"accessibilitytesting":1})
+                # scenarioname_list=dbsession.testscenarios.find_one({"_id":ObjectId(i['_id'])},{"name":1,"accessibilitytesting":1})
+                scenarioname_list=dbsession.testscenarios.find_one({"_id":ObjectId(i['_id'])},{"name":1})
+                scenarioname_list['accessibilitytesting']=[]
                 scenario_names.append(scenarioname_list['name'])
                 scenario_ids.append(str(scenarioname_list['_id']))
                 accessibilitytesting[str(scenarioname_list['_id'])]=scenarioname_list['accessibilitytesting']
@@ -203,11 +210,12 @@ def LoadServices(app, redissession, dbsession, *args):
                 moduleId = ObjectId(requestdata['moduleId'])
                 mindMapsList = list(dbsession.mindmaps.find({'_id':moduleId},{"projectid":1,"name":1,"createdby":1,"versionnumber":1,"deleted":1,"type":1,"testscenarios":1}))
 
-                result = dbsession.gitexportdetails.find({"versionname":requestdata["gitVersionName"],"projectid":mindMapsList[0]['projectid']})
+                result = dbsession.gitexportdetails.find({"branchname":requestdata["gitBranch"],"versionname":requestdata["gitVersionName"],"projectid":mindMapsList[0]['projectid'],"folderpath":requestdata['gitFolderPath']})
                 index = result.count() - 1
                 result=None
                 if index >= 0:
-                    result = "Git commit already exixts"
+                    res={'rows':'commit exists'}
+                    return res
                 elif result == None or result.count() == 0:
                     uniqueId=str(mindMapsList[0]['createdby'])
                     path=currdir+os.sep+"mindmapGit"+os.sep+uniqueId+os.sep+requestdata["gitFolderPath"]+os.sep
@@ -263,13 +271,13 @@ def LoadServices(app, redissession, dbsession, *args):
                                 tc_file.write(flask.json.JSONEncoder().encode(k))
                                 tc_file.close()
                             i['testcases'] += testcaseList
-                    result = exportdataToGit(path, requestdata, uniqueId)
-                res =  {'rows': result}
+                    res = exportdataToGit(path, requestdata, uniqueId)
+                # res =  {'rows': result}
             else:
                 app.logger.warn('Empty data received.')
         except Exception as ex:
             servicesException("exportToGit", ex, True)
-        return jsonify(res)
+        return res
 
     def update_steps(steps,dataObjects):
         del_flag = False
@@ -306,8 +314,8 @@ def LoadServices(app, redissession, dbsession, *args):
         git_path=None
         try:
             module_data=result
-            path1 = dirpath.split('mindmapGit\\')
-            module_path = path1[0]+path1[1]
+            # path1 = dirpath.split('mindmapGit\\')
+            # module_path = path1[0]+path1[1]
             data={}
             if not isemptyrequest(module_data):
                 project_id = dbsession.mindmaps.find_one({"_id":ObjectId(module_data["moduleId"])},{"projectid":1,"_id":0})
@@ -319,7 +327,7 @@ def LoadServices(app, redissession, dbsession, *args):
 
                 url=git_details[0]["giturl"].split('://')
                 url=url[0]+'://'+git_details[0]['gitaccesstoken']+':x-oauth-basic@'+url[1]
-                
+
                 repo = git.Repo.init(git_path)
                 origin = repo.create_remote('origin',url)
                 origin.fetch()
@@ -330,7 +338,7 @@ def LoadServices(app, redissession, dbsession, *args):
                 delpath=currdir+os.sep+"mindmapGit"
 
                 if(os.path.exists(final_path)):
-                    if os.path.exists(module_path):
+                    if os.path.exists(dirpath):
                         shutil.rmtree(final_path)
                 shutil.move(dirpath, final_path)
                 # Add mimdmap file to remote repo
@@ -348,10 +356,10 @@ def LoadServices(app, redissession, dbsession, *args):
                 data["branchname"] = module_data["gitBranch"]
                 data["folderpath"] = module_data["gitFolderPath"]
                 data["versionname"] = module_data["gitVersionName"]
-                data["commitid"] = None
+                data["commitid"] = commit_id
                 dbsession.gitexportdetails.insert(data)
 
-                dbsession.gitexportdetails.update_one({"projectid":project_id["projectid"]},{"$set":{"commitid":commit_id}})
+                # dbsession.gitexportdetails.update_one({"projectid":project_id["projectid"]},{"$set":{"commitid":commit_id}})
                 
                 shutil.rmtree(delpath)
                 os.system('rmdir /S /Q "{}"'.format(git_path))
@@ -372,12 +380,14 @@ def LoadServices(app, redissession, dbsession, *args):
             requestdata=json.loads(request.data)
             if not isemptyrequest(requestdata):
                 projectid=requestdata["projectid"]
+                gitBranch=requestdata["gitbranch"]
                 gitVersionName=requestdata["gitversion"]
                 gitFolderPath=requestdata["gitfolderpath"]
 
-                result = dbsession.gitexportdetails.find_one({"versionname":gitVersionName,"projectid":ObjectId(projectid),"folderpath":gitFolderPath},{"parent":1,"branchname":1})
+                result = dbsession.gitexportdetails.find_one({"branchname":gitBranch,"versionname":gitVersionName,"projectid":ObjectId(projectid),"folderpath":gitFolderPath},{"parent":1,"commitid":1})
                 if not result:
-                    res = "Please export the mindmap to Git first."
+                    res = "empty"
+                    return res
                 else:
                     gitdetails = dbsession.gitconfiguration.find_one({"_id":result["parent"]})
                     git_path=currdir+os.sep+'exportGit'+os.sep+str(gitdetails["gituser"])
@@ -389,12 +399,15 @@ def LoadServices(app, redissession, dbsession, *args):
                     url=gitdetails["giturl"].split('://')
                     url=url[0]+'://'+gitdetails["gitaccesstoken"]+':x-oauth-basic@'+url[1]
                     
-                    repo = git.Repo.init(git_path)
-                    origin = repo.create_remote('origin',url)
-                    origin.fetch()
+                    # repo = git.Repo.init(git_path)
+                    # origin = repo.create_remote('origin',url)
+                    # origin.fetch()
 
-                    repo.git.checkout(result["branchname"])
-                    repo.git.pull() #pull the folder from the git branch
+                    repo = git.Repo.clone_from(url, git_path, no_checkout=True)
+                    repo.git.checkout(result['commitid'])
+                    # repo.git.checkout(result['branchname'])
+                    # repo.git.checkout(result['commitid'])
+                    # repo.git.pull() #pull the folder from the git branch
 
                     mm_file = [f for f in os.listdir(final_path) if f.endswith('.mm')]
                     with open(final_path+os.sep+mm_file[0]) as mmFile:
