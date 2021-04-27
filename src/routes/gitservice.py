@@ -270,7 +270,7 @@ def LoadServices(app, redissession, dbsession, *args):
                                 tc_file.write(flask.json.JSONEncoder().encode(k))
                                 tc_file.close()
                             i['testcases'] += testcaseList
-                    res = exportdataToGit(path, requestdata, requestdata)
+                    res = exportdataToGit(path, requestdata)
                 # res =  {'rows': result}
             else:
                 app.logger.warn('Empty data received.')
