@@ -202,7 +202,7 @@ def LoadServices(app, redissession, dbsession, *args):
                 del_testcases = []
 
                 project_id = dbsession.mindmaps.find_one({"_id":ObjectId(requestdata["moduleId"])},{"projectid":1,"_id":0})
-                git_details = list(dbsession.gitconfiguration.find({"projectid":project_id["projectid"]},{"giturl":1,"gitaccesstoken":1}))
+                git_details = list(dbsession.gitconfiguration.find({"projectid":project_id["projectid"],"gituser":requestdata["userid"]},{"giturl":1,"gitaccesstoken":1}))
                 if not git_details:
                     res={'rows':'empty'}
                     return res
@@ -217,8 +217,7 @@ def LoadServices(app, redissession, dbsession, *args):
                     res={'rows':'commit exists'}
                     return res
                 elif result == None or result.count() == 0:
-                    uniqueId=str(mindMapsList[0]['createdby'])
-                    path=currdir+os.sep+"mindmapGit"+os.sep+uniqueId+os.sep+requestdata["gitFolderPath"]+os.sep
+                    path=currdir+os.sep+"mindmapGit"+os.sep+requestdata["userid"]+os.sep+requestdata["gitFolderPath"]+os.sep
                     path=path.replace('/','\\')
 
                     if(os.path.exists(path)): shutil.rmtree(path)
@@ -271,7 +270,7 @@ def LoadServices(app, redissession, dbsession, *args):
                                 tc_file.write(flask.json.JSONEncoder().encode(k))
                                 tc_file.close()
                             i['testcases'] += testcaseList
-                    res = exportdataToGit(path, requestdata, uniqueId)
+                    res = exportdataToGit(path, requestdata, requestdata)
                 # res =  {'rows': result}
             else:
                 app.logger.warn('Empty data received.')
@@ -307,7 +306,7 @@ def LoadServices(app, redissession, dbsession, *args):
             servicesException('exportProject', e, True)
         return del_flag
 
-    def exportdataToGit(dirpath, result, userId):
+    def exportdataToGit(dirpath, result):
         app.logger.debug("Inside exportdataToGit")
         res={'rows':'fail'}
         delpath=None
@@ -316,12 +315,13 @@ def LoadServices(app, redissession, dbsession, *args):
             module_data=result
             # path1 = dirpath.split('mindmapGit\\')
             # module_path = path1[0]+path1[1]
+            delpath=currdir+os.sep+"mindmapGit"
             data={}
             if not isemptyrequest(module_data):
                 project_id = dbsession.mindmaps.find_one({"_id":ObjectId(module_data["moduleId"])},{"projectid":1,"_id":0})
-                git_details = list(dbsession.gitconfiguration.find({"projectid":project_id["projectid"]},{"gituser":1,"giturl":1,"gitaccesstoken":1}))
+                git_details = list(dbsession.gitconfiguration.find({"projectid":project_id["projectid"],"gituser":result["userid"]},{"gituser":1,"giturl":1,"gitaccesstoken":1}))
 
-                git_path=currdir+os.sep+'exportGit'+os.sep+userId
+                git_path=currdir+os.sep+'exportGit'+os.sep+result["userid"]
                 final_path=git_path+os.sep+module_data["gitFolderPath"]
                 final_path=final_path.replace('/','\\')
 
@@ -335,7 +335,7 @@ def LoadServices(app, redissession, dbsession, *args):
                 repo.git.checkout(module_data["gitBranch"])
                 repo.git.pull()
 
-                delpath=currdir+os.sep+"mindmapGit"
+                # delpath=currdir+os.sep+"mindmapGit"
 
                 if(os.path.exists(final_path)):
                     if os.path.exists(dirpath):
