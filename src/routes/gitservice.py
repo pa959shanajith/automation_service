@@ -202,7 +202,7 @@ def LoadServices(app, redissession, dbsession, *args):
                 del_testcases = []
 
                 project_id = dbsession.mindmaps.find_one({"_id":ObjectId(requestdata["moduleId"])},{"projectid":1,"_id":0})
-                git_details = list(dbsession.gitconfiguration.find({"projectid":project_id["projectid"],"gituser":requestdata["userid"]},{"giturl":1,"gitaccesstoken":1}))
+                git_details = list(dbsession.gitconfiguration.find({"projectid":project_id["projectid"],"gituser":ObjectId(requestdata["userid"])},{"giturl":1,"gitaccesstoken":1}))
                 if not git_details:
                     res={'rows':'empty'}
                     return res
@@ -319,7 +319,7 @@ def LoadServices(app, redissession, dbsession, *args):
             data={}
             if not isemptyrequest(module_data):
                 project_id = dbsession.mindmaps.find_one({"_id":ObjectId(module_data["moduleId"])},{"projectid":1,"_id":0})
-                git_details = list(dbsession.gitconfiguration.find({"projectid":project_id["projectid"],"gituser":result["userid"]},{"gituser":1,"giturl":1,"gitaccesstoken":1}))
+                git_details = list(dbsession.gitconfiguration.find({"projectid":project_id["projectid"],"gituser":ObjectId(result["userid"])},{"gituser":1,"giturl":1,"gitaccesstoken":1}))
 
                 git_path=currdir+os.sep+'exportGit'+os.sep+result["userid"]
                 final_path=git_path+os.sep+module_data["gitFolderPath"]
