@@ -261,6 +261,8 @@ def LoadServices(app, redissession, dbsession):
                     reports_data['screenid'] = ObjectId(report['screenid'])
                     reports_data['access-rules'] = report['access-rules']
                     reports_data['screenshotpath'] = report['screenshotpath']
+                    reports_data['screenshotwidth'] = report['width']
+                    reports_data['screenshotheight'] = report['height']
                     reports_data['rulemap'] = {"cat_aria":{},"best-practice":{},"wcag2a":{},"wcag2aa":{},"wcag2aaa":{},"cat_aria":{},"section508":{}}
                     for typeofresult in report['accessibility']:
                         for acc_data in report['accessibility'][typeofresult]:
