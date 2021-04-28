@@ -345,11 +345,16 @@ def LoadServices(app, redissession, dbsession, *args):
                 repo.git.add(final_path)
                 repo.index.commit(module_data["gitVersionName"])
 
-                origin = repo.remote(name="origin")
-                origin.push(origin.refs[0].remote_head)
+                # origin = repo.remote(name="origin")
+                # origin.push(origin.refs[0].remote_head)
+                origin.push()
 
                 # get the commit id and save it in gitexportdetails
-                commit_id = origin.refs[0].commit.hexsha
+                for i in range(len(origin.refs)):
+                    if(origin.refs[i].remote_head==result["gitBranch"]):
+                        commit_id = origin.refs[i].commit.hexsha
+                        break
+                # commit_id = origin.refs[0].commit.hexsha
 
                 data["parent"] = git_details[0]["_id"]
                 data["projectid"] = project_id["projectid"]
