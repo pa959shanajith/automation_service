@@ -108,25 +108,34 @@ def LoadServices(app, redissession, dbsession):
                     }
 
                 elif(param == 'gettestscenario'):
-                    testscenarioids = [ObjectId(i) for i in requestdata["testscenarioids"]]
-                    projects = dbsession.projects.find({}, {"name": 1})
-                    prj_map = {}
-                    for prj in projects:
-                        prj_map[prj["_id"]] = prj["name"]
-                    testscenarios = dbsession.testscenarios.find({"_id": {"$in": testscenarioids}, "deleted":query['delete_flag']}, {"name": 1, "projectid": 1})
+                    proj_typ = {}
                     tsc_map = {}
+                    prj_map = {}
+                    proj_arr = []
+                    projectTypes = list(dbsession.projecttypekeywords.find({}, {"name": 1}))
+                    for tp in projectTypes:
+                        proj_typ[tp["_id"]] = tp["name"]
+                    testscenarioids = [ObjectId(i) for i in requestdata["testscenarioids"]]
+                    testscenarios = list(dbsession.testscenarios.find({"_id": {"$in": testscenarioids}, "deleted":query['delete_flag']}, {"name": 1, "projectid": 1}))
                     for tsc in testscenarios:
-                        tsc_map[tsc["_id"]] = [tsc["name"], prj_map[tsc["projectid"]]]
+                        proj_arr.append(ObjectId(tsc["projectid"]))
+                    projData = list(dbsession.projects.find({"_id": {"$in": proj_arr}}, {"name": 1, "type": 1}))
+                    for prj in projData:
+                        prj_map[prj["_id"]] = {"name":prj["name"],"typeid":prj["type"]}
+                    for i,tsc in enumerate(testscenarios):
+                        tsc_map[tsc["_id"]] = [tsc["name"], prj_map[tsc["projectid"]]["name"],proj_typ[prj_map[tsc["projectid"]]["typeid"]]]
                     testscenarionames = []
                     projectnames = []
+                    apptype = []
                     for tsc in testscenarioids:
                         if tsc in tsc_map:
                             testscenarionames.append(tsc_map[tsc][0])
                             projectnames.append(tsc_map[tsc][1])
+                            apptype.append(tsc_map[tsc][2])
                         else:
                             testscenarionames.append('N/A')
                             projectnames.append('N/A')
-                    res['rows'] = {"testscenarionames": testscenarionames, "projectnames": projectnames}
+                    res['rows'] = {"testscenarionames": testscenarionames, "projectnames": projectnames, "apptypes": apptype}
                 app.logger.info("Executed readTestSuite_ICE. Query: " + param)
             else:
                 app.logger.warn('Empty data received. read testsuite.')
