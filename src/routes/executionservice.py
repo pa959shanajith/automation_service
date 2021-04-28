@@ -121,9 +121,9 @@ def LoadServices(app, redissession, dbsession):
                         proj_arr.append(ObjectId(tsc["projectid"]))
                     projData = list(dbsession.projects.find({"_id": {"$in": proj_arr}}, {"name": 1, "type": 1}))
                     for prj in projData:
-                        prj_map[prj["_id"]] = {"name":prj["name"],"typeid":prj["type"]}
+                        prj_map[prj["_id"]] = {"name":prj["name"],"type":prj["type"]}
                     for i,tsc in enumerate(testscenarios):
-                        tsc_map[tsc["_id"]] = [tsc["name"], prj_map[tsc["projectid"]]["name"],proj_typ[prj_map[tsc["projectid"]]["typeid"]]]
+                        tsc_map[tsc["_id"]] = [tsc["name"], prj_map[tsc["projectid"]]["name"],proj_typ[prj_map[tsc["projectid"]]["type"]]]
                     testscenarionames = []
                     projectnames = []
                     apptype = []
@@ -135,6 +135,7 @@ def LoadServices(app, redissession, dbsession):
                         else:
                             testscenarionames.append('N/A')
                             projectnames.append('N/A')
+                            apptype.append('N/A')
                     res['rows'] = {"testscenarionames": testscenarionames, "projectnames": projectnames, "apptypes": apptype}
                 app.logger.info("Executed readTestSuite_ICE. Query: " + param)
             else:
