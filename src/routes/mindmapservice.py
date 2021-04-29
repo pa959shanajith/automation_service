@@ -1129,7 +1129,9 @@ def LoadServices(app, redissession, dbsession):
                     if result != None:
                         queryresult = dbsession.mindmaps.update_one({"_id":mindmapid},{'$set':{"deleted":False,"name":requestdata['mindmap']['name'],"projectid": ObjectId(requestdata['mindmap']['projectid']),"testscenarios":requestdata['mindmap']['testscenarios'],"type":requestdata['mindmap']['type'],"versionnumber":requestdata['mindmap']['versionnumber']}})
                     else:
-                        queryresult = dbsession.mindmaps.insert_one(requestdata)
+                        requestdata['mindmap']['_id'] = mindmapid
+                        requestdata['mindmap']['projectid'] = ObjectId(requestdata['mindmap']['projectid'])
+                        queryresult = dbsession.mindmaps.insert_one(requestdata['mindmap'])
                     result=dbsession.mindmaps.find_one({"_id":mindmapid},{"_id":1})
                     if queryresult:
                         res={'rows':result}
