@@ -1196,7 +1196,7 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
             
             current_time = datetime.now()
             if requestdata["action"]=='create':
-                if result!=None or result1!=None:
+                if result!=None:
                     res1 = "GitUser Exists"
                 else:
                     data['gituser'] = ObjectId(requestdata["userId"])

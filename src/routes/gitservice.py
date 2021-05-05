@@ -374,8 +374,12 @@ def LoadServices(app, redissession, dbsession, *args):
                 gitFolderPath=requestdata["gitfolderpath"]
 
                 result = dbsession.gitexportdetails.find_one({"branchname":gitBranch,"versionname":gitVersionName,"projectid":ObjectId(projectid),"folderpath":gitFolderPath},{"parent":1,"commitid":1})
+                git_data = dbsession.gitconfiguration.find_one({"projectid":ObjectId(projectid),"gituser":ObjectId(requestdata["userid"])},{"giturl":1,"gitaccesstoken":1})
+                if not git_data:
+                    res='empty'
+                    return res
                 if not result:
-                    res = "empty"
+                    res = "Invalid inputs"
                     return res
                 else:
                     gitdetails = dbsession.gitconfiguration.find_one({"_id":result["parent"]})
