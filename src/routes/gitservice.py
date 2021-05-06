@@ -77,13 +77,12 @@ def LoadServices(app, redissession, dbsession, *args):
                 
                 res={"moduledata":data,"screendata":screen_data, 'tcdata':tc_data, 'createdBy':createdBy}
                 
-                os.system('rmdir /S /Q "{}"'.format(path1))
                 result = executionJson(res, requestdata)
             else:
                 app.logger.warn('Empty data received.')
         except Exception as ex:
-            if(path1): os.system('rmdir /S /Q "{}"'.format(path1))
             servicesException("importFromGit_ICE", ex, True)
+        if(path1): os.system('rmdir /S /Q "{}"'.format(path1))
         return result
 
     def executionJson(result, requestdata):
@@ -350,21 +349,23 @@ def LoadServices(app, redissession, dbsession, *args):
                 data["commitid"] = commit_id
                 dbsession.gitexportdetails.insert(data)
                 
-                shutil.rmtree(delpath)
-                os.system('rmdir /S /Q "{}"'.format(git_path))
                 res={'rows':'Success'}
             else:
                 app.logger.warn('Connection to Git failed: Empty data passed from exportToGit service')
-        except Exception as ex:
-            if(delpath): shutil.rmtree(delpath)
-            if(git_path): os.system('rmdir /S /Q "{}"'.format(git_path))
+        except git.GitCommandError as ex:
+            res={'rows':'Invalid gitbranch'}
             app.logger.warn(ex)
+        except Exception as ex:
+            app.logger.warn(ex)
+        if(delpath): shutil.rmtree(delpath)
+        if(git_path): os.system('rmdir /S /Q "{}"'.format(git_path))
         return res
 
     @app.route('/git/importGitMindmap', methods=['POST'])
     def importGitMindmap():
         app.logger.debug("Inside importGitMindmap")
         res='fail'
+        git_path=None
         try:
             requestdata=json.loads(request.data)
             if not isemptyrequest(requestdata):
@@ -400,11 +401,10 @@ def LoadServices(app, redissession, dbsession, *args):
                         json_data=json.loads(mmFile.read())
                         mmFile.close()
 
-                    os.system('rmdir /S /Q "{}"'.format(git_path))
                     res=json_data
             else:
                 app.logger.warn('Empty data received.')
         except Exception as ex:
-            if(git_path): os.system('rmdir /S /Q "{}"'.format(git_path))
             servicesException("importGitMindmap", ex, True)
+        if(git_path): os.system('rmdir /S /Q "{}"'.format(git_path))
         return res
