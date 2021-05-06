@@ -261,7 +261,7 @@ def LoadServices(app, redissession, dbsession, *args):
                                 del_flag = update_steps(k['steps'],dataObjects)
                                 testcaseNameFormat=k["name"]+'_'+str(k["_id"])+'.json'
                                 tc_file=open(path+'Testcases'+os.sep+testcaseNameFormat,'w')
-                                tc_file.write(flask.json.JSONEncoder().encode(k))
+                                tc_file.write(flask.json.JSONEncoder().encode(k['steps']))
                                 tc_file.close()
                             i['testcases'] += testcaseList
                     res = exportdataToGit(path, requestdata)
