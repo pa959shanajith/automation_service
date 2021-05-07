@@ -84,9 +84,6 @@ def LoadServices(app, redissession, dbsession, *args):
                 result = executionJson(res, requestdata)
             else:
                 app.logger.warn('Empty data received.')
-        except git.GitCommandError as ex:
-            result={'rows':'Invalid gitbranch'}
-            servicesException("importFromGit_ICE", ex, True)
         except Exception as ex:
             servicesException("importFromGit_ICE", ex, True)
         if(path1): os.system('rmdir /S /Q "{}"'.format(path1))
