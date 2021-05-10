@@ -10,6 +10,8 @@ from flask import Flask, request, jsonify, Response
 import subprocess
 import stat
 from os import path
+from pymongo import InsertOne
+from pymongo import UpdateOne
 currdir=os.getcwd()
 
 def LoadServices(app, redissession, dbsession, *args):
@@ -21,8 +23,7 @@ def LoadServices(app, redissession, dbsession, *args):
     @app.route('/git/importFromGit_ICE',methods=['POST'])
     def importFromGit_ICE():
         app.logger.debug("Inside importFromGit_ICE")
-        res={'rows':'fail'}
-        resultdata = {}
+        result={'rows':'fail'}
         path1=None
         try:
             requestdata=json.loads(request.data)
@@ -35,7 +36,7 @@ def LoadServices(app, redissession, dbsession, *args):
                 commitId = dbsession.gitexportdetails.find_one({'branchname':gitbranch,'folderpath':moduleName,'versionname':versionName},{"_id":1,"commitid":1,"parent":1})
                 if not commitId:
                     result ={'rows':'empty'}
-                    return res
+                    return result
                 
                 gitconfig_data = dbsession.gitconfiguration.find_one({"_id":commitId["parent"]},{"gitaccesstoken":1,"giturl":1})
                 url=gitconfig_data['giturl'].split('://')
@@ -54,6 +55,7 @@ def LoadServices(app, redissession, dbsession, *args):
                 testcasepath= modulePath+'Testcases'+os.sep
                 screen_data={}
                 tc_data={}
+                tc_namesmap={}
 
                 mm_file = [f for f in os.listdir(modulePath) if f.endswith('.mm')]
 
@@ -71,11 +73,13 @@ def LoadServices(app, redissession, dbsession, *args):
                 for eachTc in os.listdir(testcasepath):
                     with open(testcasepath+eachTc, 'r') as testcasefile:
                         tc=json.loads(testcasefile.read())
-                        testcaseid = eachTc.split('.')[0].split('_')[-1]
+                        testcase_nameid = eachTc.split('.')[0].split('_')
+                        testcaseid = testcase_nameid[-1]
                         tc_data[testcaseid]=tc
+                        tc_namesmap[testcaseid]="_".join(testcase_nameid[:-1])
                         testcasefile.close()
                 
-                res={"moduledata":data,"screendata":screen_data, 'tcdata':tc_data, 'createdBy':createdBy}
+                res={"moduledata":data,"screendata":screen_data, 'tcdata':tc_data, 'tcname_map':tc_namesmap, 'createdBy':createdBy}
                 
                 result = executionJson(res, requestdata)
             else:
@@ -92,6 +96,7 @@ def LoadServices(app, redissession, dbsession, *args):
             mindmap_data=result['moduledata']
             screen_info=result['screendata']
             testcase_info=result['tcdata']
+            testcasenames=result['tcname_map']
             moduleid=mindmap_data['_id']
             modulename= mindmap_data['name']
             createdBy= result['createdBy']
@@ -139,8 +144,8 @@ def LoadServices(app, redissession, dbsession, *args):
                     screen_name = screen_info[j['_id']]['name']
                     screen_apptype = screen_info[j['_id']]['appType']
                     for k in j['testcases']:
-                        tc_steps = testcase_info[k]['steps']
-                        tc_name = testcase_info[k]['name']
+                        tc_steps = testcase_info[k]
+                        tc_name = testcasenames[k]
                         template1={
                             "template":"",
                             "testcase":tc_steps,
@@ -151,7 +156,7 @@ def LoadServices(app, redissession, dbsession, *args):
                         screen_tc_details.append(template1)
                 template2 = {
                     i['_id']:screen_tc_details,
-                    "integration":""
+                    "qcdetails":[]
                 }
                 suiteDetailsTemplate[suite_details[0]].append(template2)
 
@@ -173,6 +178,7 @@ def LoadServices(app, redissession, dbsession, *args):
                 "exec_env" : requestdata['executionEnv'],
                 "apptype": screen_apptype,
                 "integration": requestdata['integration'],
+                "reportType":'functionalTesting',
                 "batchId": str(batchid),
                 "executionIds": execids,
                 "testsuiteIds": suite_details,
@@ -373,9 +379,11 @@ def LoadServices(app, redissession, dbsession, *args):
                 gitBranch=requestdata["gitbranch"]
                 gitVersionName=requestdata["gitversion"]
                 gitFolderPath=requestdata["gitfolderpath"]
+                roleid=requestdata["roleid"]
+                userid=requestdata["userid"]
 
                 result = dbsession.gitexportdetails.find_one({"branchname":gitBranch,"versionname":gitVersionName,"projectid":ObjectId(projectid),"folderpath":gitFolderPath},{"parent":1,"commitid":1})
-                git_data = dbsession.gitconfiguration.find_one({"projectid":ObjectId(projectid),"gituser":ObjectId(requestdata["userid"])},{"giturl":1,"gitaccesstoken":1})
+                git_data = dbsession.gitconfiguration.find_one({"projectid":ObjectId(projectid),"gituser":ObjectId(userid)},{"giturl":1,"gitaccesstoken":1})
                 if not git_data:
                     res='empty'
                     return res
@@ -400,11 +408,199 @@ def LoadServices(app, redissession, dbsession, *args):
                     with open(final_path+os.sep+mm_file[0]) as mmFile:
                         json_data=json.loads(mmFile.read())
                         mmFile.close()
+                    
+                    screen_loc=final_path+os.sep+'Screens'+os.sep
+                    testcase_loc=final_path+os.sep+'Testcases'+os.sep
+                    for eachscreen in os.listdir(screen_loc):
+                        with open(screen_loc+eachscreen, 'r') as screenfile:
+                            screen=json.loads(screenfile.read())
+                            screenid=eachscreen.split('.')[0].split('_')[-1]
+                            screenfile.close()
 
-                    res=json_data
+                        screenId = ObjectId(screenid)
+                        modifiedbyrole=  ObjectId(roleid)
+                        modifiedby =  ObjectId(userid)
+                        data_push=[]
+                        data_up=[]
+                        req = []
+                        for i in range(len(screen["view"])):
+                            if '_id' not in screen["view"][i]:
+                                screen["view"][i]['_id'] = ObjectId()
+                            else:
+                                screen["view"][i]['_id'] = ObjectId(screen["view"][i]['_id'])
+                            result=dbsession.dataobjects.find_one({'_id':screen["view"][i]['_id']},{"parent":1})
+                            if result == None:
+                                screen["view"][i]["parent"] = [screenId]
+                                data_push.append(screen["view"][i])
+                            else:
+                                temp=result['parent']
+                                if screenId not in temp:
+                                    temp.append(screenId)
+                                    screen["view"][i]["parent"] = temp
+                                    data_up.append(screen["view"][i])
+                                elif temp == [screenId]:
+                                    screen["view"][i]["parent"] = temp
+                                    data_push.append(screen["view"][i])
+                                else:
+                                    screen["view"][i]["parent"] = temp
+                                    data_up.append(screen["view"][i])
+                        if len(data_push)>0 or len(data_up)>0:
+                            dbsession.dataobjects.update_many({"$and":[{"parent.1":{"$exists":True}},{"parent":screenId}]},{"$pull":{"parent":screenId}})
+                            dbsession.dataobjects.delete_many({"$and":[{"parent":{"$size": 1}},{"parent":screenId}]})
+                            for row in data_push:
+                                req.append(InsertOne(row))
+                            for row in data_up:
+                                req.append(UpdateOne({"_id":row['_id']},{"$set":{"parent":row["parent"]}}))
+                            dbsession.dataobjects.bulk_write(req)
+                            if "mirror" in screen:
+                                screenshot = screen['mirror']
+                                if "scrapedurl" in screen:
+                                    scrapedurl = screen["scrapedurl"]
+                                    dbsession.screens.update({"_id":screenId},{"$set":{"screenshot":screenshot,"scrapedurl":scrapedurl,"modifiedby":modifiedby, 'modifiedbyrole':modifiedbyrole,"modifiedon" : datetime.now()}})
+                                else:
+                                    dbsession.screens.update({"_id":screenId},{"$set":{"screenshot":screenshot,"modifiedby":modifiedby, 'modifiedbyrole':modifiedbyrole,"modifiedon" : datetime.now()}})
+                            elif 'scrapeinfo' in screen:
+                                scrapeinfo=screen['scrapeinfo']
+                                dbsession.screens.update({"_id":screenId},{"$set":{"scrapedurl":scrapeinfo["endPointURL"],"modifiedby":modifiedby,'modifiedbyrole':modifiedbyrole, 'scrapeinfo':scrapeinfo,"modifiedon" : datetime.now()}})
+                            else:
+                                dbsession.screens.update({"_id":screenId},{"$set":{"modifiedby":modifiedby, 'modifiedbyrole':modifiedbyrole,"modifiedon" : datetime.now()}})
+
+                    for eachTc in os.listdir(testcase_loc):
+                        with open(testcase_loc+eachTc, 'r') as testcasefile:
+                            tc=json.loads(testcasefile.read())
+                            testcaseid = eachTc.split('.')[0].split('_')[-1]
+                            testcasefile.close()
+
+                        query_screen = dbsession.testcases.find_one({'_id':ObjectId(testcaseid)},{'screenid':1})
+                        queryresult1 = list(dbsession.dataobjects.find({'parent':query_screen['screenid']}))
+                        custnames = {}
+                        if (queryresult1 != []):
+                            custnames = {i['custname'].strip():i for i in queryresult1}
+                        steps = []
+                        missingCustname = {}
+                        for so in tc:
+                            cid = cname = so["custname"].strip()
+                            if cname in custnames:
+                                if ('objectName' in so) and ('xpath' in custnames[cname]) and (so["objectName"] == custnames[cname]['xpath']):
+                                    cid = custnames[cname]["_id"]
+                                else:
+                                    cid = ObjectId()
+                                    try:
+                                        s_cname = cname.split('_')
+                                        ind = int(s_cname.pop())
+                                        n_cname = '_'.join(s_cname)
+                                    except:
+                                        ind = 0
+                                        n_cname = cname
+                                    while True:
+                                        if n_cname+'_'+str(ind+1) not in custnames:
+                                            so["custname"] = n_cname+'_'+str(ind+1)
+                                            break
+                                        elif ('objectName' in so) and ('xpath' in custnames[n_cname+'_'+str(ind+1)]) and (so["objectName"] == custnames[n_cname+'_'+str(ind+1)]['xpath']):
+                                            cid = custnames[n_cname+'_'+str(ind+1)]["_id"]
+                                            break
+                                        ind += 1
+                                    if so["custname"] not in custnames:
+                                        custnames[so["custname"]] = {"_id":cid,"xpath":so["objectName"],"url":so['url'] if 'url' in so else ""}
+                                        missingCustname[cid] = so
+                            elif (cname not in custnames) and (cname not in defcn):
+                                cid = ObjectId()
+                                custnames[cname] = {"_id":cid,"xpath":so["objectName"],"url":so['url'] if 'url' in so else ""}
+                                missingCustname[cid] = so
+                            steps.append({
+                                "stepNo": so["stepNo"],
+                                "custname": cid,
+                                "keywordVal": so["keywordVal"],
+                                "inputVal": so["inputVal"],
+                                "outputVal": so["outputVal"],
+                                "appType": so["appType"],
+                                "remarks": so["remarks"] if ("remarks" in so) else "",
+                                "addDetails": so["addTestCaseDetailsInfo"] if ("addTestCaseDetailsInfo" in so) else "",
+                                "cord": so["cord"] if ("cord" in so) else ""
+                            })
+                        # del requestdata['testcasesteps']
+                        createdataobjects(query_screen['screenid'], missingCustname)
+
+                    #query to update tescase
+                    queryresult = dbsession.testcases.update_many({'_id':ObjectId(testcaseid),'versionnumber':0},
+                                {'$set':{'modifiedby':ObjectId(userid),'modifiedbyrole':ObjectId(roleid),'steps':steps,"modifiedon" : datetime.now()}}).matched_count
+
+                res=json_data
             else:
                 app.logger.warn('Empty data received.')
         except Exception as ex:
             servicesException("importGitMindmap", ex, True)
         if(git_path): os.system('rmdir /S /Q "{}"'.format(git_path))
         return res
+
+    def adddataobjects(pid, d):
+        if len(d) == 0: return False
+        req = []
+        for row in d:
+            if type(row) == str and len(row) == 0: continue
+            if "custname" not in row: row["custname"] = "object"+str(row["_id"])
+            row["parent"] = [pid]
+            req.append(InsertOne(row))
+        dbsession.dataobjects.bulk_write(req)
+
+    def createdataobjects(scrid, objs):
+        custnameToAdd = []
+        for e in objs:
+            so = objs[e]
+            obn = so["objectName"] if "objectName" in so else ""
+            dodata = {
+                "_id": e,
+                "custname": so["custname"],
+                "xpath": obn
+            }
+            if obn.strip() == '' :
+                custnameToAdd.append(dodata)
+                continue
+            elif obn.startswith("iris;"):
+                ob = obn.split(';')[2:]
+                legend = ['left', 'top', 'width', 'height', 'tag']
+                for i in range(len(legend)):
+                    if i < 4: dodata[legend[i]] = int(ob[i])
+                    else: dodata[legend[i]] = ob[i]
+                dodata["height"] = dodata["top"] - dodata["height"]
+                dodata["width"] = dodata["left"] - dodata["width"]
+                dodata["url"] = so["url"] if "url" in so else ""
+                dodata["cord"] = so["cord"] if "cord" in so else ""
+            elif so["appType"] in ["Web", "MobileWeb"]:
+                ob=[]
+                legend = ['id', 'name', 'tag', 'class', 'left', 'top', 'height', 'width', 'text']
+                for i in obn.split(';'): ob.append(getScrapeData(i))
+                ob = ";".join(ob).split(';')
+                ob = ob[1:2] + ob[3:]
+                if len(ob) < 4:
+                    custnameToAdd.append(dodata)
+                    continue
+                elif len(ob) == 4: legend = legend[:4]
+                elif len(ob) == 8: del legend[3]
+                elif len(ob) == 11: dodata["tag"] = ob[-1]
+                try:
+                    for i in range(len(legend)):
+                        if (i>=4 and i<=7):
+                            if ob[i].isnumeric(): dodata[legend[i]] = int(ob[i])
+                        else:
+                            if (ob[i] != "null") and (legend[i] not in dodata): dodata[legend[i]] = ob[i]
+                except: pass
+                if "tag" in dodata: dodata["tag"] = dodata["tag"].split("[")[0]
+                if "class" in dodata: dodata["class"] = dodata["class"].split("[")[0]
+                dodata["url"] = so["url"] if 'url' in so else ""
+                dodata["cord"] = so["cord"] if "cord" in so else ""
+            elif so["appType"] == "MobileApp":
+                ob = obn.split(';')
+                if len(ob) >= 2 and ob[0].strip() != "": dodata["id"] = ob[0]
+                if len(ob) >2 and ob[2].strip() !="": dodata["tag"] = ob[2]
+            elif so["appType"] == "Desktop":
+                gettag = {"btn":"button","txtbox":"input","radiobtn":"radiobutton","select":"select","chkbox":"checkbox","lst":"list","tab":"tab","tree":"tree","dtp":"datepicker","table":"table","elmnt":"label"}
+                tag = so["custname"].split("_")[-1]
+                if tag in gettag: dodata["tag"] = gettag[tag]
+                dodata["control_id"] = obn.split(';')[2] if len(obn.split(';'))>1 else ""
+                dodata["url"] = so["url"] if 'url' in so else ""
+            elif so["appType"] == "pdf":
+                dodata["tag"] = "_".join(so["custname"].split("_")[0:2])
+            elif so["appType"] == ["Generic", "SAP", "Webservice", "Mainframe", "System"]: pass
+            custnameToAdd.append(dodata)
+        adddataobjects(scrid, custnameToAdd)
