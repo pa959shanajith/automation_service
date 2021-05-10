@@ -312,7 +312,7 @@ def LoadServices(app, redissession, dbsession):
                 if tab=="tabAssign":
                     assignTab=True
                     for t in taskdetails:
-                        if assignTab and ( t['nodetype']=="screens" or t['nodetype']=="testcases" or cycleid==str(t['cycleid'])):
+                        if assignTab and (mindmaptype=="endtoend" or t['nodetype']=="screens" or t['nodetype']=="testcases" or cycleid==str(t['cycleid'])):
                             data_dict[t['nodetype']][t['nodeid']]={'task':t}
                 else:
                     for t in taskdetails:
@@ -369,7 +369,7 @@ def LoadServices(app, redissession, dbsession):
                 projectid=mindmapdata["projectid"]
 
                 # Preparing final data in format needed
-                if len(mindmapdata["testscenarios"])==0 and mindmaptype=="basic":
+                if len(mindmapdata["testscenarios"])==0 :
                     finaldata["completeFlow"]=False
                 i=1
                 if "testscenarios" in mindmapdata:
@@ -672,15 +672,15 @@ def LoadServices(app, redissession, dbsession):
                     tasks_remove=requestdata["delete"]
                     for i in tasks_update:
                         i["assignedtime"]=datetime.now()
-                        if i['startdate'].find('/') > -1:
-                            i["startdate"]=datetime.strptime(i["startdate"],"%d/%m/%Y")
-                        if i['enddate'].find('/') > -1:
-                            i["enddate"]=datetime.strptime(i["enddate"],"%d/%m/%Y")
+                        if i['startdate'].find('-') > -1:
+                            i["startdate"]=datetime.strptime(i["startdate"],"%d-%m-%Y")
+                        if i['enddate'].find('-') > -1:
+                            i["enddate"]=datetime.strptime(i["enddate"],"%d-%m-%Y")
                         dbsession.tasks.update({"_id":ObjectId(i["_id"]),"cycleid":ObjectId(i["cycleid"])},{"$set":{"assignedtime":i["assignedtime"],"startdate":i["startdate"],"enddate":i["enddate"],"assignedto":ObjectId(i["assignedto"]),"reviewer":ObjectId(i["reviewer"]),"status":i["status"],"reestimation":i["reestimation"],"complexity":i["complexity"],"history":i["history"]}})
                     tasks_insert=requestdata["insert"]
                     for i in tasks_insert:
-                        i["startdate"]=datetime.strptime(i["startdate"],"%d/%m/%Y")
-                        i["enddate"]=datetime.strptime(i["enddate"],"%d/%m/%Y")
+                        i["startdate"]=datetime.strptime(i["startdate"],"%d-%m-%Y")
+                        i["enddate"]=datetime.strptime(i["enddate"],"%d-%m-%Y")
                         i["assignedtime"]=datetime.now()
                         i["createdon"]=datetime.now()
                         i["owner"]=ObjectId(i["owner"])
@@ -928,32 +928,10 @@ def LoadServices(app, redissession, dbsession):
             requestdata=json.loads(request.data)
             app.logger.debug("Inside getScreens.")
             if not isemptyrequest(requestdata):
-                projectid=requestdata["projectid"]
-                moduledetails=list(dbsession.mindmaps.find({"projectid":ObjectId(projectid)},{"testscenarios":1}))
-                screenidsset=set()
-                screenids=[]
-                screen_testcase={}
-                testcaseidsset=set()
-                testcaseids=[]
-                for mod in moduledetails:
-                    for sce in mod["testscenarios"]:
-                        if "screens" in sce:
-                            for scr in sce["screens"]:
-                                if scr["_id"] not in screenidsset:
-                                    screenidsset.add(scr["_id"])
-                                    screenids.append(scr["_id"])
-                                if "testcases" in scr:
-                                    for tc in scr["testcases"]:
-                                        if tc not in testcaseidsset:
-                                            testcaseids.append(tc)
-                                            testcaseidsset.add(tc)
-                                        if scr["_id"] not in screen_testcase:
-                                            screen_testcase[scr["_id"]]=[]
-                                            screen_testcase[scr["_id"]].append(tc)
-                                        else:
-                                            screen_testcase[scr["_id"]].append(tc)
-                screendetails=list(dbsession.screens.find({"_id":{"$in":screenids}},{"_id":1,"name":1,"parent":1}))
-                testcasedetails=list(dbsession.testcases.find({"_id":{"$in":testcaseids}},{"_id":1,"name":1,"parent":1,"screenid":1}))
+                projectid=ObjectId(requestdata["projectid"])
+                screendetails=list(dbsession.screens.find({"projectid":projectid},{"_id":1,"name":1,"parent":1}))
+                screenids = [scr["_id"] for scr in screendetails]
+                testcasedetails=list(dbsession.testcases.find({"screenid":{"$in":screenids}},{"_id":1,"name":1,"parent":1,"screenid":1}))
                 res={'rows':{'screenList':screendetails,'testCaseList':testcasedetails}}
             else:
                 app.logger.warn("Empty data received. getScreens")
@@ -1151,7 +1129,9 @@ def LoadServices(app, redissession, dbsession):
                     if result != None:
                         queryresult = dbsession.mindmaps.update_one({"_id":mindmapid},{'$set':{"deleted":False,"name":requestdata['mindmap']['name'],"projectid": ObjectId(requestdata['mindmap']['projectid']),"testscenarios":requestdata['mindmap']['testscenarios'],"type":requestdata['mindmap']['type'],"versionnumber":requestdata['mindmap']['versionnumber']}})
                     else:
-                        queryresult = dbsession.mindmaps.insert_one(requestdata)
+                        requestdata['mindmap']['_id'] = mindmapid
+                        requestdata['mindmap']['projectid'] = ObjectId(requestdata['mindmap']['projectid'])
+                        queryresult = dbsession.mindmaps.insert_one(requestdata['mindmap'])
                     result=dbsession.mindmaps.find_one({"_id":mindmapid},{"_id":1})
                     if queryresult:
                         res={'rows':result}

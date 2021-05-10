@@ -105,6 +105,9 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
                         dbsession.users.insert_one(requestdata)
                         res={"rows":"success"}
                 elif (action=="update"):
+                    if(requestdata["auth"]["password"] == "" and requestdata["auth"]["type"] == "inhouse" ):
+                        result=dbsession.users.find_one({"_id":ObjectId(requestdata["userid"])})["auth"]["password"]
+                        requestdata["auth"]["password"] = result;
                     update_query = {
                         "firstname":requestdata["firstname"],
                         "lastname":requestdata["lastname"],
@@ -417,6 +420,9 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
                                     j["modifiedby"]=ObjectId(requestdata["modifiedby"])
                                     j["modifiedon"]=datetime.now()
                     dbsession.projects.update({"_id":ObjectId(requestdata["projectid"])},{"$set":{"releases":releases}})
+                    res={'rows':'success'}
+                elif(requestdata['query'] == 'updateprojectname'):
+                    dbsession.projects.update({"_id":ObjectId(requestdata["projectid"])},{"$set":{"name":requestdata["newprojectname"],"modifiedbyrole":ObjectId(requestdata["modifiedbyrole"]),"modifiedby":ObjectId(requestdata["modifiedby"]),"modifiedon":datetime.now()}})
                     res={'rows':'success'}
                 else:
                     res={'rows':'fail'}
@@ -1175,7 +1181,66 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
         except Exception as e:
             app.logger.debug(traceback.format_exc())
             servicesException("configure_pool",e)
-        return jsonify(res) 
+        return jsonify(res)
+        
+    #Saving Git configuration
+    @app.route('/admin/gitSaveConfig',methods=['POST'])
+    def gitSaveConfig():
+        app.logger.debug("Saving Git Configuration")
+        requestdata=json.loads(request.data)
+        res={'rows':'fail'}
+        data={}
+        try:
+            result = dbsession.gitconfiguration.find_one({"gituser":ObjectId(requestdata["userId"]),"giturl":requestdata["gitUrl"],"projectid":ObjectId(requestdata["projectId"]),"gitaccesstoken":requestdata["gitAccToken"]},{"_id":1})
+            result1 = dbsession.gitconfiguration.find_one({"gituser":ObjectId(requestdata["userId"]),"projectid":ObjectId(requestdata["projectId"])})
+            
+            current_time = datetime.now()
+            if requestdata["action"]=='create':
+                if result!=None:
+                    res1 = "GitUser Exists"
+                else:
+                    data['gituser'] = ObjectId(requestdata["userId"])
+                    data['projectid'] = ObjectId(requestdata["projectId"])
+                    data['createdon'] = current_time
+                    data['modifiedon'] = current_time
+                    data['gitaccesstoken'] = requestdata["gitAccToken"]
+                    data['giturl']= requestdata["gitUrl"]
+                    dbsession.gitconfiguration.insert_one(data)
+                    res1 = "success"
+            elif requestdata["action"]=='update':
+                data['modifiedon'] = current_time
+                data['gitaccesstoken'] = requestdata["gitAccToken"]
+                data['giturl']= requestdata["gitUrl"]
+                dbsession.gitconfiguration.update_one({"_id":ObjectId(result1["_id"])},{"$set":data})
+                res1 = "success"
+            elif requestdata["action"]=="delete":
+                if result1!=None:
+                    dbsession.gitconfiguration.delete_one({"_id":result1["_id"]})
+                res1 = "success"
+            res['rows'] = res1
+        except Exception as e:
+            app.logger.debug(traceback.format_exc())
+            servicesException("gitSaveConfig",e)
+        return jsonify(res)
+
+    #Fetch all gitUser data - Edit git
+    @app.route('/admin/gitEditConfig', methods=['POST'])
+    def gitEditConfig():
+        app.logger.info("Inside gitEditConfig")
+        res={'rows':'fail'}
+        try:
+            requestdata=json.loads(request.data)
+            if not isemptyrequest(requestdata):
+                result=dbsession.gitconfiguration.find_one({"gituser":ObjectId(requestdata["userId"]),"projectid":ObjectId(requestdata["projectId"])},{'gitaccesstoken':1, 'giturl':1, '_id':0})
+                if result:
+                    res={'rows':result}
+                else:
+                    res={'rows':"empty"}    
+            else:
+                app.logger.warn('Empty data received in git user fetch.')
+        except Exception as e:
+            servicesException("gitEditConfig",e)
+        return jsonify(res)
 
     def check_array_exists(data_arr):
         if data_arr is not None and len(data_arr) > 0:

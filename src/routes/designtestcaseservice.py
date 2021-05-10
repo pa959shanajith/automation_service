@@ -169,6 +169,35 @@ def LoadServices(app, redissession, dbsession):
                     custnames = {i['custname'].strip():i for i in queryresult1}
                 steps = []
                 if not (requestdata['import_status']):
+                    if len(requestdata['copiedTestCases'])>0:
+                        copiedObjects = [ObjectId(i) for i in requestdata['copiedTestCases']]
+                        copiedObjectList = list(dbsession.dataobjects.find({'_id':{'$in':copiedObjects}}))
+                        mapNew =[]
+                        for co in copiedObjectList:
+                            if co['custname'] in custnames:
+                                if co['_id'] != custnames[co['custname']]['_id']:
+                                    cname = co['custname']
+                                    try:
+                                        s_cname = cname.split('_')
+                                        ind = int(s_cname.pop())
+                                        n_cname = '_'.join(s_cname)
+                                    except:
+                                        ind = 0
+                                        n_cname = cname
+                                    while True:
+                                        if n_cname+'_'+str(ind+1) not in custnames:
+                                            co["custname"] = n_cname+'_'+str(ind+1)
+                                            break
+                                    if query_screen['screenid'] not in co['parent']:
+                                        co['parent'].append(query_screen['screenid'])
+                                    mapNew.append(co)
+                            else:
+                                if query_screen['screenid'] not in co['parent']:
+                                    co['parent'].append(query_screen['screenid'])
+                                    mapNew.append(co)
+                        for mn in mapNew:
+                            custnames[mn['custname']] = mn
+                            dbsession.dataobjects.save(mn)
                     for so in requestdata['testcasesteps']:
                         cid = cname = so["custname"].strip()
                         if cname in custnames: cid = custnames[cname]["_id"]
@@ -262,6 +291,7 @@ def LoadServices(app, redissession, dbsession):
                         if 'original_device_width' in dataObjects[j['custname']].keys():
                             j['original_device_width'] = dataObjects[j['custname']]['original_device_width']
                             j['original_device_height'] = dataObjects[j['custname']]['original_device_height']
+                        j['objectid'] = j['custname']
                         j['custname'] = dataObjects[j['custname']]['custname']
                     elif (j['custname'] not in defcn or j['custname']=='OBJECT_DELETED'):
                         j['custname'] = 'OBJECT_DELETED'

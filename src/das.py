@@ -173,6 +173,9 @@ def addroutes():
 
     import mindmapservice
     mindmapservice.LoadServices(app, redissession, dbsession)
+    
+    import gitservice
+    gitservice.LoadServices(app, redissession, dbsession)
 
     import designscreenservice
     designscreenservice.LoadServices(app, redissession, dbsession)
