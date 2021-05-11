@@ -203,14 +203,22 @@ def LoadServices(app, redissession, dbsession):
                         if execids[tsuid] is None:
                             insertquery = {"batchid": batchid, "parent": [ObjectId(tsuid)],
                                 "configuration": {}, "executedby": ObjectId(requestdata['executedby']),
-                                "status": "inprogress", "endtime": None, "starttime": starttime}
+                                "status": "queued", "endtime": None, "starttime": starttime}
                             execid = str(dbsession.executions.insert(insertquery))
                             execids[tsuid] = execid
                     res["rows"] = {"batchid": str(batchid), "execids": execids}
                 elif param  == 'updateintoexecution':
-                    endtime = datetime.now()
-                    for exec_id in requestdata['executionids']:
-                        dbsession.executions.update({"_id":ObjectId(exec_id)}, {'$set': {"status":requestdata['status'],"endtime":endtime}})
+                    TF = '%Y-%m-%d %H:%M:%S'
+                    if 'starttime' in requestdata:
+                        start_t = datetime.strptime(requestdata['starttime'], TF)
+                        for exec_id in requestdata['executionids']:
+                            dbsession.executions.update({"_id":ObjectId(exec_id), "status":"queued"}, {'$set': {"status":'inprogress',"starttime":start_t}})
+                    else:
+                        end_t = datetime.strptime(requestdata['endtime'], TF) if 'endtime' in requestdata else datetime.now()
+                        updt_args = {"endtime":end_t}
+                        if "status" in requestdata: updt_args["status"]=requestdata['status']
+                        for exec_id in requestdata['executionids']:
+                            dbsession.executions.update({"_id":ObjectId(exec_id)}, {'$set': updt_args})
                     res["rows"] = True
 
                 elif param == 'insertreportquery':
