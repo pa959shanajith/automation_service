@@ -178,12 +178,11 @@ def LoadServices(app, redissession, dbsession):
             app.logger.debug("Inside getReport_API")
             if not isemptyrequest(requestdata):
                 errMsgVal=str(requestdata["executionId"])
-                queryresult1 = dbsession.reports.find({"executionid":ObjectId(requestdata["executionId"])})
-                queryresult4 = dbsession.executions.find_one({"_id": ObjectId(requestdata["executionId"])})
-                parent = queryresult4["parent"]
+                tsuite = dbsession.executions.find_one({"_id": ObjectId(requestdata["executionId"])})["parent"]
                 errMsgVal=''
+                filter1 = {"executionid":ObjectId(requestdata["executionId"])}
                 if("scenarioIds" in requestdata):
-                    scenarioIds = dbsession.reports.distinct("testscenarioid",{"executionid":ObjectId(requestdata["executionId"])})
+                    scenarioIds = dbsession.reports.distinct("testscenarioid", filter1)
                     for scenId in requestdata["scenarioIds"]:
                         if len(scenId.strip())==0:
                             continue
@@ -192,29 +191,49 @@ def LoadServices(app, redissession, dbsession):
                                 errIds.append(str(scenId))
                             else:
                                 correctScenarios.append(ObjectId(scenId))
-                        except Exception:
+                        except:
                             errIds.append(str(scenId))
                     if len(correctScenarios) != 0 or len(errIds) != 0:
-                        queryresult1 = dbsession.reports.find({"executionid":ObjectId(requestdata["executionId"]),"testscenarioid":{"$in":correctScenarios}})
-                for execData in queryresult1:
-                    queryresult2 = dbsession.testscenarios.find_one({"_id":execData["testscenarioid"]})#,{"name":1,"projectid":1,"_id":0})
-                    queryresult3 = dbsession.projects.find_one({"_id":queryresult2["projectid"]})#,{"domain":1,"_id":0})
-                    for obj in parent:
-                        queryresult5 = dbsession.testsuites.find_one({"_id":obj})
-                        if execData["testscenarioid"] in queryresult5["testscenarioids"]:
-                            #queryresult6 = dbsession.mindmaps.find_one({"_id":queryresult5["mindmapid"]})
+                        filter1["testscenarioid"] = {"$in":correctScenarios}
+                queryresult1 = dbsession.reports.find(filter1)
+                cycleid_dict = {}
+                for reportobj in queryresult1:
+                    tscid = reportobj["testscenarioid"]
+                    tsc = dbsession.testscenarios.find_one({"_id":tscid},{"name":1,"projectid":1,"_id":0})
+                    tsuobj = {}
+                    for tsuid in tsuite:
+                        tsuobj_t = dbsession.testsuites.find_one({"_id":tsuid, "testscenarioids": tscid})
+                        if tsuobj_t:
+                            tsuobj = tsuobj_t
                             break
+                    prjobj = dbsession.projects.find_one({"_id":tsc["projectid"]},{"domain":1,"name":1,"releases":1,"_id":0})
+                    release_name = prjobj["releases"][0]["name"]
+                    cycle_name = prjobj["releases"][0]["cycles"][0]["name"]
+                    cycleid = tsuobj.get('cycleid', None)
+                    if cycleid:
+                        if cycleid not in cycleid_dict:
+                            found = False
+                            for rel in prjobj["releases"]:
+                                for cyc in rel["cycles"]:
+                                    if cyc["_id"] == cycleid:
+                                        found = (rel["name"], cyc["name"])
+                                        break
+                                if found:
+                                    cycleid_dict[cycleid] = found
+                                    break
+                        if cycleid in cycleid_dict:
+                            release_name, cycle_name = cycleid_dict[cycleid]
                     query={
-                        'report': execData["report"],
-                        'scenariodId': queryresult2["_id"],
-                        'scenarioName': queryresult2["name"],
-                        'domainName': queryresult3["domain"],
-                        'projectName': queryresult3["name"],
-                        'reportId': execData["_id"],
-                        'releaseName': queryresult3["releases"][0]["name"],
-                        'cycleName': queryresult3["releases"][0]["cycles"][0]["name"],
-                        'moduleId': queryresult5["mindmapid"],
-                        'moduleName': queryresult5["name"]
+                        'report': reportobj["report"],
+                        'testscenarioid': tscid,
+                        'testscenarioname': tsc["name"],
+                        'domainname': prjobj["domain"],
+                        'projectname': prjobj["name"],
+                        'reportid': reportobj["_id"],
+                        'releasename': release_name,
+                        'cyclename': cycle_name,
+                        'moduleid': tsuobj.get("mindmapid", None),
+                        'testsuitename': tsuobj.get("name", None)
                     }
                     finalQuery.append(query)
                 res["rows"] = finalQuery
