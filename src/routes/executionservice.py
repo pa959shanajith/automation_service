@@ -180,15 +180,24 @@ def LoadServices(app, redissession, dbsession):
                     tsc = dbsession.testscenarios.find_one({"_id": ObjectId(requestdata['id']),"deleted":query['delete_flag']},{"testcaseids":1})
                     if tsc is not None:
                         testcase=[]
-                        testcases = list(dbsession.testcases.find({"_id": {"$in": tsc["testcaseids"]},"deleted":query['delete_flag']},{"name":1,"versionnumber":1,"screenid":1}))
+                        testcases = list(dbsession.testcases.find({"_id": {"$in": tsc["testcaseids"]},"deleted":query['delete_flag']},{"name":1,"versionnumber":1,"screenid":1,"datatables":1}))
                         scids = {}
                         for i in tsc['testcaseids']:
+                            dts = []
                             for tc in testcases:
                                 if i==tc['_id']:
                                     scid = tc["screenid"]
                                     if scid not in scids:
                                         scids[scid] = dbsession.screens.find_one({"_id":scid})['name']
                                     tc["screenname"] = scids[scid]
+                                    if 'datatables' in tc and len(tc['datatables']) != 0:
+                                        for dt in tc['datatables']:
+                                            dtdet = dbsession.datatables.find_one({"datatablename": dt})
+                                            if dtdet != None:
+                                                newObj = {}
+                                                newObj[dt] = dtdet['datatable']
+                                                dts.append(newObj)
+                                        tc['datatables'] = dts
                                     testcase.append(tc)
                         res["rows"] = testcase
                     if 'userid' in requestdata:    # Update the Counter

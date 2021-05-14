@@ -90,6 +90,83 @@ def LoadServices(app, redissession, dbsession):
         except Exception as useraccessexc:
             servicesException('userAccess', useraccessexc, True)
         return jsonify(res)
+        
+    #creates new data table
+    @app.route('/utility/manageDataTable',methods=['POST'])
+    def manageDataTable():
+        print("Inside DAS")
+        app.logger.debug('Inside manageDataTable')
+        res={'rows':'fail'}
+        try:
+            print(json.loads(request.data))
+            requestdata = json.loads(request.data)    
+            if not isemptyrequest(requestdata):
+                datatablename = requestdata["datatablename"]
+                app.logger.debug("Data Table Name: "+datatablename)
+                action=requestdata["action"]
+                dts = dbsession.datatables.find_one({"datatablename": datatablename})
+                if action == "create":
+                    app.logger.debug(dts)
+                    if dts != None:
+                        res = {'rows': 'exists'}
+                    else:
+                        app.logger.debug("Inside else")
+                        datatable = requestdata["datatable"]
+                        app.logger.debug(datatable)
+                        querydata = {
+                            "datatablename": datatablename,
+                            "datatable": json.loads(datatable),
+                            "testcaseIds": []
+                        }
+                        app.logger.debug(querydata["datatable"])
+                        dbsession.datatables.insert_one(querydata)
+                        res = {'rows':'success'}
+                elif action == "edit":
+                    datatable = requestdata["datatable"]
+                    dbsession.datatables.update({"datatablename": datatablename},{"$set":{"datatable": json.loads(datatable)}})
+                    res = {'rows':'success'}
+                elif action == "delete":
+                    for tc in dts['testcaseIds']:
+                        tcdet = dbsession.testcases.find_one({'_id':ObjectId(tc)})
+                        tc_up = tcdet['datatables'].remove(datatablename)
+                        dbsession.testcases.update({"_id": ObjectId(tc)},{"$set":{"datatables": tc_up}})
+                    dbsession.datatables.delete_one({"datatablename": datatablename})
+                    res = {'rows':'success'}
+                elif action == "deleteConfirm":
+                    if 'testcaseIds' in dts and len(dts['testcaseIds']) != 0:
+                        res = {'rows':'referenceExists', 'noOfReferences':len(dts['testcaseIds'])}
+                    else:
+                        res = {'rows':'success'}
+                 
+            else:
+                app.logger.warn('Empty data received. Data Table operation.')
+        except Exception as useraccessexc:
+            servicesException('manageDataTable', useraccessexc, True)
+        return jsonify(res)
+                
+    @app.route('/utility/fetchDatatable',methods=['POST'])
+    def fetchDatatable():
+        app.logger.debug('Inside fetchDatatable')
+        res={'rows':'fail'}
+        try:
+            requestdata = json.loads(request.data)    
+            if not isemptyrequest(requestdata):
+                action = requestdata["action"]
+                if action == "datatablenames":
+                    dts = list(dbsession.datatables.find({},{"datatablename":1}))
+                    res['rows'] = dts
+                    app.logger.debug(dts)
+                elif action == "datatable":
+                    datatablename = requestdata["datatablename"]
+                    app.logger.debug(datatablename)
+                    dts = list(dbsession.datatables.find({"datatablename": datatablename}))
+                    res['rows'] = dts
+                    app.logger.debug(dts)
+            else:
+                app.logger.warn('Empty data received. Check for reference dt.')
+        except Exception as useraccessexc:
+            servicesException('fetchDatatable', useraccessexc, True)
+        return jsonify(res)
 
 ################################################################################
 # END OF UTILITIES
