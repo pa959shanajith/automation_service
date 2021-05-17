@@ -30,7 +30,7 @@ def LoadServices(app, redissession, dbsession):
                     result=list(dbsession.projects.find({"_id":ObjectId(requestdata["projectid"])},{"name":1}))
                     res= {"rows":result}
                 elif(requestdata["query"] == 'scenariodata'):
-                    result=list(dbsession.testscenarios.find({"projectid":ObjectId(requestdata["projectid"])},{"name":1,"_id":1}))
+                    result=list(dbsession.testscenarios.find({"projectid":ObjectId(requestdata["projectid"]),"deleted":False,"$where":"this.parent.length>0"},{"name":1,"_id":1}))
                     res= {"rows":result}
                 else:
                     res={'rows':'fail'}
