@@ -94,36 +94,36 @@ def LoadServices(app, redissession, dbsession):
     #creates new data table
     @app.route('/utility/manageDataTable',methods=['POST'])
     def manageDataTable():
-        print("Inside DAS")
         app.logger.debug('Inside manageDataTable')
         res={'rows':'fail'}
         try:
-            print(json.loads(request.data))
             requestdata = json.loads(request.data)    
             if not isemptyrequest(requestdata):
                 datatablename = requestdata["datatablename"]
-                app.logger.debug("Data Table Name: "+datatablename)
                 action=requestdata["action"]
                 dts = dbsession.datatables.find_one({"datatablename": datatablename})
                 if action == "create":
-                    app.logger.debug(dts)
                     if dts != None:
                         res = {'rows': 'exists'}
                     else:
-                        app.logger.debug("Inside else")
                         datatable = requestdata["datatable"]
-                        app.logger.debug(datatable)
+                        dtheaders = requestdata["dtheaders"]
                         querydata = {
                             "datatablename": datatablename,
-                            "datatable": json.loads(datatable),
+                            "dtheaders": dtheaders,
+                            "datatable": datatable,
                             "testcaseIds": []
                         }
-                        app.logger.debug(querydata["datatable"])
                         dbsession.datatables.insert_one(querydata)
                         res = {'rows':'success'}
                 elif action == "edit":
                     datatable = requestdata["datatable"]
-                    dbsession.datatables.update({"datatablename": datatablename},{"$set":{"datatable": json.loads(datatable)}})
+                    dtheaders = requestdata["dtheaders"]
+                    querydata = {
+                        "dtheaders": dtheaders,
+                        "datatable": datatable,
+                    }
+                    dbsession.datatables.update({"datatablename": datatablename},{"$set":querydata})
                     res = {'rows':'success'}
                 elif action == "delete":
                     for tc in dts['testcaseIds']:
@@ -155,13 +155,10 @@ def LoadServices(app, redissession, dbsession):
                 if action == "datatablenames":
                     dts = list(dbsession.datatables.find({},{"datatablename":1}))
                     res['rows'] = dts
-                    app.logger.debug(dts)
                 elif action == "datatable":
                     datatablename = requestdata["datatablename"]
-                    app.logger.debug(datatablename)
                     dts = list(dbsession.datatables.find({"datatablename": datatablename}))
                     res['rows'] = dts
-                    app.logger.debug(dts)
             else:
                 app.logger.warn('Empty data received. Check for reference dt.')
         except Exception as useraccessexc:
