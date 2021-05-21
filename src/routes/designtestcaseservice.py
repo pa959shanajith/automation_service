@@ -147,6 +147,12 @@ def LoadServices(app, redissession, dbsession):
                 if tag in gettag: dodata["tag"] = gettag[tag]
                 dodata["control_id"] = obn.split(';')[2] if len(obn.split(';'))>1 else ""
                 dodata["url"] = so["url"] if 'url' in so else ""
+            elif so["appType"] == "OEBS":
+                gettag = {"btn":"push button","txtbox":"text","radiobtn":"radio button","select":"combo box","chkbox":"check box","lst":"list","tab":"tab","tree":"tree","table":"table","elmnt":"element","internalframe":"internal frame","frame":"frame","scroll":"scroll bar","link":'hyperlink'}
+                tag = so["custname"].split("_")[-1]
+                if tag in gettag: dodata["tag"] = gettag[tag]
+                dodata["control_id"] = obn.split(';')[2] if len(obn.split(';'))>1 else ""
+                dodata["url"] = so["url"] if 'url' in so else ""
             elif so["appType"] == "pdf":
                 dodata["tag"] = "_".join(so["custname"].split("_")[0:2])
             elif so["appType"] == ["Generic", "SAP", "Webservice", "Mainframe", "System"]: pass
