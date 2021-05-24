@@ -36,7 +36,24 @@ def LoadServices(app, redissession, dbsession):
                     queryresult=list(dbsession.projects.find({"_id":{"$in":queryresult1["projects"]}},{"name":1,"releases":1,"type":1}))
                     res= {"rows":queryresult}
                 elif(requestdata["query"] == 'getAlltestSuites'):
-                    queryresult=list(dbsession.testsuites.find({"cycleid": ObjectId(requestdata["id"])},{"_id":1,"name":1}))
+                    queryresult=list(dbsession.testsuites.aggregate([
+                        {'$match':{
+                            'cycleid':ObjectId(requestdata["id"])
+                            }
+                        },
+                        {'$lookup':{
+                            'from':"mindmaps",
+                            'localField':"mindmapid",
+                            'foreignField':"_id",
+                            'as':"arr"
+                            }
+                        },
+                        {'$project':{
+                            '_id':1,
+                            'name':1,
+                            'type':{"$arrayElemAt":["$arr.type",0]}
+                        }}
+                    ]))
                     res= {"rows":queryresult}
             else:
                 app.logger.warn('Empty data received. report suites details.')
