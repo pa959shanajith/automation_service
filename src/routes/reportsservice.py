@@ -258,6 +258,7 @@ def LoadServices(app, redissession, dbsession):
                     res["errMsg"] = errMsg+'Scenario Id(s): '+(','.join(errIds))
             else:
                 app.logger.warn('Empty data received. report.')
+                res["errMsg"] = "Invalid Execution ID"
         except Exception as getreportexc:
             if errMsgVal:
                 res['errMsg']=errMsg+'Execution Id: '+errMsgVal
