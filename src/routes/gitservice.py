@@ -1,14 +1,13 @@
 from git import repo
 import git
 import os
-import logging
 import json
 from utils import *
 import shutil
 import flask
 from flask import Flask, request, jsonify, Response
-import subprocess
-import stat
+from Crypto.Cipher import AES
+import codecs
 from os import path
 from pymongo import InsertOne
 from pymongo import UpdateOne
@@ -23,14 +22,14 @@ def LoadServices(app, redissession, dbsession, *args):
     @app.route('/git/importFromGit_ICE',methods=['POST'])
     def importFromGit_ICE():
         app.logger.debug("Inside importFromGit_ICE")
-        result={'rows':'fail'}
+        result={'rows':'gitfail'}
         path1=None
         try:
             requestdata=json.loads(request.data)
             if not isemptyrequest(requestdata):
                 versionName=requestdata['gitVersionName']
                 moduleName=requestdata['folderPath']
-                createdBy=requestdata['createdBy']
+                userid=requestdata['userid']
                 gitbranch=requestdata['gitbranch']
                 
                 commitId = dbsession.gitexportdetails.find_one({'branchname':gitbranch,'folderpath':moduleName,'versionname':versionName},{"_id":1,"commitid":1,"parent":1})
@@ -42,15 +41,14 @@ def LoadServices(app, redissession, dbsession, *args):
                 url=gitconfig_data['giturl'].split('://')
                 url=url[0]+"://"+gitconfig_data['gitaccesstoken']+':'+'x-oauth-basic'+"@"+url[1]
 
-                path1=currdir+os.sep+'importGit'+os.sep+createdBy+os.sep
+                path1=currdir+os.sep+'importGit'+os.sep+userid+os.sep
                 repo = git.Repo.init(path1)
                 origin = repo.create_remote('origin',url)
                 origin.fetch()
 
                 repo.git.checkout(commitId['commitid'])
 
-                modulePath = path1+moduleName+os.sep
-                modulePath = modulePath.replace('/','\\')
+                modulePath = os.path.normpath(path1+moduleName)+os.sep
                 screenpath= modulePath+'Screens'+os.sep
                 testcasepath= modulePath+'Testcases'+os.sep
                 screen_data={}
@@ -79,9 +77,9 @@ def LoadServices(app, redissession, dbsession, *args):
                         tc_namesmap[testcaseid]="_".join(testcase_nameid[:-1])
                         testcasefile.close()
                 
-                res={"moduledata":data,"screendata":screen_data, 'tcdata':tc_data, 'tcname_map':tc_namesmap, 'createdBy':createdBy}
+                res={"moduledata":data,"screendata":screen_data, 'tcdata':tc_data, 'tcname_map':tc_namesmap, 'userid':userid}
                 
-                result = executionJson(res, requestdata)
+                result = executionJson(res)
             else:
                 app.logger.warn('Empty data received.')
         except Exception as ex:
@@ -89,7 +87,7 @@ def LoadServices(app, redissession, dbsession, *args):
         if(path1): os.system('rmdir /S /Q "{}"'.format(path1))
         return result
 
-    def executionJson(result, requestdata):
+    def executionJson(result):
         app.logger.debug("Inside executionJson")
         res={'rows':'fail'}
         try:
@@ -99,90 +97,67 @@ def LoadServices(app, redissession, dbsession, *args):
             testcasenames=result['tcname_map']
             moduleid=mindmap_data['_id']
             modulename= mindmap_data['name']
-            createdBy= result['createdBy']
-            scenario_names=[]
-            scenario_ids=[]
-            accessibilitytesting={}
             suite_details=[]
             projectid=mindmap_data['projectid']
             suiteIds = list(dbsession.testsuites.find({"mindmapid":ObjectId(moduleid),"name":modulename},{"_id":1}))
             projectDetails=dbsession.projects.find_one({'_id':ObjectId(projectid)},{"name":1,"domain":1,"releases.name":1,"releases.cycles._id":1,"releases.cycles.name":1})
             
             for i in mindmap_data['testscenarios']: #to fetch list of all scenarioid and name
-                scenarioname_list=dbsession.testscenarios.find_one({"_id":ObjectId(i['_id'])},{"name":1})
-                scenarioname_list['accessibilitytesting']=[]
-                scenario_names.append(scenarioname_list['name'])
-                scenario_ids.append(str(scenarioname_list['_id']))
-                accessibilitytesting[str(scenarioname_list['_id'])]=scenarioname_list['accessibilitytesting']
+                scenarioname_list=list(dbsession.testscenarios.find({"_id":ObjectId(i['_id'])},{"name":1}))
              
-            
             for eachsuite in suiteIds: #Fetching each testSuite
                 suite_details.append(str(eachsuite['_id']))
 
-            suiteDetailsTemplate = { 
-                "browserType": requestdata['browserType'],
-                "testsuitename": modulename,
-                "testsuiteid": suite_details,
-                "domainname": projectDetails['domain'],
-                "projectid": projectid,
-                "projectname": projectDetails['name'],
-                "releaseid": projectDetails['releases'][0]['name'],
-                "cyclename": projectDetails['releases'][0]['cycles'][0]['name'],
-                "cycleid": str(projectDetails['releases'][0]['cycles'][0]['_id']),
-                "condition": [0, 0],
-                "dataparampath": ["", ""],
-                "scenarioNames": scenario_names,
-                "scenarioIds": scenario_ids,
-                "accessibilityMap": accessibilitytesting,
-                suite_details[0]:[]
-            }
-            
-            #creating template for testcase details
-            for i in mindmap_data['testscenarios']:
-                screen_tc_details =[]
-                for j in i['screens']:
-                    screen_name = screen_info[j['_id']]['name']
-                    screen_apptype = screen_info[j['_id']]['appType']
-                    for k in j['testcases']:
-                        tc_steps = testcase_info[k]
-                        tc_name = testcasenames[k]
-                        template1={
-                            "template":"",
-                            "testcase":tc_steps,
-                            "testcasename":tc_name,
-                            "screenid":j['_id'],
-                            "screenname":screen_name
-                        }
-                        screen_tc_details.append(template1)
-                template2 = {
-                    i['_id']:screen_tc_details,
-                    "qcdetails":[]
+            batchInfo=[]
+            for suite in suite_details:
+                suiteDetailsTemplate = {
+                    "testsuiteName": modulename,
+                    "testsuiteId": suite,
+                    "apptype":'',
+                    "domainName": projectDetails['domain'],
+                    "projectId": projectid,
+                    "projectName": projectDetails['name'],
+                    "releaseId": projectDetails['releases'][0]['name'],
+                    "cycleName": projectDetails['releases'][0]['cycles'][0]['name'],
+                    "cycleId": str(projectDetails['releases'][0]['cycles'][0]['_id']),
+                    "suiteDetails": []
                 }
-                suiteDetailsTemplate[suite_details[0]].append(template2)
+                for eachscenario in scenarioname_list:
+                    temp1={
+                        "condition": 0,
+                        "dataparam": [" "],
+                        "scenarioId": str(eachscenario['_id']),
+                        "scenarioName": eachscenario['name']
+                    }
+                    suiteDetailsTemplate["suiteDetails"].append(temp1)
+                
+                    screenTcDetails={}
+                    #creating template for testcase details
+                    for i in mindmap_data['testscenarios']:
+                        screen_tc_details =[]
+                        for j in i['screens']:
+                            screen_name = screen_info[j['_id']]['name']
+                            screen_apptype = screen_info[j['_id']]['appType']
+                            for k in j['testcases']:
+                                tc_steps = testcase_info[k]
+                                tc_name = testcasenames[k]
+                                template1={
+                                    "template":"",
+                                    "testcase":tc_steps,
+                                    "testcasename":tc_name,
+                                    "screenid":j['_id'],
+                                    "screenname":screen_name
+                                }
+                                screen_tc_details.append(template1)
 
-            starttime = datetime.now()
-            batchid = ObjectId() #generating batchid
-            execids = []
+                        screenTcDetails[temp1["scenarioId"]] = str(screen_tc_details)
 
-            #creating execution details in DB
-            for tsuid in suite_details:
-                insertquery = {"batchid": batchid, "parent": [ObjectId(suiteIds[0]['_id'])],
-                    "configuration": {}, "executedby": ObjectId(createdBy),
-                    "status": "inprogress", "endtime": None, "starttime": starttime}
-                execid = str(dbsession.executions.insert(insertquery))
-                execids.append(execid)
-
-            #main json which will be passed to ICE
+                suiteDetailsTemplate['apptype']=screen_apptype
+            batchInfo.append(suiteDetailsTemplate)
+            
             git_json = {
-                "exec_mode": requestdata['exectionMode'],
-                "exec_env" : requestdata['executionEnv'],
-                "apptype": screen_apptype,
-                "integration": requestdata['integration'],
-                "reportType":'functionalTesting',
-                "batchId": str(batchid),
-                "executionIds": execids,
-                "testsuiteIds": suite_details,
-                "suitedetails": [suiteDetailsTemplate]
+                "batchInfo": batchInfo,
+                "suitedetails": screenTcDetails
             }
             res={"rows":git_json}
         except Exception as ex:
@@ -197,16 +172,25 @@ def LoadServices(app, redissession, dbsession, *args):
         try:
             requestdata=json.loads(request.data)
             if not isemptyrequest(requestdata):
-                action = requestdata['action']
                 del_flag = False
-                del_testcases = []
 
                 project_id = dbsession.mindmaps.find_one({"_id":ObjectId(requestdata["moduleId"])},{"projectid":1,"_id":0})
                 git_details = list(dbsession.gitconfiguration.find({"projectid":project_id["projectid"],"gituser":ObjectId(requestdata["userid"])},{"giturl":1,"gitaccesstoken":1}))
                 if not git_details:
                     res={'rows':'empty'}
                     return res
+
+                url=git_details[0]["giturl"].split('://')
+                url=url[0]+'://'+git_details[0]['gitaccesstoken']+':x-oauth-basic@'+url[1]
                 
+                #check whether cred is valid
+                git_path=currdir+os.sep+'exportGit'+os.sep+requestdata["userid"]
+                repo = git.Repo.init(git_path)
+                origin = repo.create_remote('origin',url)
+                origin.fetch()
+                repo.git.checkout(requestdata["gitBranch"])
+                repo.git.pull()
+
                 moduleId = ObjectId(requestdata['moduleId'])
                 mindMapsList = list(dbsession.mindmaps.find({'_id':moduleId},{"projectid":1,"name":1,"createdby":1,"versionnumber":1,"deleted":1,"type":1,"testscenarios":1}))
 
@@ -217,8 +201,8 @@ def LoadServices(app, redissession, dbsession, *args):
                     res={'rows':'commit exists'}
                     return res
                 elif result == None or result.count() == 0:
-                    path=currdir+os.sep+"mindmapGit"+os.sep+requestdata["userid"]+os.sep+requestdata["gitFolderPath"]+os.sep
-                    path=path.replace('/','\\')
+                    path=currdir+os.sep+"mindmapGit"+os.sep+requestdata["userid"]+os.sep+requestdata["gitFolderPath"]
+                    path=os.path.normpath(path)+os.sep
 
                     if(os.path.exists(path)): shutil.rmtree(path)
     
@@ -270,11 +254,16 @@ def LoadServices(app, redissession, dbsession, *args):
                                 tc_file.write(flask.json.JSONEncoder().encode(k['steps']))
                                 tc_file.close()
                             i['testcases'] += testcaseList
-                    res = exportdataToGit(path, requestdata)
+                    res = exportdataToGit(path, requestdata, origin, repo)
             else:
                 app.logger.warn('Empty data received.')
+        except git.GitCommandError as ex:
+            if(ex.status==1):
+                res={'rows':'Invalid gitbranch'}
+            servicesException("exportToGit", ex, True)
         except Exception as ex:
             servicesException("exportToGit", ex, True)
+        if(git_path): os.system('rmdir /S /Q "{}"'.format(git_path))
         return res
 
     def update_steps(steps,dataObjects):
@@ -305,7 +294,7 @@ def LoadServices(app, redissession, dbsession, *args):
             servicesException('exportProject', e, True)
         return del_flag
 
-    def exportdataToGit(dirpath, result):
+    def exportdataToGit(dirpath, result, origin, repo):
         app.logger.debug("Inside exportdataToGit")
         res={'rows':'fail'}
         delpath=None
@@ -319,18 +308,7 @@ def LoadServices(app, redissession, dbsession, *args):
                 git_details = list(dbsession.gitconfiguration.find({"projectid":project_id["projectid"],"gituser":ObjectId(result["userid"])},{"gituser":1,"giturl":1,"gitaccesstoken":1}))
 
                 git_path=currdir+os.sep+'exportGit'+os.sep+result["userid"]
-                final_path=git_path+os.sep+module_data["gitFolderPath"]
-                final_path=final_path.replace('/','\\')
-
-                url=git_details[0]["giturl"].split('://')
-                url=url[0]+'://'+git_details[0]['gitaccesstoken']+':x-oauth-basic@'+url[1]
-
-                repo = git.Repo.init(git_path)
-                origin = repo.create_remote('origin',url)
-                origin.fetch()
-
-                repo.git.checkout(module_data["gitBranch"])
-                repo.git.pull()
+                final_path=os.path.normpath(git_path+os.sep+module_data["gitFolderPath"])
 
                 if(os.path.exists(final_path)):
                     if os.path.exists(dirpath):
@@ -393,8 +371,7 @@ def LoadServices(app, redissession, dbsession, *args):
                 else:
                     gitdetails = dbsession.gitconfiguration.find_one({"_id":result["parent"]})
                     git_path=currdir+os.sep+'exportGit'+os.sep+str(gitdetails["gituser"])
-                    final_path=git_path+os.sep+gitFolderPath
-                    final_path=final_path.replace('/','\\')
+                    final_path=os.path.normpath(git_path+os.sep+gitFolderPath)
                     
                     if(os.path.isdir(git_path)): os.system('rmdir /S /Q "{}"'.format(git_path))
 
@@ -518,12 +495,12 @@ def LoadServices(app, redissession, dbsession, *args):
                                 "addDetails": so["addTestCaseDetailsInfo"] if ("addTestCaseDetailsInfo" in so) else "",
                                 "cord": so["cord"] if ("cord" in so) else ""
                             })
-                        # del requestdata['testcasesteps']
+                        del tc
                         createdataobjects(query_screen['screenid'], missingCustname)
 
-                    #query to update tescase
-                    queryresult = dbsession.testcases.update_many({'_id':ObjectId(testcaseid),'versionnumber':0},
-                                {'$set':{'modifiedby':ObjectId(userid),'modifiedbyrole':ObjectId(roleid),'steps':steps,"modifiedon" : datetime.now()}}).matched_count
+                        #query to update tescase
+                        queryresult = dbsession.testcases.update_many({'_id':ObjectId(testcaseid),'versionnumber':0},
+                                    {'$set':{'modifiedby':ObjectId(userid),'modifiedbyrole':ObjectId(roleid),'steps':steps,"modifiedon" : datetime.now()}}).matched_count
 
                 res=json_data
             else:
@@ -604,3 +581,14 @@ def LoadServices(app, redissession, dbsession, *args):
             elif so["appType"] == ["Generic", "SAP", "Webservice", "Mainframe", "System"]: pass
             custnameToAdd.append(dodata)
         adddataobjects(scrid, custnameToAdd)
+
+    def getScrapeData(hex_data):
+        try:
+            key = "".join(['N','i','n','e','e','t','e','e','n','6','8','@','S','e',
+                'c','u','r','e','S','c','r','a','p','e','D','a','t','a','P','a','t','h'])
+            data = codecs.decode(hex_data, 'hex')
+            aes = AES.new(key.encode("utf-8"), AES.MODE_CBC, b'0'*16)
+            data = aes.decrypt(data).decode('utf-8')
+            return data[0:-ord(data[-1])]
+        except:
+            return hex_data
