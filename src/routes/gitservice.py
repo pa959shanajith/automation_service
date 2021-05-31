@@ -1,3 +1,4 @@
+import sys
 from git import repo
 import git
 import os
@@ -17,6 +18,17 @@ def LoadServices(app, redissession, dbsession, *args):
     setenv(app)
     defcn = ['@Window', '@Object', '@System', '@Excel', '@Mobile', '@Android_Custom', '@Word', '@Custom', '@CustomiOS',
              '@Generic', '@Browser', '@Action', '@Email', '@BrowserPopUp', '@Sap','@Oebs', 'WebService List', 'Mainframe List', 'OBJECT_DELETED']
+
+    def remove_dir(rem_path):
+        try:
+            if rem_path:
+                if sys.platform == 'win32':
+                    cmd = "rmdir /Q /S " + rem_path
+                if sys.platform in ["linux", "darwin"]:
+                    cmd = "rm -rf "+ rem_path
+                os.system(cmd)
+        except Exception as e:
+            app.logger.warn(e)
 
     #Import mindmap from git repository
     @app.route('/git/importFromGit_ICE',methods=['POST'])
@@ -84,7 +96,7 @@ def LoadServices(app, redissession, dbsession, *args):
                 app.logger.warn('Empty data received.')
         except Exception as ex:
             servicesException("importFromGit_ICE", ex, True)
-        if(path1): os.system('rmdir /S /Q "{}"'.format(path1))
+        remove_dir(path1)
         return result
 
     def executionJson(result):
@@ -98,12 +110,13 @@ def LoadServices(app, redissession, dbsession, *args):
             moduleid=mindmap_data['_id']
             modulename= mindmap_data['name']
             suite_details=[]
+            scenarioname_list=[]
             projectid=mindmap_data['projectid']
-            suiteIds = list(dbsession.testsuites.find({"mindmapid":ObjectId(moduleid),"name":modulename},{"_id":1}))
+            suiteIds = list(dbsession.testsuites.find({"mindmapid":ObjectId(moduleid)},{"_id":1}))
             projectDetails=dbsession.projects.find_one({'_id':ObjectId(projectid)},{"name":1,"domain":1,"releases.name":1,"releases.cycles._id":1,"releases.cycles.name":1})
             
             for i in mindmap_data['testscenarios']: #to fetch list of all scenarioid and name
-                scenarioname_list=list(dbsession.testscenarios.find({"_id":ObjectId(i['_id'])},{"name":1}))
+                scenarioname_list.append({'_id': ObjectId(i['id']), 'name': i['testscenarioname']}) 
              
             for eachsuite in suiteIds: #Fetching each testSuite
                 suite_details.append(str(eachsuite['_id']))
@@ -193,6 +206,9 @@ def LoadServices(app, redissession, dbsession, *args):
 
                 moduleId = ObjectId(requestdata['moduleId'])
                 mindMapsList = list(dbsession.mindmaps.find({'_id':moduleId},{"projectid":1,"name":1,"createdby":1,"versionnumber":1,"deleted":1,"type":1,"testscenarios":1}))
+                for i in mindMapsList[0]['testscenarios']:
+                    tsc_name = dbsession.testscenarios.find_one({'_id':i['_id']},{"_id":0, "name":1})
+                    i['testscenarioname']=tsc_name['name']
 
                 result = dbsession.gitexportdetails.find({"branchname":requestdata["gitBranch"],"versionname":requestdata["gitVersionName"],"projectid":mindMapsList[0]['projectid'],"folderpath":requestdata['gitFolderPath']})
                 index = result.count() - 1
@@ -263,7 +279,7 @@ def LoadServices(app, redissession, dbsession, *args):
             servicesException("exportToGit", ex, True)
         except Exception as ex:
             servicesException("exportToGit", ex, True)
-        if(git_path): os.system('rmdir /S /Q "{}"'.format(git_path))
+        remove_dir(git_path)
         return res
 
     def update_steps(steps,dataObjects):
@@ -342,7 +358,7 @@ def LoadServices(app, redissession, dbsession, *args):
         except Exception as ex:
             app.logger.warn(ex)
         if(delpath): shutil.rmtree(delpath)
-        if(git_path): os.system('rmdir /S /Q "{}"'.format(git_path))
+        remove_dir(git_path)
         return res
 
     @app.route('/git/importGitMindmap', methods=['POST'])
@@ -373,7 +389,7 @@ def LoadServices(app, redissession, dbsession, *args):
                     git_path=currdir+os.sep+'exportGit'+os.sep+str(gitdetails["gituser"])
                     final_path=os.path.normpath(git_path+os.sep+gitFolderPath)
                     
-                    if(os.path.isdir(git_path)): os.system('rmdir /S /Q "{}"'.format(git_path))
+                    if(os.path.isdir(git_path)): remove_dir(git_path)
 
                     url=gitdetails["giturl"].split('://')
                     url=url[0]+'://'+gitdetails["gitaccesstoken"]+':x-oauth-basic@'+url[1]
@@ -507,7 +523,7 @@ def LoadServices(app, redissession, dbsession, *args):
                 app.logger.warn('Empty data received.')
         except Exception as ex:
             servicesException("importGitMindmap", ex, True)
-        if(git_path): os.system('rmdir /S /Q "{}"'.format(git_path))
+        remove_dir(git_path)
         return res
 
     def adddataobjects(pid, d):
