@@ -21,7 +21,7 @@ def LoadServices(app, redissession, dbsession, *args):
 
     def remove_dir(rem_path):
         try:
-            if rem_path:
+            if os.path.exists(rem_path):
                 if sys.platform == 'win32':
                     cmd = "rmdir /Q /S " + rem_path
                 if sys.platform in ["linux", "darwin"]:
