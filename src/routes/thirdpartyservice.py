@@ -113,7 +113,15 @@ def LoadServices(app, redissession, dbsession):
                     result=list(dbsession.thirdpartyintegration.find({"type":"qTest","testscenarioid":requestdata["testscenarioid"]}))
                     res= {"rows":result}
                 elif(requestdata["query"] == 'zephyrdetails'):
-                    result=list(dbsession.thirdpartyintegration.find({"type":"Zephyr","testscenarioid":requestdata["testscenarioid"]}))
+                    result = []
+                    projectlist=list(dbsession.users.find({"_id":ObjectId(requestdata["userid"])},{"projects":1}))
+                    for i in projectlist[0]['projects']:
+                        scenariolist=list(dbsession.testscenarios.find({"projectid":i,"deleted":False,"$where":"this.parent.length>0"},{"name":1,"_id":1}))
+                        for j in scenariolist:
+                            zephyrmaplist=list(dbsession.thirdpartyintegration.find({"type":"Zephyr","testscenarioid":str(j['_id'])}))
+                            if len(zephyrmaplist) != 0:
+                                zephyrmaplist[0]['testscenarioname'] = j['name']
+                                result.extend(zephyrmaplist)
                     res= {"rows":result}
             else:
                 app.logger.warn('Empty data received. getting QcMappedList.')
