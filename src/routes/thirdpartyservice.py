@@ -115,8 +115,9 @@ def LoadServices(app, redissession, dbsession):
                 elif(requestdata["query"] == 'zephyrdetails'):
                     result = []
                     projectlist=list(dbsession.users.find({"_id":ObjectId(requestdata["userid"])},{"projects":1}))
-                    for i in projectlist[0]['projects']:
-                        scenariolist=list(dbsession.testscenarios.find({"projectid":i,"deleted":False,"$where":"this.parent.length>0"},{"name":1,"_id":1}))
+                    if projectlist:
+                        projects = projectlist[0]['projects']
+                        scenariolist=list(dbsession.testscenarios.find({"projectid":{'$in':projects},"deleted":False,"$where":"this.parent.length>0"},{"name":1,"_id":1}))
                         for j in scenariolist:
                             zephyrmaplist=list(dbsession.thirdpartyintegration.find({"type":"Zephyr","testscenarioid":str(j['_id'])}))
                             if len(zephyrmaplist) != 0:
