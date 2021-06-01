@@ -116,7 +116,7 @@ def LoadServices(app, redissession, dbsession, *args):
             projectDetails=dbsession.projects.find_one({'_id':ObjectId(projectid)},{"name":1,"domain":1,"releases.name":1,"releases.cycles._id":1,"releases.cycles.name":1})
             
             for i in mindmap_data['testscenarios']: #to fetch list of all scenarioid and name
-                scenarioname_list.append({'_id': ObjectId(i['id']), 'name': i['testscenarioname']}) 
+                scenarioname_list.append({'_id': ObjectId(i['_id']), 'name': i['testscenarioname']}) 
              
             for eachsuite in suiteIds: #Fetching each testSuite
                 suite_details.append(str(eachsuite['_id']))
