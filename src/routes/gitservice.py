@@ -276,8 +276,12 @@ def LoadServices(app, redissession, dbsession, *args):
             else:
                 app.logger.warn('Empty data received.')
         except git.GitCommandError as ex:
-            if(ex.status==1):
-                res={'rows':'Invalid gitbranch'}
+            if('pathspec' in ex.stderr):
+                res={'rows':'Invalid gitbranch'}   
+            elif('repository' in ex.stderr):
+                res={'rows':'Invalid url'}
+            elif('Authentication' in ex.stderr):
+                res={'rows':'Invalid token'}
             servicesException("exportToGit", ex, True)
         except Exception as ex:
             servicesException("exportToGit", ex, True)
@@ -355,7 +359,8 @@ def LoadServices(app, redissession, dbsession, *args):
             else:
                 app.logger.warn('Connection to Git failed: Empty data passed from exportToGit service')
         except git.GitCommandError as ex:
-            res={'rows':'Invalid gitbranch'}
+            if('Invalid username' in ex.stderr):
+                res={'rows':'Invalid token'}
             app.logger.warn(ex)
         except Exception as ex:
             app.logger.warn(ex)
