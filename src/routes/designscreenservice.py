@@ -36,7 +36,8 @@ def LoadServices(app, redissession, dbsession):
                                         "createdthrough": (screen_query["createdthrough"] if ("createdthrough" in screen_query) else ""),
                                         "scrapedurl": (screen_query["scrapedurl"] if ("scrapedurl" in screen_query) else ""),
                                         "mirror": (screen_query["screenshot"] if ("screenshot" in screen_query) else ""),
-                                        "reuse": True if(len(screen_query["parent"])>1) else False
+                                        "reuse": True if(len(screen_query["parent"])>1) else False,
+                                        "orderlist": (screen_query["orderlist"] if ("orderlist" in screen_query) else [])
                                       }
                 if (requestdata['query']=="getWSscrapedata"):
                     dataobj_query = list(dbsession.dataobjects.find({"parent" :screen_id}))
@@ -63,19 +64,15 @@ def LoadServices(app, redissession, dbsession):
                     data['screenId'] = str(screenId['screenid'])
                     data['param'] = 'saveScrapeData'
                 if data['param'] == 'saveScrapeData':
-                    update_flag = False
                     modifiedbyrole= ObjectId(data["roleId"])
                     modifiedby = ObjectId(data["userId"])
                     screenId = ObjectId(data['screenId'])
+                    orderList = data['orderList']
                     if('deletedObj' in data and len(data['deletedObj'])>0):
-                        update_flag = True
-                        print(data['deletedObj'])
                         data_push = [ObjectId(i) for i in data['deletedObj']]
                         dbsession.dataobjects.update_many({"_id":{"$in":data_push},"$and":[{"parent.1":{"$exists":True}},{"parent":screenId}]},{"$pull":{"parent":screenId}})
                         dbsession.dataobjects.delete_many({"_id":{"$in":data_push},"$and":[{"parent":{"$size": 1}},{"parent":screenId}]})
                     if('modifiedObj' in data and len(data['modifiedObj'])>0):
-                        update_flag = True
-                        print(data['modifiedObj'])
                         data_obj=data["modifiedObj"]
                         for i in data_obj:
                             data_id=ObjectId(i["_id"])
@@ -85,14 +82,25 @@ def LoadServices(app, redissession, dbsession):
                             del i["_id"]
                             dbsession.dataobjects.update({"_id": data_id},{"$set":i})
                     if('addedObj' in data and len(data['addedObj']['view'])>0):
-                        update_flag = True
                         data_obj = data['addedObj']['view']
                         data_push=[]
+                        tempOrderId_index_dict = {}
+                        insertedObjIds = []
+
                         for i in range(len(data_obj)):
                             data_obj[i]["parent"] = [screenId]
+                            tempOrderId_index_dict[data_obj[i]['tempOrderId']] = i
+                            del data_obj[i]['tempOrderId']
                             data_push.append(data_obj[i])
+                            
                         if (data_push != []):
-                            dbsession.dataobjects.insert(data_push)
+                            insertedObjIds = dbsession.dataobjects.insert(data_push)
+
+                            for index in range(len(orderList)):
+                                if (orderList[index] in tempOrderId_index_dict):
+                                    addedObjIndex = tempOrderId_index_dict[orderList[index]]
+                                    orderList[index] = str(insertedObjIds[addedObjIndex])
+
                         if "mirror" in data['addedObj']:
                             screenshot = data['addedObj']['mirror']
                             if "scrapedurl" in data['addedObj']:
@@ -103,10 +111,9 @@ def LoadServices(app, redissession, dbsession):
                         elif 'scrapeinfo' in data['addedObj']:
                             scrapeinfo=data['addedObj']['scrapeinfo']
                             dbsession.screens.update({"_id":screenId},{"$set":{"scrapedurl":scrapeinfo["endPointURL"], 'scrapeinfo':scrapeinfo}})
-
-                    if (update_flag):
-                        dbsession.screens.update({"_id":screenId},{"$set":{"modifiedby":modifiedby,'modifiedbyrole':modifiedbyrole,"modifiedon" : datetime.now()}})
-                        res={"rows":"Success"}
+                    
+                    dbsession.screens.update({"_id":screenId},{"$set":{"modifiedby":modifiedby,'modifiedbyrole':modifiedbyrole,"modifiedon" : datetime.now(), "orderlist":orderList}})
+                    res={"rows":"Success"}
                 elif data["param"] == "mapScrapeData":
                     objList = data["objList"]
                     del_obj = []
