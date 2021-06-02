@@ -212,7 +212,7 @@ def LoadServices(app, redissession, dbsession):
                         if execids[tsuid] is None:
                             insertquery = {"batchid": batchid, "parent": [ObjectId(tsuid)],
                                 "configuration": {}, "executedby": ObjectId(requestdata['executedby']),
-                                "status": "queued", "endtime": None, "starttime": starttime}
+                                "status": "queued", "versionname":requestdata['versionname'], "endtime": None, "starttime": starttime}
                             execid = str(dbsession.executions.insert(insertquery))
                             execids[tsuid] = execid
                     res["rows"] = {"batchid": str(batchid), "execids": execids}
