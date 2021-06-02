@@ -90,6 +90,80 @@ def LoadServices(app, redissession, dbsession):
         except Exception as useraccessexc:
             servicesException('userAccess', useraccessexc, True)
         return jsonify(res)
+        
+    #creates new data table
+    @app.route('/utility/manageDataTable',methods=['POST'])
+    def manageDataTable():
+        app.logger.debug('Inside manageDataTable')
+        res={'rows':'fail'}
+        try:
+            requestdata = json.loads(request.data)    
+            if not isemptyrequest(requestdata):
+                name = requestdata["name"]
+                action=requestdata["action"]
+                dts = dbsession.datatables.find_one({"name": name})
+                if action == "create":
+                    if dts != None:
+                        res = {'rows': 'exists'}
+                    else:
+                        datatable = requestdata["datatable"]
+                        dtheaders = requestdata["dtheaders"]
+                        querydata = {
+                            "name": name,
+                            "dtheaders": dtheaders,
+                            "datatable": datatable,
+                            "testcaseIds": []
+                        }
+                        dbsession.datatables.insert_one(querydata)
+                        res = {'rows':'success'}
+                elif action == "edit":
+                    datatable = requestdata["datatable"]
+                    dtheaders = requestdata["dtheaders"]
+                    querydata = {
+                        "dtheaders": dtheaders,
+                        "datatable": datatable,
+                    }
+                    dbsession.datatables.update({"name": name},{"$set":querydata})
+                    res = {'rows':'success'}
+                elif action == "delete":
+                    for tc in dts['testcaseIds']:
+                        tcdet = dbsession.testcases.find_one({'_id':ObjectId(tc)})
+                        tc_up = tcdet['datatables'].remove(name)
+                        dbsession.testcases.update({"_id": ObjectId(tc)},{"$set":{"datatables": tc_up}})
+                    dbsession.datatables.delete_one({"name": name})
+                    res = {'rows':'success'}
+                elif action == "deleteConfirm":
+                    if 'testcaseIds' in dts and len(dts['testcaseIds']) != 0:
+                        res = {'rows':'referenceExists', 'noOfReferences':len(dts['testcaseIds'])}
+                    else:
+                        res = {'rows':'success'}
+                 
+            else:
+                app.logger.warn('Empty data received. Data Table operation.')
+        except Exception as useraccessexc:
+            servicesException('manageDataTable', useraccessexc, True)
+        return jsonify(res)
+                
+    @app.route('/utility/fetchDatatable',methods=['POST'])
+    def fetchDatatable():
+        app.logger.debug('Inside fetchDatatable')
+        res={'rows':'fail'}
+        try:
+            requestdata = json.loads(request.data)    
+            if not isemptyrequest(requestdata):
+                action = requestdata["action"]
+                if action == "datatablenames":
+                    dts = list(dbsession.datatables.find({},{"name":1}))
+                    res['rows'] = dts
+                elif action == "datatable":
+                    name = requestdata["name"]
+                    dts = list(dbsession.datatables.find({"name": name}))
+                    res['rows'] = dts
+            else:
+                app.logger.warn('Empty data received. Check for reference dt.')
+        except Exception as useraccessexc:
+            servicesException('fetchDatatable', useraccessexc, True)
+        return jsonify(res)
 
 ################################################################################
 # END OF UTILITIES

@@ -187,7 +187,15 @@ ecodeServices = {
     "exportToGit":"427",
     "gitSaveConfig":"428",
     "gitEditConfig":"429",
-    "importGitMindmap":"430"
+    "importGitMindmap":"430",
+    "manageDataTable":"431",
+    "getDatatableDetails":"432",
+    "importDtFromExcel":"433",
+    "importDtFromCSV":"434",
+    "importDtFromXML":"435",
+    "exportToDtExcel":"436",
+    "exportToDtCSV":"437",
+    "exportToDtXML":"438"
 }
 
 

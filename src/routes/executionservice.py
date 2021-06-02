@@ -180,16 +180,26 @@ def LoadServices(app, redissession, dbsession):
                     tsc = dbsession.testscenarios.find_one({"_id": ObjectId(requestdata['id']),"deleted":query['delete_flag']},{"testcaseids":1})
                     if tsc is not None:
                         testcase=[]
-                        testcases = list(dbsession.testcases.find({"_id": {"$in": tsc["testcaseids"]},"deleted":query['delete_flag']},{"name":1,"versionnumber":1,"screenid":1}))
+                        testcases = dbsession.testcases.find({"_id": {"$in": tsc["testcaseids"]},"deleted":query['delete_flag']},{"name":1,"versionnumber":1,"screenid":1,"datatables":1})
                         scids = {}
+                        dts_data = {}
+                        tcdict = {}
+                        for tc in testcases: tcdict[tc['_id']] = tc
                         for i in tsc['testcaseids']:
-                            for tc in testcases:
-                                if i==tc['_id']:
-                                    scid = tc["screenid"]
-                                    if scid not in scids:
-                                        scids[scid] = dbsession.screens.find_one({"_id":scid})['name']
-                                    tc["screenname"] = scids[scid]
-                                    testcase.append(tc)
+                            tc = tcdict[i]
+                            scid = tc["screenid"]
+                            if scid not in scids:
+                                scids[scid] = dbsession.screens.find_one({"_id":scid})['name']
+                            tc["screenname"] = scids[scid]
+                            dtnames = tc.get('datatables', [])
+                            if len(dtnames) > 0:
+                                dts = []
+                                dts_to_fetch = [i for i in dtnames if i not in dts_data]
+                                dtdet = dbsession.datatables.find({"name": {'$in': dts_to_fetch}})
+                                for dt in dtdet: dts_data[dt['name']] = dt['datatable']
+                                for dt in dtnames: dts.append({dt: dts_data[dt]})
+                                tc['datatables'] = dts
+                            testcase.append(tc)
                         res["rows"] = testcase
                     if 'userid' in requestdata:    # Update the Counter
                         counterupdator(dbsession, 'testscenarios', ObjectId(requestdata['userid']), 1)
