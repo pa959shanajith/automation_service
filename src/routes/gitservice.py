@@ -188,7 +188,7 @@ def LoadServices(app, redissession, dbsession, *args):
                 del_flag = False
 
                 project_id = dbsession.mindmaps.find_one({"_id":ObjectId(requestdata["moduleId"])},{"projectid":1,"_id":0})
-                git_details = list(dbsession.gitconfiguration.find({"projectid":project_id["projectid"],"gituser":ObjectId(requestdata["userid"])},{"giturl":1,"gitaccesstoken":1}))
+                git_details = list(dbsession.gitconfiguration.find({"projectid":project_id["projectid"],"gituser":ObjectId(requestdata["userid"])},{"giturl":1,"gitaccesstoken":1,"gitusername":1,"gituseremail":1}))
                 if not git_details:
                     res={'rows':'empty'}
                     return res
@@ -199,6 +199,8 @@ def LoadServices(app, redissession, dbsession, *args):
                 #check whether cred is valid
                 git_path=currdir+os.sep+'exportGit'+os.sep+requestdata["userid"]
                 repo = git.Repo.init(git_path)
+                repo.config_writer().set_value('user', 'email', git_details[0]['gituseremail']).release()
+                repo.config_writer().set_value('user', 'name', git_details[0]['gitusername']).release()
                 origin = repo.create_remote('origin',url)
                 origin.fetch()
                 repo.git.checkout(requestdata["gitBranch"])
@@ -274,8 +276,12 @@ def LoadServices(app, redissession, dbsession, *args):
             else:
                 app.logger.warn('Empty data received.')
         except git.GitCommandError as ex:
-            if(ex.status==1):
-                res={'rows':'Invalid gitbranch'}
+            if('pathspec' in ex.stderr):
+                res={'rows':'Invalid gitbranch'}   
+            elif('repository' in ex.stderr):
+                res={'rows':'Invalid url'}
+            elif('Authentication' in ex.stderr):
+                res={'rows':'Invalid token'}
             servicesException("exportToGit", ex, True)
         except Exception as ex:
             servicesException("exportToGit", ex, True)
@@ -321,7 +327,7 @@ def LoadServices(app, redissession, dbsession, *args):
             data={}
             if not isemptyrequest(module_data):
                 project_id = dbsession.mindmaps.find_one({"_id":ObjectId(module_data["moduleId"])},{"projectid":1,"_id":0})
-                git_details = list(dbsession.gitconfiguration.find({"projectid":project_id["projectid"],"gituser":ObjectId(result["userid"])},{"gituser":1,"giturl":1,"gitaccesstoken":1}))
+                git_details = list(dbsession.gitconfiguration.find({"projectid":project_id["projectid"],"gituser":ObjectId(result["userid"])},{"gituser":1}))
 
                 git_path=currdir+os.sep+'exportGit'+os.sep+result["userid"]
                 final_path=os.path.normpath(git_path+os.sep+module_data["gitFolderPath"])
@@ -333,7 +339,7 @@ def LoadServices(app, redissession, dbsession, *args):
                 # Add mimdmap file to remote repo
                 repo.git.add(final_path)
                 repo.index.commit(module_data["gitVersionName"])
-                origin.push()
+                repo.git.push()
 
                 # get the commit id and save it in gitexportdetails
                 for i in range(len(origin.refs)):
@@ -353,7 +359,8 @@ def LoadServices(app, redissession, dbsession, *args):
             else:
                 app.logger.warn('Connection to Git failed: Empty data passed from exportToGit service')
         except git.GitCommandError as ex:
-            res={'rows':'Invalid gitbranch'}
+            if('Invalid username' in ex.stderr):
+                res={'rows':'Invalid token'}
             app.logger.warn(ex)
         except Exception as ex:
             app.logger.warn(ex)
