@@ -162,26 +162,16 @@ def LoadServices(app, redissession, dbsession):
             requestdata=json.loads(request.data)
             app.logger.debug('Inside updateTestCase_ICE. Query: '+str(requestdata['query']))
             if not isemptyrequest(requestdata):
-                query_screen = dbsession.testcases.find_one({'_id':ObjectId(requestdata['testcaseid']),'versionnumber':requestdata['versionnumber']},{'screenid':1,'datatables':1})
-                if 'datatables' in requestdata and len(requestdata['datatables']) > 0:
-                    datatablelist = list(dbsession.datatables.find({"name": {'$in':requestdata['datatables']}}))
-                    #update each datatable tcs list by adding tcid
-                    dt_tcs = []
-                    for dt in datatablelist:
-                        dt_tcs.append(dt['name'])
-                        tcs = dt['testcaseIds']
-                        if requestdata['testcaseid'] not in tcs:
-                            tcs.append(requestdata['testcaseid'])
-                            dbsession.datatables.update({"name": dt['name']},{"$set":{"testcaseIds": tcs}})
+                tcid = requestdata['testcaseid']
+                query_screen = dbsession.testcases.find_one({'_id':ObjectId(tcid),'versionnumber':requestdata['versionnumber']},{'screenid':1})
+                dtables = requestdata.get('datatables', '')
+                if len(dtables) > 0:
                     #update removed datatable tcs by removing current tcid
-                    for dt in query_screen['datatables']:
-                        if dt not in dt_tcs:
-                            datatable = dbsession.datatables.find({"name": dt})
-                            if datatable != None and 'testcaseIds' in datatable:
-                                tcs = datatable['testcaseIds']
-                                if requestdata['testcaseid'] in tcs:
-                                    tcs.remove(requestdata['testcaseid'])
-                                    dbsession.datatables.update({"name": dt},{"$set":{"testcaseIds": tcs}})
+                    dbsession.datatables.update({"name": {'$nin': dtables}, "testcaseIds": tcid},
+                        {"$pull": {"testcaseIds": [tcid]}}, {"multi": True})
+                    #update each datatable tcs list by adding tcid
+                    dbsession.datatables.update({"name": {'$in': dtables}, "testcaseIds": {"$ne": tcid}},
+                        {"$push": {"testcaseIds": [tcid]}}, {"multi": True})
                 queryresult1 = list(dbsession.dataobjects.find({'parent':query_screen['screenid']}))
                 custnames = {}
                 if (queryresult1 != []):
@@ -280,8 +270,8 @@ def LoadServices(app, redissession, dbsession):
 
                 #query to update tescase
                 if(requestdata['query'] == 'updatetestcasedata'):
-                    queryresult = dbsession.testcases.update_many({'_id':ObjectId(requestdata['testcaseid']),'versionnumber':requestdata['versionnumber']},
-                                {'$set':{'modifiedby':ObjectId(requestdata['modifiedby']),'modifiedbyrole':ObjectId(requestdata['modifiedbyrole']),'steps':steps,'datatables':requestdata['datatables'],"modifiedon" : datetime.now()}}).matched_count
+                    queryresult = dbsession.testcases.update_many({'_id':ObjectId(tcid),'versionnumber':requestdata['versionnumber']},
+                                {'$set':{'modifiedby':ObjectId(requestdata['modifiedby']),'modifiedbyrole':ObjectId(requestdata['modifiedbyrole']),'steps':steps,'datatables':dtables,"modifiedon" : datetime.now()}}).matched_count
                     if queryresult > 0:
                         res= {'rows': 'success'}
             else:
@@ -324,8 +314,7 @@ def LoadServices(app, redissession, dbsession):
     #test case reading service
     @app.route('/design/readTestCase_ICE',methods=['POST'])
     def readTestCase_ICE():
-        res={'rows':'fail'}
-        del_flag = False
+        res={'rows':'fail', 'del_flag': False}
         try:
             requestdata=json.loads(request.data)
             app.logger.debug('Inside readTestCase_ICE. Query: '+str(requestdata['query']))
@@ -351,7 +340,7 @@ def LoadServices(app, redissession, dbsession):
                         for dos in queryresult1:
                             if 'custname' in dos: dos['custname'] = dos['custname'].strip()
                             dataObjects[dos['_id']] = dos
-                        del_flag = update_steps(k['steps'],dataObjects)
+                        res['del_flag'] = update_steps(k['steps'],dataObjects)
                         #datatables
                         dtnames = k.get('datatables', [])
                         if len(dtnames) > 0:
@@ -361,17 +350,18 @@ def LoadServices(app, redissession, dbsession):
                             for dt in dtdet: dts_data[dt['name']] = dt['datatable']
                             for dt in dtnames: dts.append({dt: dts_data[dt]})
                             k['datatables'] = dts
-                    res= {'rows': queryresult, 'del_flag':del_flag}
+                    res['rows'] = queryresult
                 else:
                     dataObjects = {}
                     queryresult = dbsession.testcases.find_one({'_id':ObjectId(requestdata['testcaseid']),
                         'versionnumber':requestdata['versionnumber']},{'screenid':1,'steps':1,'datatables':1,'name':1,'parent':1,'_id':0})
-                    if queryresult is not None:
+                    if queryresult is None: res['rows'] = []
+                    else:
                         queryresult1 = dbsession.dataobjects.find({'parent':queryresult['screenid']},{'parent':0})
                         for dos in queryresult1:
                             if 'custname' in dos: dos['custname'] = dos['custname'].strip()
                             dataObjects[dos['_id']] = dos
-                        del_flag = update_steps(queryresult['steps'],dataObjects)
+                        res['del_flag'] = update_steps(queryresult['steps'],dataObjects)
                         #datatables
                         dtnames = queryresult.get('datatables', [])
                         if len(dtnames) > 0:
@@ -380,7 +370,7 @@ def LoadServices(app, redissession, dbsession):
                             for dt in dtdet:
                                 dts.append({dt['name']:dt['datatable']})
                             queryresult['datatables'] = dts
-                    res = {'rows': queryresult, 'del_flag':del_flag}
+                        res['rows'] = [queryresult]
                     if requestdata.get('screenName', '') == 'fetch':
                         screen = dbsession.screens.find_one({'_id':queryresult['screenid']},{'name':1})
                         res['screenName'] = screen['name']
