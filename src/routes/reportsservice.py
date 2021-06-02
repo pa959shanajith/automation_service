@@ -125,9 +125,10 @@ def LoadServices(app, redissession, dbsession):
                     'testsuitename': suiteobj["name"],
                     'projectid': prjobj["_id"],
                     'domainname': prjobj["domain"],
-                    'projectname': prjobj["name"],
-                    'versionname': suiteid["versionname"]
+                    'projectname': prjobj["name"]
                 }
+                if('versionname' in suiteid):
+                    query['versionname']=suiteid['versionname']
                 found = False
                 for rel in prjobj["releases"]:
                     for cyc in rel["cycles"]:
