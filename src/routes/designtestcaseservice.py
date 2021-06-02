@@ -162,14 +162,26 @@ def LoadServices(app, redissession, dbsession):
             requestdata=json.loads(request.data)
             app.logger.debug('Inside updateTestCase_ICE. Query: '+str(requestdata['query']))
             if not isemptyrequest(requestdata):
-                for dt in requestdata['datatables']:
-                    datatable = dbsession.datatables.find_one({"datatablename": dt})
-                    if datatable!=None and 'testcaseIds' in datatable:
-                        tcs = datatable['testcaseIds']
+                query_screen = dbsession.testcases.find_one({'_id':ObjectId(requestdata['testcaseid']),'versionnumber':requestdata['versionnumber']},{'screenid':1,'datatables':1})
+                if 'datatables' in requestdata and len(requestdata['datatables']) > 0:
+                    datatablelist = list(dbsession.datatables.find({"name": {'$in':requestdata['datatables']}}))
+                    #update each datatable tcs list by adding tcid
+                    dt_tcs = []
+                    for dt in datatablelist:
+                        dt_tcs.append(dt['name'])
+                        tcs = dt['testcaseIds']
                         if requestdata['testcaseid'] not in tcs:
                             tcs.append(requestdata['testcaseid'])
-                            dbsession.datatables.update({"datatablename": dt},{"$set":{"testcaseIds": tcs}})
-                query_screen = dbsession.testcases.find_one({'_id':ObjectId(requestdata['testcaseid']),'versionnumber':requestdata['versionnumber']},{'screenid':1})
+                            dbsession.datatables.update({"name": dt['name']},{"$set":{"testcaseIds": tcs}})
+                    #update removed datatable tcs by removing current tcid
+                    for dt in query_screen['datatables']:
+                        if dt not in dt_tcs:
+                            datatable = dbsession.datatables.find({"name": dt})
+                            if datatable != None and 'testcaseIds' in datatable:
+                                tcs = datatable['testcaseIds']
+                                if requestdata['testcaseid'] in tcs:
+                                    tcs.remove(requestdata['testcaseid'])
+                                    dbsession.datatables.update({"name": dt},{"$set":{"testcaseIds": tcs}})
                 queryresult1 = list(dbsession.dataobjects.find({'parent':query_screen['screenid']}))
                 custnames = {}
                 if (queryresult1 != []):
@@ -347,12 +359,9 @@ def LoadServices(app, redissession, dbsession):
                         dts = []
                         #datatables
                         if('datatables' in k and len(k['datatables']) != 0):
-                            for dt in k['datatables']:
-                                dtdet = dbsession.datatables.find_one({"datatablename": dt})
-                                if dtdet != None:
-                                    newObj = {}
-                                    newObj[dt] = dtdet['datatable']
-                                    dts.append(newObj)
+                            dtdet = list(dbsession.datatables.find({"name": { '$in' : k['datatables']}}))
+                            for dt in dtdet:
+                                dts.append({dt['name']:dt['datatable']})
                             k['datatables'] = dts
                     res= {'rows': queryresult, 'del_flag':del_flag}
                 else:
@@ -369,12 +378,9 @@ def LoadServices(app, redissession, dbsession):
                         dts = []
                         #datatables
                         if('datatables' in queryresult[0] and len(queryresult[0]['datatables']) != 0):
-                            for dt in queryresult[0]['datatables']:
-                                dtdet = dbsession.datatables.find_one({"datatablename": dt})
-                                if dtdet != None:
-                                    newObj = {}
-                                    newObj[dt] = dtdet['datatable']
-                                    dts.append(newObj)
+                            dtdet = list(dbsession.datatables.find({"name": {'$in':queryresult[0]['datatables']}}))
+                            for dt in dtdet:
+                                dts.append({dt['name']:dt['datatable']})
                             queryresult[0]['datatables'] = dts
 
                             # dts = [{i:j for i in queryresult[0]['datatables']}]

@@ -2,12 +2,12 @@ import requests
 import json
 
 requesteddata = {
-    "datatablename": "dtname",
+    "name": "dtname",
     "datatable": [{"AAA":"a"},{"AAA":"a1"}],
     "dtheaders": ["AAA"]
 }
 requesteddatanew = {
-    "datatablename": "dtname"
+    "name": "dtname"
 }
 url = "http://localhost:1990/"
 

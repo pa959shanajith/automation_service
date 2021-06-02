@@ -183,20 +183,17 @@ def LoadServices(app, redissession, dbsession):
                         testcases = list(dbsession.testcases.find({"_id": {"$in": tsc["testcaseids"]},"deleted":query['delete_flag']},{"name":1,"versionnumber":1,"screenid":1,"datatables":1}))
                         scids = {}
                         for i in tsc['testcaseids']:
-                            dts = []
                             for tc in testcases:
+                                dts = []
                                 if i==tc['_id']:
                                     scid = tc["screenid"]
                                     if scid not in scids:
                                         scids[scid] = dbsession.screens.find_one({"_id":scid})['name']
                                     tc["screenname"] = scids[scid]
                                     if 'datatables' in tc and len(tc['datatables']) != 0:
-                                        for dt in tc['datatables']:
-                                            dtdet = dbsession.datatables.find_one({"datatablename": dt})
-                                            if dtdet != None:
-                                                newObj = {}
-                                                newObj[dt] = dtdet['datatable']
-                                                dts.append(newObj)
+                                        dtdet = list(dbsession.datatables.find({"name": {'$in':tc['datatables']}}))
+                                        for dt in dtdet:
+                                            dts.append({dt['name']:dt['datatable']})
                                         tc['datatables'] = dts
                                     testcase.append(tc)
                         res["rows"] = testcase

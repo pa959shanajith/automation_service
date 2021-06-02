@@ -99,9 +99,9 @@ def LoadServices(app, redissession, dbsession):
         try:
             requestdata = json.loads(request.data)    
             if not isemptyrequest(requestdata):
-                datatablename = requestdata["datatablename"]
+                name = requestdata["name"]
                 action=requestdata["action"]
-                dts = dbsession.datatables.find_one({"datatablename": datatablename})
+                dts = dbsession.datatables.find_one({"name": name})
                 if action == "create":
                     if dts != None:
                         res = {'rows': 'exists'}
@@ -109,7 +109,7 @@ def LoadServices(app, redissession, dbsession):
                         datatable = requestdata["datatable"]
                         dtheaders = requestdata["dtheaders"]
                         querydata = {
-                            "datatablename": datatablename,
+                            "name": name,
                             "dtheaders": dtheaders,
                             "datatable": datatable,
                             "testcaseIds": []
@@ -123,14 +123,14 @@ def LoadServices(app, redissession, dbsession):
                         "dtheaders": dtheaders,
                         "datatable": datatable,
                     }
-                    dbsession.datatables.update({"datatablename": datatablename},{"$set":querydata})
+                    dbsession.datatables.update({"name": name},{"$set":querydata})
                     res = {'rows':'success'}
                 elif action == "delete":
                     for tc in dts['testcaseIds']:
                         tcdet = dbsession.testcases.find_one({'_id':ObjectId(tc)})
-                        tc_up = tcdet['datatables'].remove(datatablename)
+                        tc_up = tcdet['datatables'].remove(name)
                         dbsession.testcases.update({"_id": ObjectId(tc)},{"$set":{"datatables": tc_up}})
-                    dbsession.datatables.delete_one({"datatablename": datatablename})
+                    dbsession.datatables.delete_one({"name": name})
                     res = {'rows':'success'}
                 elif action == "deleteConfirm":
                     if 'testcaseIds' in dts and len(dts['testcaseIds']) != 0:
@@ -153,11 +153,11 @@ def LoadServices(app, redissession, dbsession):
             if not isemptyrequest(requestdata):
                 action = requestdata["action"]
                 if action == "datatablenames":
-                    dts = list(dbsession.datatables.find({},{"datatablename":1}))
+                    dts = list(dbsession.datatables.find({},{"name":1}))
                     res['rows'] = dts
                 elif action == "datatable":
-                    datatablename = requestdata["datatablename"]
-                    dts = list(dbsession.datatables.find({"datatablename": datatablename}))
+                    name = requestdata["name"]
+                    dts = list(dbsession.datatables.find({"name": name}))
                     res['rows'] = dts
             else:
                 app.logger.warn('Empty data received. Check for reference dt.')
