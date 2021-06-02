@@ -1205,12 +1205,16 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
                     data['modifiedon'] = current_time
                     data['gitaccesstoken'] = requestdata["gitAccToken"]
                     data['giturl']= requestdata["gitUrl"]
+                    data['gitusername']=requestdata["gitUsername"]
+                    data['gituseremail']=requestdata["gitEmail"]
                     dbsession.gitconfiguration.insert_one(data)
                     res1 = "success"
             elif requestdata["action"]=='update':
                 data['modifiedon'] = current_time
                 data['gitaccesstoken'] = requestdata["gitAccToken"]
                 data['giturl']= requestdata["gitUrl"]
+                data['gituseremail']=requestdata["gitEmail"]
+                data['gitusername']=requestdata["gitUsername"]
                 dbsession.gitconfiguration.update_one({"_id":ObjectId(result1["_id"])},{"$set":data})
                 res1 = "success"
             elif requestdata["action"]=="delete":
@@ -1231,7 +1235,7 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
         try:
             requestdata=json.loads(request.data)
             if not isemptyrequest(requestdata):
-                result=dbsession.gitconfiguration.find_one({"gituser":ObjectId(requestdata["userId"]),"projectid":ObjectId(requestdata["projectId"])},{'gitaccesstoken':1, 'giturl':1, '_id':0})
+                result=dbsession.gitconfiguration.find_one({"gituser":ObjectId(requestdata["userId"]),"projectid":ObjectId(requestdata["projectId"])},{'gitaccesstoken':1, 'giturl':1, 'gitusername':1,'gituseremail':1, '_id':0})
                 if result:
                     res={'rows':result}
                 else:
