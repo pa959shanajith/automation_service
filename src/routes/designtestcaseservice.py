@@ -331,62 +331,58 @@ def LoadServices(app, redissession, dbsession):
             app.logger.debug('Inside readTestCase_ICE. Query: '+str(requestdata['query']))
             if not isemptyrequest(requestdata):
                 if(requestdata['query'] == 'testcaseids'):
-                    tc_id_list=[]
                     if not isinstance(requestdata['testcaseid'], list):
                         requestdata['testcaseid'] = [requestdata['testcaseid']]
-                    for i in requestdata['testcaseid']:
-                        tc_id_list.append(ObjectId(i))
+                    tc_id_list = [ObjectId(i) for i in requestdata['testcaseid']]
                     query = [
                         {"$match":{"_id":{"$in":tc_id_list}}},
                         {"$addFields":{"__order":{"$indexOfArray":[tc_id_list,"$_id"]}}},
                         {"$sort":{"__order":1}},
                         {"$project":{'steps':1,'name':1,'datatables':1,'screenid':1,'parent':1,'_id':1}}
                     ]
-                    result = list(dbsession.testcases.aggregate(query))
-                    queryresult=[]
-                    for i in tc_id_list:
-                        for j in result:
-                                if i == j["_id"]:
-                                    queryresult.append(j)
+                    result = dbsession.testcases.aggregate(query)
+                    tcdict = {}
+                    dts_data = {}
+                    for tc in result: tcdict[tc['_id']] = tc
+                    queryresult = [tcdict[i] for i in tc_id_list]
                     for k in queryresult:
-                        queryresult1 = list(dbsession.dataobjects.find({'parent':k['screenid']},{'parent':0}))
+                        queryresult1 = dbsession.dataobjects.find({'parent':k['screenid']},{'parent':0})
                         dataObjects = {}
-                        if (queryresult1 != []):
-                            for dos in queryresult1:
-                                if 'custname' in dos: dos['custname'] = dos['custname'].strip()
-                                dataObjects[dos['_id']] = dos
+                        for dos in queryresult1:
+                            if 'custname' in dos: dos['custname'] = dos['custname'].strip()
+                            dataObjects[dos['_id']] = dos
                         del_flag = update_steps(k['steps'],dataObjects)
-                        dts = []
                         #datatables
-                        if('datatables' in k and len(k['datatables']) != 0):
-                            dtdet = list(dbsession.datatables.find({"name": { '$in' : k['datatables']}}))
-                            for dt in dtdet:
-                                dts.append({dt['name']:dt['datatable']})
+                        dtnames = k.get('datatables', [])
+                        if len(dtnames) > 0:
+                            dts = []
+                            dts_to_fetch = [i for i in dtnames if i not in dts_data]
+                            dtdet = dbsession.datatables.find({"name": {'$in': dts_to_fetch}})
+                            for dt in dtdet: dts_data[dt['name']] = dt['datatable']
+                            for dt in dtnames: dts.append({dt: dts_data[dt]})
                             k['datatables'] = dts
                     res= {'rows': queryresult, 'del_flag':del_flag}
                 else:
                     dataObjects = {}
-                    queryresult = list(dbsession.testcases.find({'_id':ObjectId(requestdata['testcaseid']),
-                        'versionnumber':requestdata['versionnumber']},{'screenid':1,'steps':1,'datatables':1,'name':1,'parent':1,'_id':0}))
-                    if (queryresult != []):
-                        queryresult1 = list(dbsession.dataobjects.find({'parent':queryresult[0]['screenid']},{'parent':0}))
-                        if (queryresult1 != []):
-                            for dos in queryresult1:
-                                if 'custname' in dos: dos['custname'] = dos['custname'].strip()
-                                dataObjects[dos['_id']] = dos
-                        del_flag = update_steps(queryresult[0]['steps'],dataObjects)
-                        dts = []
+                    queryresult = dbsession.testcases.find_one({'_id':ObjectId(requestdata['testcaseid']),
+                        'versionnumber':requestdata['versionnumber']},{'screenid':1,'steps':1,'datatables':1,'name':1,'parent':1,'_id':0})
+                    if queryresult is not None:
+                        queryresult1 = dbsession.dataobjects.find({'parent':queryresult['screenid']},{'parent':0})
+                        for dos in queryresult1:
+                            if 'custname' in dos: dos['custname'] = dos['custname'].strip()
+                            dataObjects[dos['_id']] = dos
+                        del_flag = update_steps(queryresult['steps'],dataObjects)
                         #datatables
-                        if('datatables' in queryresult[0] and len(queryresult[0]['datatables']) != 0):
-                            dtdet = list(dbsession.datatables.find({"name": {'$in':queryresult[0]['datatables']}}))
+                        dtnames = queryresult.get('datatables', [])
+                        if len(dtnames) > 0:
+                            dts = []
+                            dtdet = dbsession.datatables.find({"name": {'$in': dtnames}})
                             for dt in dtdet:
                                 dts.append({dt['name']:dt['datatable']})
-                            queryresult[0]['datatables'] = dts
-
-                            # dts = [{i:j for i in queryresult[0]['datatables']}]
+                            queryresult['datatables'] = dts
                     res = {'rows': queryresult, 'del_flag':del_flag}
-                    if 'screenName' in requestdata and requestdata['screenName']=='fetch':
-                        screen = dbsession.screens.find_one({'_id':queryresult[0]['screenid']},{'name':1})
+                    if requestdata.get('screenName', '') == 'fetch':
+                        screen = dbsession.screens.find_one({'_id':queryresult['screenid']},{'name':1})
                         res['screenName'] = screen['name']
                     if 'readonly' not in requestdata and 'userid' in requestdata:
                         counterupdator(dbsession,'testcases',ObjectId(requestdata['userid']),1)
