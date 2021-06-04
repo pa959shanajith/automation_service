@@ -163,15 +163,17 @@ def LoadServices(app, redissession, dbsession):
             app.logger.debug('Inside updateTestCase_ICE. Query: '+str(requestdata['query']))
             if not isemptyrequest(requestdata):
                 tcid = requestdata['testcaseid']
-                query_screen = dbsession.testcases.find_one({'_id':ObjectId(tcid),'versionnumber':requestdata['versionnumber']},{'screenid':1})
+                query_screen = dbsession.testcases.find_one({'_id':ObjectId(tcid),'versionnumber':requestdata['versionnumber']},{'screenid':1,'datatables':1})
                 dtables = requestdata.get('datatables', '')
                 if len(dtables) > 0:
                     #update removed datatable tcs by removing current tcid
-                    dbsession.datatables.update({"name": {'$nin': dtables}, "testcaseIds": tcid},
-                        {"$pull": {"testcaseIds": [tcid]}}, {"multi": True})
+                    dbsession.datatables.update_many({"name": {'$nin': dtables}, "testcaseIds": tcid}, 
+                        {"$pull": {"testcaseIds": tcid}})
                     #update each datatable tcs list by adding tcid
-                    dbsession.datatables.update({"name": {'$in': dtables}, "testcaseIds": {"$ne": tcid}},
-                        {"$push": {"testcaseIds": [tcid]}}, {"multi": True})
+                    dbsession.datatables.update_many({"name": {'$in': dtables}, "testcaseIds": {"$ne": tcid}}, 
+                        {"$push": {"testcaseIds": tcid}})
+                elif 'datatables' in query_screen and len(query_screen['datatables']) > 0:
+                    dbsession.datatables.update_many({"name": {'$in': query_screen['datatables']}, "testcaseIds": tcid}, {"$pull": {"testcaseIds": tcid}})
                 queryresult1 = list(dbsession.dataobjects.find({'parent':query_screen['screenid']}))
                 custnames = {}
                 if (queryresult1 != []):
