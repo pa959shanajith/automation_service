@@ -155,10 +155,10 @@ def LoadServices(app, redissession, dbsession, *args):
                             for k in j['testcases']:
                                 tc_steps = testcase_info[k]
                                 tc_name = testcasenames[k]
+                                dts = []
                                 if 'datatables' in tc_steps[-1]: 
                                     dtnames = tc_steps[-1]['datatables']
                                     if len(dtnames) > 0:
-                                        dts = []
                                         dts_to_fetch = [i for i in dtnames if i not in dts_data]
                                         dtdet = dbsession.datatables.find({"name": {'$in': dts_to_fetch}})
                                         for dt in dtdet: dts_data[dt['name']] = dt['datatable']
@@ -488,12 +488,12 @@ def LoadServices(app, redissession, dbsession, *args):
                         query_screen = dbsession.testcases.find_one({'_id':ObjectId(testcaseid)},{'screenid':1,'datatables':1})
                         if len(dtables) > 0:
                             #update removed datatable tcs by removing current tcid
-                            dbsession.datatables.update_many({"name": {'$nin': dtables}, "testcaseIds": ObjectId(testcaseid)}, {"$pull": {"testcaseIds": testcaseid}})
+                            dbsession.datatables.update_many({"name": {'$nin': dtables}, "testcaseIds": testcaseid}, {"$pull": {"testcaseIds": testcaseid}})
                             #update each datatable tcs list by adding tcid
-                            dbsession.datatables.update_many({"name": {'$in': dtables}, "testcaseIds": {"$ne": ObjectId(testcaseid)}}, {"$push": {"testcaseIds": testcaseid}})
+                            dbsession.datatables.update_many({"name": {'$in': dtables}, "testcaseIds": {"$ne": testcaseid}}, {"$push": {"testcaseIds": testcaseid}})
                             del tc[-1]
                         elif 'datatables' in query_screen and len(query_screen['datatables']) > 0:
-                            dbsession.datatables.update_many({"name": {'$in': query_screen['datatables']}, "testcaseIds": ObjectId(testcaseid)}, {"$pull": {"testcaseIds": testcaseid}})
+                            dbsession.datatables.update_many({"name": {'$in': query_screen['datatables']}, "testcaseIds": testcaseid}, {"$pull": {"testcaseIds": testcaseid}})
                         queryresult1 = list(dbsession.dataobjects.find({'parent':query_screen['screenid']}))
                         custnames = {}
                         if (queryresult1 != []):
