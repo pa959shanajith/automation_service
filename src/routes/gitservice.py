@@ -382,7 +382,11 @@ def LoadServices(app, redissession, dbsession, *args):
                 gitFolderPath=requestdata["gitfolderpath"]
                 roleid=requestdata["roleid"]
                 userid=requestdata["userid"]
-
+                
+                chk_prj=dbsession.users.find({"projects":{"$in":[ObjectId(projectid)]},'_id':ObjectId(userid)})
+                if not chk_prj:
+                    res='Unassigned project'
+                    return res
                 result = dbsession.gitexportdetails.find_one({"branchname":gitBranch,"versionname":gitVersionName,"projectid":ObjectId(projectid),"folderpath":gitFolderPath},{"parent":1,"commitid":1})
                 git_data = dbsession.gitconfiguration.find_one({"projectid":ObjectId(projectid),"gituser":ObjectId(userid)},{"giturl":1,"gitaccesstoken":1})
                 if not git_data:
