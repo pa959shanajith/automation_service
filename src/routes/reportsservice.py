@@ -195,7 +195,7 @@ def LoadServices(app, redissession, dbsession):
         try:
             requestdata=json.loads(request.data)
             app.logger.debug("Inside getReport_API")
-            if not isemptyrequest(requestdata):
+            if not isemptyrequest(requestdata) and valid_objectid(requestdata['executionId']):
                 errMsgVal=str(requestdata["executionId"])
                 tsuite = dbsession.executions.find_one({"_id": ObjectId(requestdata["executionId"])})["parent"]
                 errMsgVal=''
@@ -358,12 +358,19 @@ def LoadServices(app, redissession, dbsession):
                         end=end.split('-')
                         start=start[2]+'-'+start[1]+'-'+start[0]
                         end=end[2]+'-'+end[1]+'-'+end[0]
-                    start=datetime.strptime(start,'%Y-%m-%d')
-                    end=datetime.strptime(end,'%Y-%m-%d')
+                    try:
+                        start=datetime.strptime(start,'%Y-%m-%d')
+                        end=datetime.strptime(end,'%Y-%m-%d')
+                    except ValueError:
+                        res['errMsg'] = "Invalid Date Format, date should be in YYYY-MM-DD"
+                        return jsonify(res)
                     end += timedelta(days=1)
                     query={'executedtime':{"$gte": start, "$lte": end}}
-                if 'executionid' in requestdata:
+                if 'executionid' in requestdata and valid_objectid(requestdata['executionid']):
                     query['executionid']=ObjectId(requestdata['executionid'])
+                elif 'executionid' in requestdata:
+                    res['errMsg'] = "Invalid Execution Id"
+                    return jsonify(res)
                 if 'modifiedby' in requestdata:
                     query['modifiedby']=ObjectId(requestdata['modifiedby'])
                 if 'status' in requestdata and requestdata['status'].lower() in status_dict:

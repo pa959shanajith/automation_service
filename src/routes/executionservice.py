@@ -175,7 +175,7 @@ def LoadServices(app, redissession, dbsession):
             requestdata = json.loads(request.data)
             param = str(requestdata["query"])
             app.logger.debug("Inside ExecuteTestSuite_ICE. Query: " + param)
-            if not isemptyrequest(requestdata):
+            if not isemptyrequest(requestdata) and valid_objectid(requestdata):
                 if param == 'testcasedetails':
                     tsc = dbsession.testscenarios.find_one({"_id": ObjectId(requestdata['id']),"deleted":query['delete_flag']},{"testcaseids":1})
                     if tsc is not None:

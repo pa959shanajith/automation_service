@@ -390,3 +390,10 @@ def write_execution_times(resultdict,dbsession):
     except Exception as e:
         servicesException("write_execution_times",e,True)
         return
+
+def valid_objectid(oid):
+    try:
+        ObjectId(oid)
+        return True
+    except Exception as e:
+        return False
