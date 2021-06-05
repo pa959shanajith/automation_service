@@ -138,13 +138,14 @@ def LoadServices(app, redissession, dbsession, *args):
                 for eachscenario in scenarioname_list:
                     temp1={
                         "condition": 0,
-                        "dataparam": [" "],
+                        "dataparam": [""],
                         "scenarioId": str(eachscenario['_id']),
                         "scenarioName": eachscenario['name']
                     }
                     suiteDetailsTemplate["suiteDetails"].append(temp1)
                 
                     screenTcDetails={}
+                    dts_data = {}
                     #creating template for testcase details
                     for i in mindmap_data['testscenarios']:
                         screen_tc_details =[]
@@ -154,12 +155,22 @@ def LoadServices(app, redissession, dbsession, *args):
                             for k in j['testcases']:
                                 tc_steps = testcase_info[k]
                                 tc_name = testcasenames[k]
+                                dts = []
+                                if 'datatables' in tc_steps[-1]: 
+                                    dtnames = tc_steps[-1]['datatables']
+                                    if len(dtnames) > 0:
+                                        dts_to_fetch = [i for i in dtnames if i not in dts_data]
+                                        dtdet = dbsession.datatables.find({"name": {'$in': dts_to_fetch}})
+                                        for dt in dtdet: dts_data[dt['name']] = dt['datatable']
+                                        for dt in dtnames: dts.append({dt: dts_data[dt]})
+                                    del tc_steps[-1]
                                 template1={
                                     "template":"",
                                     "testcase":tc_steps,
                                     "testcasename":tc_name,
                                     "screenid":j['_id'],
-                                    "screenname":screen_name
+                                    "screenname":screen_name,
+                                    "datatables": dts
                                 }
                                 screen_tc_details.append(template1)
 
@@ -264,11 +275,13 @@ def LoadServices(app, redissession, dbsession, *args):
                             screen_file=open(path+'Screens'+os.sep+screenNameFormat,'w')
                             screen_file.write(flask.json.JSONEncoder().encode(screen_json))
                             screen_file.close()
-                            testcaseList = list(dbsession.testcases.find({'screenid':j['_id']},{'screenid':1,'steps':1,'name':1,'parent':1}))
+                            testcaseList = list(dbsession.testcases.find({'screenid':j['_id']},{'screenid':1,'steps':1,'name':1,'parent':1,'datatables':1}))
                             for k in testcaseList:
                                 del_flag = update_steps(k['steps'],dataObjects)
+                                dtnames = k.get('datatables', [])
                                 testcaseNameFormat=k["name"]+'_'+str(k["_id"])+'.json'
                                 tc_file=open(path+'Testcases'+os.sep+testcaseNameFormat,'w')
+                                if len(dtnames) > 0: k['steps'].append({'datatables':dtnames})
                                 tc_file.write(flask.json.JSONEncoder().encode(k['steps']))
                                 tc_file.close()
                             i['testcases'] += testcaseList
@@ -382,7 +395,11 @@ def LoadServices(app, redissession, dbsession, *args):
                 gitFolderPath=requestdata["gitfolderpath"]
                 roleid=requestdata["roleid"]
                 userid=requestdata["userid"]
-
+                
+                chk_prj=dbsession.users.find({"projects":{"$in":[ObjectId(projectid)]},'_id':ObjectId(userid)})
+                if not chk_prj:
+                    res='Unassigned project'
+                    return res
                 result = dbsession.gitexportdetails.find_one({"branchname":gitBranch,"versionname":gitVersionName,"projectid":ObjectId(projectid),"folderpath":gitFolderPath},{"parent":1,"commitid":1})
                 git_data = dbsession.gitconfiguration.find_one({"projectid":ObjectId(projectid),"gituser":ObjectId(userid)},{"giturl":1,"gitaccesstoken":1})
                 if not git_data:
@@ -471,7 +488,16 @@ def LoadServices(app, redissession, dbsession, *args):
                             testcaseid = eachTc.split('.')[0].split('_')[-1]
                             testcasefile.close()
 
-                        query_screen = dbsession.testcases.find_one({'_id':ObjectId(testcaseid)},{'screenid':1})
+                        dtables = tc[-1].get('datatables', '')
+                        query_screen = dbsession.testcases.find_one({'_id':ObjectId(testcaseid)},{'screenid':1,'datatables':1})
+                        if len(dtables) > 0:
+                            #update removed datatable tcs by removing current tcid
+                            dbsession.datatables.update_many({"name": {'$nin': dtables}, "testcaseIds": testcaseid}, {"$pull": {"testcaseIds": testcaseid}})
+                            #update each datatable tcs list by adding tcid
+                            dbsession.datatables.update_many({"name": {'$in': dtables}, "testcaseIds": {"$ne": testcaseid}}, {"$push": {"testcaseIds": testcaseid}})
+                            del tc[-1]
+                        elif 'datatables' in query_screen and len(query_screen['datatables']) > 0:
+                            dbsession.datatables.update_many({"name": {'$in': query_screen['datatables']}, "testcaseIds": testcaseid}, {"$pull": {"testcaseIds": testcaseid}})
                         queryresult1 = list(dbsession.dataobjects.find({'parent':query_screen['screenid']}))
                         custnames = {}
                         if (queryresult1 != []):
@@ -523,7 +549,7 @@ def LoadServices(app, redissession, dbsession, *args):
 
                         #query to update tescase
                         queryresult = dbsession.testcases.update_many({'_id':ObjectId(testcaseid),'versionnumber':0},
-                                    {'$set':{'modifiedby':ObjectId(userid),'modifiedbyrole':ObjectId(roleid),'steps':steps,"modifiedon" : datetime.now()}}).matched_count
+                                    {'$set':{'modifiedby':ObjectId(userid),'modifiedbyrole':ObjectId(roleid),'steps':steps,'datatables':dtables,"modifiedon" : datetime.now()}}).matched_count
 
                 res=json_data
             else:
