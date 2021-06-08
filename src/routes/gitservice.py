@@ -402,7 +402,7 @@ def LoadServices(app, redissession, dbsession, *args):
                     res='empty'
                     return res
                 if not result:
-                    result = list(dbsession.gitexportdetails.find({"branchname":gitBranch,"versionname":gitVersionName,"folderpath":gitFolderPath}))
+                    result = list(dbsession.gitexportdetails.find({"branchname":gitBranch,"versionname":gitVersionName,"folderpath":gitFolderPath},{"_id":1}))
                     if len(result) > 0:
                         res = "No entries"
                     else:
