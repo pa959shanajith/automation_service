@@ -217,7 +217,7 @@ def LoadServices(app, redissession, dbsession):
                         dbsession.dataobjects.bulk_write(req)
                         if "mirror" in data_obj:
                             screenshot = data_obj['mirror']
-                            orderlist = data_obj['orderlist'] or []
+                            orderlist = data_obj['orderlist'] if 'orderlist' in data_obj else []
                             if "scrapedurl" in data_obj:
                                 scrapedurl = data_obj["scrapedurl"]
                                 dbsession.screens.update({"_id":screenId},{"$set":{"screenshot":screenshot,"scrapedurl":scrapedurl,"modifiedby":modifiedby, 'modifiedbyrole':modifiedbyrole,"modifiedon" : datetime.now(), 'orderlist': orderlist}})
