@@ -316,7 +316,8 @@ def LoadServices(app, redissession, dbsession):
     #test case reading service
     @app.route('/design/readTestCase_ICE',methods=['POST'])
     def readTestCase_ICE():
-        res={'rows':'fail', 'del_flag': False}
+        res={'rows':'fail'}
+        del_flag = False
         try:
             requestdata=json.loads(request.data)
             app.logger.debug('Inside readTestCase_ICE. Query: '+str(requestdata['query']))
@@ -342,7 +343,7 @@ def LoadServices(app, redissession, dbsession):
                         for dos in queryresult1:
                             if 'custname' in dos: dos['custname'] = dos['custname'].strip()
                             dataObjects[dos['_id']] = dos
-                        res['del_flag'] = update_steps(k['steps'],dataObjects)
+                        del_flag = update_steps(k['steps'],dataObjects)
                         #datatables
                         dtnames = k.get('datatables', [])
                         if len(dtnames) > 0:
@@ -352,18 +353,18 @@ def LoadServices(app, redissession, dbsession):
                             for dt in dtdet: dts_data[dt['name']] = dt['datatable']
                             for dt in dtnames: dts.append({dt: dts_data[dt]})
                             k['datatables'] = dts
-                    res['rows'] = queryresult
+                    res = {'rows': { 'tc': queryresult, 'del_flag': del_flag}}
                 else:
                     dataObjects = {}
                     queryresult = dbsession.testcases.find_one({'_id':ObjectId(requestdata['testcaseid']),
                         'versionnumber':requestdata['versionnumber']},{'screenid':1,'steps':1,'datatables':1,'name':1,'parent':1,'_id':0})
-                    if queryresult is None: res['rows'] = []
+                    if queryresult is None: res['rows'] = { 'tc': [], 'del_flag': del_flag }
                     else:
                         queryresult1 = dbsession.dataobjects.find({'parent':queryresult['screenid']},{'parent':0})
                         for dos in queryresult1:
                             if 'custname' in dos: dos['custname'] = dos['custname'].strip()
                             dataObjects[dos['_id']] = dos
-                        res['del_flag'] = update_steps(queryresult['steps'],dataObjects)
+                        del_flag = update_steps(queryresult['steps'],dataObjects)
                         #datatables
                         dtnames = queryresult.get('datatables', [])
                         if len(dtnames) > 0:
@@ -372,10 +373,10 @@ def LoadServices(app, redissession, dbsession):
                             for dt in dtdet:
                                 dts.append({dt['name']:dt['datatable']})
                             queryresult['datatables'] = dts
-                        res['rows'] = [queryresult]
+                        res = { 'rows': { 'tc': [queryresult], 'del_flag': del_flag } }
                     if requestdata.get('screenName', '') == 'fetch':
                         screen = dbsession.screens.find_one({'_id':queryresult['screenid']},{'name':1})
-                        res['screenName'] = screen['name']
+                        res['rows']['screenName'] = screen['name']
                     if 'readonly' not in requestdata and 'userid' in requestdata:
                         counterupdator(dbsession,'testcases',ObjectId(requestdata['userid']),1)
             else:
