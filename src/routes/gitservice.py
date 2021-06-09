@@ -396,17 +396,17 @@ def LoadServices(app, redissession, dbsession, *args):
                 roleid=requestdata["roleid"]
                 userid=requestdata["userid"]
                 
-                chk_prj=dbsession.users.find({"projects":{"$in":[ObjectId(projectid)]},'_id':ObjectId(userid)})
-                if not chk_prj:
-                    res='Unassigned project'
-                    return res
                 result = dbsession.gitexportdetails.find_one({"branchname":gitBranch,"versionname":gitVersionName,"projectid":ObjectId(projectid),"folderpath":gitFolderPath},{"parent":1,"commitid":1})
                 git_data = dbsession.gitconfiguration.find_one({"projectid":ObjectId(projectid),"gituser":ObjectId(userid)},{"giturl":1,"gitaccesstoken":1})
                 if not git_data:
                     res='empty'
                     return res
                 if not result:
-                    res = "Invalid inputs"
+                    result = list(dbsession.gitexportdetails.find({"branchname":gitBranch,"versionname":gitVersionName,"folderpath":gitFolderPath},{"_id":1}))
+                    if len(result) > 0:
+                        res = "No entries"
+                    else:
+                        res = 'Invalid inputs'
                     return res
                 else:
                     gitdetails = dbsession.gitconfiguration.find_one({"_id":result["parent"]})
