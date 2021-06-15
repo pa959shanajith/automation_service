@@ -57,15 +57,18 @@ def LoadServices(app, redissession, dbsession):
                         qc_tc=testcaselist[0]['qctestcase']
                         qc_fld=testcaselist[0]['qcfolderpath']
                         qc_tst=testcaselist[0]['qctestset']
+                        qc_fldid=testcaselist[0]['qcfolderid']
                         requestdata_tc = requestdata["qctestcase"]
                         requestdata_folder = requestdata["qcfolderpath"]
                         requestdata_testset = requestdata["qctestset"]
+                        requestdata_folderid = requestdata["qcfolderid"]
                         for a in range(len(requestdata_tc)):
                             if requestdata_tc[a] not in qc_tc:
                                 qc_tc.append(requestdata_tc[a])
                                 qc_fld.append(requestdata_folder[a])
                                 qc_tst.append(requestdata_testset[a])
-                        dbsession.thirdpartyintegration.update_one({"type":"ALM","testscenarioid":requestdata["testscenarioid"]}, {'$set': {"qctestcase":qc_tc,"qcfolderpath":qc_fld,"qctestset":qc_tst}})
+                                qc_fldid.append(requestdata_folderid[a])
+                        dbsession.thirdpartyintegration.update_one({"type":"ALM","testscenarioid":requestdata["testscenarioid"]}, {'$set': {"qctestcase":qc_tc,"qcfolderpath":qc_fld,"qctestset":qc_tst,"qcfolderid":qc_fldid}})
                     elif len(testcases) == 1 and len(testscenarios) != 0:
                         qc_tc=testscenarios[0]['testscenarioid']
                         requestdata_tc = requestdata["testscenarioid"]
