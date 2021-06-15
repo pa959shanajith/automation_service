@@ -69,7 +69,7 @@ def LoadServices(app, redissession, dbsession):
         try:
             requestdata=json.loads(request.data)
             if not isemptyrequest(requestdata):
-                queryresult=list(dbsession.executions.find({"parent":ObjectId(requestdata["suiteid"])},{"_id":1,"starttime":1,"endtime":1,"status":1,"versionname":1}))
+                queryresult=list(dbsession.executions.find({"parent":ObjectId(requestdata["suiteid"])},{"_id":1,"starttime":1,"endtime":1,"status":1,"version":1}))
                 res= {"rows":queryresult}
             else:
                 app.logger.warn('Empty data received. report suites details execution.')
@@ -112,7 +112,7 @@ def LoadServices(app, redissession, dbsession):
                     res['rows'] = []
                     return res
                 scenarioname = dbsession.testscenarios.find_one({"_id":reportobj['testscenarioid']},{"name":1,"_id":0})["name"]
-                suiteid = dbsession.executions.find_one({"_id":reportobj['executionid']},{"parent":1,"versionname":1,"_id":0})
+                suiteid = dbsession.executions.find_one({"_id":reportobj['executionid']},{"parent":1,"version":1,"_id":0})
                 suiteobj = dbsession.testsuites.find_one({"_id":suiteid["parent"][0]},{"name":1,"cycleid":1,"_id":0})
                 cycleid = suiteobj['cycleid']
                 prjobj = dbsession.projects.find_one({"releases.cycles._id":cycleid},{"domain":1,"name":1,"releases":1})
@@ -127,8 +127,8 @@ def LoadServices(app, redissession, dbsession):
                     'domainname': prjobj["domain"],
                     'projectname': prjobj["name"]
                 }
-                if('versionname' in suiteid):
-                    query['versionname']=suiteid['versionname']
+                if('version' in suiteid):
+                    query['version']=suiteid['version']
                 found = False
                 for rel in prjobj["releases"]:
                     for cyc in rel["cycles"]:
