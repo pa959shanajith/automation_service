@@ -351,7 +351,9 @@ def LoadServices(app, redissession, dbsession):
                             dts_to_fetch = [i for i in dtnames if i not in dts_data]
                             dtdet = dbsession.datatables.find({"name": {'$in': dts_to_fetch}})
                             for dt in dtdet: dts_data[dt['name']] = dt['datatable']
-                            for dt in dtnames: dts.append({dt: dts_data[dt]})
+                            for dt in dtnames: 
+                                if dt in dts_data.keys():
+                                    dts.append({dt: dts_data[dt]})
                             k['datatables'] = dts
                     res = {'rows': { 'tc': queryresult, 'del_flag': del_flag}}
                 else:
