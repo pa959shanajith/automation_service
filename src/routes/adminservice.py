@@ -448,7 +448,7 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
                     result=dbsession.users.find_one({"_id":ObjectId(rdata["userid"])},{"projects":1,"_id":0})
                     for i in result['projects']:
                         result1=dbsession.projects.find_one({"domain":rdata["domainname"],"_id":ObjectId(i)},{"name":1})
-                        prj_list.append(result1)
+                        if result1: prj_list.append(result1)
                     res={"rows":prj_list}
                 elif requestdata["type"] == "domaindetails":
                     result=list(dbsession.projects.find({"domain":requestdata["id"]},{"name":1}))
