@@ -1201,7 +1201,7 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
         try:
             #check whether the git configuration name is unique
             chk_gitname = dbsession.gitconfiguration.find_one({"name":requestdata["gitConfigName"]},{"name":1})
-            if chk_gitname!=None:
+            if chk_gitname!=None and requestdata["action"]=='create':
                 res={"rows":"GitConfig exists"}
                 return res
             result = dbsession.gitconfiguration.find_one({"gituser":ObjectId(requestdata["userId"]),"projectid":ObjectId(requestdata["projectId"])},{"_id":1})
