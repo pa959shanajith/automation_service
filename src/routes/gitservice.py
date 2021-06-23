@@ -68,7 +68,7 @@ def LoadServices(app, redissession, dbsession, *args):
                 
                 gitconfig_data = dbsession.gitconfiguration.find_one({"name":gitname},{"gitaccesstoken":1,"giturl":1,"gituser":1})
                 if not gitconfig_data:
-                    result ={'rows':'No config'}
+                    result ={'rows':'empty'}
                     return result
                 commitId = dbsession.gitexportdetails.find_one({'branchname':gitbranch,'folderpath':moduleName,'version':versionName, "parent":gitconfig_data['_id']},{"commitid":1})
                 if not commitId:
@@ -79,6 +79,7 @@ def LoadServices(app, redissession, dbsession, *args):
                 url=url[0]+"://"+unwrap(gitconfig_data['gitaccesstoken'], ldap_key)+':'+'x-oauth-basic'+"@"+url[1]
 
                 path1=currdir+os.sep+'importGit'+os.sep+userid+os.sep
+                if(os.path.exists(path1)): remove_dir(path1)
                 repo = git.Repo.init(path1)
                 origin = repo.create_remote('origin',url)
                 origin.fetch()
