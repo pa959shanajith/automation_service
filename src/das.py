@@ -54,6 +54,7 @@ assistpath = internalspath + os.sep + "assist"
 logspath = internalspath + os.sep + "logs"
 verpath = internalspath + os.sep + "version.txt"
 credspath = internalspath + os.sep + ".tokens"
+gitpath = os.path.normpath(currdir + "/Lib/PortableGit/bin/git.exe")
 
 das_ver = "3.0"
 if os.path.isfile(verpath):
@@ -174,8 +175,10 @@ def addroutes():
     import mindmapservice
     mindmapservice.LoadServices(app, redissession, dbsession)
     
-    import gitservice
-    gitservice.LoadServices(app, redissession, dbsession)
+    if os.path.exists(gitpath):
+        os.environ["GIT_PYTHON_GIT_EXECUTABLE"] = gitpath
+        import gitservice
+        gitservice.LoadServices(app, redissession, dbsession)
 
     import designscreenservice
     designscreenservice.LoadServices(app, redissession, dbsession)
