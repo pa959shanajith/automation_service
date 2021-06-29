@@ -192,12 +192,16 @@ def LoadServices(app, redissession, dbsession):
                                 scids[scid] = dbsession.screens.find_one({"_id":scid})['name']
                             tc["screenname"] = scids[scid]
                             dtnames = tc.get('datatables', [])
+                            dtp = requestdata['dtparam']
+                            if len(dtp) > 0 and dtp[0] not in dtnames: dtnames.append(dtp[0])
                             if len(dtnames) > 0:
                                 dts = []
                                 dts_to_fetch = [i for i in dtnames if i not in dts_data]
                                 dtdet = dbsession.datatables.find({"name": {'$in': dts_to_fetch}})
                                 for dt in dtdet: dts_data[dt['name']] = dt['datatable']
-                                for dt in dtnames: dts.append({dt: dts_data[dt]})
+                                for dt in dtnames: 
+                                    if dt in dts_data:
+                                        dts.append({dt: dts_data[dt]})
                                 tc['datatables'] = dts
                             testcase.append(tc)
                         res["rows"] = testcase
