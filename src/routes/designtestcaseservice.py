@@ -212,10 +212,17 @@ def LoadServices(app, redissession, dbsession):
                                             break
                                     if query_screen['screenid'] not in co['parent']:
                                         co['parent'].append(query_screen['screenid'])
+                                        if (str(co['_id']) not in orderlist):
+                                            orderlist.append(str(co['_id']))
+                                            updateOrder = True
                                     mapNew.append(co)
                             else:
                                 if query_screen['screenid'] not in co['parent']:
                                     co['parent'].append(query_screen['screenid'])
+                                    if (str(co['_id']) not in orderlist):
+                                        orderlist.append(str(co['_id']))
+                                        updateOrder = True
+                                    updateOrder = True
                                     mapNew.append(co)
                         for mn in mapNew:
                             custnames[mn['custname']] = mn
