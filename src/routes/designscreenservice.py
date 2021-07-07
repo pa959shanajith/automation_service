@@ -181,7 +181,7 @@ def LoadServices(app, redissession, dbsession):
                 elif data["param"] == "importScrapeData":
                     screenId = ObjectId(data["screenId"])
                     data_obj = data["objList"]
-                    orderlist = data_obj['orderlist'] if 'orderlist' in data_obj else []
+                    importedorderlist = []
                     modifiedbyrole=  ObjectId(data["roleId"])
                     modifiedby =  ObjectId(data["userId"])
                     data_push=[]
@@ -190,9 +190,9 @@ def LoadServices(app, redissession, dbsession):
                     for i in range(len(data_obj["view"])):
                         if '_id' not in data_obj["view"][i]:
                             data_obj["view"][i]['_id'] = ObjectId()
-                            orderlist.append(str(data_obj["view"][i]['_id']))
+                            importedorderlist.append(str(data_obj["view"][i]['_id']))
                         else:
-                            orderlist.append(data_obj["view"][i]['_id'])
+                            importedorderlist.append(data_obj["view"][i]['_id'])
                             data_obj["view"][i]['_id'] = ObjectId(data_obj["view"][i]['_id'])
                         result=dbsession.dataobjects.find_one({'_id':data_obj["view"][i]['_id']},{"parent":1})
                         if result == None:
@@ -220,6 +220,7 @@ def LoadServices(app, redissession, dbsession):
                         dbsession.dataobjects.bulk_write(req)
                         if "mirror" in data_obj:
                             screenshot = data_obj['mirror']
+                            orderlist = data_obj['orderlist'] if 'orderlist' in data_obj else importedorderlist
                             if "scrapedurl" in data_obj:
                                 scrapedurl = data_obj["scrapedurl"]
                                 dbsession.screens.update({"_id":screenId},{"$set":{"screenshot":screenshot,"scrapedurl":scrapedurl,"modifiedby":modifiedby, 'modifiedbyrole':modifiedbyrole,"modifiedon" : datetime.now(), 'orderlist': orderlist}})
