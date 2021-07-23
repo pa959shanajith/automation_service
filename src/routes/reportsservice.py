@@ -375,6 +375,9 @@ def LoadServices(app, redissession, dbsession):
                     query['modifiedby']=ObjectId(requestdata['modifiedby'])
                 if 'status' in requestdata and requestdata['status'].lower() in status_dict:
                     query['status']=status_dict[requestdata['status'].strip().lower()]
+                elif 'status' in requestdata:
+                    res['errMsg'] = "Invalid Status"
+                    return jsonify(res)
                 LOB=requestdata["LOB"]
                 report = dbsession.reports.find(query,{"testscenarioid":1,"status":1,"report":1,"modifiedby":1})
                 res['rows']=arr
@@ -383,8 +386,8 @@ def LoadServices(app, redissession, dbsession):
                     scenarioid = i["testscenarioid"]
                     status = i["status"]
                     report = i["report"]["overallstatus"]
-                    starttime = i["report"]["overallstatus"][0]["StartTime"]
-                    endtime = i["report"]["overallstatus"][0]["EndTime"]
+                    starttime = i["report"]["overallstatus"][0]["StartTime"].split(".")[0]
+                    endtime = i["report"]["overallstatus"][0]["EndTime"].split(".")[0]
                     modifiedby = i["modifiedby"]
                     details["testresult"] = status
                     details["teststarttime"] = starttime
