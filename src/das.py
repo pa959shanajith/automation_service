@@ -54,7 +54,7 @@ assistpath = internalspath + os.sep + "assist"
 logspath = internalspath + os.sep + "logs"
 verpath = internalspath + os.sep + "version.txt"
 credspath = internalspath + os.sep + ".tokens"
-gitpath = os.path.normpath(currdir + "/Lib/PortableGit/bin/git.exe")
+gitpath = os.path.normpath(currdir + "/Lib/portableGit/cmd/git.exe")
 
 das_ver = "3.0"
 if os.path.isfile(verpath):
