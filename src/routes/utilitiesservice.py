@@ -126,10 +126,6 @@ def LoadServices(app, redissession, dbsession):
                     dbsession.datatables.update({"name": name},{"$set":querydata})
                     res = {'rows':'success'}
                 elif action == "delete":
-                    for tc in dts['testcaseIds']:
-                        tcdet = dbsession.testcases.find_one({'_id':ObjectId(tc)})
-                        tc_up = tcdet['datatables'].remove(name)
-                        dbsession.testcases.update({"_id": ObjectId(tc)},{"$set":{"datatables": tc_up}})
                     dbsession.datatables.delete_one({"name": name})
                     res = {'rows':'success'}
                 elif action == "deleteConfirm":

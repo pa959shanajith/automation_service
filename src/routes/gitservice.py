@@ -14,6 +14,27 @@ from pymongo import InsertOne
 from pymongo import UpdateOne
 currdir=os.getcwd()
 
+ldap_key = "".join(['l','!','g','#','t','W','3','l','g','G','h','1','3','@','(',
+    'c','E','s','$','T','p','R','0','T','c','O','I','-','k','3','y','S'])
+
+def wrap(data, key, iv=b'0'*16):
+    aes = AES.new(key.encode('utf-8'), AES.MODE_CBC, iv)
+    hex_data = aes.encrypt(pad(data.encode('utf-8')))
+    return codecs.encode(hex_data, 'hex').decode('utf-8')
+
+def pad(data):
+    BS = 16
+    padding = BS - len(data) % BS
+    return data + padding * chr(padding).encode('utf-8')
+
+def unpad(data):
+    return data[0:-ord(data[-1])]
+
+def unwrap(hex_data, key, iv=b'0'*16):
+    data = codecs.decode(hex_data, 'hex')
+    aes = AES.new(key.encode('utf-8'), AES.MODE_CBC, iv)
+    return unpad(aes.decrypt(data).decode('utf-8'))
+
 def LoadServices(app, redissession, dbsession, *args):
     setenv(app)
     defcn = ['@Window', '@Object', '@System', '@Excel', '@Mobile', '@Android_Custom', '@Word', '@Custom', '@CustomiOS',
@@ -39,21 +60,26 @@ def LoadServices(app, redissession, dbsession, *args):
         try:
             requestdata=json.loads(request.data)
             if not isemptyrequest(requestdata):
-                versionName=requestdata['gitVersionName']
+                versionName=requestdata['gitVersion']
                 moduleName=requestdata['folderPath']
                 userid=requestdata['userid']
                 gitbranch=requestdata['gitbranch']
+                gitname=requestdata["gitname"]
                 
-                commitId = dbsession.gitexportdetails.find_one({'branchname':gitbranch,'folderpath':moduleName,'versionname':versionName},{"_id":1,"commitid":1,"parent":1})
+                gitconfig_data = dbsession.gitconfiguration.find_one({"name":gitname},{"gitaccesstoken":1,"giturl":1,"gituser":1})
+                if not gitconfig_data:
+                    result ={'rows':'empty'}
+                    return result
+                commitId = dbsession.gitexportdetails.find_one({'branchname':gitbranch,'folderpath':moduleName,'version':versionName, "parent":gitconfig_data['_id']},{"commitid":1})
                 if not commitId:
                     result ={'rows':'empty'}
                     return result
                 
-                gitconfig_data = dbsession.gitconfiguration.find_one({"_id":commitId["parent"]},{"gitaccesstoken":1,"giturl":1})
                 url=gitconfig_data['giturl'].split('://')
-                url=url[0]+"://"+gitconfig_data['gitaccesstoken']+':'+'x-oauth-basic'+"@"+url[1]
+                url=url[0]+"://"+unwrap(gitconfig_data['gitaccesstoken'], ldap_key)+':'+'x-oauth-basic'+"@"+url[1]
 
                 path1=currdir+os.sep+'importGit'+os.sep+userid+os.sep
+                if(os.path.exists(path1)): remove_dir(path1)
                 repo = git.Repo.init(path1)
                 origin = repo.create_remote('origin',url)
                 origin.fetch()
@@ -156,7 +182,7 @@ def LoadServices(app, redissession, dbsession, *args):
                                 tc_steps = testcase_info[k]
                                 tc_name = testcasenames[k]
                                 dts = []
-                                if 'datatables' in tc_steps[-1]: 
+                                if len(tc_steps) > 0 and 'datatables' in tc_steps[-1]: 
                                     dtnames = tc_steps[-1]['datatables']
                                     if len(dtnames) > 0:
                                         dts_to_fetch = [i for i in dtnames if i not in dts_data]
@@ -199,19 +225,26 @@ def LoadServices(app, redissession, dbsession, *args):
                 del_flag = False
 
                 project_id = dbsession.mindmaps.find_one({"_id":ObjectId(requestdata["moduleId"])},{"projectid":1,"_id":0})
-                git_details = list(dbsession.gitconfiguration.find({"projectid":project_id["projectid"],"gituser":ObjectId(requestdata["userid"])},{"giturl":1,"gitaccesstoken":1,"gitusername":1,"gituseremail":1}))
-                if not git_details:
+                chk_config = dbsession.gitconfiguration.find_one({"projectid":project_id["projectid"],"gituser":ObjectId(requestdata["userid"])},{"_id":1})
+                if not chk_config:
                     res={'rows':'empty'}
                     return res
 
-                url=git_details[0]["giturl"].split('://')
-                url=url[0]+'://'+git_details[0]['gitaccesstoken']+':x-oauth-basic@'+url[1]
-                
+                git_details = dbsession.gitconfiguration.find_one({"name":requestdata["gitname"],"gituser":ObjectId(requestdata["userid"]),"projectid":project_id["projectid"]},{"giturl":1,"gitaccesstoken":1,"gitusername":1,"gituseremail":1})
+                if not git_details:
+                    res={'rows':'Invalid config name'}
+                    return res
+
+                url=git_details["giturl"].split('://')
+                url=url[0]+'://'+unwrap(git_details['gitaccesstoken'], ldap_key)+':x-oauth-basic@'+url[1]
+
                 #check whether cred is valid
                 git_path=currdir+os.sep+'exportGit'+os.sep+requestdata["userid"]
+                if(os.path.exists(git_path)): remove_dir(git_path)
+
                 repo = git.Repo.init(git_path)
-                repo.config_writer().set_value('user', 'email', git_details[0]['gituseremail']).release()
-                repo.config_writer().set_value('user', 'name', git_details[0]['gitusername']).release()
+                repo.config_writer().set_value('user', 'email', git_details['gituseremail']).release()
+                repo.config_writer().set_value('user', 'name', git_details['gitusername']).release()
                 origin = repo.create_remote('origin',url)
                 origin.fetch()
                 repo.git.checkout(requestdata["gitBranch"])
@@ -223,7 +256,7 @@ def LoadServices(app, redissession, dbsession, *args):
                     tsc_name = dbsession.testscenarios.find_one({'_id':i['_id']},{"_id":0, "name":1})
                     i['testscenarioname']=tsc_name['name']
 
-                result = dbsession.gitexportdetails.find({"branchname":requestdata["gitBranch"],"versionname":requestdata["gitVersionName"],"projectid":mindMapsList[0]['projectid'],"folderpath":requestdata['gitFolderPath']})
+                result = dbsession.gitexportdetails.find({"parent":git_details["_id"],"version":requestdata["gitVersion"]})
                 index = result.count() - 1
                 result=None
                 if index >= 0:
@@ -339,10 +372,9 @@ def LoadServices(app, redissession, dbsession, *args):
             delpath=currdir+os.sep+"mindmapGit"
             data={}
             if not isemptyrequest(module_data):
-                project_id = dbsession.mindmaps.find_one({"_id":ObjectId(module_data["moduleId"])},{"projectid":1,"_id":0})
-                git_details = list(dbsession.gitconfiguration.find({"projectid":project_id["projectid"],"gituser":ObjectId(result["userid"])},{"gituser":1}))
+                git_details = dbsession.gitconfiguration.find_one({"name":module_data["gitname"],"gituser":ObjectId(module_data["userid"])},{"projectid":1})
 
-                git_path=currdir+os.sep+'exportGit'+os.sep+result["userid"]
+                git_path=currdir+os.sep+'exportGit'+os.sep+module_data["userid"]
                 final_path=os.path.normpath(git_path+os.sep+module_data["gitFolderPath"])
 
                 if(os.path.exists(final_path)):
@@ -351,7 +383,7 @@ def LoadServices(app, redissession, dbsession, *args):
                 shutil.move(dirpath, final_path)
                 # Add mimdmap file to remote repo
                 repo.git.add(final_path)
-                repo.index.commit(module_data["gitVersionName"])
+                repo.index.commit(module_data["gitVersion"])
                 repo.git.push()
 
                 # get the commit id and save it in gitexportdetails
@@ -360,11 +392,12 @@ def LoadServices(app, redissession, dbsession, *args):
                         commit_id = origin.refs[i].commit.hexsha
                         break
 
-                data["parent"] = git_details[0]["_id"]
-                data["projectid"] = project_id["projectid"]
+                data["userid"] = ObjectId(module_data["userid"])
+                data["projectid"] = git_details["projectid"]
                 data["branchname"] = module_data["gitBranch"]
                 data["folderpath"] = module_data["gitFolderPath"]
-                data["versionname"] = module_data["gitVersionName"]
+                data["version"] = module_data["gitVersion"]
+                data["parent"] = git_details["_id"]
                 data["commitid"] = commit_id
                 dbsession.gitexportdetails.insert(data)
                 
@@ -389,34 +422,35 @@ def LoadServices(app, redissession, dbsession, *args):
         try:
             requestdata=json.loads(request.data)
             if not isemptyrequest(requestdata):
-                projectid=requestdata["projectid"]
-                gitBranch=requestdata["gitbranch"]
-                gitVersionName=requestdata["gitversion"]
-                gitFolderPath=requestdata["gitfolderpath"]
-                roleid=requestdata["roleid"]
-                userid=requestdata["userid"]
+                projectid = requestdata["projectid"]
+                gitname = requestdata["gitname"]
+                gitBranch = requestdata["gitbranch"]
+                gitVersionName = requestdata["gitversion"]
+                gitFolderPath = requestdata["gitfolderpath"]
+                roleid = requestdata["roleid"]
+                userid = requestdata["userid"]
                 
-                result = dbsession.gitexportdetails.find_one({"branchname":gitBranch,"versionname":gitVersionName,"projectid":ObjectId(projectid),"folderpath":gitFolderPath},{"parent":1,"commitid":1})
-                git_data = dbsession.gitconfiguration.find_one({"projectid":ObjectId(projectid),"gituser":ObjectId(userid)},{"giturl":1,"gitaccesstoken":1})
+                git_data = dbsession.gitconfiguration.find_one({"name":gitname,"projectid":ObjectId(projectid)},{"gituser":1,"giturl":1,"gitaccesstoken":1})
                 if not git_data:
-                    res='empty'
-                    return res
-                if not result:
-                    result = list(dbsession.gitexportdetails.find({"branchname":gitBranch,"versionname":gitVersionName,"folderpath":gitFolderPath},{"_id":1}))
-                    if len(result) > 0:
-                        res = "No entries"
+                    git_data = list(dbsession.gitconfiguration.find({"name":gitname},{"_id":1}))
+                    if len(git_data) > 0:
+                        res = 'No entries'
                     else:
-                        res = 'Invalid inputs'
+                        res='empty'
+                    return res
+
+                result = dbsession.gitexportdetails.find_one({"branchname":gitBranch,"version":gitVersionName,"projectid":ObjectId(projectid),"folderpath":gitFolderPath,"parent":git_data["_id"]},{"commitid":1})
+                if not result:
+                    res = 'Invalid inputs'
                     return res
                 else:
-                    gitdetails = dbsession.gitconfiguration.find_one({"_id":result["parent"]})
-                    git_path=currdir+os.sep+'exportGit'+os.sep+str(gitdetails["gituser"])
+                    git_path=currdir+os.sep+'exportGit'+os.sep+str(userid)
                     final_path=os.path.normpath(git_path+os.sep+gitFolderPath)
                     
                     if(os.path.isdir(git_path)): remove_dir(git_path)
 
-                    url=gitdetails["giturl"].split('://')
-                    url=url[0]+'://'+gitdetails["gitaccesstoken"]+':x-oauth-basic@'+url[1]
+                    url=git_data["giturl"].split('://')
+                    url=url[0]+'://'+unwrap(git_data["gitaccesstoken"], ldap_key)+':x-oauth-basic@'+url[1]
 
                     repo = git.Repo.clone_from(url, git_path, no_checkout=True)
                     repo.git.checkout(result['commitid'])
@@ -440,6 +474,7 @@ def LoadServices(app, redissession, dbsession, *args):
                         data_push=[]
                         data_up=[]
                         req = []
+                        dtables = []
                         for i in range(len(screen["view"])):
                             if '_id' not in screen["view"][i]:
                                 screen["view"][i]['_id'] = ObjectId()
@@ -488,7 +523,7 @@ def LoadServices(app, redissession, dbsession, *args):
                             testcaseid = eachTc.split('.')[0].split('_')[-1]
                             testcasefile.close()
 
-                        dtables = tc[-1].get('datatables', '')
+                        if len(tc)> 0 : dtables = tc[-1].get('datatables', '')
                         query_screen = dbsession.testcases.find_one({'_id':ObjectId(testcaseid)},{'screenid':1,'datatables':1})
                         if len(dtables) > 0:
                             #update removed datatable tcs by removing current tcid
