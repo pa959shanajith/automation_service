@@ -809,12 +809,12 @@ def checkSetup():
         app.logger.error(printErrorCodes(errCode))
     return endas
 
-def beginserver(host = '127.0.0.1'):
+def beginserver(host = '127.0.0.1', **kwargs):
     global profj_sqlitedb
     if redis_dbup and mongo_dbup:
         profj_sqlitedb = SQLite_DataSetup()
         updateWeightages() # ProfJ component
-        serve(app,host=host,port=int(dasport))
+        serve(app,host=host,port=int(dasport),**kwargs)
     else:
         app.logger.critical(printErrorCodes('207'))
 
@@ -1194,6 +1194,10 @@ def main():
         if 'dasserverport' in das_conf:
             dasport = das_conf['dasserverport']
             ERR_CODE["225"] = "Port "+dasport+" already in use"
+        if 'processthreads' in das_conf:
+            kwargs['threads'] = int(das_conf['processthreads'])
+        if 'connectionlimit' in das_conf:
+            kwargs['backlog'] = int(das_conf['connectionlimit'])
         if 'custChronographTimer' in das_conf:
             chronographTimer = int(das_conf['custChronographTimer'])
             app.logger.debug("'custChronographTimer' detected.")

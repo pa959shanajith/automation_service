@@ -88,10 +88,15 @@ def LoadServices(app, redissession, dbsession):
             if not isemptyrequest(requestdata):
                 if(requestdata["query"] == 'executiondetails'):
                     queryresult = list(dbsession.reports.find({"executionid":ObjectId(requestdata["executionid"])},{"_id":1,"executionid":1,"executedon":1,"comments":1,"executedtime":1,"modifiedby":1,"modifiedbyrole":1,"modifiedon":1,"status":1,"testscenarioid":1}))
-                    res= {"rows":queryresult}
-                elif(requestdata["query"] == 'scenarioname'):
-                    queryresult = list(dbsession.testscenarios.find({"_id":ObjectId(requestdata["scenarioid"])},{"name":1}))
-                    res= {"rows":queryresult}
+                    if len(queryresult) > 0:
+                        r_scids = list(set([i["testscenarioid"] for i in queryresult]))
+                        scos = dbsession.testscenarios.find({"_id": {"$in": r_scids}},{"name":1})
+                        scidmap = {}
+                        for sco in scos:
+                            scidmap[sco["_id"]] = sco["name"]
+                        for rep in queryresult:
+                            rep["testscenarioname"] = scidmap.get(rep["testscenarioid"], '')
+                    res = {"rows":queryresult}
             else:
                 app.logger.warn('Empty data received. report status of scenarios.')
         except Exception as getreportstatusexc:
