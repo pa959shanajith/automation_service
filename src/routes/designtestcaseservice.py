@@ -384,10 +384,10 @@ def LoadServices(app, redissession, dbsession):
                     res = {'rows': { 'tc': queryresult, 'del_flag': del_flag}}
                 else:
                     dataObjects = {}
-                    if("screenid" in requestdata):
+                    if "testcaseid" not in requestdata:
                         queryresult = dbsession.testcases.find_one({'screenid':ObjectId(requestdata['screenid']),
                         'versionnumber':requestdata['versionnumber']}, {'screenid':1,'steps':1,'datatables':1,'name':1,'parent':1,'_id':1})
-                    else :
+                    else:
                         queryresult = dbsession.testcases.find_one({'_id':ObjectId(requestdata['testcaseid']),
                             'versionnumber':requestdata['versionnumber']}, {'screenid':1,'steps':1,'datatables':1,'name':1,'parent':1,'_id':0})
                     if queryresult is None: res['rows'] = { 'tc': [], 'del_flag': del_flag }
