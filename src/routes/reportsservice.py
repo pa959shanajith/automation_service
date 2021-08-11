@@ -148,7 +148,7 @@ def LoadServices(app, redissession, dbsession):
                 app.logger.warn('Empty data received. report.')
         except Exception as getreportexc:
             servicesException("getReport",getreportexc)
-        return res
+        return flask.Response(flask.json.dumps(res), mimetype="application/json")
 
 
     #update jira defect id in report data
