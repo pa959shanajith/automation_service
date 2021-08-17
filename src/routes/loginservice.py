@@ -191,7 +191,7 @@ def LoadServices(app, redissession, dbsession, licensedata):
                     deact_expired_tkn_qry = {"type":"TOKENS","userid":userid,"deactivated":"active","expireson":{"$lt":datetime.today()}}
                     dbsession.thirdpartyintegration.update_many(deact_expired_tkn_qry,{"$set":{"deactivated":"expired"}})
                     # Fetch the token with given token name
-                    query = dbsession.thirdpartyintegration.find_one({"userid":userid,"name":requestdata["tokenname"],"type":"TOKENS"})
+                    query = dbsession.thirdpartyintegration.find_one({"type":"TOKENS","userid":userid,"name":requestdata["tokenname"]})
                 if query is not None:
                     user_res=dbsession.users.find_one(user_query,{"defaultrole":1,"name":1})
                     query["userid"] = user_res["_id"]

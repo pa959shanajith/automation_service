@@ -270,7 +270,7 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
             if not isemptyrequest(requestdata):
                 if action == "create":
                     if all(key in requestdata for key in ('userid', 'hash','name')):
-                        query=dbsession.thirdpartyintegration.find_one({"name":requestdata["name"],"userid":ObjectId(requestdata["userid"])})
+                        query=dbsession.thirdpartyintegration.find_one({"type":"TOKENS","name":requestdata["name"],"userid":ObjectId(requestdata["userid"])})
                         if(query==None):
                             requestdata["projects"]=[]
                             requestdata["userid"]=ObjectId(requestdata["userid"])
@@ -282,8 +282,8 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
                             res={'rows':'duplicate'}
                 if action == "deactivate":
                     if all(key in requestdata for key in ('userid','name')):
-                        val=dbsession.thirdpartyintegration.find_one({"userid":ObjectId(requestdata["userid"]),"name":requestdata["name"]},{"hash":1})
-                        dbsession.thirdpartyintegration.update_one({"hash":val["hash"],"userid":ObjectId(requestdata["userid"])},{"$set":{"deactivated":"deactivated"}})
+                        val=dbsession.thirdpartyintegration.find_one({"type":"TOKENS","userid":ObjectId(requestdata["userid"]),"name":requestdata["name"]},{"hash":1})
+                        dbsession.thirdpartyintegration.update_one({"type":"TOKENS","hash":val["hash"],"userid":ObjectId(requestdata["userid"])},{"$set":{"deactivated":"deactivated"}})
                         result=list(dbsession.thirdpartyintegration.find({"type":"TOKENS","userid":ObjectId(requestdata["userid"])},{"hash":0}))
                         res={'rows':result}
         except Exception as getCITokensexc:
@@ -447,7 +447,7 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
                     rdata = requestdata['id']
                     result=dbsession.users.find_one({"_id":ObjectId(rdata["userid"])},{"projects":1,"_id":0})
                     for i in result['projects']:
-                        result1=dbsession.projects.find_one({"domain":rdata["domainname"],"_id":ObjectId(i)},{"name":1})
+                        result1=dbsession.projects.find_one({"_id":ObjectId(i),"domain":rdata["domainname"]},{"name":1})
                         if result1: prj_list.append(result1)
                     res={"rows":prj_list}
                 elif requestdata["type"] == "domaindetails":
@@ -792,7 +792,7 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
                 query = str(requestdata.pop("query"))
                 app.logger.debug("Inside provisionICE. Query: "+query)
                 token=str(uuid.uuid4())
-                token_query={"icetype": requestdata["icetype"], "icename": requestdata["icename"]}
+                token_query={"icename": requestdata["icename"], "icetype": requestdata["icetype"]}
                 token_exists = len(list(dbsession.icetokens.find(token_query, {"icename":1})))!=0
                 if query==PROVISION:
                     requestdata["token"]=token

@@ -376,13 +376,13 @@ def LoadServices(app, redissession, dbsession):
                 elif 'executionid' in requestdata:
                     res['errMsg'] = "Invalid Execution Id"
                     return jsonify(res)
-                if 'modifiedby' in requestdata:
-                    query['modifiedby']=ObjectId(requestdata['modifiedby'])
                 if 'status' in requestdata and requestdata['status'].lower() in status_dict:
                     query['status']=status_dict[requestdata['status'].strip().lower()]
                 elif 'status' in requestdata:
                     res['errMsg'] = "Invalid Status"
                     return jsonify(res)
+                if 'modifiedby' in requestdata:
+                    query['modifiedby']=ObjectId(requestdata['modifiedby'])
                 LOB=requestdata["LOB"]
                 report = dbsession.reports.find(query,{"testscenarioid":1,"status":1,"report":1,"modifiedby":1})
                 res['rows']=arr

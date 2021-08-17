@@ -302,7 +302,7 @@ def updateActiveIceSessions():
                 res['id']=ice_uuid
                 res['connect_time'] = icesession['connect_time']
                 # ICE which are in "deregistered" status are eliminated for the Registration and Connection
-                queryresult = dbsession.icetokens.find_one({"token":ice_token,"icetype":ice_type,"icename":ice_name})
+                queryresult = dbsession.icetokens.find_one({"icename":ice_name,"token":ice_token,"icetype":ice_type})
                 if queryresult is None:
                     res['err_msg'] = "Unauthorized: Access denied due to Invalid Token"
                     response["node_check"] = res['status'] = "InvalidToken"
