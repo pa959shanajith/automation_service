@@ -196,7 +196,10 @@ ecodeServices = {
     "importDtFromXML":"435",
     "exportToDtExcel":"436",
     "exportToDtCSV":"437",
-    "exportToDtXML":"438"
+    "exportToDtXML":"438",
+    "getNotificationGroups":"439",
+    "updateNotificationGroups":"440",
+    "getNotificationRules":"441",
 }
 
 

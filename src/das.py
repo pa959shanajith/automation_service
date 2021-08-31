@@ -207,6 +207,9 @@ def addroutes():
     import partitionservice
     partitionservice.LoadServices(app,redissession,dbsession)
 
+    import notificationservice
+    notificationservice.LoadServices(app,redissession,dbsession)
+
     #Prof J First Service: Getting Best Matches
     @app.route('/chatbot/getTopMatches_ProfJ',methods=['POST'])
     def getTopMatches_ProfJ():
