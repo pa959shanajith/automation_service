@@ -270,7 +270,7 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
             if not isemptyrequest(requestdata):
                 if action == "create":
                     if all(key in requestdata for key in ('userid', 'hash','name')):
-                        query=dbsession.thirdpartyintegration.find_one({"name":requestdata["name"],"userid":ObjectId(requestdata["userid"])})
+                        query=dbsession.thirdpartyintegration.find_one({"type":"TOKENS","name":requestdata["name"],"userid":ObjectId(requestdata["userid"])})
                         if(query==None):
                             requestdata["projects"]=[]
                             requestdata["userid"]=ObjectId(requestdata["userid"])
@@ -282,8 +282,8 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
                             res={'rows':'duplicate'}
                 if action == "deactivate":
                     if all(key in requestdata for key in ('userid','name')):
-                        val=dbsession.thirdpartyintegration.find_one({"userid":ObjectId(requestdata["userid"]),"name":requestdata["name"]},{"hash":1})
-                        dbsession.thirdpartyintegration.update_one({"hash":val["hash"],"userid":ObjectId(requestdata["userid"])},{"$set":{"deactivated":"deactivated"}})
+                        val=dbsession.thirdpartyintegration.find_one({"type":"TOKENS","userid":ObjectId(requestdata["userid"]),"name":requestdata["name"]},{"hash":1})
+                        dbsession.thirdpartyintegration.update_one({"type":"TOKENS","hash":val["hash"],"userid":ObjectId(requestdata["userid"])},{"$set":{"deactivated":"deactivated"}})
                         result=list(dbsession.thirdpartyintegration.find({"type":"TOKENS","userid":ObjectId(requestdata["userid"])},{"hash":0}))
                         res={'rows':result}
         except Exception as getCITokensexc:
@@ -442,7 +442,15 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
             requestdata=json.loads(request.data)
             app.logger.debug("Inside getDetails_ICE.")
             if not isemptyrequest(requestdata):
-                if requestdata["type"] == "domaindetails":
+                if requestdata["type"] == "gitdomaindetails":
+                    prj_list = []
+                    rdata = requestdata['id']
+                    result=dbsession.users.find_one({"_id":ObjectId(rdata["userid"])},{"projects":1,"_id":0})
+                    for i in result['projects']:
+                        result1=dbsession.projects.find_one({"_id":ObjectId(i),"domain":rdata["domainname"]},{"name":1})
+                        if result1: prj_list.append(result1)
+                    res={"rows":prj_list}
+                elif requestdata["type"] == "domaindetails":
                     result=list(dbsession.projects.find({"domain":requestdata["id"]},{"name":1}))
                     res={"rows":result}
                 elif requestdata["type"] == "projectsdetails":
@@ -784,7 +792,7 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
                 query = str(requestdata.pop("query"))
                 app.logger.debug("Inside provisionICE. Query: "+query)
                 token=str(uuid.uuid4())
-                token_query={"icetype": requestdata["icetype"], "icename": requestdata["icename"]}
+                token_query={"icename": requestdata["icename"], "icetype": requestdata["icetype"]}
                 token_exists = len(list(dbsession.icetokens.find(token_query, {"icename":1})))!=0
                 if query==PROVISION:
                     requestdata["token"]=token
@@ -1191,31 +1199,42 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
         res={'rows':'fail'}
         data={}
         try:
-            result = dbsession.gitconfiguration.find_one({"gituser":ObjectId(requestdata["userId"]),"giturl":requestdata["gitUrl"],"projectid":ObjectId(requestdata["projectId"]),"gitaccesstoken":requestdata["gitAccToken"]},{"_id":1})
-            result1 = dbsession.gitconfiguration.find_one({"gituser":ObjectId(requestdata["userId"]),"projectid":ObjectId(requestdata["projectId"])})
+            #check whether the git configuration name is unique
+            chk_gitname = dbsession.gitconfiguration.find_one({"name":requestdata["gitConfigName"]},{"name":1})
+            if chk_gitname!=None and requestdata["action"]=='create':
+                res={"rows":"GitConfig exists"}
+                return res
+            result = dbsession.gitconfiguration.find_one({"gituser":ObjectId(requestdata["userId"]),"projectid":ObjectId(requestdata["projectId"])},{"_id":1})
             
             current_time = datetime.now()
             if requestdata["action"]=='create':
-                if result!=None or result1!=None:
-                    res1 = "GitUser Exists"
+                if result!=None:
+                    res={"rows":"GitUser exists"}
+                    return res
                 else:
+                    data['name'] = requestdata["gitConfigName"]
                     data['gituser'] = ObjectId(requestdata["userId"])
                     data['projectid'] = ObjectId(requestdata["projectId"])
                     data['createdon'] = current_time
                     data['modifiedon'] = current_time
-                    data['gitaccesstoken'] = requestdata["gitAccToken"]
+                    data['gitaccesstoken'] = wrap(requestdata["gitAccToken"],ldap_key)
                     data['giturl']= requestdata["gitUrl"]
+                    data['gitusername']=requestdata["gitUsername"]
+                    data['gituseremail']=requestdata["gitEmail"]
                     dbsession.gitconfiguration.insert_one(data)
                     res1 = "success"
             elif requestdata["action"]=='update':
+                data['name'] = requestdata["gitConfigName"]
                 data['modifiedon'] = current_time
-                data['gitaccesstoken'] = requestdata["gitAccToken"]
+                data['gitaccesstoken'] = wrap(requestdata["gitAccToken"],ldap_key)
                 data['giturl']= requestdata["gitUrl"]
-                dbsession.gitconfiguration.update_one({"_id":ObjectId(result1["_id"])},{"$set":data})
+                data['gituseremail']=requestdata["gitEmail"]
+                data['gitusername']=requestdata["gitUsername"]
+                dbsession.gitconfiguration.update_one({"_id":ObjectId(result["_id"])},{"$set":data})
                 res1 = "success"
             elif requestdata["action"]=="delete":
-                if result1!=None:
-                    dbsession.gitconfiguration.delete_one({"_id":result1["_id"]})
+                if result!=None:
+                    dbsession.gitconfiguration.delete_one({"_id":result["_id"]})
                 res1 = "success"
             res['rows'] = res1
         except Exception as e:
@@ -1231,8 +1250,9 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
         try:
             requestdata=json.loads(request.data)
             if not isemptyrequest(requestdata):
-                result=dbsession.gitconfiguration.find_one({"gituser":ObjectId(requestdata["userId"]),"projectid":ObjectId(requestdata["projectId"])},{'gitaccesstoken':1, 'giturl':1, '_id':0})
+                result=dbsession.gitconfiguration.find_one({"gituser":ObjectId(requestdata["userId"]),"projectid":ObjectId(requestdata["projectId"])},{'name':1, 'gitaccesstoken':1, 'giturl':1, 'gitusername':1,'gituseremail':1, '_id':0})
                 if result:
+                    result['gitaccesstoken'] = unwrap(result['gitaccesstoken'],ldap_key)
                     res={'rows':result}
                 else:
                     res={'rows':"empty"}    

@@ -36,7 +36,24 @@ def LoadServices(app, redissession, dbsession):
                     queryresult=list(dbsession.projects.find({"_id":{"$in":queryresult1["projects"]}},{"name":1,"releases":1,"type":1}))
                     res= {"rows":queryresult}
                 elif(requestdata["query"] == 'getAlltestSuites'):
-                    queryresult=list(dbsession.testsuites.find({"cycleid": ObjectId(requestdata["id"])},{"_id":1,"name":1}))
+                    queryresult=list(dbsession.testsuites.aggregate([
+                        {'$match':{
+                            'cycleid':ObjectId(requestdata["id"])
+                            }
+                        },
+                        {'$lookup':{
+                            'from':"mindmaps",
+                            'localField':"mindmapid",
+                            'foreignField':"_id",
+                            'as':"arr"
+                            }
+                        },
+                        {'$project':{
+                            '_id':1,
+                            'name':1,
+                            'type':{"$arrayElemAt":["$arr.type",0]}
+                        }}
+                    ]))
                     res= {"rows":queryresult}
             else:
                 app.logger.warn('Empty data received. report suites details.')
@@ -52,7 +69,7 @@ def LoadServices(app, redissession, dbsession):
         try:
             requestdata=json.loads(request.data)
             if not isemptyrequest(requestdata):
-                queryresult=list(dbsession.executions.find({"parent":ObjectId(requestdata["suiteid"])},{"_id":1,"starttime":1,"endtime":1,"status":1}))
+                queryresult=list(dbsession.executions.find({"parent":ObjectId(requestdata["suiteid"])},{"_id":1,"starttime":1,"endtime":1,"status":1,"version":1}))
                 res= {"rows":queryresult}
             else:
                 app.logger.warn('Empty data received. report suites details execution.')
@@ -71,10 +88,15 @@ def LoadServices(app, redissession, dbsession):
             if not isemptyrequest(requestdata):
                 if(requestdata["query"] == 'executiondetails'):
                     queryresult = list(dbsession.reports.find({"executionid":ObjectId(requestdata["executionid"])},{"_id":1,"executionid":1,"executedon":1,"comments":1,"executedtime":1,"modifiedby":1,"modifiedbyrole":1,"modifiedon":1,"status":1,"testscenarioid":1}))
-                    res= {"rows":queryresult}
-                elif(requestdata["query"] == 'scenarioname'):
-                    queryresult = list(dbsession.testscenarios.find({"_id":ObjectId(requestdata["scenarioid"])},{"name":1}))
-                    res= {"rows":queryresult}
+                    if len(queryresult) > 0:
+                        r_scids = list(set([i["testscenarioid"] for i in queryresult]))
+                        scos = dbsession.testscenarios.find({"_id": {"$in": r_scids}},{"name":1})
+                        scidmap = {}
+                        for sco in scos:
+                            scidmap[sco["_id"]] = sco["name"]
+                        for rep in queryresult:
+                            rep["testscenarioname"] = scidmap.get(rep["testscenarioid"], '')
+                    res = {"rows":queryresult}
             else:
                 app.logger.warn('Empty data received. report status of scenarios.')
         except Exception as getreportstatusexc:
@@ -95,8 +117,8 @@ def LoadServices(app, redissession, dbsession):
                     res['rows'] = []
                     return res
                 scenarioname = dbsession.testscenarios.find_one({"_id":reportobj['testscenarioid']},{"name":1,"_id":0})["name"]
-                suiteid = dbsession.executions.find_one({"_id":reportobj['executionid']},{"parent":1,"_id":0})["parent"][0]
-                suiteobj = dbsession.testsuites.find_one({"_id":suiteid},{"name":1,"cycleid":1,"_id":0})
+                suiteid = dbsession.executions.find_one({"_id":reportobj['executionid']},{"parent":1,"version":1,"_id":0})
+                suiteobj = dbsession.testsuites.find_one({"_id":suiteid["parent"][0]},{"name":1,"cycleid":1,"_id":0})
                 cycleid = suiteobj['cycleid']
                 prjobj = dbsession.projects.find_one({"releases.cycles._id":cycleid},{"domain":1,"name":1,"releases":1})
                 query = {
@@ -110,6 +132,8 @@ def LoadServices(app, redissession, dbsession):
                     'domainname': prjobj["domain"],
                     'projectname': prjobj["name"]
                 }
+                if('version' in suiteid):
+                    query['version']=suiteid['version']
                 found = False
                 for rel in prjobj["releases"]:
                     for cyc in rel["cycles"]:
@@ -124,7 +148,7 @@ def LoadServices(app, redissession, dbsession):
                 app.logger.warn('Empty data received. report.')
         except Exception as getreportexc:
             servicesException("getReport",getreportexc)
-        return res
+        return flask.Response(flask.json.dumps(res), mimetype="application/json")
 
 
     #update jira defect id in report data
@@ -176,14 +200,13 @@ def LoadServices(app, redissession, dbsession):
         try:
             requestdata=json.loads(request.data)
             app.logger.debug("Inside getReport_API")
-            if not isemptyrequest(requestdata):
+            if not isemptyrequest(requestdata) and valid_objectid(requestdata['executionId']):
                 errMsgVal=str(requestdata["executionId"])
-                queryresult1 = dbsession.reports.find({"executionid":ObjectId(requestdata["executionId"])})
-                queryresult4 = dbsession.executions.find_one({"_id": ObjectId(requestdata["executionId"])})
-                parent = queryresult4["parent"]
+                tsuite = dbsession.executions.find_one({"_id": ObjectId(requestdata["executionId"])})["parent"]
                 errMsgVal=''
+                filter1 = {"executionid":ObjectId(requestdata["executionId"])}
                 if("scenarioIds" in requestdata):
-                    scenarioIds = dbsession.reports.distinct("testscenarioid",{"executionid":ObjectId(requestdata["executionId"])})
+                    scenarioIds = dbsession.reports.distinct("testscenarioid", filter1)
                     for scenId in requestdata["scenarioIds"]:
                         if len(scenId.strip())==0:
                             continue
@@ -192,29 +215,49 @@ def LoadServices(app, redissession, dbsession):
                                 errIds.append(str(scenId))
                             else:
                                 correctScenarios.append(ObjectId(scenId))
-                        except Exception:
+                        except:
                             errIds.append(str(scenId))
                     if len(correctScenarios) != 0 or len(errIds) != 0:
-                        queryresult1 = dbsession.reports.find({"executionid":ObjectId(requestdata["executionId"]),"testscenarioid":{"$in":correctScenarios}})
-                for execData in queryresult1:
-                    queryresult2 = dbsession.testscenarios.find_one({"_id":execData["testscenarioid"]})#,{"name":1,"projectid":1,"_id":0})
-                    queryresult3 = dbsession.projects.find_one({"_id":queryresult2["projectid"]})#,{"domain":1,"_id":0})
-                    for obj in parent:
-                        queryresult5 = dbsession.testsuites.find_one({"_id":obj})
-                        if execData["testscenarioid"] in queryresult5["testscenarioids"]:
-                            #queryresult6 = dbsession.mindmaps.find_one({"_id":queryresult5["mindmapid"]})
+                        filter1["testscenarioid"] = {"$in":correctScenarios}
+                queryresult1 = dbsession.reports.find(filter1)
+                cycleid_dict = {}
+                for reportobj in queryresult1:
+                    tscid = reportobj["testscenarioid"]
+                    tsc = dbsession.testscenarios.find_one({"_id":tscid},{"name":1,"projectid":1,"_id":0})
+                    tsuobj = {}
+                    for tsuid in tsuite:
+                        tsuobj_t = dbsession.testsuites.find_one({"_id":tsuid, "testscenarioids": tscid})
+                        if tsuobj_t:
+                            tsuobj = tsuobj_t
                             break
+                    prjobj = dbsession.projects.find_one({"_id":tsc["projectid"]},{"domain":1,"name":1,"releases":1,"_id":0})
+                    release_name = prjobj["releases"][0]["name"]
+                    cycle_name = prjobj["releases"][0]["cycles"][0]["name"]
+                    cycleid = tsuobj.get('cycleid', None)
+                    if cycleid:
+                        if cycleid not in cycleid_dict:
+                            found = False
+                            for rel in prjobj["releases"]:
+                                for cyc in rel["cycles"]:
+                                    if cyc["_id"] == cycleid:
+                                        found = (rel["name"], cyc["name"])
+                                        break
+                                if found:
+                                    cycleid_dict[cycleid] = found
+                                    break
+                        if cycleid in cycleid_dict:
+                            release_name, cycle_name = cycleid_dict[cycleid]
                     query={
-                        'report': execData["report"],
-                        'scenariodId': queryresult2["_id"],
-                        'scenarioName': queryresult2["name"],
-                        'domainName': queryresult3["domain"],
-                        'projectName': queryresult3["name"],
-                        'reportId': execData["_id"],
-                        'releaseName': queryresult3["releases"][0]["name"],
-                        'cycleName': queryresult3["releases"][0]["cycles"][0]["name"],
-                        'moduleId': queryresult5["mindmapid"],
-                        'moduleName': queryresult5["name"]
+                        'report': reportobj["report"],
+                        'testscenarioid': tscid,
+                        'testscenarioname': tsc["name"],
+                        'domainname': prjobj["domain"],
+                        'projectname': prjobj["name"],
+                        'reportid': reportobj["_id"],
+                        'releasename': release_name,
+                        'cyclename': cycle_name,
+                        'moduleid': tsuobj.get("mindmapid", None),
+                        'testsuitename': tsuobj.get("name", None)
                     }
                     finalQuery.append(query)
                 res["rows"] = finalQuery
@@ -222,6 +265,7 @@ def LoadServices(app, redissession, dbsession):
                     res["errMsg"] = errMsg+'Scenario Id(s): '+(','.join(errIds))
             else:
                 app.logger.warn('Empty data received. report.')
+                res["errMsg"] = "Invalid Execution ID"
         except Exception as getreportexc:
             if errMsgVal:
                 res['errMsg']=errMsg+'Execution Id: '+errMsgVal
@@ -320,16 +364,26 @@ def LoadServices(app, redissession, dbsession):
                         end=end.split('-')
                         start=start[2]+'-'+start[1]+'-'+start[0]
                         end=end[2]+'-'+end[1]+'-'+end[0]
-                    start=datetime.strptime(start,'%Y-%m-%d')
-                    end=datetime.strptime(end,'%Y-%m-%d')
+                    try:
+                        start=datetime.strptime(start,'%Y-%m-%d')
+                        end=datetime.strptime(end,'%Y-%m-%d')
+                    except ValueError:
+                        res['errMsg'] = "Invalid Date Format, date should be in YYYY-MM-DD"
+                        return jsonify(res)
                     end += timedelta(days=1)
                     query={'executedtime':{"$gte": start, "$lte": end}}
-                if 'executionid' in requestdata:
+                if 'executionid' in requestdata and valid_objectid(requestdata['executionid']):
                     query['executionid']=ObjectId(requestdata['executionid'])
-                if 'modifiedby' in requestdata:
-                    query['modifiedby']=ObjectId(requestdata['modifiedby'])
+                elif 'executionid' in requestdata:
+                    res['errMsg'] = "Invalid Execution Id"
+                    return jsonify(res)
                 if 'status' in requestdata and requestdata['status'].lower() in status_dict:
                     query['status']=status_dict[requestdata['status'].strip().lower()]
+                elif 'status' in requestdata:
+                    res['errMsg'] = "Invalid Status"
+                    return jsonify(res)
+                if 'modifiedby' in requestdata:
+                    query['modifiedby']=ObjectId(requestdata['modifiedby'])
                 LOB=requestdata["LOB"]
                 report = dbsession.reports.find(query,{"testscenarioid":1,"status":1,"report":1,"modifiedby":1})
                 res['rows']=arr
@@ -338,8 +392,8 @@ def LoadServices(app, redissession, dbsession):
                     scenarioid = i["testscenarioid"]
                     status = i["status"]
                     report = i["report"]["overallstatus"]
-                    starttime = i["report"]["overallstatus"][0]["StartTime"]
-                    endtime = i["report"]["overallstatus"][0]["EndTime"]
+                    starttime = i["report"]["overallstatus"][0]["StartTime"].split(".")[0]
+                    endtime = i["report"]["overallstatus"][0]["EndTime"].split(".")[0]
                     modifiedby = i["modifiedby"]
                     details["testresult"] = status
                     details["teststarttime"] = starttime

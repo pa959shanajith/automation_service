@@ -1,5 +1,6 @@
 from flask import jsonify, request, make_response
 from bson.objectid import ObjectId
+import flask
 import json
 import traceback
 import statistics 
@@ -187,7 +188,15 @@ ecodeServices = {
     "exportToGit":"427",
     "gitSaveConfig":"428",
     "gitEditConfig":"429",
-    "importGitMindmap":"430"
+    "importGitMindmap":"430",
+    "manageDataTable":"431",
+    "getDatatableDetails":"432",
+    "importDtFromExcel":"433",
+    "importDtFromCSV":"434",
+    "importDtFromXML":"435",
+    "exportToDtExcel":"436",
+    "exportToDtCSV":"437",
+    "exportToDtXML":"438"
 }
 
 
@@ -382,3 +391,10 @@ def write_execution_times(resultdict,dbsession):
     except Exception as e:
         servicesException("write_execution_times",e,True)
         return
+
+def valid_objectid(oid):
+    try:
+        ObjectId(oid)
+        return True
+    except Exception as e:
+        return False

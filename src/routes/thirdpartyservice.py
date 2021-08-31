@@ -30,7 +30,7 @@ def LoadServices(app, redissession, dbsession):
                     result=list(dbsession.projects.find({"_id":ObjectId(requestdata["projectid"])},{"name":1}))
                     res= {"rows":result}
                 elif(requestdata["query"] == 'scenariodata'):
-                    result=list(dbsession.testscenarios.find({"projectid":ObjectId(requestdata["projectid"])},{"name":1,"_id":1}))
+                    result=list(dbsession.testscenarios.find({"projectid":ObjectId(requestdata["projectid"]),"deleted":False,"$where":"this.parent.length>0"},{"name":1,"_id":1}))
                     res= {"rows":result}
                 else:
                     res={'rows':'fail'}
@@ -57,15 +57,18 @@ def LoadServices(app, redissession, dbsession):
                         qc_tc=testcaselist[0]['qctestcase']
                         qc_fld=testcaselist[0]['qcfolderpath']
                         qc_tst=testcaselist[0]['qctestset']
+                        qc_fldid=testcaselist[0]['qcfolderid']
                         requestdata_tc = requestdata["qctestcase"]
                         requestdata_folder = requestdata["qcfolderpath"]
                         requestdata_testset = requestdata["qctestset"]
+                        requestdata_folderid = requestdata["qcfolderid"]
                         for a in range(len(requestdata_tc)):
                             if requestdata_tc[a] not in qc_tc:
                                 qc_tc.append(requestdata_tc[a])
                                 qc_fld.append(requestdata_folder[a])
                                 qc_tst.append(requestdata_testset[a])
-                        dbsession.thirdpartyintegration.update_one({"type":"ALM","testscenarioid":requestdata["testscenarioid"]}, {'$set': {"qctestcase":qc_tc,"qcfolderpath":qc_fld,"qctestset":qc_tst}})
+                                qc_fldid.append(requestdata_folderid[a])
+                        dbsession.thirdpartyintegration.update_one({"type":"ALM","testscenarioid":requestdata["testscenarioid"]}, {'$set': {"qctestcase":qc_tc,"qcfolderpath":qc_fld,"qctestset":qc_tst,"qcfolderid":qc_fldid}})
                     elif len(testcases) == 1 and len(testscenarios) != 0:
                         qc_tc=testscenarios[0]['testscenarioid']
                         requestdata_tc = requestdata["testscenarioid"]
@@ -113,8 +116,23 @@ def LoadServices(app, redissession, dbsession):
                     result=list(dbsession.thirdpartyintegration.find({"type":"qTest","testscenarioid":requestdata["testscenarioid"]}))
                     res= {"rows":result}
                 elif(requestdata["query"] == 'zephyrdetails'):
-                    result=list(dbsession.thirdpartyintegration.find({"type":"Zephyr","testscenarioid":requestdata["testscenarioid"]}))
-                    res= {"rows":result}
+                    if "testscenarioid" in requestdata:
+                        result=list(dbsession.thirdpartyintegration.find({"type":"Zephyr","testscenarioid":requestdata["testscenarioid"]}))
+                        res= {"rows":result}
+                    else:
+                        result = []
+                        projectlist=list(dbsession.users.find({"_id":ObjectId(requestdata["userid"])},{"projects":1}))
+                        if len(projectlist) > 0:
+                            projects = projectlist[0]['projects']
+                            scenariolist=list(dbsession.testscenarios.find({"projectid":{'$in':projects},"deleted":False,"$where":"this.parent.length>0"},{"name":1,"_id":1}))
+                            if len(scenariolist) > 0:
+                                scenarios = {str(i['_id']):i['name'] for i in scenariolist}
+                                zephyrmaplist=list(dbsession.thirdpartyintegration.find({"type":"Zephyr","testscenarioid":{'$in':list(scenarios.keys())}}))
+                                if len(zephyrmaplist) > 0:
+                                    for i in zephyrmaplist:
+                                        i['testscenarioname'] = scenarios[i['testscenarioid']]
+                                    result.extend(zephyrmaplist)
+                        res= {"rows":result}
             else:
                 app.logger.warn('Empty data received. getting QcMappedList.')
         except Exception as e:

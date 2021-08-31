@@ -38,18 +38,22 @@ def LoadServices(app, redissession, dbsession):
         req = []
         temp_set=set()
         n_list=[]
+        queryresult=None
         for i in d:
             t1=tuple(sorted(i.items()))
             if t1 not in temp_set:
                 temp_set.add(t1)
                 n_list.append(i)
         for row in n_list:
-            if type(row) == str and len(row) == 0: continue
-            if "custname" not in row: row["custname"] = "object"+str(row["_id"])
-            row["parent"] = [pid]
-            req.append(InsertOne(row))
-        dbsession.dataobjects.bulk_write(req)
-        queryresult=list(dbsession.dataobjects.find({"parent":pid},{"custname":1,"_id":1,"parent":1}))
+            if(row['tag']!="GuiMenu"):
+                if type(row) == str and len(row) == 0: continue
+                if "custname" not in row: row["custname"] = "object"+str(row["_id"])
+                row["parent"] = [pid]
+                req.append(InsertOne(row))
+        if req:
+            dbsession.dataobjects.bulk_write(req)
+            queryresult=list(dbsession.dataobjects.find({"parent":pid},{"custname":1,"_id":1,"parent":1}))
+        else: return pid
         return queryresult
 
     def createdataobjects(scrid, objs):
@@ -1074,7 +1078,7 @@ def LoadServices(app, redissession, dbsession):
         return res
 
     def getScreenID(screenname,projectid):
-        screenname=list(dbsession.screens.find({"name":screenname,"projectid":ObjectId(projectid),"deleted":False},{"_id":1}))
+        screenname=list(dbsession.screens.find({"projectid":ObjectId(projectid),"name":screenname,"deleted":False},{"_id":1}))
         if len(screenname)==1:
             return str(screenname[0]["_id"])
         else:   
@@ -1129,7 +1133,9 @@ def LoadServices(app, redissession, dbsession):
                     if result != None:
                         queryresult = dbsession.mindmaps.update_one({"_id":mindmapid},{'$set':{"deleted":False,"name":requestdata['mindmap']['name'],"projectid": ObjectId(requestdata['mindmap']['projectid']),"testscenarios":requestdata['mindmap']['testscenarios'],"type":requestdata['mindmap']['type'],"versionnumber":requestdata['mindmap']['versionnumber']}})
                     else:
-                        queryresult = dbsession.mindmaps.insert_one(requestdata)
+                        requestdata['mindmap']['_id'] = mindmapid
+                        requestdata['mindmap']['projectid'] = ObjectId(requestdata['mindmap']['projectid'])
+                        queryresult = dbsession.mindmaps.insert_one(requestdata['mindmap'])
                     result=dbsession.mindmaps.find_one({"_id":mindmapid},{"_id":1})
                     if queryresult:
                         res={'rows':result}

@@ -47,7 +47,7 @@ def LoadServices(app, redissession, dbsession):
                     mindmapid = ObjectId(requestdata['mindmapid'])
                     cycleid = ObjectId(requestdata['cycleid'])
                     filterquery = {"conditioncheck":1,"getparampaths":1,"donotexecute":1,"testscenarioids":1}
-                    testsuite = dbsession.testsuites.find_one({"mindmapid":mindmapid, "cycleid":cycleid, "deleted":query['delete_flag']}, filterquery)
+                    testsuite = dbsession.testsuites.find_one({"cycleid":cycleid, "mindmapid":mindmapid, "deleted":query['delete_flag']}, filterquery)
                     create_suite = testsuite is None
                     mindmaps = dbsession.mindmaps.find_one({"_id": mindmapid, "deleted":query['delete_flag']})
                     testscenarioids = [i["_id"] for i in mindmaps["testscenarios"]]
@@ -121,9 +121,9 @@ def LoadServices(app, redissession, dbsession):
                         proj_arr.append(ObjectId(tsc["projectid"]))
                     projData = list(dbsession.projects.find({"_id": {"$in": proj_arr}}, {"name": 1, "type": 1}))
                     for prj in projData:
-                        prj_map[prj["_id"]] = {"name":prj["name"],"typeid":prj["type"]}
+                        prj_map[prj["_id"]] = {"name":prj["name"],"type":prj["type"]}
                     for i,tsc in enumerate(testscenarios):
-                        tsc_map[tsc["_id"]] = [tsc["name"], prj_map[tsc["projectid"]]["name"],proj_typ[prj_map[tsc["projectid"]]["typeid"]]]
+                        tsc_map[tsc["_id"]] = [tsc["name"], prj_map[tsc["projectid"]]["name"],proj_typ[prj_map[tsc["projectid"]]["type"]]]
                     testscenarionames = []
                     projectnames = []
                     apptype = []
@@ -135,6 +135,7 @@ def LoadServices(app, redissession, dbsession):
                         else:
                             testscenarionames.append('N/A')
                             projectnames.append('N/A')
+                            apptype.append('N/A')
                     res['rows'] = {"testscenarionames": testscenarionames, "projectnames": projectnames, "apptypes": apptype}
                 app.logger.info("Executed readTestSuite_ICE. Query: " + param)
             else:
@@ -175,20 +176,35 @@ def LoadServices(app, redissession, dbsession):
             param = str(requestdata["query"])
             app.logger.debug("Inside ExecuteTestSuite_ICE. Query: " + param)
             if not isemptyrequest(requestdata):
-                if param == 'testcasedetails':
+                if param == 'testcasedetails' and valid_objectid(requestdata['id']):
                     tsc = dbsession.testscenarios.find_one({"_id": ObjectId(requestdata['id']),"deleted":query['delete_flag']},{"testcaseids":1})
                     if tsc is not None:
                         testcase=[]
-                        testcases = list(dbsession.testcases.find({"_id": {"$in": tsc["testcaseids"]},"deleted":query['delete_flag']},{"name":1,"versionnumber":1,"screenid":1}))
+                        testcases = dbsession.testcases.find({"_id": {"$in": tsc["testcaseids"]},"deleted":query['delete_flag']},{"name":1,"versionnumber":1,"screenid":1,"datatables":1})
                         scids = {}
+                        dts_data = {}
+                        tcdict = {}
+                        for tc in testcases: tcdict[tc['_id']] = tc
                         for i in tsc['testcaseids']:
-                            for tc in testcases:
-                                if i==tc['_id']:
-                                    scid = tc["screenid"]
-                                    if scid not in scids:
-                                        scids[scid] = dbsession.screens.find_one({"_id":scid})['name']
-                                    tc["screenname"] = scids[scid]
-                                    testcase.append(tc)
+                            tc = tcdict[i]
+                            scid = tc["screenid"]
+                            if scid not in scids:
+                                scids[scid] = dbsession.screens.find_one({"_id":scid})['name']
+                            tc["screenname"] = scids[scid]
+                            dtnames = tc.get('datatables', [])
+                            if 'dtparam' in requestdata:
+                                dtp = requestdata['dtparam']
+                                if len(dtp) > 0 and dtp[0] not in dtnames: dtnames.append(dtp[0])
+                            if len(dtnames) > 0:
+                                dts = []
+                                dts_to_fetch = [i for i in dtnames if i not in dts_data]
+                                dtdet = dbsession.datatables.find({"name": {'$in': dts_to_fetch}})
+                                for dt in dtdet: dts_data[dt['name']] = dt['datatable']
+                                for dt in dtnames: 
+                                    if dt in dts_data:
+                                        dts.append({dt: dts_data[dt]})
+                                tc['datatables'] = dts
+                            testcase.append(tc)
                         res["rows"] = testcase
                     if 'userid' in requestdata:    # Update the Counter
                         counterupdator(dbsession, 'testscenarios', ObjectId(requestdata['userid']), 1)
@@ -202,14 +218,22 @@ def LoadServices(app, redissession, dbsession):
                         if execids[tsuid] is None:
                             insertquery = {"batchid": batchid, "parent": [ObjectId(tsuid)],
                                 "configuration": {}, "executedby": ObjectId(requestdata['executedby']),
-                                "status": "inprogress", "endtime": None, "starttime": starttime}
+                                "status": "queued", "version":requestdata['version'], "endtime": None, "starttime": starttime}
                             execid = str(dbsession.executions.insert(insertquery))
                             execids[tsuid] = execid
                     res["rows"] = {"batchid": str(batchid), "execids": execids}
                 elif param  == 'updateintoexecution':
-                    endtime = datetime.now()
-                    for exec_id in requestdata['executionids']:
-                        dbsession.executions.update({"_id":ObjectId(exec_id)}, {'$set': {"status":requestdata['status'],"endtime":endtime}})
+                    TF = '%Y-%m-%d %H:%M:%S'
+                    if 'starttime' in requestdata:
+                        start_t = datetime.strptime(requestdata['starttime'], TF)
+                        for exec_id in requestdata['executionids']:
+                            dbsession.executions.update({"_id":ObjectId(exec_id), "status":"queued"}, {'$set': {"status":'inprogress',"starttime":start_t}})
+                    else:
+                        end_t = datetime.strptime(requestdata['endtime'], TF) if 'endtime' in requestdata else datetime.now()
+                        updt_args = {"endtime":end_t}
+                        if "status" in requestdata: updt_args["status"]=requestdata['status']
+                        for exec_id in requestdata['executionids']:
+                            dbsession.executions.update({"_id":ObjectId(exec_id)}, {'$set': updt_args})
                     res["rows"] = True
 
                 elif param == 'insertreportquery':
@@ -271,8 +295,8 @@ def LoadServices(app, redissession, dbsession):
 
                 elif(param == 'getscheduledata'):
                     findquery = {}
-                    if "status" in requestdata: findquery["status"] = requestdata["status"]
                     if "scheduleid" in requestdata: findquery["_id"] = ObjectId(requestdata["scheduleid"])
+                    if "status" in requestdata: findquery["status"] = requestdata["status"]
                     res["rows"] = list(dbsession.scheduledexecutions.find(findquery))
 
                 elif(param == 'getallscheduledata'):
@@ -340,7 +364,7 @@ def LoadServices(app, redissession, dbsession):
                     for i in range(len(timelist)):
                         timestamp =  datetime.fromtimestamp(int(timelist[i])/1000,pytz.UTC)
                         address = requestdata["targetaddress"][i]
-                        count = dbsession.scheduledexecutions.find({"scheduledon": timestamp, "target": address, "status": "scheduled"}).count()
+                        count = dbsession.scheduledexecutions.find({"scheduledon": timestamp, "status": "scheduled", "target": address}).count()
                         if count > 0:
                             flag = i
                             break
