@@ -144,6 +144,75 @@ def LoadServices(app, redissession, dbsession):
             res['err'] = "Exception occurred in getNotificationRules"
         return jsonify(res)
 
+
+    @app.route('/notification/updateNotificationConfiguration',methods=['POST'])
+    def updateNotificationConfiguration():
+        app.logger.debug("Inside updateNotificationConfiguration")
+        res={'rows':'fail','err':''}
+        try:
+            requestdata = json.loads(request.data)
+            if not isemptyrequest(requestdata):
+                ruledata = requestdata['ruledata']
+
+                if requestdata['action'].lower() == "update" or requestdata['action'].lower() == "create":
+                    query = [UpdateOne(
+                                        {'_id' : ObjectId(id)}, 
+                                        {'$set' : {
+                                                "notificationrules":{
+                                                   ruleactionid:{
+                                                       ruleid:{
+                                                            "groupids":[ ObjectId(groupid) for groupid in ruledata[id][ruleactionid][ruleid]['groupids']],
+                                                            "additionalrecepients": [ ObjectId(extraid) for extraid in ruledata[id][ruleactionid][ruleid]['additionalrecepients']],
+                                                            "ruletypeid": ObjectId(ruledata[id][ruleactionid][ruleid]['ruletypeid'])
+                                                       } for ruleid in ruledata[id][ruleactionid]
+                                                   } for ruleactionid in ruledata[id]  
+                                                },
+                                            'modifiedon': datetime.now(),
+                                            'modifiedbyrole': ObjectId(requestdata['modifiedbyrole']),
+                                            'modifiedby': ObjectId(requestdata['modifiedby'])
+                                            }
+                                        }
+                                    ) for id in ruledata]
+
+                    dbsession.tasks.bulk_write(query)                
+                elif requestdata['action'].lower() == "deleterule":
+                    query = [UpdateOne(
+                                        {'_id' : ObjectId(id)}, 
+                                        {
+                                            '$set' : {
+                                                'modifiedon': datetime.now(),
+                                                'modifiedbyrole': ObjectId(requestdata['modifiedbyrole']),
+                                                'modifiedby': ObjectId(requestdata['modifiedby'])
+                                                },
+                                            '$unset' : {
+                                                "notificationrules." + ruleactionid + "." + ruleid : 1 for ruleactionid in ruledata[id] for ruleid in ruledata[id][ruleactionid] 
+                                            }
+                                        }
+                                    ) for id in ruledata]
+                    dbsession.tasks.bulk_write(query);  
+                
+                elif requestdata['action'].lower() == "deleteall":
+                    query = [UpdateOne(
+                                        {'_id' : ObjectId(id)}, 
+                                        {'$set' : {
+                                                "notificationrules":{},
+                                            'modifiedon': datetime.now(),
+                                            'modifiedbyrole': ObjectId(requestdata['modifiedbyrole']),
+                                            'modifiedby': ObjectId(requestdata['modifiedby'])
+                                            }
+                                        }
+                                    ) for id in ruledata]
+                    dbsession.tasks.bulk_write(query);               
+               
+                res['rows'] = 'success'
+                del res['err']
+            else:
+                app.logger.warn('Empty data received. report.')
+                res['err']='Invalid Request: Empty Parameter not allowed'
+        except Exception as e:
+            servicesException("updateNotificationConfiguration", e, True)
+            res['err'] = "Exception occurred in updateNotificationConfiguration"
+        return jsonify(res)
    
 ################################################################################
 # END OF NOTIFICATION SERVICES
