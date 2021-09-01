@@ -158,7 +158,7 @@ def LoadServices(app, redissession, dbsession):
                     query = [UpdateOne(
                                         {'_id' : ObjectId(id)}, 
                                         {'$set' : {
-                                                "notificationrules":{
+                                                "rules":{
                                                    ruleactionid:{
                                                        ruleid:{
                                                             "groupids":[ ObjectId(groupid) for groupid in ruledata[id][ruleactionid][ruleid]['groupids']],
@@ -185,7 +185,7 @@ def LoadServices(app, redissession, dbsession):
                                                 'modifiedby': ObjectId(requestdata['modifiedby'])
                                                 },
                                             '$unset' : {
-                                                "notificationrules." + ruleactionid + "." + ruleid : 1 for ruleactionid in ruledata[id] for ruleid in ruledata[id][ruleactionid] 
+                                                "rules." + ruleactionid + "." + ruleid : 1 for ruleactionid in ruledata[id] for ruleid in ruledata[id][ruleactionid] 
                                             }
                                         }
                                     ) for id in ruledata]
@@ -195,7 +195,7 @@ def LoadServices(app, redissession, dbsession):
                     query = [UpdateOne(
                                         {'_id' : ObjectId(id)}, 
                                         {'$set' : {
-                                                "notificationrules":{},
+                                                "rules":{},
                                             'modifiedon': datetime.now(),
                                             'modifiedbyrole': ObjectId(requestdata['modifiedbyrole']),
                                             'modifiedby': ObjectId(requestdata['modifiedby'])
