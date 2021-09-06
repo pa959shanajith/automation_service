@@ -161,14 +161,16 @@ def LoadServices(app, redissession, dbsession):
                                 "additionalrecepients": [ObjectId(others) for others in newrules[ruleid]['additionalrecepients']],
                                 "actiontype": newrules[ruleid]['actiontype'],
                                 "targetnode": newrules[ruleid]['targetnode'],
-                                "actionon": newrules[ruleid]['actionon'] if 'actionon' in newrules[ruleid] and newrules[ruleid]['actionon'] else -1,
-                                "targetnodeid": ObjectId(newrules[ruleid]['targetnodeid']) if 'targetnodeid' in newrules[ruleid] and newrules[ruleid]['targetnodeid'] else -1
+                                "actionon": newrules[ruleid]['actionon'] if 'actionon' in newrules[ruleid] and newrules[ruleid]['actionon'] else 0,
+                                "targetnodeid": ObjectId(newrules[ruleid]['targetnodeid']) if 'targetnodeid' in newrules[ruleid] and newrules[ruleid]['targetnodeid'] else 0
                             } for ruleid in newrules]
+                new_rule_ids = []
+                if len(new_rules) > 0:
+                    insert_result = dbsession.rules.insert_many(new_rules,False,True)
 
-                insert_result = dbsession.rules.insert_many(new_rules,False,True)
-
-                for inserted_ids, rule_id in zip(insert_result.inserted_ids,newrules.keys()):
-                    newrules[rule_id]['dbid'] = inserted_ids
+                    for inserted_ids, rule_id in zip(insert_result.inserted_ids,newrules.keys()):
+                        newrules[rule_id]['dbid'] = inserted_ids
+                        new_rule_ids = inserted_ids
 
                 updated_rules_query = [UpdateOne(
                                                 {'_id':ObjectId(ruleid)},
@@ -178,8 +180,8 @@ def LoadServices(app, redissession, dbsession):
                                                         "additionalrecepients": [ObjectId(others) for others in updatedrules[ruleid]['additionalrecepients']],
                                                         "actiontype": updatedrules[ruleid]['actiontype'],
                                                         "targetnode": updatedrules[ruleid]['targetnode'],
-                                                        "actionon": updatedrules[ruleid]['actionon'] if 'actionon' in updatedrules[ruleid]  and updatedrules[ruleid]['actionon'] else -1,
-                                                        "targetnodeid": ObjectId(updatedrules[ruleid]['targetnodeid']) if 'targetnodeid' in updatedrules[ruleid] and updatedrules[ruleid]['targetnodeid'] else -1
+                                                        "actionon": updatedrules[ruleid]['actionon'] if 'actionon' in updatedrules[ruleid]  and updatedrules[ruleid]['actionon'] else 0,
+                                                        "targetnodeid": ObjectId(updatedrules[ruleid]['targetnodeid']) if 'targetnodeid' in updatedrules[ruleid] and updatedrules[ruleid]['targetnodeid'] else 0
                                                     }   
                                                 }
                                                 
@@ -188,7 +190,7 @@ def LoadServices(app, redissession, dbsession):
                 deleted_rules_query = [DeleteOne({'_id':ObjectId(ruleid)}) for ruleid in deletedrules]
                 updated_rules_query.extend(deleted_rules_query) 
                 if len(updated_rules_query) > 0: dbsession.rules.bulk_write(updated_rules_query)
-                new_rule_ids = [newrules[id]['dbid'] for id in newrules]
+                
                 total_rules = [ObjectId(id) for id in updatedrules]
                 total_rules.extend(new_rule_ids)
                 total_rules.extend(otherrules)
@@ -205,13 +207,13 @@ def LoadServices(app, redissession, dbsession):
                         if ruleid in newrules:
                             task_rule_map[taskid].append(newrules[ruleid]['dbid'])
                         if ruleid in updatedrules or ruleid in requestdata['otherrules']:  
-                            task_rule_map[taskid].append(ObjectId(rule_id))
+                            task_rule_map[taskid].append(ObjectId(ruleid))
                     taskquery.append(UpdateOne(
                                             {"_id":ObjectId(taskid)},
                                             {"$set":{"rules": task_rule_map[taskid]}}
                             ))
                 
-                dbsession.tasks.bulk_write(taskquery)
+                if len(taskquery) > 0: dbsession.tasks.bulk_write(taskquery)
                
                 res['rows'] = 'success'
                 del res['err']
