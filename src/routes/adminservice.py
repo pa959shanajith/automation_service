@@ -1262,6 +1262,68 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
             servicesException("gitEditConfig",e)
         return jsonify(res)
 
+    #Fetch JIRA data 
+    @app.route('/admin/getDetails_JIRA', methods=['POST'])
+    def getDetails_JIRA():
+        app.logger.info("Inside getDetails_JIRA")
+        res={'rows':'fail'}
+        try:
+            requestdata=json.loads(request.data)
+            if not isemptyrequest(requestdata):
+                result=dbsession.userpreference.find_one({"user":ObjectId(requestdata["userId"])}, {'JIRA':1, '_id':0})
+                if result:
+                    res={'rows':result['JIRA']}
+                else:
+                    res={'rows':"empty"}    
+            else:
+                app.logger.warn('Empty data received in getDetails_JIRA fetch.')
+        except Exception as e:
+            servicesException("getDetails_JIRA",e)
+        return jsonify(res)
+
+    #manage JIRA Details
+    @app.route('/admin/manageJiraDetails',methods=['POST'])
+    def manageJiraDetails():
+        app.logger.info("Inside manageJiraDetails")
+        res={'rows':'fail'}
+        data={}
+        try:
+            requestdata=json.loads(request.data)
+            if not isemptyrequest(requestdata):
+                result = dbsession.userpreference.find_one({"user":ObjectId(requestdata["userId"])}, {'_id':1})
+                result1 = dbsession.userpreference.find_one({"user":ObjectId(requestdata["userId"]), 'JIRA':{'$exists':True, '$ne': None}})
+                if requestdata["action"]=="delete":
+                    res1 = "success"
+                    if result==None:
+                        res1 = "fail"
+                    elif result1!=None:
+                        dbsession.userpreference.update_one({"_id":result["_id"]},{"$unset":{ 'JIRA':""}})
+                elif requestdata["action"]=='create':
+                    if result1!=None:
+                        res1 = "fail"
+                    else:
+                        if result==None:
+                            data['user'] = ObjectId(requestdata["userId"])
+                            data['JIRA'] = { 'api': requestdata["jiraAPI"], 'username': requestdata["jiraUsername"] , 'url': requestdata["jiraUrl"]}
+                            dbsession.userpreference.insert_one(data)
+                            res1 = "success"
+                        else:
+                            data['JIRA'] = { 'api': requestdata["jiraAPI"], 'username': requestdata["jiraUsername"] , 'url': requestdata["jiraUrl"]}
+                            dbsession.userpreference.update_one({"_id":ObjectId(result["_id"])},{"$set":data})
+                            res1 = "success"
+                elif requestdata["action"]=='update':
+                    if result==None:
+                        res1 = "fail"
+                    else:
+                        data['JIRA'] = { 'api': requestdata["jiraAPI"], 'username': requestdata["jiraUsername"] ,'url': requestdata["jiraUrl"] }
+                        dbsession.userpreference.update_one({"_id":ObjectId(result["_id"])},{"$set":data})
+                        res1 = "success"
+            res['rows'] = res1
+        except Exception as e:
+            app.logger.debug(traceback.format_exc())
+            servicesException("manageJiraDetails",e)
+        return jsonify(res)
+
     def check_array_exists(data_arr):
         if data_arr is not None and len(data_arr) > 0:
             return True

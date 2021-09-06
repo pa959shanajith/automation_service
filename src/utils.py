@@ -197,9 +197,12 @@ ecodeServices = {
     "exportToDtExcel":"436",
     "exportToDtCSV":"437",
     "exportToDtXML":"438",
-    "getNotificationGroups":"439",
-    "updateNotificationGroups":"440",
-    "getNotificationRules":"441",
+    "getDetails_JIRA":"439",
+    "manageJiraDetails":"440",
+    "getNotificationGroups":"441",
+    "updateNotificationGroups":"442",
+    "getNotificationRules":"443",
+    "updateNotificationConfiguration":"444"
 }
 
 
