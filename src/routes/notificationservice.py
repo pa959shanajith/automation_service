@@ -170,7 +170,7 @@ def LoadServices(app, redissession, dbsession):
 
                     for inserted_ids, rule_id in zip(insert_result.inserted_ids,newrules.keys()):
                         newrules[rule_id]['dbid'] = inserted_ids
-                        new_rule_ids = inserted_ids
+                        new_rule_ids.append(inserted_ids)
 
                 updated_rules_query = [UpdateOne(
                                                 {'_id':ObjectId(ruleid)},
@@ -187,7 +187,7 @@ def LoadServices(app, redissession, dbsession):
                                                 
                                             ) for ruleid in updatedrules]
                 
-                deleted_rules_query = [DeleteOne({'_id':ObjectId(ruleid)}) for ruleid in deletedrules]
+                deleted_rules_query = [DeleteOne({'_id':ObjectId(ruleid) if ruleid and ruleid != '' else 0}) for ruleid in deletedrules]
                 updated_rules_query.extend(deleted_rules_query) 
                 if len(updated_rules_query) > 0: dbsession.rules.bulk_write(updated_rules_query)
                 
