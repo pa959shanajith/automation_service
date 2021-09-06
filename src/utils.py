@@ -196,7 +196,9 @@ ecodeServices = {
     "importDtFromXML":"435",
     "exportToDtExcel":"436",
     "exportToDtCSV":"437",
-    "exportToDtXML":"438"
+    "exportToDtXML":"438",
+    "getDetails_JIRA":"439",
+    "manageJiraDetails":"440",
 }
 
 
