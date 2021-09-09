@@ -136,7 +136,7 @@ def LoadServices(app, redissession, dbsession):
         app.logger.debug("Inside getNotificationRules")
         res={'rows':'fail','err':''}
         try:
-            result = dbsession.notificationrules.find({})
+            result = dbsession.ruletypes.find({})
             res['rows'] = result
             del res['err']
         except Exception as e:
