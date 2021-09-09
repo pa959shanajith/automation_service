@@ -155,19 +155,18 @@ def LoadServices(app, redissession, dbsession):
                 newrules = requestdata['newrules']
                 updatedrules = requestdata['updatedrules']
                 deletedrules = requestdata['deletedrules']
-                otherrules = [ObjectId(id) for id in requestdata['otherrules']]
                 new_rules = [{
                                 "groupids": [ObjectId(groupid) for groupid in newrules[ruleid]['groupids']],
                                 "additionalrecepients": [ObjectId(others) for others in newrules[ruleid]['additionalrecepients']],
                                 "actiontype": newrules[ruleid]['actiontype'],
                                 "targetnode": newrules[ruleid]['targetnode'],
                                 "actionon": newrules[ruleid]['actionon'] if 'actionon' in newrules[ruleid] and newrules[ruleid]['actionon'] else 0,
-                                "targetnodeid": ObjectId(newrules[ruleid]['targetnodeid']) if 'targetnodeid' in newrules[ruleid] and newrules[ruleid]['targetnodeid'] else 0
+                                "targetnodeid": ObjectId(newrules[ruleid]['targetnodeid']) if 'targetnodeid' in newrules[ruleid] and newrules[ruleid]['targetnodeid'] else 0,
+                                "mindmapid": ObjectId(requestdata['mindmapid'])
                             } for ruleid in newrules]
                 new_rule_ids = []
                 if len(new_rules) > 0:
-                    insert_result = dbsession.rules.insert_many(new_rules,False,True)
-
+                    insert_result = dbsession.ruleconfigurations.insert_many(new_rules,False,True)
                     for inserted_ids, rule_id in zip(insert_result.inserted_ids,newrules.keys()):
                         newrules[rule_id]['dbid'] = inserted_ids
                         new_rule_ids.append(inserted_ids)
@@ -189,15 +188,8 @@ def LoadServices(app, redissession, dbsession):
                 
                 deleted_rules_query = [DeleteOne({'_id':ObjectId(ruleid) if ruleid and ruleid != '' else 0}) for ruleid in deletedrules]
                 updated_rules_query.extend(deleted_rules_query) 
-                if len(updated_rules_query) > 0: dbsession.rules.bulk_write(updated_rules_query)
-                
-                total_rules = [ObjectId(id) for id in updatedrules]
-                total_rules.extend(new_rule_ids)
-                total_rules.extend(otherrules)
-                dbsession.mindmaps.update_one(
-                                                {"_id":ObjectId(requestdata['mindmapid'])},
-                                                {"$set":{"rules":[ruleid for ruleid in total_rules]}}
-                                            )
+                if len(updated_rules_query) > 0: dbsession.ruleconfigurations.bulk_write(updated_rules_query)
+
                 taskdata = requestdata['taskdata']
                 task_rule_map = {}
                 taskquery = []
@@ -205,16 +197,14 @@ def LoadServices(app, redissession, dbsession):
                     task_rule_map[taskid] = []
                     for ruleid in  taskdata[taskid]:
                         if ruleid in newrules:
-                            task_rule_map[taskid].append(newrules[ruleid]['dbid'])
-                        if ruleid in updatedrules or ruleid in requestdata['otherrules']:  
+                            task_rule_map[taskid].append(newrules[ruleid]['dbid']) 
+                        else:    
                             task_rule_map[taskid].append(ObjectId(ruleid))
                     taskquery.append(UpdateOne(
                                             {"_id":ObjectId(taskid)},
                                             {"$set":{"rules": task_rule_map[taskid]}}
                             ))
-                
                 if len(taskquery) > 0: dbsession.tasks.bulk_write(taskquery)
-               
                 res['rows'] = 'success'
                 del res['err']
             else:
@@ -223,6 +213,153 @@ def LoadServices(app, redissession, dbsession):
         except Exception as e:
             servicesException("updateNotificationConfiguration", e, True)
             res['err'] = "Exception occurred in updateNotificationConfiguration"
+        return jsonify(res)
+
+    @app.route('/notification/getNotificationConfiguration',methods=['POST'])
+    def getNotificationConfiguration():
+        app.logger.debug("Inside getNotificationConfiguration")
+        res={'rows':'fail','err':''}
+        try:
+            email_projection = {'$project':{
+                                    "actiontype":1, 
+                                    "targetnode":1, 
+                                    "actionon":1, 
+                                    "targetnodeid":1, 
+                                    "additionalrecepientsinfo":1, 
+                                    "_id":0,
+                                    "emails":{ '$setUnion':{
+                                            '$reduce': {
+                                                'input': "$usersemails",
+                                                'initialValue': '$emails',
+                                                'in': { '$concatArrays': [ "$$value",["$$this.email"]]}
+                                            }
+                                        }}
+                                    }
+                                }
+            user_lookup = {'$lookup':{
+                                'from':'users',
+                                'let':{'userids':'$internalusers'},
+                                'pipeline':[
+                                    {"$match" : {"$expr" : {"$in": ["$_id", "$$userids"]}}},
+                                    {'$project':{"_id":0,"email":1}}
+                                ],
+                                'as':'usersemails'
+                            }
+                        }
+            groupinfo_projection = {'$project':{
+                                        "actiontype":1, 
+                                        "targetnode":1, 
+                                        "actionon":1, 
+                                        "targetnodeid":1, 
+                                        "mindmapid":1, 
+                                        "additionalrecepientsinfo":1, 
+                                        "_id":0, 
+                                        "internalusers":{'$setUnion':{
+                                                '$reduce': {
+                                                    'input': "$groupinfo",
+                                                    'initialValue': '$additionalrecepients',
+                                                    'in': { '$concatArrays': [ "$$value","$$this.internalusers"]}
+                                                }
+                                            }},
+                                        "emails":{ '$setUnion':{
+                                                '$reduce': {
+                                                    'input': "$groupinfo",
+                                                    'initialValue': [],
+                                                    'in': { '$concatArrays': [ "$$value","$$this.otherusers"]}
+                                                }
+                                            }}
+                                        }
+                                    }
+            notificationgroups_lookup = {"$lookup":{
+                                            'from': "notificationgroups",
+                                            'let': {"groupids": "$groupids"},
+                                            'pipeline':[
+                                                {"$match" : {"$expr" : {"$in": ["$_id", "$$groupids"]}}},
+                                                {'$project':{"_id":1,"internalusers":1,"otherusers":1}},
+                                            ],
+                                            'as':"groupinfo",       
+                                        }
+                                    }
+            requestdata = json.loads(request.data)
+            if not isemptyrequest(requestdata):
+                result = 'fail'
+                if requestdata['fetchby'] == "mindmap" and 'id' in requestdata:
+                    mindmapid = requestdata['id']
+                    aggregate_query = [
+                                        {'$match':{'mindmapid': ObjectId(mindmapid)}},
+                                        {"$lookup":{
+                                                'from': "users",
+                                                'let': {"users": "$additionalrecepients"},
+                                                'pipeline':[
+                                                    {"$match" : {"$expr" : {"$in": ["$_id", "$$users"]}}},
+                                                    {"$project": {"_id":1,"name":1,"email":1}}
+                                                ],
+                                                'as':"additionalrecepientsinfo"
+                                            }
+                                        },
+                                        {"$lookup":{
+                                                'from': "notificationgroups",
+                                                'let': {"groupids": "$groupids"},
+                                                'pipeline':[
+                                                    {"$match" : {"$expr" : {"$in": ["$_id", "$$groupids"]}}},
+                                                    {"$project": {"_id":1,"groupname":1}}
+                                                ],
+                                                'as':"groupinfo",
+                                                    
+                                            }
+                                        },
+                                        {"$project": {"_id":1,"actiontype":1,"targetnode":1,"actionon":1,"targetnodeid":1,"additionalrecepientsinfo":1,"groupinfo":1}} 
+                                    ] 
+                    result = list(dbsession.ruleconfigurations.aggregate(aggregate_query))
+                elif requestdata['fetchby'] == "task" and 'id' in requestdata:
+                    taskid = requestdata['id']
+                    aggregate_query = [
+                                        {'$match':{'_id': ObjectId(taskid)}},
+                                        {"$lookup":{
+                                                'from': "ruleconfigurations",
+                                                'let': {"rules": "$rules"},
+                                                'pipeline':[
+                                                    {"$match" : {"$expr" : {"$in": ["$_id", "$$rules"]}}},
+                                                    notificationgroups_lookup,
+                                                    groupinfo_projection,
+                                                    user_lookup,
+                                                    email_projection   
+                                                ],
+                                                'as':"ruleinfo"
+                                            }
+                                        },
+                                        {'$project':{'ruleinfo':1,'_id':0}}
+                                    ]
+                    result = list(dbsession.tasks.aggregate(aggregate_query))
+                elif requestdata['fetchby'] == "testsuiteid" and 'id' in requestdata:
+                    testsuiteid = requestdata['id']
+                    aggregate_query = [
+                                        {'$match':{'_id': ObjectId(testsuiteid)}},
+                                        {'$lookup':{
+                                                'from': "ruleconfigurations",
+                                                'let':{'id':'$mindmapid'},
+                                                'pipeline':[
+                                                    {"$match" : {"$expr" : {"$eq": ["$mindmapid", "$$id"]}}},
+                                                    {"$match" : {"$expr" : {"$in": ["$targetnode", ["all","modules"]]}}},
+                                                    notificationgroups_lookup,
+                                                    groupinfo_projection,
+                                                    user_lookup,
+                                                    email_projection
+                                                ],
+                                                'as':'ruleinfo'
+                                            }
+                                        },
+                                        {'$project':{'ruleinfo':1, '_id':0}}
+                                    ]
+                    result = list(dbsession.testsuites.aggregate(aggregate_query))
+                res['rows'] = result
+                del res['err']
+            else:
+                app.logger.warn('Empty data received. report.')
+                res['err']='Invalid Request: Empty Parameter not allowed'
+        except Exception as e:
+            servicesException("getNotificationConfiguration", e, True)
+            res['err'] = "Exception occurred in getNotificationConfiguration"
         return jsonify(res)
 
 ################################################################################
