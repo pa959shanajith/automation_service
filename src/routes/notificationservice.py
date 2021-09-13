@@ -131,12 +131,12 @@ def LoadServices(app, redissession, dbsession):
             res['err'] = "Exception occurred in updateNotificationGroups"
         return jsonify(res)
 
-    @app.route('/notification/getNotificationRules',methods=['GET'])
+    @app.route('/notification/getNotificationRules',methods=['POST'])
     def getNotificationRules():
         app.logger.debug("Inside getNotificationRules")
         res={'rows':'fail','err':''}
         try:
-            result = dbsession.ruletypes.find({})
+            result = list(dbsession.ruletypes.find({},{'description':1, "actionid":1, "_id":0}))
             res['rows'] = result
             del res['err']
         except Exception as e:
@@ -215,6 +215,27 @@ def LoadServices(app, redissession, dbsession):
             res['err'] = "Exception occurred in updateNotificationConfiguration"
         return jsonify(res)
 
+    @app.route('/notification/updateTaskRules',methods=['POST'])
+    def updateTaskRules():
+        app.logger.debug("Inside updateTaskRules")
+        res={'rows':'fail','err':''}
+        try:
+            requestdata = json.loads(request.data)
+            if not isemptyrequest(requestdata):
+                nodeid = requestdata['nodeid']
+                ruleids = [ObjectId(ruleid) for ruleid in requestdata['ruleids']]
+                dbsession.tasks.update_one({"nodeid":ObjectId(nodeid)},{'$set':{'rules':ruleids}})
+                res['rows'] = 'success'
+                del res['err']
+            else:
+                app.logger.warn('Empty data received. report.')
+                res['err']='Invalid Request: Empty Parameter not allowed'
+        except Exception as e:
+            servicesException("updateTaskRules", e, True)
+            res['err'] = "Exception occurred in updateTaskRules"
+        return jsonify(res)
+
+
     @app.route('/notification/getNotificationConfiguration',methods=['POST'])
     def getNotificationConfiguration():
         app.logger.debug("Inside getNotificationConfiguration")
@@ -226,7 +247,6 @@ def LoadServices(app, redissession, dbsession):
                                     "actionon":1, 
                                     "targetnodeid":1, 
                                     "additionalrecepientsinfo":1, 
-                                    "_id":0,
                                     "emails":{ '$setUnion':{
                                             '$reduce': {
                                                 'input': "$usersemails",
@@ -253,7 +273,7 @@ def LoadServices(app, redissession, dbsession):
                                         "targetnodeid":1, 
                                         "mindmapid":1, 
                                         "additionalrecepientsinfo":1, 
-                                        "_id":0, 
+                                        "_id":1, 
                                         "internalusers":{'$setUnion':{
                                                 '$reduce': {
                                                     'input': "$groupinfo",
@@ -283,33 +303,63 @@ def LoadServices(app, redissession, dbsession):
             requestdata = json.loads(request.data)
             if not isemptyrequest(requestdata):
                 result = 'fail'
-                if requestdata['fetchby'] == "mindmap" and 'id' in requestdata:
+                if requestdata['fetchby'] == "mindmapbyrule":
                     mindmapid = requestdata['id']
                     aggregate_query = [
                                         {'$match':{'mindmapid': ObjectId(mindmapid)}},
-                                        {"$lookup":{
-                                                'from': "users",
-                                                'let': {"users": "$additionalrecepients"},
-                                                'pipeline':[
-                                                    {"$match" : {"$expr" : {"$in": ["$_id", "$$users"]}}},
-                                                    {"$project": {"_id":1,"name":1,"email":1}}
-                                                ],
-                                                'as':"additionalrecepientsinfo"
-                                            }
-                                        },
+                                        {'$match':{'targetnode':{'$in':['all',requestdata['nodetype']]}}},
+                                        notificationgroups_lookup,
+                                        groupinfo_projection,
+                                        user_lookup,
+                                        email_projection
+                                    ] 
+                    result = list(dbsession.ruleconfigurations.aggregate(aggregate_query))
+                elif requestdata['fetchby'] == "mindmapid" and 'id' in requestdata:
+                    mindmapid = requestdata['id']
+                    aggregate_query = [
+                                        {'$match':{'mindmapid':ObjectId(mindmapid)}},
                                         {"$lookup":{
                                                 'from': "notificationgroups",
                                                 'let': {"groupids": "$groupids"},
                                                 'pipeline':[
                                                     {"$match" : {"$expr" : {"$in": ["$_id", "$$groupids"]}}},
-                                                    {"$project": {"_id":1,"groupname":1}}
+                                                    {'$project':{"_id":1,"groupname":1}},
                                                 ],
-                                                'as':"groupinfo",
-                                                    
+                                                'as':"groupinfo",       
                                             }
                                         },
-                                        {"$project": {"_id":1,"actiontype":1,"targetnode":1,"actionon":1,"targetnodeid":1,"additionalrecepientsinfo":1,"groupinfo":1}} 
-                                    ] 
+                                        {'$lookup':{
+                                                'from':'users',
+                                                'let':{'userids':'$additionalrecepients'},
+                                                'pipeline':[
+                                                    {"$match" : {"$expr" : {"$in": ["$_id", "$$userids"]}}},
+                                                    {'$project':{"_id":1,"name":1}}
+                                                ],
+                                                'as':'additional'
+                                            }
+                                        },
+                                        {'$lookup':{
+                                                'from':'ruletypes',
+                                                'let':{'id':'$actiontype'},
+                                                'pipeline':[
+                                                    {"$match" : {"$expr" : {"$eq": ["$actionid", '$$id']}}},
+                                                    {'$project':{"_id":0,"description":1,"actionid":1}}
+                                                ],
+                                                'as':'ruleinfo'
+                                            }
+                                        },
+                                        {'$unwind':'$ruleinfo'},
+                                        {'$project':{
+                                                'targetnode':1,
+                                                'actionon':1,
+                                                'targetnodeid':1,
+                                                'groupinfo':1,
+                                                'additionalrecepients':'$additional',
+                                                'ruledescription':'$ruleinfo.description',
+                                                'actionid': '$ruleinfo.actionid'
+                                            }
+                                        }  
+                                    ]  
                     result = list(dbsession.ruleconfigurations.aggregate(aggregate_query))
                 elif requestdata['fetchby'] == "task" and 'id' in requestdata:
                     taskid = requestdata['id']
@@ -320,6 +370,7 @@ def LoadServices(app, redissession, dbsession):
                                                 'let': {"rules": "$rules"},
                                                 'pipeline':[
                                                     {"$match" : {"$expr" : {"$in": ["$_id", "$$rules"]}}},
+                                                    {"$match" : {'$expr' : {'$eq': ['$actiontype',requestdata['ruleactionid']]}}},
                                                     notificationgroups_lookup,
                                                     groupinfo_projection,
                                                     user_lookup,
