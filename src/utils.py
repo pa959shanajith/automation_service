@@ -203,7 +203,8 @@ ecodeServices = {
     "updateNotificationGroups":"442",
     "getNotificationRules":"443",
     "updateNotificationConfiguration":"444",
-    "getNotificationConfiguration":"445"
+    "getNotificationConfiguration":"445",
+    "updateTaskRules":"446"
 }
 
 
