@@ -136,7 +136,7 @@ def LoadServices(app, redissession, dbsession):
         app.logger.debug("Inside getNotificationRules")
         res={'rows':'fail','err':''}
         try:
-            result = list(dbsession.ruletypes.find({},{'description':1, "actionid":1, "_id":0}))
+            result = list(dbsession.ruletypes.find({},{'description':1, "actionid":1, "_id":0, "action":1}))
             res['rows'] = result
             del res['err']
         except Exception as e:
@@ -227,7 +227,7 @@ def LoadServices(app, redissession, dbsession):
             if not isemptyrequest(requestdata):
                 nodeid = requestdata['nodeid']
                 ruleids = [ObjectId(ruleid) for ruleid in requestdata['ruleids']]
-                dbsession.tasks.update_one({"nodeid":ObjectId(nodeid)},{'$set':{'rules':ruleids}})
+                dbsession.tasks.update_many({"nodeid":ObjectId(nodeid)},{'$set':{'rules':ruleids}})
                 res['rows'] = 'success'
                 del res['err']
             else:
@@ -356,7 +356,7 @@ def LoadServices(app, redissession, dbsession):
                                                 'let':{'id':'$actiontype'},
                                                 'pipeline':[
                                                     {"$match" : {"$expr" : {"$eq": ["$actionid", '$$id']}}},
-                                                    {'$project':{"_id":0,"description":1,"actionid":1}}
+                                                    {'$project':{"_id":0,"description":1,"actionid":1,"action":1}}
                                                 ],
                                                 'as':'ruleinfo'
                                             }
@@ -369,7 +369,8 @@ def LoadServices(app, redissession, dbsession):
                                                 'groupinfo':1,
                                                 'additionalrecepients':'$additional',
                                                 'ruledescription':'$ruleinfo.description',
-                                                'actionid': '$ruleinfo.actionid'
+                                                'actionid': '$ruleinfo.actionid',
+                                                'action': '$ruleinfo.action'
                                             }
                                         }  
                                     ]  
