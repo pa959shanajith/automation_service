@@ -155,14 +155,16 @@ def LoadServices(app, redissession, dbsession):
                 newrules = requestdata['newrules']
                 updatedrules = requestdata['updatedrules']
                 deletedrules = requestdata['deletedrules']
+                priority = requestdata['priority']
                 new_rules = [{
                                 "groupids": [ObjectId(groupid) for groupid in newrules[ruleid]['groupids']],
                                 "additionalrecepients": [ObjectId(others) for others in newrules[ruleid]['additionalrecepients']],
-                                "actiontype": newrules[ruleid]['actiontype'],
+                                "actiontype": str(newrules[ruleid]['actiontype']),
                                 "targetnode": newrules[ruleid]['targetnode'],
                                 "actionon": newrules[ruleid]['actionon'] if 'actionon' in newrules[ruleid] and newrules[ruleid]['actionon'] else 0,
                                 "targetnodeid": ObjectId(newrules[ruleid]['targetnodeid']) if 'targetnodeid' in newrules[ruleid] and newrules[ruleid]['targetnodeid'] else 0,
-                                "mindmapid": ObjectId(requestdata['mindmapid'])
+                                "mindmapid": ObjectId(requestdata['mindmapid']),
+                                "priority": str(priority)
                             } for ruleid in newrules]
                 new_rule_ids = []
                 if len(new_rules) > 0:
@@ -177,10 +179,11 @@ def LoadServices(app, redissession, dbsession):
                                                     '$set':{
                                                         "groupids": [ObjectId(groupid) for groupid in updatedrules[ruleid]['groupids']],
                                                         "additionalrecepients": [ObjectId(others) for others in updatedrules[ruleid]['additionalrecepients']],
-                                                        "actiontype": updatedrules[ruleid]['actiontype'],
+                                                        "actiontype": str(updatedrules[ruleid]['actiontype']),
                                                         "targetnode": updatedrules[ruleid]['targetnode'],
                                                         "actionon": updatedrules[ruleid]['actionon'] if 'actionon' in updatedrules[ruleid]  and updatedrules[ruleid]['actionon'] else 0,
-                                                        "targetnodeid": ObjectId(updatedrules[ruleid]['targetnodeid']) if 'targetnodeid' in updatedrules[ruleid] and updatedrules[ruleid]['targetnodeid'] else 0
+                                                        "targetnodeid": ObjectId(updatedrules[ruleid]['targetnodeid']) if 'targetnodeid' in updatedrules[ruleid] and updatedrules[ruleid]['targetnodeid'] else 0,
+                                                        "priority": str(priority)
                                                     }   
                                                 }
                                                 
@@ -310,7 +313,17 @@ def LoadServices(app, redissession, dbsession):
                                         {'$match':{'targetnode':{'$in':['all',requestdata['nodetype']]}}},
                                         notificationgroups_lookup,
                                         groupinfo_projection,
-                                        user_lookup,
+                                        {
+                                            '$lookup':{
+                                                'from':'users',
+                                                'let':{'userids':'$internalusers','extra':[ObjectId(id) for id in requestdata['extraids']]},
+                                                'pipeline':[
+                                                    {"$match" : {"$expr" :{'$or':[{"$in": ["$_id", "$$userids"]},{"$in": ["$_id", "$$extra"]}]}}},
+                                                    {'$project':{"_id":0,"email":1}}
+                                                ],
+                                                'as':'usersemails'
+                                            }
+                                        },
                                         email_projection
                                     ] 
                     result = list(dbsession.ruleconfigurations.aggregate(aggregate_query))
