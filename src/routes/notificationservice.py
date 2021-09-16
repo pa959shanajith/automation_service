@@ -341,8 +341,10 @@ def LoadServices(app, redissession, dbsession):
                     result = [{"ruleinfo":result}]
                 elif requestdata['fetchby'] == "mindmapid" and 'id' in requestdata:
                     mindmapid = requestdata['id']
+                    priority = requestdata['priority'] if 'priority' in requestdata else '0'
                     aggregate_query = [
                                         {'$match':{'mindmapid':ObjectId(mindmapid)}},
+                                        {'$match':{'mindmapid':priority}},
                                         {"$lookup":{
                                                 'from': "notificationgroups",
                                                 'let': {"groupids": "$groupids"},
