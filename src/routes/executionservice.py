@@ -238,19 +238,28 @@ def LoadServices(app, redissession, dbsession):
 
                 elif param == 'insertreportquery':
                     modifiedon = datetime.now()
+                    rows = json.loads(requestdata['report'])['rows']
+                    limit = 15000
+                    reportitems = []
+                    ind=1
+                    for x in range(0, len(rows), limit):
+                        reportitems.append({'index':ind,'rows':rows[x:x+limit]})
+                        ind+=1
+                    ritems = dbsession.reportitems.insert_many(reportitems)
+
                     querydata = {
                         "executionid": ObjectId(requestdata['executionid']),
                         "testscenarioid": ObjectId(requestdata['testscenarioid']),
                         "status": requestdata['status'],
                         "executedtime": modifiedon,
                         "executedon": requestdata['browser'],
+                        "overallstatus": requestdata['overallstatus'],
                         "modifiedon": modifiedon,
                         "modifiedby": ObjectId(requestdata['modifiedby']),
                         "modifiedbyrole": ObjectId(requestdata['modifiedbyrole']),
-                        "report": json.loads(requestdata['report'])
+                        "reportitems": ritems.inserted_ids
                     }
                     res["rows"] = str(dbsession.reports.insert(querydata))
-
                 app.logger.debug("Executed ExecuteTestSuite_ICE. Query: " + param)
             else:
                 app.logger.warn('Empty data received. execute testsuite.')

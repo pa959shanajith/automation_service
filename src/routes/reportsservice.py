@@ -112,32 +112,95 @@ def LoadServices(app, redissession, dbsession):
             requestdata=json.loads(request.data)
             app.logger.debug("Inside getReport")
             if not isemptyrequest(requestdata):
-                reportobj = dbsession.reports.find_one({"_id":ObjectId(requestdata["reportid"])},{"executedtime":1,"report":1,"testscenarioid":1,"executionid":1})
-                if reportobj is None:
+                query = dbsession.reports.aggregate([
+                    {'$match':{'_id':ObjectId(requestdata["reportid"])}},
+                    { '$lookup':{
+                            'from':'testscenarios',
+                            'let':{'testscenarioid':'$testscenarioid'},
+                            'pipeline':[
+                                { '$match': { '$expr': { '$eq': ['$_id', '$$testscenarioid']}}},
+                                { '$lookup': {
+                                            'from':'projects',
+                                            'let':{'projectid':'$projectid'},
+                                            'pipeline':[{ '$match': { '$expr': { '$eq': ['$_id', '$$projectid']}}}],
+                                            'as':'project'
+                                    }
+                                },
+                                { '$project':{'name':1,'projects':{'_id':{'$arrayElemAt':['$project._id',0]},'domain':{'$arrayElemAt':['$project.domain',0]},'name':{'$arrayElemAt':['$project.name',0]},'releases':{'$arrayElemAt':['$project.releases',0]}}}}
+                            ],
+                            'as':'testscenarios'
+                        }
+                    },
+                    { '$lookup':{
+                            'from':'executions',
+                            'let':{'excid':'$executionid'},
+                            'pipeline':[
+                                { '$match': { '$expr': { '$eq': ['$_id', '$$excid']}}},
+                                { '$lookup': {
+                                    'from': 'testsuites',
+                                    'let': { 'tsid': {'$arrayElemAt':['$parent',0]}},
+                                    'pipeline': [
+                                        { '$match': { '$expr': { '$eq': ['$_id', '$$tsid'] }}},
+                                    ],
+                                    'as': 'testsuites'
+                                }},
+                                {'$project': {'cycleid':{'$arrayElemAt':['$testsuites.cycleid',0]},'name':{'$arrayElemAt':['$testsuites.name',0]},'_id':0}}
+                            ],
+                            'as':'executions'
+                        }         
+                    },
+                    { '$lookup': {
+                            'from': 'reportitems',
+                            'let': { 'pid': '$reportitems' },
+                            'pipeline': [
+                                { '$match': { '$expr': { '$in': ['$_id', '$$pid'] } } },
+                                {'$unwind': '$rows'},
+                                { '$replaceRoot': { 'newRoot': '$rows' } }
+                            ],
+                            'as':'rows'
+                        }
+                    },
+                    {'$project':{
+                            'rows':1,
+                            'executedtime':1,
+                            'overallstatus':1,
+                            'projects':{'$arrayElemAt':['$testscenarios.projects',0]},
+                            'cycleid':{'$arrayElemAt':['$executions.cycleid',0]},
+                            'testsuitename':{'$arrayElemAt':['$executions.name',0]},
+                            'testscenarioname':{'$arrayElemAt':['$testscenarios.name',0]},
+                            'testscenarioid':{'$arrayElemAt':['$testscenarios._id',0]},
+                            'executionid':1
+                        }
+                    }
+                ])
+                reportobj = list(query)
+                #reportobj = dbsession.reports.find_one({"_id":ObjectId(requestdata["reportid"])},{"executedtime":1,"report":1,"testscenarioid":1,"executionid":1})
+                if len(reportobj) == 0:
                     res['rows'] = []
                     return res
-                scenarioname = dbsession.testscenarios.find_one({"_id":reportobj['testscenarioid']},{"name":1,"_id":0})["name"]
-                suiteid = dbsession.executions.find_one({"_id":reportobj['executionid']},{"parent":1,"version":1,"_id":0})
-                suiteobj = dbsession.testsuites.find_one({"_id":suiteid["parent"][0]},{"name":1,"cycleid":1,"_id":0})
-                cycleid = suiteobj['cycleid']
-                prjobj = dbsession.projects.find_one({"releases.cycles._id":cycleid},{"domain":1,"name":1,"releases":1})
+                reportobj=reportobj[0]
+                reportData = {"rows":reportobj["rows"],"overallstatus":reportobj["overallstatus"]}
+                prjobj = reportobj['projects']
+                # scenarioname = dbsession.testscenarios.find_one({"_id":reportobj['testscenarioid']},{"name":1,"_id":0})["name"]
+                # suiteid = dbsession.executions.find_one({"_id":reportobj['executionid']},{"parent":1,"version":1,"_id":0})
+                # suiteobj = dbsession.testsuites.find_one({"_id":suiteid["parent"][0]},{"name":1,"cycleid":1,"_id":0})
+                # cycleid = suiteobj['cycleid']
+                # prjobj = dbsession.projects.find_one({"releases.cycles._id":cycleid},{"domain":1,"name":1,"releases":1})
                 query = {
-                    'report': reportobj["report"],
+                    'report': reportData,
                     'executionid': reportobj['executionid'],
                     'executedtime': reportobj["executedtime"],
                     'testscenarioid': reportobj["testscenarioid"],
-                    'testscenarioname': scenarioname,
-                    'testsuitename': suiteobj["name"],
+                    'testscenarioname': reportobj["testscenarioname"],
+                    'testsuitename': reportobj["testsuitename"],
                     'projectid': prjobj["_id"],
                     'domainname': prjobj["domain"],
                     'projectname': prjobj["name"]
                 }
-                if('version' in suiteid):
-                    query['version']=suiteid['version']
                 found = False
                 for rel in prjobj["releases"]:
                     for cyc in rel["cycles"]:
-                        if cyc["_id"] == cycleid:
+                        if cyc["_id"] == reportobj['cycleid']:
                             query["releasename"] = rel["name"]
                             query["cyclename"] = cyc["name"]
                             found = True
