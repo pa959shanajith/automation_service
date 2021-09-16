@@ -303,6 +303,17 @@ def LoadServices(app, redissession, dbsession):
                                             'as':"groupinfo",       
                                         }
                                     }
+            rule_projection = {'$project':{
+                                        'actiontype':'$ruleinfo.actiontype', 
+                                        '_id':0,
+                                        'targetnode':'$ruleinfo.targetnode',
+                                        'actionon':'$ruleinfo.actionon',
+                                        'targetnodeid':'$ruleinfo.targetnodeid',
+                                        'additionalrecepientsinfo':'$ruleinfo.additionalrecepientsinfo',
+                                        'emails':'$ruleinfo.emails'
+                                    }
+                                }
+            
             requestdata = json.loads(request.data)
             if not isemptyrequest(requestdata):
                 result = 'fail'
@@ -327,6 +338,7 @@ def LoadServices(app, redissession, dbsession):
                                         email_projection
                                     ] 
                     result = list(dbsession.ruleconfigurations.aggregate(aggregate_query))
+                    result = [{"ruleinfo":result}]
                 elif requestdata['fetchby'] == "mindmapid" and 'id' in requestdata:
                     mindmapid = requestdata['id']
                     aggregate_query = [
@@ -393,11 +405,24 @@ def LoadServices(app, redissession, dbsession):
                                                 'as':"ruleinfo"
                                             }
                                         },
-                                        {'$project':{'ruleinfo':1,'_id':0}}
+                                        {"$lookup":{
+                                                'from': 'users',
+                                                'let': {'ids':['$owner','$reviewer']},
+                                                'pipeline':[
+                                                    {"$match" : {"$expr" : {"$in": ["$_id", '$$ids']}}},
+                                                    {'$project':{"_id":1,"name":1,"email":1}}
+                                                ],
+                                                'as':'taskowners'
+                                            }
+                                        },
+                                        {'$project':{'ruleinfo':1,'_id':0,'taskowners':1,'reviewer':1,'assignedto':'$owner'}}
                                     ]
                     result = list(dbsession.tasks.aggregate(aggregate_query))
                 elif requestdata['fetchby'] == "testsuiteid" and 'id' in requestdata:
                     testsuiteid = requestdata['id']
+                    nodetype = requestdata['nodetype']
+                    actiontype = requestdata['actiontype'] 
+                    invoker = dbsession.users.find_one({'_id':ObjectId(requestdata['invokerid'])},{'email':1,'_id':0})
                     aggregate_query = [
                                         {'$match':{'_id': ObjectId(testsuiteid)}},
                                         {'$lookup':{
@@ -405,7 +430,8 @@ def LoadServices(app, redissession, dbsession):
                                                 'let':{'id':'$mindmapid'},
                                                 'pipeline':[
                                                     {"$match" : {"$expr" : {"$eq": ["$mindmapid", "$$id"]}}},
-                                                    {"$match" : {"$expr" : {"$in": ["$targetnode", ["all","modules"]]}}},
+                                                    {"$match" : {"$expr" : {"$in": ["$targetnode", ["all",nodetype]]}}},
+                                                    {"$match" : {"$expr" : {"$eq": ["$actiontype", actiontype]}}},
                                                     notificationgroups_lookup,
                                                     groupinfo_projection,
                                                     user_lookup,
@@ -413,10 +439,13 @@ def LoadServices(app, redissession, dbsession):
                                                 ],
                                                 'as':'ruleinfo'
                                             }
-                                        },
-                                        {'$project':{'ruleinfo':1, '_id':0}}
+                                        }
                                     ]
                     result = list(dbsession.testsuites.aggregate(aggregate_query))
+                    if len(result) > 0:
+                        result[0]['taskowners'] = [invoker] 
+                    else:
+                        result.append({'taskowners':[invoker] })
                 res['rows'] = result
                 del res['err']
             else:
