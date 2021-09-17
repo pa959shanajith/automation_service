@@ -248,6 +248,7 @@ def LoadServices(app, redissession, dbsession):
                                     "actiontype":1, 
                                     "targetnode":1, 
                                     "actionon":1, 
+                                    "priority":1,
                                     "targetnodeid":1, 
                                     "additionalrecepientsinfo":1, 
                                     "emails":{ '$setUnion':{
@@ -275,6 +276,7 @@ def LoadServices(app, redissession, dbsession):
                                         "actionon":1, 
                                         "targetnodeid":1, 
                                         "mindmapid":1, 
+                                        "priority":1,
                                         "additionalrecepientsinfo":1, 
                                         "_id":1, 
                                         "internalusers":{'$setUnion':{
@@ -319,6 +321,8 @@ def LoadServices(app, redissession, dbsession):
                 result = 'fail'
                 if requestdata['fetchby'] == "mindmapbyrule":
                     mindmapid = requestdata['id']
+                    extraids = [ObjectId(requestdata['reviewerid']), ObjectId(requestdata['assigneeid'])]
+                    owners = list(dbsession.users.find({'_id':{'$in':extraids}},{'name':1,'email':1}))
                     aggregate_query = [
                                         {'$match':{'mindmapid': ObjectId(mindmapid)}},
                                         {'$match':{'targetnode':{'$in':['all',requestdata['nodetype']]}}},
@@ -327,9 +331,9 @@ def LoadServices(app, redissession, dbsession):
                                         {
                                             '$lookup':{
                                                 'from':'users',
-                                                'let':{'userids':'$internalusers','extra':[ObjectId(id) for id in requestdata['extraids']]},
+                                                'let':{'userids':'$internalusers'},
                                                 'pipeline':[
-                                                    {"$match" : {"$expr" :{'$or':[{"$in": ["$_id", "$$userids"]},{"$in": ["$_id", "$$extra"]}]}}},
+                                                    {"$match" : {"$expr" :{"$in": ["$_id", "$$userids"]}}},
                                                     {'$project':{"_id":0,"email":1}}
                                                 ],
                                                 'as':'usersemails'
@@ -338,7 +342,7 @@ def LoadServices(app, redissession, dbsession):
                                         email_projection
                                     ] 
                     result = list(dbsession.ruleconfigurations.aggregate(aggregate_query))
-                    result = [{"ruleinfo":result}]
+                    result = [{"ruleinfo":result,"taskowners":owners}]
                 elif requestdata['fetchby'] == "mindmapid" and 'id' in requestdata:
                     mindmapid = requestdata['id']
                     priority = requestdata['priority'] if 'priority' in requestdata else '0'
@@ -441,7 +445,8 @@ def LoadServices(app, redissession, dbsession):
                                                 ],
                                                 'as':'ruleinfo'
                                             }
-                                        }
+                                        },
+                                        {'$project':{'ruleinfo':1, '_id':0}}
                                     ]
                     result = list(dbsession.testsuites.aggregate(aggregate_query))
                     if len(result) > 0:
