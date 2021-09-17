@@ -212,10 +212,17 @@ def LoadServices(app, redissession, dbsession):
                                             break
                                     if query_screen['screenid'] not in co['parent']:
                                         co['parent'].append(query_screen['screenid'])
+                                        if (str(co['_id']) not in orderlist):
+                                            orderlist.append(str(co['_id']))
+                                            updateOrder = True
                                     mapNew.append(co)
                             else:
                                 if query_screen['screenid'] not in co['parent']:
                                     co['parent'].append(query_screen['screenid'])
+                                    if (str(co['_id']) not in orderlist):
+                                        orderlist.append(str(co['_id']))
+                                        updateOrder = True
+                                    updateOrder = True
                                     mapNew.append(co)
                         for mn in mapNew:
                             custnames[mn['custname']] = mn
@@ -377,8 +384,12 @@ def LoadServices(app, redissession, dbsession):
                     res = {'rows': { 'tc': queryresult, 'del_flag': del_flag}}
                 else:
                     dataObjects = {}
-                    queryresult = dbsession.testcases.find_one({'_id':ObjectId(requestdata['testcaseid']),
-                        'versionnumber':requestdata['versionnumber']},{'screenid':1,'steps':1,'datatables':1,'name':1,'parent':1,'_id':0})
+                    if "testcaseid" not in requestdata:
+                        queryresult = dbsession.testcases.find_one({'screenid':ObjectId(requestdata['screenid']),
+                        'versionnumber':requestdata['versionnumber']}, {'screenid':1,'steps':1,'datatables':1,'name':1,'parent':1,'_id':1})
+                    else:
+                        queryresult = dbsession.testcases.find_one({'_id':ObjectId(requestdata['testcaseid']),
+                            'versionnumber':requestdata['versionnumber']}, {'screenid':1,'steps':1,'datatables':1,'name':1,'parent':1,'_id':0})
                     if queryresult is None: res['rows'] = { 'tc': [], 'del_flag': del_flag }
                     else:
                         queryresult1 = dbsession.dataobjects.find({'parent':queryresult['screenid']},{'parent':0})
@@ -394,7 +405,7 @@ def LoadServices(app, redissession, dbsession):
                             for dt in dtdet:
                                 dts.append({dt['name']:dt['datatable']})
                             queryresult['datatables'] = dts
-                        res = { 'rows': { 'tc': [queryresult], 'del_flag': del_flag } }
+                        res = { 'rows': { 'tc': [queryresult], 'del_flag': del_flag, 'testcaseid':str(queryresult.get('_id', '')) } }
                     if requestdata.get('screenName', '') == 'fetch':
                         screen = dbsession.screens.find_one({'_id':queryresult['screenid']},{'name':1})
                         res['rows']['screenName'] = screen['name']

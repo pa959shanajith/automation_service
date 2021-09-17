@@ -1078,7 +1078,7 @@ def LoadServices(app, redissession, dbsession):
         return res
 
     def getScreenID(screenname,projectid):
-        screenname=list(dbsession.screens.find({"name":screenname,"projectid":ObjectId(projectid),"deleted":False},{"_id":1}))
+        screenname=list(dbsession.screens.find({"projectid":ObjectId(projectid),"name":screenname,"deleted":False},{"_id":1}))
         if len(screenname)==1:
             return str(screenname[0]["_id"])
         else:   

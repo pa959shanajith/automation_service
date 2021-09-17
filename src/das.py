@@ -54,7 +54,7 @@ assistpath = internalspath + os.sep + "assist"
 logspath = internalspath + os.sep + "logs"
 verpath = internalspath + os.sep + "version.txt"
 credspath = internalspath + os.sep + ".tokens"
-gitpath = os.path.normpath(currdir + "/Lib/PortableGit/bin/git.exe")
+gitpath = os.path.normpath(currdir + "/Lib/portableGit/cmd/git.exe")
 
 das_ver = "3.0"
 if os.path.isfile(verpath):
@@ -112,7 +112,7 @@ LS_CRITICAL_ERR_CODE=['199','120','121','123','124','125']
 lsRetryCount=0
 sysMAC=None
 chronographTimer=None
-dbsession=redissession=None
+dbsession=redissession=redissession_db2=None
 
 #Variables for ProfJ
 questions=[] # to store the questions
@@ -275,12 +275,14 @@ def updateActiveIceSessions():
             sess = redissession.get('icesessions')
             if sess == '' or sess is None:
                 redissession.set('icesessions',wrap('{}',db_keys))
-            activeicesessions=json.loads(unwrap(redissession.get('icesessions'),db_keys))
+            r_lock = redissession.lock('icesessions_lock')
             if(requestdata['query'] == 'disconnect'):
                 icename=requestdata['icename'].lower()
-                if(icename in activeicesessions):
-                    del activeicesessions[icename]
-                    redissession.set('icesessions',wrap(json.dumps(activeicesessions),db_keys))
+                with r_lock:
+                    activeicesessions=json.loads(unwrap(redissession.get('icesessions'),db_keys))
+                    if icename in activeicesessions:
+                        del activeicesessions[icename]
+                        redissession.set('icesessions',wrap(json.dumps(activeicesessions),db_keys))
                 res['res'] = "success"
 
             elif(requestdata['query']=='connect' and 'icesession' in requestdata):
@@ -296,11 +298,11 @@ def updateActiveIceSessions():
                 ice_ts = icesession['connect_time']
                 if('.' not in ice_ts): ice_ts = ice_ts + '.000000'
                 latest_access_time = datetime.strptime(ice_ts, '%Y-%m-%d %H:%M:%S.%f')
-                app.logger.debug("icename: "+ice_name+" time: "+str(latest_access_time))
+                app.logger.debug("icename: "+ice_name+" / time: "+str(latest_access_time))
                 res['id']=ice_uuid
                 res['connect_time'] = icesession['connect_time']
                 # ICE which are in "deregistered" status are eliminated for the Registration and Connection
-                queryresult = dbsession.icetokens.find_one({"token":ice_token,"icetype":ice_type,"icename":ice_name})
+                queryresult = dbsession.icetokens.find_one({"icename":ice_name,"token":ice_token,"icetype":ice_type})
                 if queryresult is None:
                     res['err_msg'] = "Unauthorized: Access denied due to Invalid Token"
                     response["node_check"] = res['status'] = "InvalidToken"
@@ -333,22 +335,25 @@ def updateActiveIceSessions():
                                 username = ice_name
                             if username:
                                 res['status'] = "allow"
-                                user_channel = redissession.pubsub_numsub("ICE1_normal_"+ice_name,"ICE1_scheduling_"+ice_name)
-                                user_channel_cnt = int(user_channel[0][1]+user_channel[1][1])
-                                # Remove stale sessions
-                                if(user_channel_cnt == 0 and ice_name in activeicesessions):
-                                    del activeicesessions[ice_name]
-                                # To ensure another ICE with same name is not connected already
-                                if(ice_name in activeicesessions and activeicesessions[ice_name] != ice_uuid):
-                                    res['err_msg'] = "Connection exists with same token"
-                                # To check if license is available
-                                elif(len(activeicesessions)>=int(licensedata['allowedIceSessions'])):
-                                    res['err_msg'] = "All ice sessions are in use"
-                                # To add in active ice sessions
-                                else:
+                                f_allow = False
+                                with r_lock:
                                     activeicesessions=json.loads(unwrap(redissession.get('icesessions'),db_keys))
-                                    activeicesessions[ice_name] = ice_uuid
-                                    redissession.set('icesessions', wrap(json.dumps(activeicesessions),db_keys))
+                                    # Remove stale sessions
+                                    ice_statuses = json.loads(redissession_db2.get("ICE_status"))
+                                    for ice in list(activeicesessions.keys()):
+                                        if ice not in ice_statuses or ice_statuses[ice]['connected'] == False: activeicesessions.pop(ice)
+                                    # To ensure another ICE with same name is not connected already
+                                    if ice_name in activeicesessions and activeicesessions[ice_name] != ice_uuid:
+                                        res['err_msg'] = "Connection exists with same token"
+                                    # To check if license is available
+                                    elif len(activeicesessions) >= int(licensedata['allowedIceSessions']):
+                                        res['err_msg'] = "All ice sessions are in use"
+                                    # To add in active ice sessions
+                                    else:
+                                        activeicesessions[ice_name] = ice_uuid
+                                        redissession.set('icesessions', wrap(json.dumps(activeicesessions),db_keys))
+                                        f_allow = True
+                                if f_allow:
                                     res['res'] = "success"
                                     response["node_check"] = "allow"
                                     response["username"] = username
@@ -1120,7 +1125,7 @@ class ProfJ():
 
 def main():
     global lsip,lsport,dasport,mongo_dbup,redis_dbup,chronographTimer
-    global redissession,dbsession
+    global redissession,dbsession,redissession_db2
     cleandas = checkSetup()
     creds = {}
     kwargs = {}
@@ -1210,6 +1215,7 @@ def main():
         redisdb_conf = das_conf['cachedb']
         redisdb_pass = creds['cachedb']['password']
         redissession = redis.StrictRedis(host=redisdb_conf['host'], port=int(redisdb_conf['port']), password=redisdb_pass, db=3)
+        redissession_db2 = redis.StrictRedis(host=redisdb_conf['host'], port=int(redisdb_conf['port']), password=redisdb_pass, db=2)
         if redissession.get('icesessions') is None:
             redissession.set('icesessions',wrap('{}',db_keys))
         redis_dbup = True

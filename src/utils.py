@@ -1,5 +1,6 @@
 from flask import jsonify, request, make_response
 from bson.objectid import ObjectId
+import flask
 import json
 import traceback
 import statistics 
@@ -195,7 +196,9 @@ ecodeServices = {
     "importDtFromXML":"435",
     "exportToDtExcel":"436",
     "exportToDtCSV":"437",
-    "exportToDtXML":"438"
+    "exportToDtXML":"438",
+    "getDetails_JIRA":"439",
+    "manageJiraDetails":"440",
 }
 
 

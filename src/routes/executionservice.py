@@ -47,7 +47,7 @@ def LoadServices(app, redissession, dbsession):
                     mindmapid = ObjectId(requestdata['mindmapid'])
                     cycleid = ObjectId(requestdata['cycleid'])
                     filterquery = {"conditioncheck":1,"getparampaths":1,"donotexecute":1,"testscenarioids":1}
-                    testsuite = dbsession.testsuites.find_one({"mindmapid":mindmapid, "cycleid":cycleid, "deleted":query['delete_flag']}, filterquery)
+                    testsuite = dbsession.testsuites.find_one({"cycleid":cycleid, "mindmapid":mindmapid, "deleted":query['delete_flag']}, filterquery)
                     create_suite = testsuite is None
                     mindmaps = dbsession.mindmaps.find_one({"_id": mindmapid, "deleted":query['delete_flag']})
                     testscenarioids = [i["_id"] for i in mindmaps["testscenarios"]]
@@ -304,8 +304,8 @@ def LoadServices(app, redissession, dbsession):
 
                 elif(param == 'getscheduledata'):
                     findquery = {}
-                    if "status" in requestdata: findquery["status"] = requestdata["status"]
                     if "scheduleid" in requestdata: findquery["_id"] = ObjectId(requestdata["scheduleid"])
+                    if "status" in requestdata: findquery["status"] = requestdata["status"]
                     res["rows"] = list(dbsession.scheduledexecutions.find(findquery))
 
                 elif(param == 'getallscheduledata'):
@@ -373,7 +373,7 @@ def LoadServices(app, redissession, dbsession):
                     for i in range(len(timelist)):
                         timestamp =  datetime.fromtimestamp(int(timelist[i])/1000,pytz.UTC)
                         address = requestdata["targetaddress"][i]
-                        count = dbsession.scheduledexecutions.find({"scheduledon": timestamp, "target": address, "status": "scheduled"}).count()
+                        count = dbsession.scheduledexecutions.find({"scheduledon": timestamp, "status": "scheduled", "target": address}).count()
                         if count > 0:
                             flag = i
                             break

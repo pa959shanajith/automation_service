@@ -139,7 +139,7 @@ def LoadServices(app, redissession, dbsession):
                     for execution in queryresult1:
                         execution['reports'] = list(dbsession.reports.find({"executionid":ObjectId(execution['_id'])},{"_id":1}))
                         for reportid in execution['reports']:
-                            reportid['jiraId'] = list(dbsession.thirdpartyintegration.find({"reportid":reportid["_id"],"type":"JIRA"},{"_id":0,"defectid":1}))
+                            reportid['jiraId'] = list(dbsession.thirdpartyintegration.find({"type":"JIRA","reportid":reportid["_id"]},{"_id":0,"defectid":1}))
                     res= {"rows":queryresult1}
             else:
                 app.logger.warn('Empty data received. report.')

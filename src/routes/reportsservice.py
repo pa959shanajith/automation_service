@@ -211,7 +211,7 @@ def LoadServices(app, redissession, dbsession):
                 app.logger.warn('Empty data received. report.')
         except Exception as getreportexc:
             servicesException("getReport",getreportexc)
-        return res
+        return flask.Response(flask.json.dumps(res), mimetype="application/json")
 
 
     #update jira defect id in report data
@@ -367,8 +367,9 @@ def LoadServices(app, redissession, dbsession):
                     reports_data['screenname'] = report['screenname']
                     reports_data['screenid'] = ObjectId(report['screenid'])
                     reports_data['access-rules'] = report['access-rules']
-                    del report['accessibility']['url']
-                    del report['accessibility']['timestamp']
+                    reports_data['screenshotpath'] = report['screenshotpath']
+                    reports_data['screenshotwidth'] = report['width']
+                    reports_data['screenshotheight'] = report['height']
                     reports_data['rulemap'] = {"cat_aria":{},"best-practice":{},"wcag2a":{},"wcag2aa":{},"wcag2aaa":{},"cat_aria":{},"section508":{}}
                     for typeofresult in report['accessibility']:
                         for acc_data in report['accessibility'][typeofresult]:
@@ -439,10 +440,13 @@ def LoadServices(app, redissession, dbsession):
                 elif 'executionid' in requestdata:
                     res['errMsg'] = "Invalid Execution Id"
                     return jsonify(res)
-                if 'modifiedby' in requestdata:
-                    query['modifiedby']=ObjectId(requestdata['modifiedby'])
                 if 'status' in requestdata and requestdata['status'].lower() in status_dict:
                     query['status']=status_dict[requestdata['status'].strip().lower()]
+                elif 'status' in requestdata:
+                    res['errMsg'] = "Invalid Status"
+                    return jsonify(res)
+                if 'modifiedby' in requestdata:
+                    query['modifiedby']=ObjectId(requestdata['modifiedby'])
                 LOB=requestdata["LOB"]
                 report = dbsession.reports.find(query,{"testscenarioid":1,"status":1,"report":1,"modifiedby":1})
                 res['rows']=arr
@@ -451,8 +455,8 @@ def LoadServices(app, redissession, dbsession):
                     scenarioid = i["testscenarioid"]
                     status = i["status"]
                     report = i["report"]["overallstatus"]
-                    starttime = i["report"]["overallstatus"][0]["StartTime"]
-                    endtime = i["report"]["overallstatus"][0]["EndTime"]
+                    starttime = i["report"]["overallstatus"][0]["StartTime"].split(".")[0]
+                    endtime = i["report"]["overallstatus"][0]["EndTime"].split(".")[0]
                     modifiedby = i["modifiedby"]
                     details["testresult"] = status
                     details["teststarttime"] = starttime

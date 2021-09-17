@@ -96,7 +96,7 @@ def LoadServices(app, redissession, dbsession):
                 prev_time = 0
                 x = DP.parse(time)
                 dtm = datetime.datetime(x.year,x.month,x.day,x.hour,x.minute) 
-                result = dbsession.scheduledexecutions.find({"scheduledon": {"$lt": dtm}, "target": users[i],"status":"scheduled"})
+                result = dbsession.scheduledexecutions.find({"scheduledon": {"$lt": dtm},"status":"scheduled","target": users[i]})
                 if result is None or result.count() == 0:
                     available_users.insert(0,users[i])
                     continue
