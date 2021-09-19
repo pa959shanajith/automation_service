@@ -155,10 +155,10 @@ def LoadServices(app, redissession, dbsession):
                 if("releaseId" in requestdata):
                     result=list(dbsession.thirdpartyintegration.find({"type":"Zephyr","releaseid":int(requestdata["releaseId"])}))
                     res= {"rows":result}
-                if("treeid" in requestdata and "testcaseids" in requestdata):
+                elif("treeid" in requestdata and "testcaseids" in requestdata):
                     result=list(dbsession.thirdpartyintegration.find({"type":"Zephyr","treeid":str(requestdata["treeid"]),"testid":{'$in':requestdata["testcaseids"]}}))
                     res= {"rows":result}
-                if("treeid" in requestdata):
+                elif("treeid" in requestdata):
                     result=list(dbsession.thirdpartyintegration.find({"type":"Zephyr","treeid":str(requestdata["treeid"])}))
                     res= {"rows":result}
             else:
