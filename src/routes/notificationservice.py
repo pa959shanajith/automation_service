@@ -305,16 +305,6 @@ def LoadServices(app, redissession, dbsession):
                                             'as':"groupinfo",       
                                         }
                                     }
-            rule_projection = {'$project':{
-                                        'actiontype':'$ruleinfo.actiontype', 
-                                        '_id':0,
-                                        'targetnode':'$ruleinfo.targetnode',
-                                        'actionon':'$ruleinfo.actionon',
-                                        'targetnodeid':'$ruleinfo.targetnodeid',
-                                        'additionalrecepientsinfo':'$ruleinfo.additionalrecepientsinfo',
-                                        'emails':'$ruleinfo.emails'
-                                    }
-                                }
             
             requestdata = json.loads(request.data)
             if not isemptyrequest(requestdata):
@@ -345,10 +335,10 @@ def LoadServices(app, redissession, dbsession):
                     result = [{"ruleinfo":result,"taskowners":owners}]
                 elif requestdata['fetchby'] == "mindmapid" and 'id' in requestdata:
                     mindmapid = requestdata['id']
-                    priority = requestdata['priority'] if 'priority' in requestdata else '0'
+                    priority = str(requestdata['priority']) if 'priority' in requestdata else '0'
                     aggregate_query = [
                                         {'$match':{'mindmapid':ObjectId(mindmapid)}},
-                                        {'$match':{'mindmapid':priority}},
+                                        {'$match':{'priority':priority}},
                                         {"$lookup":{
                                                 'from': "notificationgroups",
                                                 'let': {"groupids": "$groupids"},
@@ -395,6 +385,8 @@ def LoadServices(app, redissession, dbsession):
                     result = list(dbsession.ruleconfigurations.aggregate(aggregate_query))
                 elif requestdata['fetchby'] == "task" and 'id' in requestdata:
                     taskid = requestdata['id']
+                    extragroups = requestdata['extragroups'] if 'extragroups' in requestdata and len(requestdata['extragroups']) > 0 else []
+                    extrausers = requestdata['extrausers'] if 'extrausers' in requestdata and len(requestdata['extrausers']) > 0 else []
                     aggregate_query = [
                                         {'$match':{'_id': ObjectId(taskid)}},
                                         {"$lookup":{
@@ -403,9 +395,27 @@ def LoadServices(app, redissession, dbsession):
                                                 'pipeline':[
                                                     {"$match" : {"$expr" : {"$in": ["$_id", "$$rules"]}}},
                                                     {"$match" : {'$expr' : {'$eq': ['$actiontype',requestdata['ruleactionid']]}}},
-                                                    notificationgroups_lookup,
+                                                    {"$lookup":{
+                                                            'from': "notificationgroups",
+                                                            'let': {"groupids": "$groupids","extragroups":[ObjectId(id) for id in extragroups]},
+                                                            'pipeline':[
+                                                                {"$match" : {"$expr" : {'$or':[{"$in": ["$_id", "$$groupids"]}, {"$in": ["$_id", "$$extragroups"]}] }}},
+                                                                {'$project':{"_id":1,"internalusers":1,"otherusers":1}},
+                                                            ],
+                                                            'as':"groupinfo",       
+                                                        }
+                                                    },
                                                     groupinfo_projection,
-                                                    user_lookup,
+                                                    {'$lookup':{
+                                                                'from':'users',
+                                                                'let':{'userids':'$internalusers','extrausers': [ObjectId(id) for id in extrausers]},
+                                                                'pipeline':[
+                                                                    {"$match" : {"$expr" :{'$or':[{"$in": ["$_id", "$$userids"]},{"$in": ["$_id", "$$extrausers"]}]}}},
+                                                                    {'$project':{"_id":0,"email":1}}
+                                                                ],
+                                                                'as':'usersemails'
+                                                            }
+                                                        },
                                                     email_projection   
                                                 ],
                                                 'as':"ruleinfo"
