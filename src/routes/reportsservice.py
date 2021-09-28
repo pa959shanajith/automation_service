@@ -54,7 +54,8 @@ def LoadServices(app, redissession, dbsession):
                             'type':{"$arrayElemAt":["$arr.type",0]}
                         }}
                     ]))
-                    res= {"rows":queryresult}
+                    batchresult=list(dbsession.executions.distinct('batchname',{'parent':{'$in':[i['_id'] for i in queryresult]}}))
+                    res= {"rows":queryresult,"batch":batchresult}
             else:
                 app.logger.warn('Empty data received. report suites details.')
         except Exception as getAllSuitesexc:
@@ -69,7 +70,7 @@ def LoadServices(app, redissession, dbsession):
         try:
             requestdata=json.loads(request.data)
             if not isemptyrequest(requestdata):
-                queryresult=list(dbsession.executions.find({"parent":ObjectId(requestdata["suiteid"])},{"_id":1,"starttime":1,"endtime":1,"status":1,"version":1}))
+                queryresult=list(dbsession.executions.find({"parent":ObjectId(requestdata["suiteid"])},{"_id":1,"starttime":1,"endtime":1,"status":1,"version":1,"batchid":1}))
                 res= {"rows":queryresult}
             else:
                 app.logger.warn('Empty data received. report suites details execution.')
@@ -174,18 +175,12 @@ def LoadServices(app, redissession, dbsession):
                     }
                 ])
                 reportobj = list(query)
-                #reportobj = dbsession.reports.find_one({"_id":ObjectId(requestdata["reportid"])},{"executedtime":1,"report":1,"testscenarioid":1,"executionid":1})
                 if len(reportobj) == 0:
                     res['rows'] = []
                     return res
                 reportobj=reportobj[0]
                 reportData = {"rows":reportobj["rows"],"overallstatus":reportobj["overallstatus"]}
                 prjobj = reportobj['projects']
-                # scenarioname = dbsession.testscenarios.find_one({"_id":reportobj['testscenarioid']},{"name":1,"_id":0})["name"]
-                # suiteid = dbsession.executions.find_one({"_id":reportobj['executionid']},{"parent":1,"version":1,"_id":0})
-                # suiteobj = dbsession.testsuites.find_one({"_id":suiteid["parent"][0]},{"name":1,"cycleid":1,"_id":0})
-                # cycleid = suiteobj['cycleid']
-                # prjobj = dbsession.projects.find_one({"releases.cycles._id":cycleid},{"domain":1,"name":1,"releases":1})
                 query = {
                     'report': reportData,
                     'executionid': reportobj['executionid'],
@@ -222,19 +217,28 @@ def LoadServices(app, redissession, dbsession):
             requestdata=json.loads(request.data)
             app.logger.debug("Inside updateReportData.")
             if not isemptyrequest(requestdata):
-                queryresult = dbsession.reports.find({"_id":ObjectId(requestdata["reportid"])},{"report":1})
-                report = queryresult[0]['report']
-                report_rows = report['rows']
+                queryresult = dbsession.reports.find({"_id":ObjectId(requestdata["reportid"])},{"reportitems":1})
+                report = queryresult[0]['reportitems']
+                limit = 15000
+                slno = int(requestdata['slno'])
+                llimit = slno//limit    #slno should be >= steps
+                report_rows = []
+                reportitemsid = 0
+                for i in range(llimit,len(report)): # practically should iterate once
+                    a = list(dbsession.reportitems.find({"_id":report[i],"rows.id":slno},{"rows.$":1}))
+                    if(len(a)>0):
+                        report_rows=a[0]['rows']
+                        reportitemsid =a[0]['_id']
+                        break
                 row = None
-                for obj in report_rows:
-                    if obj['id']==int(requestdata['slno']):
-                        row = obj
-                    if "'" in obj['StepDescription']:
-                        obj['StepDescription'] = obj['StepDescription'].replace("'",'"')
+                obj = report_rows[0]
+                if obj['id']==int(requestdata['slno']):
+                    row = obj
+                if "'" in obj['StepDescription']:
+                    obj['StepDescription'] = obj['StepDescription'].replace("'",'"')
                 if(row!=None):
                     row.update({'jira_defect_id':str(requestdata['defectid'])})
-                    report['rows']=report_rows
-                    queryresult = dbsession.reports.update({"_id":ObjectId(requestdata["reportid"])},{"$set":{"report":report}})
+                    queryresult = dbsession.reportitems.update({"_id":reportitemsid,"rows.id":slno},{"$set":{"rows.$":row}})
                     dbsession.thirdpartyintegration.insert_one({
                         "type":"JIRA",
                         "reportid":requestdata["reportid"],
@@ -251,7 +255,7 @@ def LoadServices(app, redissession, dbsession):
             servicesException("updateReportData",updatereportdataexc)
         return jsonify(res)
 
-    #fetching the report by executionId
+    #fetching the report by executionId ############## need to work on this ################
     @app.route('/reports/getReport_API',methods=['POST'])
     def getReport_API():
         res={'rows':'fail','errMsg':''}
@@ -448,15 +452,15 @@ def LoadServices(app, redissession, dbsession):
                 if 'modifiedby' in requestdata:
                     query['modifiedby']=ObjectId(requestdata['modifiedby'])
                 LOB=requestdata["LOB"]
-                report = dbsession.reports.find(query,{"testscenarioid":1,"status":1,"report":1,"modifiedby":1})
+                report = dbsession.reports.find(query,{"testscenarioid":1,"status":1,"overallstatus":1,"modifiedby":1})
                 res['rows']=arr
                 for i in report:
                     details = {}
                     scenarioid = i["testscenarioid"]
                     status = i["status"]
-                    report = i["report"]["overallstatus"]
-                    starttime = i["report"]["overallstatus"][0]["StartTime"].split(".")[0]
-                    endtime = i["report"]["overallstatus"][0]["EndTime"].split(".")[0]
+                    report = i["overallstatus"]
+                    starttime = i["overallstatus"]["StartTime"].split(".")[0]
+                    endtime = i["overallstatus"]["EndTime"].split(".")[0]
                     modifiedby = i["modifiedby"]
                     details["testresult"] = status
                     details["teststarttime"] = starttime
