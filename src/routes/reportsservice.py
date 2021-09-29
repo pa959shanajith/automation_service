@@ -88,15 +88,22 @@ def LoadServices(app, redissession, dbsession):
             app.logger.debug("Inside reportStatusScenarios_ICE. Query: "+str(requestdata["query"]))
             if not isemptyrequest(requestdata):
                 if(requestdata["query"] == 'executiondetails'):
-                    queryresult = list(dbsession.reports.find({"executionid":ObjectId(requestdata["executionid"])},{"_id":1,"executionid":1,"executedon":1,"comments":1,"executedtime":1,"modifiedby":1,"modifiedbyrole":1,"modifiedon":1,"status":1,"testscenarioid":1}))
-                    if len(queryresult) > 0:
-                        r_scids = list(set([i["testscenarioid"] for i in queryresult]))
-                        scos = dbsession.testscenarios.find({"_id": {"$in": r_scids}},{"name":1})
-                        scidmap = {}
-                        for sco in scos:
-                            scidmap[sco["_id"]] = sco["name"]
-                        for rep in queryresult:
-                            rep["testscenarioname"] = scidmap.get(rep["testscenarioid"], '')
+                    queryresult = list(dbsession.reports.aggregate([
+                    {'$match':{"executionid":{'$in':[ObjectId(i)for i in requestdata["executionid"]]}}},
+                    {'$lookup':{
+                        'from':"testscenarios",
+                        'localField':"testscenarioid",
+                        'foreignField':"_id",
+                        'as':"arr"
+                        }
+                    },
+                    {'$project':{
+                        'name':{"$arrayElemAt":["$arr.name",0]},
+                        "_id":1,"executionid":1,"executedon":1,"comments":1,"executedtime":1,
+                        "modifiedby":1,"modifiedbyrole":1,"modifiedon":1,"status":1,"testscenarioid":1
+                        }
+                    }
+                    ]))
                     res = {"rows":queryresult}
             else:
                 app.logger.warn('Empty data received. report status of scenarios.')
@@ -346,7 +353,6 @@ def LoadServices(app, redissession, dbsession):
             requestdata=json.loads(request.data)
             param = str(requestdata["query"])
             app.logger.debug("Inside getAccessibilityTestingData_ICE. Query: " + param)
-            accessibility_reports = dbsession.accessibilityreports
             if requestdata["query"] == 'screendata':
                 reports_data = dbsession.accessibilityreports.find({"cycleid": ObjectId(requestdata['cycleid'])},{"screenid":1,"screenname":1})
                 result = {}
