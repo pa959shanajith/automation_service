@@ -126,15 +126,7 @@ def LoadServices(app, redissession, dbsession):
                             'from':'testscenarios',
                             'let':{'testscenarioid':'$testscenarioid'},
                             'pipeline':[
-                                { '$match': { '$expr': { '$eq': ['$_id', '$$testscenarioid']}}},
-                                { '$lookup': {
-                                            'from':'projects',
-                                            'let':{'projectid':'$projectid'},
-                                            'pipeline':[{ '$match': { '$expr': { '$eq': ['$_id', '$$projectid']}}}],
-                                            'as':'project'
-                                    }
-                                },
-                                { '$project':{'name':1,'projects':{'_id':{'$arrayElemAt':['$project._id',0]},'domain':{'$arrayElemAt':['$project.domain',0]},'name':{'$arrayElemAt':['$project.name',0]},'releases':{'$arrayElemAt':['$project.releases',0]}}}}
+                                { '$match': { '$expr': { '$eq': ['$_id', '$$testscenarioid']}}}
                             ],
                             'as':'testscenarios'
                         }
@@ -149,10 +141,22 @@ def LoadServices(app, redissession, dbsession):
                                     'let': { 'tsid': {'$arrayElemAt':['$parent',0]}},
                                     'pipeline': [
                                         { '$match': { '$expr': { '$eq': ['$_id', '$$tsid'] }}},
+                                        { '$lookup': {
+                                            'from': 'projects',
+                                            'let': {'cycleid':'$cycleid'},
+                                            'pipeline':[
+                                                { "$unwind":"$releases"},
+                                                { "$unwind":"$releases.cycles"},
+                                                { "$match": { '$expr': { '$eq': ['$releases.cycles._id', '$$cycleid']}}},
+                                                { "$project":{'_id':1,'releases':1,'domain':1,'name':1}}
+                                            ],
+                                            'as' : 'proj' 
+                                            }
+                                        }
                                     ],
                                     'as': 'testsuites'
                                 }},
-                                {'$project': {'cycleid':{'$arrayElemAt':['$testsuites.cycleid',0]},'name':{'$arrayElemAt':['$testsuites.name',0]},'_id':0}}
+                                {'$project': {'projects':{'$arrayElemAt':[{'$arrayElemAt':['$testsuites.proj',0]},0]},'cycleid':{'$arrayElemAt':['$testsuites.cycleid',0]},'name':{'$arrayElemAt':['$testsuites.name',0]},'_id':0}}
                             ],
                             'as':'executions'
                         }         
@@ -172,9 +176,9 @@ def LoadServices(app, redissession, dbsession):
                             'rows':1,
                             'executedtime':1,
                             'overallstatus':1,
-                            'projects':{'$arrayElemAt':['$testscenarios.projects',0]},
                             'cycleid':{'$arrayElemAt':['$executions.cycleid',0]},
                             'testsuitename':{'$arrayElemAt':['$executions.name',0]},
+                            'projects':{'$arrayElemAt':['$executions.projects',0]},
                             'testscenarioname':{'$arrayElemAt':['$testscenarios.name',0]},
                             'testscenarioid':{'$arrayElemAt':['$testscenarios._id',0]},
                             'executionid':1
