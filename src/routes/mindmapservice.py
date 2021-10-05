@@ -691,6 +691,7 @@ def LoadServices(app, redissession, dbsession):
                         i['cycleid']=ObjectId(i["cycleid"])
                         i["assignedto"]=ObjectId(i["assignedto"])
                         i["nodeid"]=ObjectId(i["nodeid"])
+                        i['rules'] = []
                         if i["parent"] != "":
                             i["parent"]=ObjectId(i["parent"])
                         i["reviewer"]=ObjectId(i["reviewer"])

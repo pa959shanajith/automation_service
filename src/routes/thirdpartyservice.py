@@ -86,6 +86,12 @@ def LoadServices(app, redissession, dbsession):
                     dbsession.thirdpartyintegration.delete_many({"type":"qTest","qtestsuite":requestdata["qtestsuite"]})
                     dbsession.thirdpartyintegration.insert_one(requestdata)
                     res= {"rows":"success"}
+                elif(requestdata["query"] == 'saveZephyrDetails_ICE' and 'oldtestid' in requestdata):
+                    requestdata["type"] = "Zephyr"
+                    dbsession.thirdpartyintegration.delete_many({"type":"Zephyr","testscenarioid":requestdata["testscenarioid"]})
+                    dbsession.thirdpartyintegration.delete_many({"type":"Zephyr","testid":requestdata["oldtestid"]})
+                    del requestdata['oldtestid']
+                    dbsession.thirdpartyintegration.insert_one(requestdata)
                 elif(requestdata["query"] == 'saveZephyrDetails_ICE'):
                     requestdata["type"] = "Zephyr"
                     dbsession.thirdpartyintegration.insert_one(requestdata)
@@ -138,6 +144,29 @@ def LoadServices(app, redissession, dbsession):
         except Exception as e:
             servicesException("viewIntegrationMappedList_ICE", e, True)
         return jsonify(res)
+
+    @app.route('/qualityCenter/getMappedDetails',methods=['POST'])
+    def getMappedDetails():
+        res={'rows':'fail'}
+        try:
+            requestdata=json.loads(request.data)
+            app.logger.debug("Inside getMappedDetails. Query: "+str(requestdata["query"]))
+            if not isemptyrequest(requestdata):
+                if("releaseId" in requestdata):
+                    result=list(dbsession.thirdpartyintegration.find({"type":"Zephyr","releaseid":int(requestdata["releaseId"])}))
+                    res= {"rows":result}
+                elif("treeid" in requestdata and "testcaseids" in requestdata):
+                    result=list(dbsession.thirdpartyintegration.find({"type":"Zephyr","treeid":str(requestdata["treeid"]),"testid":{'$in':requestdata["testcaseids"]}}))
+                    res= {"rows":result}
+                elif("treeid" in requestdata):
+                    result=list(dbsession.thirdpartyintegration.find({"type":"Zephyr","treeid":str(requestdata["treeid"])}))
+                    res= {"rows":result}
+            else:
+                app.logger.warn('Empty data received. getting QcMappedList.')
+        except Exception as e:
+            servicesException("getMappedDetails", e, True)
+        return jsonify(res)
+
         
     @app.route('/qualityCenter/updateMapDetails_ICE',methods=['POST'])
     def updateMapDetails_ICE():
