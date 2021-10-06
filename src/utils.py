@@ -199,6 +199,12 @@ ecodeServices = {
     "exportToDtXML":"438",
     "getDetails_JIRA":"439",
     "manageJiraDetails":"440",
+    "getNotificationGroups":"441",
+    "updateNotificationGroups":"442",
+    "getNotificationRules":"443",
+    "updateNotificationConfiguration":"444",
+    "getNotificationConfiguration":"445",
+    "updateTaskRules":"446"
 }
 
 

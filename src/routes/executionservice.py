@@ -278,6 +278,7 @@ def LoadServices(app, redissession, dbsession):
                         "executemode": requestdata["executemode"],
                         "target": requestdata["targetaddress"],
                         "scenariodetails": requestdata["scenarios"],
+                        "scenarioFlag": requestdata["scenarioFlag"],
                         "status": "scheduled",
                         "testsuiteids": [ObjectId(i) for i in requestdata['testsuiteIds']],
                         "scheduledby": scheduledby,
