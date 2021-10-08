@@ -109,7 +109,7 @@ def LoadServices(app, redissession, dbsession):
                 legend = ['left', 'top', 'width', 'height', 'tag']
                 for i in range(len(legend)):
                     if i < 4: dodata[legend[i]] = int(ob[i])
-                    else: dodata[legend[i]] = ob[i]
+                    else: dodata[legend[i]] = ob[-1]
                 dodata["height"] = dodata["top"] - dodata["height"]
                 dodata["width"] = dodata["left"] - dodata["width"]
                 dodata["url"] = so["url"] if "url" in so else ""

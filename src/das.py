@@ -1221,6 +1221,8 @@ def main():
         redissession_db2 = redis.StrictRedis(host=redisdb_conf['host'], port=int(redisdb_conf['port']), password=redisdb_pass, db=2)
         if redissession.get('icesessions') is None:
             redissession.set('icesessions',wrap('{}',db_keys))
+        if redissession_db2.get("ICE_status") is None:
+            redissession_db2.set("ICE_status", '{}')
         redis_dbup = True
     except Exception as e:
         redis_dbup = False
