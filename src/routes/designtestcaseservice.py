@@ -183,6 +183,7 @@ def LoadServices(app, redissession, dbsession):
                 queryresult1 = list(dbsession.dataobjects.find({'parent':query_screen['screenid']}))
                 screenQuery = list(dbsession.screens.find({'_id':query_screen['screenid']}))
                 custnames = {}
+                updated_objects = {}
                 orderlist = []
                 updateOrder = False
                 if (queryresult1 != []):
@@ -192,9 +193,10 @@ def LoadServices(app, redissession, dbsession):
                 steps = []
                 if not (requestdata['import_status']):
                     if len(requestdata['copiedTestCases'])>0:
-                        copiedObjects = [ObjectId(i) for i in requestdata['copiedTestCases']]
+                        copiedObjects = [ObjectId(i) for i in set(requestdata['copiedTestCases'])]
                         copiedObjectList = list(dbsession.dataobjects.find({'_id':{'$in':copiedObjects}}))
                         mapNew =[]
+                        addNew = []
                         for co in copiedObjectList:
                             if co['custname'] in custnames:
                                 if co['_id'] != custnames[co['custname']]['_id']:
@@ -207,15 +209,18 @@ def LoadServices(app, redissession, dbsession):
                                         ind = 0
                                         n_cname = cname
                                     while True:
-                                        if n_cname+'_'+str(ind+1) not in custnames:
-                                            co["custname"] = n_cname+'_'+str(ind+1)
+                                        ind += 1
+                                        if n_cname+'_'+str(ind) not in custnames:
+                                            co["custname"] = n_cname+'_'+str(ind)
                                             break
-                                    if query_screen['screenid'] not in co['parent']:
-                                        co['parent'].append(query_screen['screenid'])
-                                        if (str(co['_id']) not in orderlist):
-                                            orderlist.append(str(co['_id']))
-                                            updateOrder = True
-                                    mapNew.append(co)
+                                    cid = co['_id']
+                                    del co['parent']
+                                    co['_id'] = ObjectId()
+                                    orderlist.append(str(co['_id']))
+                                    updateOrder = True
+                                    addNew.append(co)
+                                    custnames[co['custname']] = co
+                                    updated_objects[cid] = co['_id']
                             else:
                                 if query_screen['screenid'] not in co['parent']:
                                     co['parent'].append(query_screen['screenid'])
@@ -227,9 +232,12 @@ def LoadServices(app, redissession, dbsession):
                         for mn in mapNew:
                             custnames[mn['custname']] = mn
                             dbsession.dataobjects.save(mn)
+                        adddataobjects(query_screen['screenid'],addNew)
                     for so in requestdata['testcasesteps']:
                         cid = cname = so["custname"].strip()
                         if cname in custnames: cid = custnames[cname]["_id"]
+                        if ("objectid" in so) and (ObjectId(so["objectid"]) in updated_objects):
+                            cid = updated_objects[ObjectId(so["objectid"])]
                         steps.append({
                             "stepNo": so["stepNo"],
                             "custname": cid,
