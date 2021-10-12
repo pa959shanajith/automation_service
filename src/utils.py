@@ -26,7 +26,7 @@ dasport = "1990"
 
 ui_plugins = {"alm":"Integration","apg":"APG","dashboard":"Dashboard",
     "mindmap":"Mindmap","neurongraphs":"Neuron Graphs","performancetesting":"Performance Testing",
-    "reports":"Reports","utility":"Utility","weboccular":"Webocular","seleniumtoavo":"Seleniumtoavo"}
+    "reports":"Reports","utility":"Utility","weboccular":"Webocular","seleniumtoavo":"Selenium To Avo"}
 
 projecttype_names={}
 
