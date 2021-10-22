@@ -155,12 +155,13 @@ def LoadServices(app, redissession, dbsession):
                 if("releaseId" in requestdata):
                     result=list(dbsession.thirdpartyintegration.find({"type":"Zephyr","releaseid":int(requestdata["releaseId"])}))
                     res= {"rows":result}
-                elif("treeid" in requestdata and "testcaseids" in requestdata):
-                    result=list(dbsession.thirdpartyintegration.find({"type":"Zephyr","treeid":str(requestdata["treeid"]),"testid":{'$in':requestdata["testcaseids"]}}))
-                    res= {"rows":result}
                 elif("treeid" in requestdata):
-                    result=list(dbsession.thirdpartyintegration.find({"type":"Zephyr","treeid":str(requestdata["treeid"])}))
-                    res= {"rows":result}
+                    findquery = {"type":"Zephyr","treeid":str(requestdata["treeid"])}
+                    if "parentid" in requestdata and requestdata["parentid"]!='': 
+                        findquery["parentid"] = str(requestdata["parentid"])
+                    if "testcaseids" in requestdata: 
+                        findquery["testid"] = {'$in':requestdata["testcaseids"]}
+                    res["rows"] = list(dbsession.thirdpartyintegration.find(findquery))
             else:
                 app.logger.warn('Empty data received. getting QcMappedList.')
         except Exception as e:
