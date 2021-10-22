@@ -245,7 +245,9 @@ def LoadServices(app, redissession, dbsession):
 
                 elif param == 'insertreportquery':
                     modifiedon = datetime.now()
-                    rows = json.loads(requestdata['report'])['rows']
+                    report = json.loads(requestdata['report'])
+                    rows = report['rows']
+                    overallstatus = report['overallstatus'][0]
                     limit = 15000
                     reportitems = []
                     ind=1
@@ -260,7 +262,7 @@ def LoadServices(app, redissession, dbsession):
                         "status": requestdata['status'],
                         "executedtime": modifiedon,
                         "executedon": requestdata['browser'],
-                        "overallstatus": requestdata['overallstatus'],
+                        "overallstatus": overallstatus,
                         "modifiedon": modifiedon,
                         "modifiedby": ObjectId(requestdata['modifiedby']),
                         "modifiedbyrole": ObjectId(requestdata['modifiedbyrole']),
@@ -294,6 +296,7 @@ def LoadServices(app, redissession, dbsession):
                         "executemode": requestdata["executemode"],
                         "target": requestdata["targetaddress"],
                         "scenariodetails": requestdata["scenarios"],
+                        "scenarioFlag": requestdata["scenarioFlag"],
                         "status": "scheduled",
                         "testsuiteids": [ObjectId(i) for i in requestdata['testsuiteIds']],
                         "scheduledby": scheduledby,

@@ -55,7 +55,7 @@ def LoadServices(app, redissession, dbsession):
                         }}
                     ]))
                     batchresult=list(dbsession.executions.distinct('batchname',{'parent':{'$in':[i['_id'] for i in queryresult]}}))
-                    res= {"rows":queryresult,"batch":batchresult}
+                    res= {"rows":{"modules":queryresult,"batch":batchresult}}
             else:
                 app.logger.warn('Empty data received. report suites details.')
         except Exception as getAllSuitesexc:
@@ -70,7 +70,10 @@ def LoadServices(app, redissession, dbsession):
         try:
             requestdata=json.loads(request.data)
             if not isemptyrequest(requestdata):
-                queryresult=list(dbsession.executions.find({"parent":ObjectId(requestdata["suiteid"])},{"_id":1,"starttime":1,"endtime":1,"status":1,"version":1,"batchid":1}))
+                if ("batchname" in requestdata):
+                    queryresult=list(dbsession.executions.find({"batchname":requestdata["batchname"]},{"_id":1,"starttime":1,"endtime":1,"status":1,"smart":1,"batchid":1})) 
+                else:
+                    queryresult=list(dbsession.executions.find({"parent":ObjectId(requestdata["suiteid"])},{"_id":1,"starttime":1,"endtime":1,"status":1,"smart":1,"batchid":1})) 
                 res= {"rows":queryresult}
             else:
                 app.logger.warn('Empty data received. report suites details execution.')
@@ -98,7 +101,7 @@ def LoadServices(app, redissession, dbsession):
                         }
                     },
                     {'$project':{
-                        'name':{"$arrayElemAt":["$arr.name",0]},
+                        'testscenarioname':{"$arrayElemAt":["$arr.name",0]},
                         "_id":1,"executionid":1,"executedon":1,"comments":1,"executedtime":1,
                         "modifiedby":1,"modifiedbyrole":1,"modifiedon":1,"status":1,"testscenarioid":1
                         }
