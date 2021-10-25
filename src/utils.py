@@ -26,7 +26,7 @@ dasport = "1990"
 
 ui_plugins = {"alm":"Integration","apg":"APG","dashboard":"Dashboard",
     "mindmap":"Mindmap","neurongraphs":"Neuron Graphs","performancetesting":"Performance Testing",
-    "reports":"Reports","utility":"Utility","weboccular":"Webocular"}
+    "reports":"Reports","utility":"Utility","weboccular":"Webocular","seleniumtoavo":"Selenium To Avo"}
 
 projecttype_names={}
 
@@ -199,6 +199,12 @@ ecodeServices = {
     "exportToDtXML":"438",
     "getDetails_JIRA":"439",
     "manageJiraDetails":"440",
+    "getNotificationGroups":"441",
+    "updateNotificationGroups":"442",
+    "getNotificationRules":"443",
+    "updateNotificationConfiguration":"444",
+    "getNotificationConfiguration":"445",
+    "updateTaskRules":"446"
 }
 
 
