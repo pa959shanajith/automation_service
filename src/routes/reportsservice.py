@@ -204,17 +204,10 @@ def LoadServices(app, redissession, dbsession):
                     'testsuitename': reportobj["testsuitename"],
                     'projectid': prjobj["_id"],
                     'domainname': prjobj["domain"],
-                    'projectname': prjobj["name"]
+                    'projectname': prjobj["name"],
+                    'releasename': prjobj["releases"]["name"],
+                    'cyclename': prjobj["releases"]["cycles"]["name"]
                 }
-                found = False
-                for rel in prjobj["releases"]:
-                    for cyc in rel["cycles"]:
-                        if cyc["_id"] == reportobj['cycleid']:
-                            query["releasename"] = rel["name"]
-                            query["cyclename"] = cyc["name"]
-                            found = True
-                            break
-                    if found: break
                 res= {"rows":query}
             else:
                 app.logger.warn('Empty data received. report.')
