@@ -161,6 +161,9 @@ def LoadServices(app, redissession, dbsession, *args):
                     "cycleId": str(projectDetails['releases'][0]['cycles'][0]['_id']),
                     "suiteDetails": []
                 }
+
+                screenTcDetails={}
+                dts_data = {}
                 for eachscenario in scenarioname_list:
                     temp1={
                         "condition": 0,
@@ -170,8 +173,6 @@ def LoadServices(app, redissession, dbsession, *args):
                     }
                     suiteDetailsTemplate["suiteDetails"].append(temp1)
                 
-                    screenTcDetails={}
-                    dts_data = {}
                     #creating template for testcase details
                     for i in mindmap_data['testscenarios']:
                         screen_tc_details =[]
@@ -308,7 +309,7 @@ def LoadServices(app, redissession, dbsession, *args):
                             screen_file=open(path+'Screens'+os.sep+screenNameFormat,'w')
                             screen_file.write(flask.json.JSONEncoder().encode(screen_json))
                             screen_file.close()
-                            testcaseList = list(dbsession.testcases.find({'screenid':j['_id']},{'screenid':1,'steps':1,'name':1,'parent':1,'datatables':1}))
+                            testcaseList = list(dbsession.testcases.find({'screenid':j['_id'],'parent':1},{'screenid':1,'steps':1,'name':1,'parent':1,'datatables':1}))
                             for k in testcaseList:
                                 del_flag = update_steps(k['steps'],dataObjects)
                                 dtnames = k.get('datatables', [])
