@@ -136,13 +136,9 @@ def LoadServices(app, redissession, dbsession, *args):
             moduleid=mindmap_data['_id']
             modulename= mindmap_data['name']
             suite_details=[]
-            scenarioname_list=[]
             projectid=mindmap_data['projectid']
             suiteIds = list(dbsession.testsuites.find({"mindmapid":ObjectId(moduleid)},{"_id":1}))
             projectDetails=dbsession.projects.find_one({'_id':ObjectId(projectid)},{"name":1,"domain":1,"releases.name":1,"releases.cycles._id":1,"releases.cycles.name":1})
-            
-            for i in mindmap_data['testscenarios']: #to fetch list of all scenarioid and name
-                scenarioname_list.append({'_id': ObjectId(i['_id']), 'name': i['testscenarioname']}) 
              
             for eachsuite in suiteIds: #Fetching each testSuite
                 suite_details.append(str(eachsuite['_id']))
@@ -164,7 +160,7 @@ def LoadServices(app, redissession, dbsession, *args):
 
                 screenTcDetails={}
                 dts_data = {}
-                
+
                 for i in mindmap_data['testscenarios']:
                     temp1={
                         "condition": 0,
