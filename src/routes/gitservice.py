@@ -136,13 +136,9 @@ def LoadServices(app, redissession, dbsession, *args):
             moduleid=mindmap_data['_id']
             modulename= mindmap_data['name']
             suite_details=[]
-            scenarioname_list=[]
             projectid=mindmap_data['projectid']
             suiteIds = list(dbsession.testsuites.find({"mindmapid":ObjectId(moduleid)},{"_id":1}))
             projectDetails=dbsession.projects.find_one({'_id':ObjectId(projectid)},{"name":1,"domain":1,"releases.name":1,"releases.cycles._id":1,"releases.cycles.name":1})
-            
-            for i in mindmap_data['testscenarios']: #to fetch list of all scenarioid and name
-                scenarioname_list.append({'_id': ObjectId(i['_id']), 'name': i['testscenarioname']}) 
              
             for eachsuite in suiteIds: #Fetching each testSuite
                 suite_details.append(str(eachsuite['_id']))
@@ -164,44 +160,44 @@ def LoadServices(app, redissession, dbsession, *args):
 
                 screenTcDetails={}
                 dts_data = {}
-                for eachscenario in scenarioname_list:
+
+                for i in mindmap_data['testscenarios']:
                     temp1={
                         "condition": 0,
                         "dataparam": [""],
-                        "scenarioId": str(eachscenario['_id']),
-                        "scenarioName": eachscenario['name']
+                        "scenarioId": str(i['_id']),
+                        "scenarioName": i['testscenarioname']
                     }
                     suiteDetailsTemplate["suiteDetails"].append(temp1)
                 
                     #creating template for testcase details
-                    for i in mindmap_data['testscenarios']:
-                        screen_tc_details =[]
-                        for j in i['screens']:
-                            screen_name = screen_info[j['_id']]['name']
-                            screen_apptype = screen_info[j['_id']]['appType']
-                            for k in j['testcases']:
-                                tc_steps = testcase_info[k]
-                                tc_name = testcasenames[k]
-                                dts = []
-                                if len(tc_steps) > 0 and 'datatables' in tc_steps[-1]: 
-                                    dtnames = tc_steps[-1]['datatables']
-                                    if len(dtnames) > 0:
-                                        dts_to_fetch = [i for i in dtnames if i not in dts_data]
-                                        dtdet = dbsession.datatables.find({"name": {'$in': dts_to_fetch}})
-                                        for dt in dtdet: dts_data[dt['name']] = dt['datatable']
-                                        for dt in dtnames: dts.append({dt: dts_data[dt]})
-                                    del tc_steps[-1]
-                                template1={
-                                    "template":"",
-                                    "testcase":tc_steps,
-                                    "testcasename":tc_name,
-                                    "screenid":j['_id'],
-                                    "screenname":screen_name,
-                                    "datatables": dts
-                                }
-                                screen_tc_details.append(template1)
+                    screen_tc_details =[]
+                    for j in i['screens']:
+                        screen_name = screen_info[j['_id']]['name']
+                        screen_apptype = screen_info[j['_id']]['appType']
+                        for k in j['testcases']:
+                            tc_steps = testcase_info[k]
+                            tc_name = testcasenames[k]
+                            dts = []
+                            if len(tc_steps) > 0 and 'datatables' in tc_steps[-1]: 
+                                dtnames = tc_steps[-1]['datatables']
+                                if len(dtnames) > 0:
+                                    dts_to_fetch = [i for i in dtnames if i not in dts_data]
+                                    dtdet = dbsession.datatables.find({"name": {'$in': dts_to_fetch}})
+                                    for dt in dtdet: dts_data[dt['name']] = dt['datatable']
+                                    for dt in dtnames: dts.append({dt: dts_data[dt]})
+                                del tc_steps[-1]
+                            template1={
+                                "template":"",
+                                "testcase":tc_steps,
+                                "testcasename":tc_name,
+                                "screenid":j['_id'],
+                                "screenname":screen_name,
+                                "datatables": dts
+                            }
+                            screen_tc_details.append(template1)
 
-                        screenTcDetails[temp1["scenarioId"]] = str(screen_tc_details)
+                    screenTcDetails[temp1["scenarioId"]] = str(screen_tc_details)
 
                 suiteDetailsTemplate['apptype']=screen_apptype
             batchInfo.append(suiteDetailsTemplate)
