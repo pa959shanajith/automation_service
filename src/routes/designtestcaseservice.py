@@ -371,13 +371,17 @@ def LoadServices(app, redissession, dbsession):
                     dts_data = {}
                     for tc in result: tcdict[tc['_id']] = tc
                     queryresult = [tcdict[i] for i in tc_id_list]
+                    updated_tc_list=[]
                     for k in queryresult:
+                        if k['_id'] in updated_tc_list:
+                            continue
                         queryresult1 = dbsession.dataobjects.find({'parent':k['screenid']},{'parent':0})
                         dataObjects = {}
                         for dos in queryresult1:
                             if 'custname' in dos: dos['custname'] = dos['custname'].strip()
                             dataObjects[dos['_id']] = dos
                         del_flag = update_steps(k['steps'],dataObjects)
+                        updated_tc_list.append(k['_id'])
                         #datatables
                         dtnames = k.get('datatables', [])
                         if len(dtnames) > 0:
