@@ -221,9 +221,10 @@ def LoadServices(app, redissession, dbsession):
                     tsuids = requestdata['testsuiteids']
                     execids = requestdata['executionids']
                     batchname = '' if 'batchname' not in requestdata else requestdata['batchname']
+                    smart = '' if 'smart' not in requestdata else requestdata['smart']
                     for tsuid in tsuids:
                         if execids[tsuid] is None:
-                            insertquery = {"batchid": batchid,"batchname": batchname,"smart":requestdata['smart'],"parent": [ObjectId(tsuid)],
+                            insertquery = {"batchid": batchid,"batchname": batchname,"smart":smart,"parent": [ObjectId(tsuid)],
                                 "configuration": {}, "executedby": ObjectId(requestdata['executedby']),
                                 "status": "queued", "version":requestdata['version'], "endtime": None, "starttime": starttime}
                             execid = str(dbsession.executions.insert(insertquery))
