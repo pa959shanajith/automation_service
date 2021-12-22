@@ -320,6 +320,8 @@ def LoadServices(app, redissession, dbsession):
                                 xpath=left_part+';'+xpath_lst[2]+';'+right_part
                                 dbsession.dataobjects.update({"_id": j['_id']},{"$set":{"xpath":xpath}})
                 res={"rows":"Success"}
+            else:
+                app.logger.warn('Empty data received. update import object')
         except Exception as updateimportobj:
             servicesException("updateImportObject",updateimportobj, True)
         return jsonify(res)
