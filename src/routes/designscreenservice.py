@@ -6,6 +6,8 @@ from utils import *
 from datetime import datetime
 from pymongo import InsertOne
 from pymongo import UpdateOne
+from Crypto.Cipher import AES
+import codecs
 
 def LoadServices(app, redissession, dbsession):
     setenv(app)
@@ -263,3 +265,81 @@ def LoadServices(app, redissession, dbsession):
         except Exception as updateirisobjexc:
             servicesException("updateIrisObjectType",updateirisobjexc, True)
         return jsonify(res)
+
+    @app.route('/design/updateImportObject',methods=['POST'])
+    def updateImportObject():
+        res={'rows':'fail'}
+        try:
+            requestdata = json.loads(request.data)
+            app.logger.debug("Inside updateIrisObjectType")
+            if not isemptyrequest(requestdata):
+                screenId = ObjectId(requestdata["screenid"])
+                import_objects = requestdata['data']
+                obj_types=['a','button','checkbox','elmnt','img','input','list','radiobutton','select','table']
+                key = "".join(['N','i','n','e','e','t','e','e','n','6','8','@','S','e',
+                'c','u','r','e','S','c','r','a','p','e','D','a','t','a','P','a','t','h'])
+                screen_object_names=[]
+                screen_objects=list(dbsession.dataobjects.find({"parent":screenId}))
+                for j in screen_objects:
+                    screen_object_names.append(j['custname'])
+                insert_obj={}
+                for i in import_objects:
+                    xpath_lst=['null']*12
+                    if i['update'].lower() == 'no':
+                        if not(i['objtype'] in obj_types): continue
+                        name=i['name']
+                        if name in screen_object_names:
+                            while name in screen_object_names:
+                                if name.split('_')[-1].isdigit():
+                                    name='_'.join(name.split('_')[:-1])+'_'+str(int(name.split('_')[-1])+1)
+                                else: name=i['name']+'_1'
+                        else:
+                            name=i['name']
+                        for k,v in i['modify'].items():
+                            xpath_lst[int(k)]=v
+                        left_part=wrap(';'.join(xpath_lst[:2]),key)
+                        right_part=wrap(';'.join(xpath_lst[3:]),key)
+                        xpath=left_part+';'+xpath_lst[2]+';'+right_part
+                        insert_obj['custname']=name
+                        insert_obj['xpath']=xpath
+                        insert_obj['url']=wrap(i['url'],key)
+                        insert_obj['tag']=i['objtype']
+                        insert_obj['parent']=[ObjectId(requestdata["screenid"])]
+                        dbsession.dataobjects.insert(insert_obj)
+                    if i['name'] in screen_object_names and i['update'].lower() == 'yes':
+                        for j in screen_objects:
+                            if i['name'] == j['custname']:
+                                left_part=unwrap(j['xpath'].split(';')[0],key)
+                                right_part=unwrap(j['xpath'].split(';')[2],key)
+                                xpath=left_part+';'+j['xpath'].split(';')[1]+';'+right_part
+                                xpath_lst=xpath.split(';')
+                                for k,v in i['modify'].items():
+                                    xpath_lst[int(k)]=v
+                                left_part=wrap(';'.join(xpath_lst[:2]),key)
+                                right_part=wrap(';'.join(xpath_lst[3:]),key)
+                                xpath=left_part+';'+xpath_lst[2]+';'+right_part
+                                dbsession.dataobjects.update({"_id": j['_id']},{"$set":{"xpath":xpath}})
+                res={"rows":"Success"}
+            else:
+                app.logger.warn('Empty data received. update import object')
+        except Exception as updateimportobj:
+            servicesException("updateImportObject",updateimportobj, True)
+        return jsonify(res)
+
+def wrap(data, key, iv=b'0'*16):
+    aes = AES.new(key.encode('utf-8'), AES.MODE_CBC, iv)
+    hex_data = aes.encrypt(pad(data.encode('utf-8')))
+    return codecs.encode(hex_data, 'hex').decode('utf-8')
+
+def pad(data):
+    BS = 16
+    padding = BS - len(data) % BS
+    return data + padding * chr(padding).encode('utf-8')
+
+def unpad(data):
+    return data[0:-ord(data[-1])]
+
+def unwrap(hex_data, key, iv=b'0'*16):
+    data = codecs.decode(hex_data, 'hex')
+    aes = AES.new(key.encode('utf-8'), AES.MODE_CBC, iv)
+    return unpad(aes.decrypt(data).decode('utf-8'))
