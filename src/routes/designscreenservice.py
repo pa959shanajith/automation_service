@@ -144,6 +144,18 @@ def LoadServices(app, redissession, dbsession):
                         dbsession.dataobjects.delete_many({"_id":{"$in":del_obj},"$and":[{"parent":{"$size": 1}},{"parent":screenId}]})
                     dbsession.screens.update({"_id":screenId},{"$set":{"modifiedby":modifiedby,'modifiedbyrole':modifiedbyrole,"modifiedon" : datetime.now(), "orderlist":orderList}})
                     res = {"rows":"Success"}
+                elif data["param"] == "replaceScrapeData":
+                    objList = data["objList"]
+                    screenId = ObjectId(data["screenId"])
+                    modifiedbyrole= data["roleId"]
+                    modifiedby = data["userId"]
+                    data_push=[]
+                    for i in objList:
+                        old_id=ObjectId(i[0])
+                        new_obj=i[1]
+                        new_obj["parent"]=[screenId]
+                        old_obj = dbsession.dataobjects.replace_one({"_id": old_id},new_obj)
+                    res = {"rows":"Success"}
                 elif data["param"] == "WebserviceScrapeData":
                     screenId = ObjectId(data["screenId"])
                     scrapeinfo = json.loads(data["scrapedata"])
