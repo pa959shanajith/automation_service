@@ -87,13 +87,13 @@ def LoadServices(app, redissession, dbsession):
                             if testscenarioids[i] in testscenariods_ts:
                                 index = testscenariods_ts.index(testscenarioids[i])
                             if index != -1:
-                                if (getparampaths_ts[index].strip() == ''): getparampaths.append('')
+                                if (getparampaths_ts[index].strip() == ''): getparampaths.append(' ')
                                 else: getparampaths.append(getparampaths_ts[index])
                                 if conditioncheck_ts is not None: conditioncheck.append(conditioncheck_ts[index])
                                 if donotexecute_ts is not None: donotexecute.append(donotexecute_ts[index])
                                 testscenariods_ts[index] = -1 # Visited this scenario once already
                             else:
-                                getparampaths.append('')
+                                getparampaths.append(' ')
                                 conditioncheck.append(0)
                                 donotexecute.append(1)
                         querydata["conditioncheck"] = conditioncheck
