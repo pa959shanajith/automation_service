@@ -262,7 +262,7 @@ def LoadServices(app, redissession, dbsession):
             servicesException("updateReportData",updatereportdataexc)
         return jsonify(res)
 
-    #fetching the report by executionId ############## need to work on this ################
+    #fetching the report by executionId
     @app.route('/reports/getReport_API',methods=['POST'])
     def getReport_API():
         res={'rows':'fail','errMsg':''}
