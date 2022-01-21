@@ -3,6 +3,19 @@
 ################################################################################
 #----------DEFAULT METHODS AND IMPORTS------------DO NOT EDIT-------------------
 from utils import *
+from Crypto.Cipher import AES
+import codecs
+
+ldap_key = "".join(['l','!','g','#','t','W','3','l','g','G','h','1','3','@','(',
+    'c','E','s','$','T','p','R','0','T','c','O','I','-','k','3','y','S'])
+
+def unpad(data):
+    return data[0:-ord(data[-1])]
+
+def unwrap(hex_data, key, iv=b'0'*16):
+    data = codecs.decode(hex_data, 'hex')
+    aes = AES.new(key.encode('utf-8'), AES.MODE_CBC, iv)
+    return unpad(aes.decrypt(data).decode('utf-8'))
 
 def LoadServices(app, redissession, dbsession):
     setenv(app)
@@ -211,3 +224,28 @@ def LoadServices(app, redissession, dbsession):
 ################################################################################
 # END OF QUALITYCENTRE
 ################################################################################
+
+    @app.route('/plugins/getMappedDiscoverUser',methods=['POST'])
+    def getMappedDiscoverUser():
+        app.logger.debug("Inside getMappedDiscoverUser")
+        res={'rows':'fail'}
+        try:
+            requestdata=json.loads(request.data)
+            discoverDocument = dbsession.thirdpartyintegration.find_one({ "avodiscoverurl": { "$exists": "true" }})
+            if discoverDocument and 'avodiscoverconfig' in discoverDocument:
+                exist = False
+                requser = {}
+                for user in discoverDocument['avodiscoverconfig']:
+                    if user['userid'] == ObjectId(requestdata['userid']):
+                        exist = True
+                        requser = user
+                        break
+                if exist==False :
+                    res = {'result':'fail'}
+                else:
+                    res = {'result' : 'pass', 'url' : discoverDocument['avodiscoverurl'], 'username': requser['avodiscoveruser'], 'password': unwrap(requser['avodiscoverpswrd'],ldap_key) }
+            else:
+                res = {'result':'fail'}
+        except Exception as e:
+            servicesException("getMappedDiscoverUser",e)
+        return jsonify(res)
