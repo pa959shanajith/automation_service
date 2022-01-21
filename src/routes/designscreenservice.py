@@ -6,6 +6,7 @@ from utils import *
 from datetime import datetime
 from pymongo import InsertOne
 from pymongo import UpdateOne
+from pymongo import ReplaceOne
 from Crypto.Cipher import AES
 import codecs
 
@@ -143,6 +144,21 @@ def LoadServices(app, redissession, dbsession):
                         dbsession.dataobjects.update_many({"_id":{"$in":del_obj},"$and":[{"parent.1":{"$exists":True}},{"parent":screenId}]},{"$pull":{"parent":screenId}})
                         dbsession.dataobjects.delete_many({"_id":{"$in":del_obj},"$and":[{"parent":{"$size": 1}},{"parent":screenId}]})
                     dbsession.screens.update({"_id":screenId},{"$set":{"modifiedby":modifiedby,'modifiedbyrole':modifiedbyrole,"modifiedon" : datetime.now(), "orderlist":orderList}})
+                    res = {"rows":"Success"}
+                elif data["param"] == "replaceScrapeData":
+                    objList = data["objList"]
+                    screenId = ObjectId(data["screenId"])
+                    modifiedbyrole= data["roleId"]
+                    modifiedby = data["userId"]
+                    data_push=[]
+                    req=[]
+                    for i in objList:
+                        old_id=ObjectId(i[0])
+                        new_obj=i[1]
+                        new_obj["parent"]=[screenId]
+                        req.append(ReplaceOne({"_id":old_id},new_obj))
+                    dbsession.dataobjects.bulk_write(req)
+                    dbsession.screens.update({"_id":screenId},{"$set":{"modifiedby":modifiedby,'modifiedbyrole':modifiedbyrole,"modifiedon" : datetime.now()}})
                     res = {"rows":"Success"}
                 elif data["param"] == "WebserviceScrapeData":
                     screenId = ObjectId(data["screenId"])
