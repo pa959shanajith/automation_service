@@ -54,7 +54,8 @@ def LoadServices(app, redissession, dbsession):
                             'type':{"$arrayElemAt":["$arr.type",0]}
                         }}
                     ]))
-                    res= {"rows":queryresult}
+                    batchresult=list(dbsession.executions.distinct('batchname',{'parent':{'$in':[i['_id'] for i in queryresult]}}))
+                    res= {"rows":{"modules":queryresult,"batch":batchresult}}
             else:
                 app.logger.warn('Empty data received. report suites details.')
         except Exception as getAllSuitesexc:
@@ -69,7 +70,10 @@ def LoadServices(app, redissession, dbsession):
         try:
             requestdata=json.loads(request.data)
             if not isemptyrequest(requestdata):
-                queryresult=list(dbsession.executions.find({"parent":ObjectId(requestdata["suiteid"])},{"_id":1,"starttime":1,"endtime":1,"status":1,"version":1}))
+                if ("batchname" in requestdata):
+                    queryresult=list(dbsession.executions.find({"batchname":requestdata["batchname"]},{"_id":1,"starttime":1,"endtime":1,"status":1,"smart":1,"batchid":1})) 
+                else:
+                    queryresult=list(dbsession.executions.find({"parent":ObjectId(requestdata["suiteid"])},{"_id":1,"starttime":1,"endtime":1,"status":1,"smart":1,"batchid":1})) 
                 res= {"rows":queryresult}
             else:
                 app.logger.warn('Empty data received. report suites details execution.')
@@ -87,15 +91,22 @@ def LoadServices(app, redissession, dbsession):
             app.logger.debug("Inside reportStatusScenarios_ICE. Query: "+str(requestdata["query"]))
             if not isemptyrequest(requestdata):
                 if(requestdata["query"] == 'executiondetails'):
-                    queryresult = list(dbsession.reports.find({"executionid":ObjectId(requestdata["executionid"])},{"_id":1,"executionid":1,"executedon":1,"comments":1,"executedtime":1,"modifiedby":1,"modifiedbyrole":1,"modifiedon":1,"status":1,"testscenarioid":1}))
-                    if len(queryresult) > 0:
-                        r_scids = list(set([i["testscenarioid"] for i in queryresult]))
-                        scos = dbsession.testscenarios.find({"_id": {"$in": r_scids}},{"name":1})
-                        scidmap = {}
-                        for sco in scos:
-                            scidmap[sco["_id"]] = sco["name"]
-                        for rep in queryresult:
-                            rep["testscenarioname"] = scidmap.get(rep["testscenarioid"], '')
+                    queryresult = list(dbsession.reports.aggregate([
+                    {'$match':{"executionid":{'$in':[ObjectId(i)for i in requestdata["executionid"]]}}},
+                    {'$lookup':{
+                        'from':"testscenarios",
+                        'localField':"testscenarioid",
+                        'foreignField':"_id",
+                        'as':"arr"
+                        }
+                    },
+                    {'$project':{
+                        'testscenarioname':{"$arrayElemAt":["$arr.name",0]},
+                        "_id":1,"executionid":1,"executedon":1,"comments":1,"executedtime":1,
+                        "modifiedby":1,"modifiedbyrole":1,"modifiedon":1,"status":1,"testscenarioid":1
+                        }
+                    }
+                    ]))
                     res = {"rows":queryresult}
             else:
                 app.logger.warn('Empty data received. report status of scenarios.')
@@ -112,37 +123,91 @@ def LoadServices(app, redissession, dbsession):
             requestdata=json.loads(request.data)
             app.logger.debug("Inside getReport")
             if not isemptyrequest(requestdata):
-                reportobj = dbsession.reports.find_one({"_id":ObjectId(requestdata["reportid"])},{"executedtime":1,"report":1,"testscenarioid":1,"executionid":1})
-                if reportobj is None:
+                query = dbsession.reports.aggregate([
+                    {'$match':{'_id':ObjectId(requestdata["reportid"])}},
+                    { '$lookup':{
+                            'from':'testscenarios',
+                            'let':{'testscenarioid':'$testscenarioid'},
+                            'pipeline':[
+                                { '$match': { '$expr': { '$eq': ['$_id', '$$testscenarioid']}}}
+                            ],
+                            'as':'testscenarios'
+                        }
+                    },
+                    { '$lookup':{
+                            'from':'executions',
+                            'let':{'excid':'$executionid'},
+                            'pipeline':[
+                                { '$match': { '$expr': { '$eq': ['$_id', '$$excid']}}},
+                                { '$lookup': {
+                                    'from': 'testsuites',
+                                    'let': { 'tsid': {'$arrayElemAt':['$parent',0]}},
+                                    'pipeline': [
+                                        { '$match': { '$expr': { '$eq': ['$_id', '$$tsid'] }}},
+                                        { '$lookup': {
+                                            'from': 'projects',
+                                            'let': {'cycleid':'$cycleid'},
+                                            'pipeline':[
+                                                { "$unwind":"$releases"},
+                                                { "$unwind":"$releases.cycles"},
+                                                { "$match": { '$expr': { '$eq': ['$releases.cycles._id', '$$cycleid']}}},
+                                                { "$project":{'_id':1,'releases':1,'domain':1,'name':1}}
+                                            ],
+                                            'as' : 'proj' 
+                                            }
+                                        }
+                                    ],
+                                    'as': 'testsuites'
+                                }},
+                                {'$project': {'projects':{'$arrayElemAt':[{'$arrayElemAt':['$testsuites.proj',0]},0]},'cycleid':{'$arrayElemAt':['$testsuites.cycleid',0]},'name':{'$arrayElemAt':['$testsuites.name',0]},'_id':0}}
+                            ],
+                            'as':'executions'
+                        }         
+                    },
+                    { '$lookup': {
+                            'from': 'reportitems',
+                            'let': { 'pid': '$reportitems' },
+                            'pipeline': [
+                                { '$match': { '$expr': { '$in': ['$_id', '$$pid'] } } },
+                                {'$unwind': '$rows'},
+                                { '$replaceRoot': { 'newRoot': '$rows' } }
+                            ],
+                            'as':'rows'
+                        }
+                    },
+                    {'$project':{
+                            'rows':1,
+                            'executedtime':1,
+                            'overallstatus':1,
+                            'cycleid':{'$arrayElemAt':['$executions.cycleid',0]},
+                            'testsuitename':{'$arrayElemAt':['$executions.name',0]},
+                            'projects':{'$arrayElemAt':['$executions.projects',0]},
+                            'testscenarioname':{'$arrayElemAt':['$testscenarios.name',0]},
+                            'testscenarioid':{'$arrayElemAt':['$testscenarios._id',0]},
+                            'executionid':1
+                        }
+                    }
+                ])
+                reportobj = list(query)
+                if len(reportobj) == 0:
                     res['rows'] = []
                     return res
-                scenarioname = dbsession.testscenarios.find_one({"_id":reportobj['testscenarioid']},{"name":1,"_id":0})["name"]
-                suiteid = dbsession.executions.find_one({"_id":reportobj['executionid']},{"parent":1,"version":1,"_id":0})
-                suiteobj = dbsession.testsuites.find_one({"_id":suiteid["parent"][0]},{"name":1,"cycleid":1,"_id":0})
-                cycleid = suiteobj['cycleid']
-                prjobj = dbsession.projects.find_one({"releases.cycles._id":cycleid},{"domain":1,"name":1,"releases":1})
+                reportobj=reportobj[0]
+                reportData = {"rows":reportobj["rows"],"overallstatus":reportobj["overallstatus"]}
+                prjobj = reportobj['projects']
                 query = {
-                    'report': reportobj["report"],
+                    'report': reportData,
                     'executionid': reportobj['executionid'],
                     'executedtime': reportobj["executedtime"],
                     'testscenarioid': reportobj["testscenarioid"],
-                    'testscenarioname': scenarioname,
-                    'testsuitename': suiteobj["name"],
+                    'testscenarioname': reportobj["testscenarioname"],
+                    'testsuitename': reportobj["testsuitename"],
                     'projectid': prjobj["_id"],
                     'domainname': prjobj["domain"],
-                    'projectname': prjobj["name"]
+                    'projectname': prjobj["name"],
+                    'releasename': prjobj["releases"]["name"],
+                    'cyclename': prjobj["releases"]["cycles"]["name"]
                 }
-                if('version' in suiteid):
-                    query['version']=suiteid['version']
-                found = False
-                for rel in prjobj["releases"]:
-                    for cyc in rel["cycles"]:
-                        if cyc["_id"] == cycleid:
-                            query["releasename"] = rel["name"]
-                            query["cyclename"] = cyc["name"]
-                            found = True
-                            break
-                    if found: break
                 res= {"rows":query}
             else:
                 app.logger.warn('Empty data received. report.')
@@ -159,19 +224,28 @@ def LoadServices(app, redissession, dbsession):
             requestdata=json.loads(request.data)
             app.logger.debug("Inside updateReportData.")
             if not isemptyrequest(requestdata):
-                queryresult = dbsession.reports.find({"_id":ObjectId(requestdata["reportid"])},{"report":1})
-                report = queryresult[0]['report']
-                report_rows = report['rows']
+                queryresult = dbsession.reports.find({"_id":ObjectId(requestdata["reportid"])},{"reportitems":1})
+                report = queryresult[0]['reportitems']
+                limit = 15000
+                slno = int(requestdata['slno'])
+                llimit = slno//limit    #slno should be >= steps
+                report_rows = []
+                reportitemsid = 0
+                for i in range(llimit,len(report)): # practically should iterate once
+                    a = list(dbsession.reportitems.find({"_id":report[i],"rows.id":slno},{"rows.$":1}))
+                    if(len(a)>0):
+                        report_rows=a[0]['rows']
+                        reportitemsid =a[0]['_id']
+                        break
                 row = None
-                for obj in report_rows:
-                    if obj['id']==int(requestdata['slno']):
-                        row = obj
-                    if "'" in obj['StepDescription']:
-                        obj['StepDescription'] = obj['StepDescription'].replace("'",'"')
+                obj = report_rows[0]
+                if obj['id']==int(requestdata['slno']):
+                    row = obj
+                if "'" in obj['StepDescription']:
+                    obj['StepDescription'] = obj['StepDescription'].replace("'",'"')
                 if(row!=None):
                     row.update({'jira_defect_id':str(requestdata['defectid'])})
-                    report['rows']=report_rows
-                    queryresult = dbsession.reports.update({"_id":ObjectId(requestdata["reportid"])},{"$set":{"report":report}})
+                    queryresult = dbsession.reportitems.update({"_id":reportitemsid,"rows.id":slno},{"$set":{"rows.$":row}})
                     dbsession.thirdpartyintegration.insert_one({
                         "type":"JIRA",
                         "reportid":requestdata["reportid"],
@@ -279,7 +353,6 @@ def LoadServices(app, redissession, dbsession):
             requestdata=json.loads(request.data)
             param = str(requestdata["query"])
             app.logger.debug("Inside getAccessibilityTestingData_ICE. Query: " + param)
-            accessibility_reports = dbsession.accessibilityreports
             if requestdata["query"] == 'screendata':
                 reports_data = dbsession.accessibilityreports.find({"cycleid": ObjectId(requestdata['cycleid'])},{"screenid":1,"screenname":1})
                 result = {}
@@ -385,15 +458,15 @@ def LoadServices(app, redissession, dbsession):
                 if 'modifiedby' in requestdata:
                     query['modifiedby']=ObjectId(requestdata['modifiedby'])
                 LOB=requestdata["LOB"]
-                report = dbsession.reports.find(query,{"testscenarioid":1,"status":1,"report":1,"modifiedby":1})
+                report = dbsession.reports.find(query,{"testscenarioid":1,"status":1,"overallstatus":1,"modifiedby":1})
                 res['rows']=arr
                 for i in report:
                     details = {}
                     scenarioid = i["testscenarioid"]
                     status = i["status"]
-                    report = i["report"]["overallstatus"]
-                    starttime = i["report"]["overallstatus"][0]["StartTime"].split(".")[0]
-                    endtime = i["report"]["overallstatus"][0]["EndTime"].split(".")[0]
+                    report = i["overallstatus"]
+                    starttime = i["overallstatus"]["StartTime"].split(".")[0]
+                    endtime = i["overallstatus"]["EndTime"].split(".")[0]
                     modifiedby = i["modifiedby"]
                     details["testresult"] = status
                     details["teststarttime"] = starttime
