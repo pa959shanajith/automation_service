@@ -6,9 +6,6 @@ from utils import *
 from Crypto.Cipher import AES
 import codecs
 
-ldap_key = "".join(['l','!','g','#','t','W','3','l','g','G','h','1','3','@','(',
-    'c','E','s','$','T','p','R','0','T','c','O','I','-','k','3','y','S'])
-
 def unpad(data):
     return data[0:-ord(data[-1])]
 
@@ -17,9 +14,9 @@ def unwrap(hex_data, key, iv=b'0'*16):
     aes = AES.new(key.encode('utf-8'), AES.MODE_CBC, iv)
     return unpad(aes.decrypt(data).decode('utf-8'))
 
-def LoadServices(app, redissession, dbsession):
+def LoadServices(app, redissession, dbsession, *args):
     setenv(app)
-
+    ldap_key = args[0]
 ################################################################################
 # END OF DEFAULT METHODS AND IMPORTS       -----------DO NOT EDIT
 ################################################################################
@@ -231,21 +228,20 @@ def LoadServices(app, redissession, dbsession):
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
-            discoverDocument = dbsession.thirdpartyintegration.find_one({ "avodiscoverurl": { "$exists": "true" }})
-            if discoverDocument and 'avodiscoverconfig' in discoverDocument:
-                exist = False
-                requser = {}
-                for user in discoverDocument['avodiscoverconfig']:
-                    if user['userid'] == ObjectId(requestdata['userid']):
-                        exist = True
-                        requser = user
-                        break
-                if exist==False :
-                    res = {'result':'fail'}
-                else:
+            if not isemptyrequest(requestdata):
+                userid = ObjectId(requestdata['userid'])
+                discoverDocument = dbsession.thirdpartyintegration.find_one({ "type": "AvoDiscover", "avodiscoverconfig.userid": userid})
+                if discoverDocument is not None:
+                    requser = {}
+                    for user in discoverDocument['avodiscoverconfig']:
+                        if user['userid'] == ObjectId(requestdata['userid']):
+                            requser = user
+                            break
                     res = {'result' : 'pass', 'url' : discoverDocument['avodiscoverurl'], 'username': requser['avodiscoveruser'], 'password': unwrap(requser['avodiscoverpswrd'],ldap_key) }
+                else:
+                    res = {'result' : 'fail'}
             else:
-                res = {'result':'fail'}
+                app.logger.warn('Empty data received while getting mapped discover users.')
         except Exception as e:
             servicesException("getMappedDiscoverUser",e)
         return jsonify(res)
