@@ -1340,12 +1340,11 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
             data['avodiscoveruser'] = requestdata['avodiscoveruser']
             data['avodiscoverpswrd'] = wrap( requestdata['avodiscoverpwsrd'],ldap_key)
             if(action == 'map'):
-                chk_user = dbsession.thirdpartyintegration.find_one({'avodiscoverurl':avodiscoverurl},{'avodiscoverconfig':1})
+                chk_user = dbsession.thirdpartyintegration.find_one({'avodiscoverurl':avodiscoverurl,'type':'AvoDiscover'},{'avodiscoverconfig':1})
                 if chk_user!=None:
-                    for entries in range(0,len(chk_user['avodiscoverconfig'])):
-                        if(chk_user['avodiscoverconfig'][entries]['userid']==data['userid']):
-                            res={"rows":"User already mapped"}
-                            return res
+                    for entries in chk_user['avodiscoverconfig']:
+                        if entries['userid'] == data['userid']:
+                            return jsonify({"rows":"User already mapped"})
                     dbsession.thirdpartyintegration.update_one({'_id':chk_user['_id']},{"$push":{'avodiscoverconfig':data}})
                     avoDiscoverFlag=True
                 else:
@@ -1354,13 +1353,9 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
             if(avoDiscoverFlag):
                 data=[]
                 result1={}
-                query = list(dbsession.thirdpartyintegration.find({'avodiscoverurl':avodiscoverurl},{'avodiscoverconfig':1,'_id':0}))
-                for i in range(0,len(query[0]['avodiscoverconfig'])):
-                    ob = {
-                        '_id': query[0]['avodiscoverconfig'][i]['userid'],
-                        'name':query[0]['avodiscoverconfig'][i]['avodiscoveruser']
-                    }
-                data.append(ob)
+                query = list(dbsession.thirdpartyintegration.find({'avodiscoverurl':avodiscoverurl,'type':'AvoDiscover'},{'avodiscoverconfig':1,'_id':0}))
+                for i in query[0]['avodiscoverconfig']:
+                    data.append({'_id': i['userid'], 'name': i['avodiscoveruser']})
                 result1['mappedavodiscoverlist'] = data
                 res={'rows':result1}
             else:
@@ -1381,28 +1376,16 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
         try:
             requestdata=json.loads(request.data)
             if(requestdata['action'] == 'unmap'):
-                query = list(dbsession.thirdpartyintegration.find({'type':'AvoDiscover'}))
-                for i in range(0,len(query)):
-                    if(len(query[0]['avodiscoverconfig'])==1):
-                        dbsession.thirdpartyintegration.delete_one({'type':'AvoDiscover','avodiscoverurl':requestdata['avodiscoverurl']})
-                        break
-                    avodiscover_flag=True
-                    break
-                if(avodiscover_flag):
-                    for i in range(0,len(query)):
-                        if(query[0]['avodiscoverconfig'][i]['userid']==ObjectId(requestdata['targetid'])):
-                            del query[0]['avodiscoverconfig'][i]
-                            dbsession.thirdpartyintegration.update_one({'_id':query[0]['_id']},{"$set":{'avodiscoverconfig':query[0]['avodiscoverconfig']}})
-                            break
-                    updated_query = list(dbsession.thirdpartyintegration.find({'type':'AvoDiscover'}))
-                    for i in range(0,len(updated_query)):
-                        if(len(updated_query[0]['avodiscoverconfig'])==0):
-                            break
-                        ob = {
-                        '_id': updated_query[0]['avodiscoverconfig'][i]['userid'],
-                        'name':updated_query[0]['avodiscoverconfig'][i]['avodiscoveruser']
-                        }
-                    data.append(ob)
+                query = dbsession.thirdpartyintegration.find_one({'type':'AvoDiscover'})
+                tid = ObjectId(requestdata['targetid'])
+                if query != None:
+                    if len(query['avodiscoverconfig']) == 1 and query['avodiscoverconfig'][0]['userid'] == tid:
+                        dbsession.thirdpartyintegration.delete_one({'_id': query['_id']})
+                    else:
+                        dbsession.thirdpartyintegration.update_one({'_id': query['_id']}, {"$pull":{'avodiscoverconfig': {'userid': tid}}})
+                        upd_query = dbsession.thirdpartyintegration.find_one({'_id': query['_id']})
+                        for i in upd_query['avodiscoverconfig']:
+                            data.append({'_id': i['userid'], 'name': i['avodiscoveruser']})
             else:
                 dbsession.thirdpartyintegration.delete_one({'type':'AvoDiscover','avodiscoverurl':requestdata['avodiscoverurl']})
             result['mappedavodiscoverlist'] = data
@@ -1421,16 +1404,11 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
         data=[]
         try:
             query = list(dbsession.thirdpartyintegration.find({'type':'AvoDiscover'},{'_id':0}))
-            if(list(query)==[] or query[0]['avodiscoverconfig']==0):
-                res = {'rows':'empty'}
-                return res
+            if(len(query)==0):
+                return jsonify({"rows":"empty"})
             result['avodiscoverurl'] = query[0]['avodiscoverurl']
-            for i in range(0,len(query[0]['avodiscoverconfig'])):
-                ob = {
-                    '_id': query[0]['avodiscoverconfig'][i]['userid'],
-                    'name':query[0]['avodiscoverconfig'][i]['avodiscoveruser']
-                }
-                data.append(ob)
+            for i in query[0]['avodiscoverconfig']:
+                data.append({'_id': i['userid'], 'name': i['avodiscoveruser']})
             result['mappedavodiscoverlist'] = data
             res={'rows':result}
         except Exception as e:
