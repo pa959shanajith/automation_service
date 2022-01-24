@@ -14,9 +14,6 @@ from pymongo import InsertOne
 from pymongo import UpdateOne
 currdir=os.getcwd()
 
-ldap_key = "".join(['l','!','g','#','t','W','3','l','g','G','h','1','3','@','(',
-    'c','E','s','$','T','p','R','0','T','c','O','I','-','k','3','y','S'])
-
 def wrap(data, key, iv=b'0'*16):
     aes = AES.new(key.encode('utf-8'), AES.MODE_CBC, iv)
     hex_data = aes.encrypt(pad(data.encode('utf-8')))
@@ -37,6 +34,7 @@ def unwrap(hex_data, key, iv=b'0'*16):
 
 def LoadServices(app, redissession, dbsession, *args):
     setenv(app)
+    ldap_key = args[1]
     defcn = ['@Window', '@Object', '@System', '@Excel', '@Mobile', '@Android_Custom', '@Word', '@Custom', '@CustomiOS',
              '@Generic', '@Browser', '@Action', '@Email', '@BrowserPopUp', '@Sap','@Oebs', 'WebService List', 'Mainframe List', 'OBJECT_DELETED']
 
