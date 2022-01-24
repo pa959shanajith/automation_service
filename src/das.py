@@ -190,7 +190,7 @@ def addroutes():
     executionservice.LoadServices(app, redissession, dbsession)
 
     import thirdpartyservice
-    thirdpartyservice.LoadServices(app, redissession, dbsession)
+    thirdpartyservice.LoadServices(app, redissession, dbsession, ldap_key)
 
     import reportsservice
     reportsservice.LoadServices(app, redissession, dbsession)

@@ -3,10 +3,20 @@
 ################################################################################
 #----------DEFAULT METHODS AND IMPORTS------------DO NOT EDIT-------------------
 from utils import *
+from Crypto.Cipher import AES
+import codecs
 
-def LoadServices(app, redissession, dbsession):
+def unpad(data):
+    return data[0:-ord(data[-1])]
+
+def unwrap(hex_data, key, iv=b'0'*16):
+    data = codecs.decode(hex_data, 'hex')
+    aes = AES.new(key.encode('utf-8'), AES.MODE_CBC, iv)
+    return unpad(aes.decrypt(data).decode('utf-8'))
+
+def LoadServices(app, redissession, dbsession, *args):
     setenv(app)
-
+    ldap_key = args[0]
 ################################################################################
 # END OF DEFAULT METHODS AND IMPORTS       -----------DO NOT EDIT
 ################################################################################
@@ -211,3 +221,27 @@ def LoadServices(app, redissession, dbsession):
 ################################################################################
 # END OF QUALITYCENTRE
 ################################################################################
+
+    @app.route('/plugins/getMappedDiscoverUser',methods=['POST'])
+    def getMappedDiscoverUser():
+        app.logger.debug("Inside getMappedDiscoverUser")
+        res={'rows':'fail'}
+        try:
+            requestdata=json.loads(request.data)
+            if not isemptyrequest(requestdata):
+                userid = ObjectId(requestdata['userid'])
+                discoverDocument = dbsession.thirdpartyintegration.find_one({ "type": "AvoDiscover", "avodiscoverconfig.userid": userid})
+                if discoverDocument is not None:
+                    requser = {}
+                    for user in discoverDocument['avodiscoverconfig']:
+                        if user['userid'] == ObjectId(requestdata['userid']):
+                            requser = user
+                            break
+                    res = {'result' : 'pass', 'url' : discoverDocument['avodiscoverurl'], 'username': requser['avodiscoveruser'], 'password': unwrap(requser['avodiscoverpswrd'],ldap_key) }
+                else:
+                    res = {'result' : 'fail'}
+            else:
+                app.logger.warn('Empty data received while getting mapped discover users.')
+        except Exception as e:
+            servicesException("getMappedDiscoverUser",e)
+        return jsonify(res)
