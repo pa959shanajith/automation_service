@@ -205,6 +205,9 @@ ecodeServices = {
     "updateNotificationConfiguration":"444",
     "getNotificationConfiguration":"445",
     "updateTaskRules":"446",
+    "avoDiscoverMap":"447",
+    "avoDiscoverReset":"448",
+    "fetchAvoDiscoverMap":"449",
     "getMappedDiscoverUser":"450"
 }
 

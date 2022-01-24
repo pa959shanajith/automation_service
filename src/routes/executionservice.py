@@ -50,12 +50,18 @@ def LoadServices(app, redissession, dbsession):
                     testsuite = dbsession.testsuites.find_one({"cycleid":cycleid, "mindmapid":mindmapid, "deleted":query['delete_flag']}, filterquery)
                     create_suite = testsuite is None
                     mindmaps = dbsession.mindmaps.find_one({"_id": mindmapid, "deleted":query['delete_flag']})
+                    batchinfo = dbsession.tasks.find_one({"nodeid":mindmapid, "cycleid":cycleid},{'batchname': 1,'_id':0})
+                    batchname=''
+                    if(batchinfo != None and 'batchname' in batchinfo):
+                        batchname = batchinfo['batchname']
+                    
                     testscenarioids = [i["_id"] for i in mindmaps["testscenarios"]]
                     tsclen = len(testscenarioids)
                     createdby = ObjectId(requestdata['createdby'])
                     createdbyrole = ObjectId(requestdata['createdbyrole'])
                     querydata = {}
                     querydata["name"] = mindmaps["name"]
+                    querydata["batchname"] = batchname
                     querydata["modifiedby"] = createdby
                     querydata["modifiedbyrole"] = createdbyrole
                     querydata["modifiedon"] = datetime.now()
@@ -104,7 +110,7 @@ def LoadServices(app, redissession, dbsession):
                     res['rows'] = {
                         "testsuiteid": testsuiteid, "conditioncheck": querydata["conditioncheck"],
                         "donotexecute": querydata["donotexecute"], "getparampaths": querydata["getparampaths"],
-                        "testscenarioids": testscenarioids, "name": querydata["name"]
+                        "testscenarioids": testscenarioids, "name": querydata["name"], "batchname": querydata["batchname"]
                     }
 
                 elif(param == 'gettestscenario'):
@@ -214,9 +220,11 @@ def LoadServices(app, redissession, dbsession):
                     batchid = ObjectId() if requestdata["batchid"] == "generate" else ObjectId(requestdata["batchid"])
                     tsuids = requestdata['testsuiteids']
                     execids = requestdata['executionids']
+                    batchname = '' if 'batchname' not in requestdata else requestdata['batchname']
+                    smart = False if 'smart' not in requestdata else requestdata['smart']
                     for tsuid in tsuids:
                         if execids[tsuid] is None:
-                            insertquery = {"batchid": batchid, "parent": [ObjectId(tsuid)],
+                            insertquery = {"batchid": batchid,"batchname": batchname,"smart":smart,"parent": [ObjectId(tsuid)],
                                 "configuration": {}, "executedby": ObjectId(requestdata['executedby']),
                                 "status": "queued", "version":requestdata['version'], "endtime": None, "starttime": starttime}
                             execid = str(dbsession.executions.insert(insertquery))
@@ -238,19 +246,30 @@ def LoadServices(app, redissession, dbsession):
 
                 elif param == 'insertreportquery':
                     modifiedon = datetime.now()
+                    report = json.loads(requestdata['report'])
+                    rows = report['rows']
+                    overallstatus = report['overallstatus'][0]
+                    limit = 15000
+                    reportitems = []
+                    ind=1
+                    for x in range(0, len(rows), limit):
+                        reportitems.append({'index':ind,'rows':rows[x:x+limit]})
+                        ind+=1
+                    ritems = dbsession.reportitems.insert_many(reportitems)
+
                     querydata = {
                         "executionid": ObjectId(requestdata['executionid']),
                         "testscenarioid": ObjectId(requestdata['testscenarioid']),
                         "status": requestdata['status'],
                         "executedtime": modifiedon,
                         "executedon": requestdata['browser'],
+                        "overallstatus": overallstatus,
                         "modifiedon": modifiedon,
                         "modifiedby": ObjectId(requestdata['modifiedby']),
                         "modifiedbyrole": ObjectId(requestdata['modifiedbyrole']),
-                        "report": json.loads(requestdata['report'])
+                        "reportitems": ritems.inserted_ids
                     }
                     res["rows"] = str(dbsession.reports.insert(querydata))
-
                 app.logger.debug("Executed ExecuteTestSuite_ICE. Query: " + param)
             else:
                 app.logger.warn('Empty data received. execute testsuite.')

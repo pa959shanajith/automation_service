@@ -178,7 +178,7 @@ def addroutes():
     if os.path.exists(gitpath):
         os.environ["GIT_PYTHON_GIT_EXECUTABLE"] = gitpath
         import gitservice
-        gitservice.LoadServices(app, redissession, dbsession)
+        gitservice.LoadServices(app, redissession, dbsession, ldap_key)
 
     import designscreenservice
     designscreenservice.LoadServices(app, redissession, dbsession)
