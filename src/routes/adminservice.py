@@ -1324,6 +1324,98 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
             servicesException("manageJiraDetails",e)
         return jsonify(res)
 
+    #service to map avo discover configuration
+    @app.route('/admin/avoDiscoverMap',methods=['POST'])
+    def avoDiscoverMap():
+        app.logger.debug("Inside avoDiscoverMap")
+        res={'rows':'fail'}
+        data={}
+        avoDiscoverFlag = False
+        try:
+            requestdata=json.loads(request.data)
+            action = requestdata['action']
+            avodiscoverurl = requestdata['avodiscoverurl']
+            avodiscoverauthurl = requestdata['avodiscoverauthurl']
+            data['userid'] = ObjectId(requestdata['userid'])
+            data['avodiscoveruser'] = requestdata['avodiscoveruser']
+            data['avodiscoverpswrd'] = requestdata['avodiscoverpwsrd']
+            if(action == 'map'):
+                chk_user = dbsession.thirdpartyintegration.find_one({'avodiscoverurl':avodiscoverurl,'type':'AvoDiscover'},{'avodiscoverconfig':1})
+                if chk_user!=None:
+                    for entries in chk_user['avodiscoverconfig']:
+                        if entries['userid'] == data['userid']:
+                            return jsonify({"rows":"User already mapped"})
+                    dbsession.thirdpartyintegration.update_one({'_id':chk_user['_id']},{"$push":{'avodiscoverconfig':data}})
+                    avoDiscoverFlag=True
+                else:
+                    dbsession.thirdpartyintegration.insert_one({'avodiscoverurl':avodiscoverurl,'avodiscoverauthurl':avodiscoverauthurl,'type':'AvoDiscover','avodiscoverconfig':[data]})
+                    avoDiscoverFlag = True
+            if(avoDiscoverFlag):
+                data=[]
+                result1={}
+                query = list(dbsession.thirdpartyintegration.find({'avodiscoverurl':avodiscoverurl,'type':'AvoDiscover'},{'avodiscoverconfig':1,'_id':0}))
+                for i in query[0]['avodiscoverconfig']:
+                    data.append({'_id': i['userid'], 'name': i['avodiscoveruser']})
+                result1['mappedavodiscoverlist'] = data
+                res={'rows':result1}
+            else:
+                return res
+        except Exception as e:
+            app.logger.debug(traceback.format_exc())
+            servicesException("avoDiscoverMap", e, True)
+        return jsonify(res)
+
+    #service to reset/unmap Avo Discover configuration
+    @app.route('/admin/avoDiscoverReset',methods=['POST'])
+    def avoDiscoverReset():
+        app.logger.debug("Inside avoDiscoverReset")
+        res={'rows':'fail'}
+        data=[]
+        result={}
+        avodiscover_flag=False
+        try:
+            requestdata=json.loads(request.data)
+            if(requestdata['action'] == 'unmap'):
+                query = dbsession.thirdpartyintegration.find_one({'type':'AvoDiscover'})
+                tid = ObjectId(requestdata['targetid'])
+                if query != None:
+                    if len(query['avodiscoverconfig']) == 1 and query['avodiscoverconfig'][0]['userid'] == tid:
+                        dbsession.thirdpartyintegration.delete_one({'_id': query['_id']})
+                    else:
+                        dbsession.thirdpartyintegration.update_one({'_id': query['_id']}, {"$pull":{'avodiscoverconfig': {'userid': tid}}})
+                        upd_query = dbsession.thirdpartyintegration.find_one({'_id': query['_id']})
+                        for i in upd_query['avodiscoverconfig']:
+                            data.append({'_id': i['userid'], 'name': i['avodiscoveruser']})
+            else:
+                dbsession.thirdpartyintegration.delete_one({'type':'AvoDiscover','avodiscoverurl':requestdata['avodiscoverurl']})
+            result['mappedavodiscoverlist'] = data
+            res={'rows':result}
+        except Exception as e:
+            app.logger.debug(traceback.format_exc())
+            servicesException("avoDiscoverReset", e, True)
+        return jsonify(res)
+
+    #service to fetch avo discover configuration
+    @app.route('/admin/fetchAvoDiscoverMap',methods=['POST'])
+    def fetchAvoDiscoverMap():
+        app.logger.debug("Inside fetchAvoDiscoverMap")
+        res={'rows':'fail'}
+        result={}
+        data=[]
+        try:
+            query = list(dbsession.thirdpartyintegration.find({'type':'AvoDiscover'},{'_id':0}))
+            if(len(query)==0):
+                return jsonify({"rows":"empty"})
+            result['avodiscoverurl'] = query[0]['avodiscoverurl']
+            for i in query[0]['avodiscoverconfig']:
+                data.append({'_id': i['userid'], 'name': i['avodiscoveruser']})
+            result['mappedavodiscoverlist'] = data
+            res={'rows':result}
+        except Exception as e:
+            app.logger.debug(traceback.format_exc())
+            servicesException("fetchAvoDiscoverMap", e, True)
+        return jsonify(res)
+        
     def check_array_exists(data_arr):
         if data_arr is not None and len(data_arr) > 0:
             return True
