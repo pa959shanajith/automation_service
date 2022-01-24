@@ -34,7 +34,7 @@ def unwrap(hex_data, key, iv=b'0'*16):
 
 def LoadServices(app, redissession, dbsession, *args):
     setenv(app)
-    ldap_key = args[1]
+    ldap_key = args[0]
     defcn = ['@Window', '@Object', '@System', '@Excel', '@Mobile', '@Android_Custom', '@Word', '@Custom', '@CustomiOS',
              '@Generic', '@Browser', '@Action', '@Email', '@BrowserPopUp', '@Sap','@Oebs', 'WebService List', 'Mainframe List', 'OBJECT_DELETED']
 

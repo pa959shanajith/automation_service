@@ -1338,7 +1338,7 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
             avodiscoverauthurl = requestdata['avodiscoverauthurl']
             data['userid'] = ObjectId(requestdata['userid'])
             data['avodiscoveruser'] = requestdata['avodiscoveruser']
-            data['avodiscoverpswrd'] = requestdata['avodiscoverpwsrd']
+            data['avodiscoverpswrd'] = wrap(requestdata['avodiscoverpwsrd'],ldap_key)
             if(action == 'map'):
                 chk_user = dbsession.thirdpartyintegration.find_one({'avodiscoverurl':avodiscoverurl,'type':'AvoDiscover'},{'avodiscoverconfig':1})
                 if chk_user!=None:
