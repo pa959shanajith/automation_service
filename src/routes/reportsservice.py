@@ -361,7 +361,7 @@ def LoadServices(app, redissession, dbsession):
                 for reportobj in list(query):
                     prjobj = reportobj['projects']
                     data={
-                        'report': reportobj["rows"],
+                        'report': {"rows":reportobj["rows"],"overallstatus":reportobj["overallstatus"]},
                         'testscenarioid': reportobj["testscenarioid"],
                         'testscenarioname': reportobj["testscenarioname"],
                         'domainname': prjobj["domain"],
@@ -370,8 +370,7 @@ def LoadServices(app, redissession, dbsession):
                         'releasename': prjobj["releases"]["name"],
                         'cyclename': prjobj["releases"]["cycles"]["name"],
                         'moduleid': reportobj["mindmapid"],
-                        'testsuitename': reportobj["testsuitename"],
-                        "overallstatus":reportobj["overallstatus"]
+                        'testsuitename': reportobj["testsuitename"]
                     }
                     finalQuery.append(data)
                 res["rows"] = finalQuery
