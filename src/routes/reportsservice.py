@@ -275,9 +275,6 @@ def LoadServices(app, redissession, dbsession):
             requestdata=json.loads(request.data)
             app.logger.debug("Inside getReport_API")
             if not isemptyrequest(requestdata) and valid_objectid(requestdata['executionId']):
-                errMsgVal=str(requestdata["executionId"])
-                tsuite = dbsession.executions.find_one({"_id": ObjectId(requestdata["executionId"])})["parent"]
-                errMsgVal=''
                 filter1 = {"executionid":ObjectId(requestdata["executionId"])}
                 if("scenarioIds" in requestdata):
                     scenarioIds = dbsession.reports.distinct("testscenarioid", filter1)
@@ -293,47 +290,90 @@ def LoadServices(app, redissession, dbsession):
                             errIds.append(str(scenId))
                     if len(correctScenarios) != 0 or len(errIds) != 0:
                         filter1["testscenarioid"] = {"$in":correctScenarios}
-                queryresult1 = dbsession.reports.find(filter1)
-                cycleid_dict = {}
-                for reportobj in queryresult1:
-                    tscid = reportobj["testscenarioid"]
-                    tsc = dbsession.testscenarios.find_one({"_id":tscid},{"name":1,"projectid":1,"_id":0})
-                    tsuobj = {}
-                    for tsuid in tsuite:
-                        tsuobj_t = dbsession.testsuites.find_one({"_id":tsuid, "testscenarioids": tscid})
-                        if tsuobj_t:
-                            tsuobj = tsuobj_t
-                            break
-                    prjobj = dbsession.projects.find_one({"_id":tsc["projectid"]},{"domain":1,"name":1,"releases":1,"_id":0})
-                    release_name = prjobj["releases"][0]["name"]
-                    cycle_name = prjobj["releases"][0]["cycles"][0]["name"]
-                    cycleid = tsuobj.get('cycleid', None)
-                    if cycleid:
-                        if cycleid not in cycleid_dict:
-                            found = False
-                            for rel in prjobj["releases"]:
-                                for cyc in rel["cycles"]:
-                                    if cyc["_id"] == cycleid:
-                                        found = (rel["name"], cyc["name"])
-                                        break
-                                if found:
-                                    cycleid_dict[cycleid] = found
-                                    break
-                        if cycleid in cycleid_dict:
-                            release_name, cycle_name = cycleid_dict[cycleid]
-                    query={
-                        'report': reportobj["report"],
-                        'testscenarioid': tscid,
-                        'testscenarioname': tsc["name"],
+
+                query = dbsession.reports.aggregate([
+                    {'$match':{'testscenarioid':{"$in":correctScenarios},"executionid":ObjectId(requestdata["executionId"])}},
+                    { '$lookup':{
+                            'from':'testscenarios',
+                            'let':{'testscenarioid':'$testscenarioid'},
+                            'pipeline':[
+                                { '$match': { '$expr': { '$eq': ['$_id', '$$testscenarioid']}}}
+                            ],
+                            'as':'testscenarios'
+                        }
+                    },
+                    { '$lookup':{
+                            'from':'executions',
+                            'let':{'excid':'$executionid'},
+                            'pipeline':[
+                                { '$match': { '$expr': { '$eq': ['$_id', '$$excid']}}},
+                                { '$lookup': {
+                                    'from': 'testsuites',
+                                    'let': { 'tsid': {'$arrayElemAt':['$parent',0]}},
+                                    'pipeline': [
+                                        { '$match': { '$expr': { '$eq': ['$_id', '$$tsid'] }}},
+                                        { '$lookup': {
+                                            'from': 'projects',
+                                            'let': {'cycleid':'$cycleid'},
+                                            'pipeline':[
+                                                { "$unwind":"$releases"},
+                                                { "$unwind":"$releases.cycles"},
+                                                { "$match": { '$expr': { '$eq': ['$releases.cycles._id', '$$cycleid']}}},
+                                                { "$project":{'_id':1,'releases':1,'domain':1,'name':1}}
+                                            ],
+                                            'as' : 'proj' 
+                                            }
+                                        }
+                                    ],
+                                    'as': 'testsuites'
+                                }},
+                                {'$project': {'projects':{'$arrayElemAt':[{'$arrayElemAt':['$testsuites.proj',0]},0]},'mindmapid':{'$arrayElemAt':['$testsuites.mindmapid',0]},'cycleid':{'$arrayElemAt':['$testsuites.cycleid',0]},'name':{'$arrayElemAt':['$testsuites.name',0]},'_id':0}}
+                            ],
+                            'as':'executions'
+                        }         
+                    },
+                    { '$lookup': {
+                            'from': 'reportitems',
+                            'let': { 'pid': '$reportitems' },
+                            'pipeline': [
+                                { '$match': { '$expr': { '$in': ['$_id', '$$pid'] } } },
+                                {'$unwind': '$rows'},
+                                { '$replaceRoot': { 'newRoot': '$rows' } }
+                            ],
+                            'as':'rows'
+                        }
+                    },
+                    {'$project':{
+                            'rows':1,
+                            'executedtime':1,
+                            'overallstatus':1,
+                            'cycleid':{'$arrayElemAt':['$executions.cycleid',0]},
+                            'testsuitename':{'$arrayElemAt':['$executions.name',0]},
+                            'mindmapid':{'$arrayElemAt':['$executions.mindmapid',0]},
+                            'projects':{'$arrayElemAt':['$executions.projects',0]},
+                            'testscenarioname':{'$arrayElemAt':['$testscenarios.name',0]},
+                            'testscenarioid':{'$arrayElemAt':['$testscenarios._id',0]},
+                            'executionid':1
+                        }
+                    }
+                ])
+                finalQuery=[]
+                for reportobj in list(query):
+                    prjobj = reportobj['projects']
+                    data={
+                        'report': reportobj["rows"],
+                        'testscenarioid': reportobj["testscenarioid"],
+                        'testscenarioname': reportobj["testscenarioname"],
                         'domainname': prjobj["domain"],
                         'projectname': prjobj["name"],
                         'reportid': reportobj["_id"],
-                        'releasename': release_name,
-                        'cyclename': cycle_name,
-                        'moduleid': tsuobj.get("mindmapid", None),
-                        'testsuitename': tsuobj.get("name", None)
+                        'releasename': prjobj["releases"]["name"],
+                        'cyclename': prjobj["releases"]["cycles"]["name"],
+                        'moduleid': reportobj["mindmapid"],
+                        'testsuitename': reportobj["testsuitename"],
+                        "overallstatus":reportobj["overallstatus"]
                     }
-                    finalQuery.append(query)
+                    finalQuery.append(data)
                 res["rows"] = finalQuery
                 if len(errIds) != 0:
                     res["errMsg"] = errMsg+'Scenario Id(s): '+(','.join(errIds))
@@ -344,7 +384,7 @@ def LoadServices(app, redissession, dbsession):
             if errMsgVal:
                 res['errMsg']=errMsg+'Execution Id: '+errMsgVal
             servicesException("getReport_API", getreportexc, True)
-        return jsonify(res)
+        return flask.Response(flask.json.dumps(res), mimetype="application/json")
 
     @app.route('/reports/getAccessibilityTestingData_ICE',methods=['POST'])
     def getAccessibilityData_ICE():
