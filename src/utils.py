@@ -274,19 +274,30 @@ def update_execution_times(dbsession,app):
     app.logger.info("Updating Execution Times")
     resultdict = {}
     try:
-        result = dbsession.reports.find({},{"testscenarioid":1,"report":1,"status":1})
-        for i in range(result.count()):
+        result = dbsession.reports.aggregate([
+                    { '$lookup':{
+                            'from': 'reportitems',
+                            'let': { 'pid': '$reportitems' },
+                            'pipeline': [
+                                { '$match': { '$expr': { '$in': ['$_id','$$pid']}}},
+                                {'$unwind':'$rows'},
+                                { '$group': { "_id": None, 'rows': { '$push': '$rows' } } } ,
+                                { '$project': {  'rows': { '$size': "$rows" } } }
+                            ],
+                            'as':'rowitems'
+                        }
+                    },
+                    { '$project': {"testscenarioid":1,"overallstatus":1,"status":1,"rowlen":{'$arrayElemAt':['$rowitems.rows',0]} }}
+                ])
+        for res in result:
             try:
-                key = str(result[i]['testscenarioid'])
+                key = str(res['testscenarioid'])
                 if key in resultdict:
-                    ostatus = result[i]['report']['overallstatus']
-                    if len(ostatus) == 1:
-                        if "overallstatus" not in ostatus[0]:
-                            statuskey = 'overAllStatus'
-                        else:
-                            statuskey = 'overallstatus'
-                        if(result[i]['status'] == 'pass' or result[i]['status'] == 'fail'  ):
-                            etime = ostatus[0]['EllapsedTime']
+                    if 'overallstatus' in res:
+                        ostatus = res['overallstatus']
+                        statuskey = 'overallstatus'
+                        if(res['status'].lower() == 'pass' or res['status'].lower() == 'fail'  ):
+                            etime = ostatus['EllapsedTime']
                             if "days" in etime:
                                 etime = etime.replace(" days, ",":").split(':')
                                 time_sec = float((etime[0]))*86400 + float((etime[1]))*3600 + float((etime[2]))*60 + float((etime[3]))
@@ -294,25 +305,22 @@ def update_execution_times(dbsession,app):
                                 etime = etime.replace(" day, ",":").split(":")
                                 time_sec = float((etime[0]))*86400 + float((etime[1]))*3600 + float((etime[2]))*60 + float((etime[3]))
                             else:
-                                etime = etime.split(":")
+                                etime = etime.strip("~").split(":")
                                 time_sec = float((etime[0]))*3600 + float((etime[1]))*60 + float((etime[2]))
                             if time_sec >= resultdict[key]['max']:
                                 resultdict[key]['max'] = time_sec
-                                resultdict[key]['max_status'] = ostatus[0][statuskey]
+                                resultdict[key]['max_status'] = ostatus[statuskey]
                             if time_sec <= resultdict[key]['min']:
                                 resultdict[key]['min'] = time_sec
-                                resultdict[key]['min_status'] = ostatus[0][statuskey]
+                                resultdict[key]['min_status'] = ostatus[statuskey]
                             resultdict[key]['timearr'].append(time_sec)
-                            resultdict[key]['steps'] = len(result[i]['report']['rows'])
+                            resultdict[key]['steps'] = res['rowlen']
                 else:
-                    ostatus = result[i]['report']['overallstatus']
-                    if len(ostatus) == 1:
-                        if "overallstatus" not in ostatus[0]:
-                            statuskey = 'overAllStatus'
-                        else:
-                            statuskey = 'overallstatus'
-                        if(result[i]['status'] == 'pass' or result[i]['status'] == 'fail'):
-                            etime = ostatus[0]['EllapsedTime']
+                    if "overallstatus" in res:
+                        ostatus = res['overallstatus']
+                        statuskey = 'overallstatus'
+                        if(res['status'].lower() == 'pass' or res['status'].lower() == 'fail'):
+                            etime = ostatus['EllapsedTime']
                             if "days" in etime:
                                 etime = etime.replace(" days, ",":").split(':')
                                 time_sec = float((etime[0]))*86400 + float((etime[1]))*3600 + float((etime[2]))*60 + float((etime[3]))
@@ -320,16 +328,16 @@ def update_execution_times(dbsession,app):
                                 etime = etime.replace(" day, ",":").split(':')
                                 time_sec = float((etime[0]))*86400 + float((etime[1]))*3600 + float((etime[2]))*60 + float((etime[3]))
                             else:
-                                etime = etime.split(":")
+                                etime = etime.strip("~").split(":")
                                 time_sec = float((etime[0]))*3600 + float((etime[1]))*60 + float((etime[2]))
                             resultdict[key] = {}
-                            resultdict[key]['max_status'] = ostatus[0][statuskey]
-                            resultdict[key]['min_status'] = ostatus[0][statuskey]
+                            resultdict[key]['max_status'] = ostatus[statuskey]
+                            resultdict[key]['min_status'] = ostatus[statuskey]
                             resultdict[key]['timearr'] = []
                             resultdict[key]['min'] = time_sec
                             resultdict[key]['max'] = time_sec
                             resultdict[key]['timearr'].append(time_sec)
-                            resultdict[key]['steps'] = len(result[i]['report']['rows'])
+                            resultdict[key]['steps'] = res['rowlen']
             except Exception as e:
                 servicesException("update_execution_times",e,True)
                 continue
