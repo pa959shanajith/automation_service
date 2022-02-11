@@ -26,7 +26,7 @@ dasport = "1990"
 
 ui_plugins = {"alm":"Integration","apg":"APG","dashboard":"Dashboard",
     "mindmap":"Mindmap","neurongraphs":"Neuron Graphs","performancetesting":"Performance Testing",
-    "reports":"Reports","utility":"Utility","weboccular":"Webocular","seleniumtoavo":"Selenium To Avo"}
+    "reports":"Reports","utility":"Utility","weboccular":"Webocular","seleniumtoavo":"Selenium To Avo", "avodiscover": "Avo Discover"}
 
 projecttype_names={}
 
@@ -204,7 +204,11 @@ ecodeServices = {
     "getNotificationRules":"443",
     "updateNotificationConfiguration":"444",
     "getNotificationConfiguration":"445",
-    "updateTaskRules":"446"
+    "updateTaskRules":"446",
+    "avoDiscoverMap":"447",
+    "avoDiscoverReset":"448",
+    "fetchAvoDiscoverMap":"449",
+    "getMappedDiscoverUser":"450"
 }
 
 
