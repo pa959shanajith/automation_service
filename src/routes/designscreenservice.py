@@ -259,6 +259,26 @@ def LoadServices(app, redissession, dbsession):
             servicesException("updateScreen_ICE",updatescreenexc, True)
         return jsonify(res)
 
+    @app.route('/design/fetchReplacedKeywords_ICE',method=['POST'])
+    def fetchReplacedKeywords_ICE():
+        res={'rows':'fail'}
+        try:
+            data=json.loads(request.data)
+            if not isemptyrequest(data):
+                Objectkeyword_List = {}
+                screenid = ObjectId(data['screenid'])
+                queryresult = list(dbsession.testcases.find({"screenid":screenid, "deleted":False},{"steps":1}))
+                for i in queryresult:
+                    result = fetchObjectKeywords(i['steps'], data['objList'])
+                    Objectkeyword_List[i['_id']].append(result)
+                res={'rows':Objectkeyword_List}
+            else:
+                app.logger.warn('Empty data received. Fetch replaced keywords')
+        except Exception as fetchkeywordexc:
+            servicesException("fetchReplacedKeywords_ICE", fetchkeywordexc, True)
+        return jsonify(res)
+
+
     @app.route('/design/updateIrisObjectType',methods=['POST'])
     def updateIrisObjectType():
         res={'rows':'fail'}
@@ -359,3 +379,13 @@ def unwrap(hex_data, key, iv=b'0'*16):
     data = codecs.decode(hex_data, 'hex')
     aes = AES.new(key.encode('utf-8'), AES.MODE_CBC, iv)
     return unpad(aes.decrypt(data).decode('utf-8'))
+
+def fetchObjectKeywords(steps, objList):
+    data=[]
+    try:
+        for i in steps:
+            if(i['custname'] in objList and i['keywordVal']!=data[i]['keywordVal']):
+                data.append({'custname': i['custname'], 'keywordVal': i['keywordVal']})
+    except Exception as e:
+            servicesException('fetchObjectKeywords', e, True)
+    return data
