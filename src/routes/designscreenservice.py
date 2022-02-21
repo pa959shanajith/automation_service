@@ -160,6 +160,28 @@ def LoadServices(app, redissession, dbsession):
                     dbsession.dataobjects.bulk_write(req)
                     dbsession.screens.update({"_id":screenId},{"$set":{"modifiedby":modifiedby,'modifiedbyrole':modifiedbyrole,"modifiedon" : datetime.now()}})
                     res = {"rows":"Success"}
+                elif data["param"] == "crossReplaceScrapeData":
+                    screenId = ObjectId(data["screenId"])
+                    modifiedbyrole= data["roleId"]
+                    modifiedby = data["userId"]
+                    objList = data["replaceObjList"]
+                    for i in objList:
+                        old_id=ObjectId(i['oldObjId'])
+                        new_obj=i['newObjectData']
+                        new_obj["parent"]=screenId
+                        req.append(ReplaceOne({"_id":old_id},new_obj))
+                    dbsession.dataobjects.bulk_write(req)
+                    dbsession.screens.update({"_id":screenId},{"$set":{"modifiedby":modifiedby,'modifiedbyrole':modifiedbyrole,"modifiedon" : datetime.now()}})
+                    # update the keywords inside testcases steps
+                    for tcid in objList['testcaseIds']:
+                        req1=[]
+                        stepcount=0
+                        for newvalue in objList['newKeywordsMap']:
+                            req1.append(UpdateOne({'_id':ObjectId(tcid),'steps.'+str(stepcount)+'.custname':ObjectId(objList['oldObjId']),'steps.'+str(stepcount)+'.keywordVal':newvalue},
+                            {'$set':{'steps.'+str(stepcount)+'.keywordVal':objList['newKeywordsMap'][newvalue]}}))
+                            stepcount+=1
+                        dbsession.testcases.bulk_write(req1)
+                    res = {"rows":"Success"}
                 elif data["param"] == "WebserviceScrapeData":
                     screenId = ObjectId(data["screenId"])
                     scrapeinfo = json.loads(data["scrapedata"])
@@ -272,13 +294,14 @@ def LoadServices(app, redissession, dbsession):
                 }
                 for i in queryresult: #loop through each testcases
                     for k in i['steps']: #loop through each testcase steps
-                        if str(k['custname']) in data['objMap'] and str(k['custname']) in result:
-                            if k['keywordVal'] not in result[str(k['custname'])]['keywords']:
-                                result[str(k['custname'])]['keywords'].append(k['keywordVal'])
-                            if str(i['_id']) not in result[str(k['custname'])]['testcasesids']:
-                                result[str(k['custname'])]['testcasesids'].append(str(i['_id']))
-                        else:
-                            result[str(k['custname'])] = {'keywords':[k['keywordVal']],'testcasesids':[str(i['_id'])]}
+                        if str(k['custname']) in data['objMap']:
+                            if str(k['custname']) in result:
+                                if k['keywordVal'] not in result[str(k['custname'])]['keywords']:
+                                    result[str(k['custname'])]['keywords'].append(k['keywordVal'])
+                                if str(i['_id']) not in result[str(k['custname'])]['testcasesids']:
+                                    result[str(k['custname'])]['testcasesids'].append(str(i['_id']))
+                            else:
+                                result[str(k['custname'])] = {'keywords':[k['keywordVal']],'testcasesids':[str(i['_id'])]}
                         
                 # fetch keyword list
                 keywordquery = dbsession.projecttypekeywords.find_one({'name':data['appType']},{'_id':0,'keywordsmap':1})['keywordsmap']
