@@ -259,25 +259,50 @@ def LoadServices(app, redissession, dbsession):
             servicesException("updateScreen_ICE",updatescreenexc, True)
         return jsonify(res)
 
-    @app.route('/design/fetchReplacedKeywords_ICE',method=['POST'])
+    @app.route('/design/fetchReplacedKeywords_ICE',methods=['POST'])
     def fetchReplacedKeywords_ICE():
         res={'rows':'fail'}
         try:
             data=json.loads(request.data)
             if not isemptyrequest(data):
-                Objectkeyword_List = {}
-                screenid = ObjectId(data['screenid'])
+                screenid = ObjectId(data['screenId'])
                 queryresult = list(dbsession.testcases.find({"screenid":screenid, "deleted":False},{"steps":1}))
-                for i in queryresult:
-                    result = fetchObjectKeywords(i['steps'], data['objList'])
-                    Objectkeyword_List[i['_id']].append(result)
-                res={'rows':Objectkeyword_List}
+                result={
+                    'keywordList':{}
+                }
+                for i in queryresult: #loop through each testcases
+                    for k in i['steps']: #loop through each testcase steps
+                        if str(k['custname']) in data['objMap'] and str(k['custname']) in result:
+                            if k['keywordVal'] not in result[str(k['custname'])]['keywords']:
+                                result[str(k['custname'])]['keywords'].append(k['keywordVal'])
+                            if str(i['_id']) not in result[str(k['custname'])]['testcasesids']:
+                                result[str(k['custname'])]['testcasesids'].append(str(i['_id']))
+                        else:
+                            result[str(k['custname'])] = {'keywords':[k['keywordVal']],'testcasesids':[str(i['_id'])]}
+                        
+                # fetch keyword list
+                keywordquery = dbsession.projecttypekeywords.find_one({'name':data['appType']},{'_id':0,'keywordsmap':1})['keywordsmap']
+                
+                newlist = []
+                for eachobj in data['objMap']:
+                    newlist.append(data['objMap'][eachobj])
+
+                if 'path' in newlist:
+                    newlist = list(map(lambda x: x.replace('path','element'),newlist))
+
+                for i in keywordquery:
+                    if i['objecttype'] in newlist:
+                        result['keywordList'][i['objecttype']] = i['keywords']
+                        newlist.remove(i['objecttype'])
+                    if len(newlist) == 0:
+                        break
+
+                res={'rows':result}
             else:
                 app.logger.warn('Empty data received. Fetch replaced keywords')
         except Exception as fetchkeywordexc:
             servicesException("fetchReplacedKeywords_ICE", fetchkeywordexc, True)
         return jsonify(res)
-
 
     @app.route('/design/updateIrisObjectType',methods=['POST'])
     def updateIrisObjectType():
@@ -379,13 +404,3 @@ def unwrap(hex_data, key, iv=b'0'*16):
     data = codecs.decode(hex_data, 'hex')
     aes = AES.new(key.encode('utf-8'), AES.MODE_CBC, iv)
     return unpad(aes.decrypt(data).decode('utf-8'))
-
-def fetchObjectKeywords(steps, objList):
-    data=[]
-    try:
-        for i in steps:
-            if(i['custname'] in objList and i['keywordVal']!=data[i]['keywordVal']):
-                data.append({'custname': i['custname'], 'keywordVal': i['keywordVal']})
-    except Exception as e:
-            servicesException('fetchObjectKeywords', e, True)
-    return data
