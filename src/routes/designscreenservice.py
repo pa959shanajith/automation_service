@@ -161,15 +161,15 @@ def LoadServices(app, redissession, dbsession):
                     dbsession.screens.update({"_id":screenId},{"$set":{"modifiedby":modifiedby,'modifiedbyrole':modifiedbyrole,"modifiedon" : datetime.now()}})
                     res = {"rows":"Success"}
                 elif data["param"] == "crossReplaceScrapeData":
+                    req=[]
                     screenId = ObjectId(data["screenId"])
                     modifiedbyrole= data["roleId"]
                     modifiedby = data["userId"]
                     objList = data["replaceObjList"]
-                    for i in objList:
-                        old_id=ObjectId(i['oldObjId'])
-                        new_obj=i['newObjectData']
-                        new_obj["parent"]=screenId
-                        req.append(ReplaceOne({"_id":old_id},new_obj))
+                    old_id=ObjectId(objList['oldObjId'])
+                    new_obj=objList['newObjectData']
+                    new_obj["parent"]=screenId
+                    req.append(ReplaceOne({"_id":old_id},new_obj))
                     dbsession.dataobjects.bulk_write(req)
                     dbsession.screens.update({"_id":screenId},{"$set":{"modifiedby":modifiedby,'modifiedbyrole':modifiedbyrole,"modifiedon" : datetime.now()}})
                     # update the keywords inside testcases steps
