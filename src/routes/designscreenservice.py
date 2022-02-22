@@ -161,6 +161,7 @@ def LoadServices(app, redissession, dbsession):
                     dbsession.screens.update({"_id":screenId},{"$set":{"modifiedby":modifiedby,'modifiedbyrole':modifiedbyrole,"modifiedon" : datetime.now()}})
                     res = {"rows":"Success"}
                 elif data["param"] == "crossReplaceScrapeData":
+                    req=[]
                     screenId = ObjectId(data["screenId"])
                     modifiedbyrole= data["roleId"]
                     modifiedby = data["userId"]
