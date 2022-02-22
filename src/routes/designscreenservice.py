@@ -163,8 +163,8 @@ def LoadServices(app, redissession, dbsession):
                 elif data["param"] == "crossReplaceScrapeData":
                     req=[]
                     screenId = ObjectId(data["screenId"])
-                    modifiedbyrole= data["roleId"]
-                    modifiedby = data["userId"]
+                    modifiedbyrole= ObjectId(data["roleId"])
+                    modifiedby = ObjectId(data["userId"])
                     objList = data["replaceObjList"]
                     old_id=ObjectId(objList['oldObjId'])
                     new_obj=objList['newObjectData']
