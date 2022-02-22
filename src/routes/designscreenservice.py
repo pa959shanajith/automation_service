@@ -5,7 +5,7 @@
 from utils import *
 from datetime import datetime
 from pymongo import InsertOne
-from pymongo import UpdateOne
+from pymongo import UpdateOne, UpdateMany
 from pymongo import ReplaceOne
 from Crypto.Cipher import AES
 import codecs
@@ -175,11 +175,9 @@ def LoadServices(app, redissession, dbsession):
                     # update the keywords inside testcases steps
                     for tcid in objList['testcaseIds']:
                         req1=[]
-                        stepcount=0
                         for newvalue in objList['newKeywordsMap']:
-                            req1.append(UpdateOne({'_id':ObjectId(tcid),'steps.'+str(stepcount)+'.custname':ObjectId(objList['oldObjId']),'steps.'+str(stepcount)+'.keywordVal':newvalue},
-                            {'$set':{'steps.'+str(stepcount)+'.keywordVal':objList['newKeywordsMap'][newvalue]}}))
-                            stepcount+=1
+                            req1.append(UpdateMany({'_id':ObjectId(tcid),'steps.$.custname':ObjectId(objList['oldObjId']),'steps.$.keywordVal':newvalue},
+                            {'$set':{'steps.$.keywordVal':objList['newKeywordsMap'][newvalue]}}))
                         dbsession.testcases.bulk_write(req1)
                     res = {"rows":"Success"}
                 elif data["param"] == "WebserviceScrapeData":
