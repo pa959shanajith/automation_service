@@ -161,7 +161,6 @@ def LoadServices(app, redissession, dbsession):
                     dbsession.screens.update({"_id":screenId},{"$set":{"modifiedby":modifiedby,'modifiedbyrole':modifiedbyrole,"modifiedon" : datetime.now()}})
                     res = {"rows":"Success"}
                 elif data["param"] == "crossReplaceScrapeData":
-                    req=[]
                     screenId = ObjectId(data["screenId"])
                     modifiedbyrole= data["roleId"]
                     modifiedby = data["userId"]
@@ -174,12 +173,13 @@ def LoadServices(app, redissession, dbsession):
                     dbsession.screens.update({"_id":screenId},{"$set":{"modifiedby":modifiedby,'modifiedbyrole':modifiedbyrole,"modifiedon" : datetime.now()}})
                     # update the keywords inside testcases steps
                     for tcid in objList['testcaseIds']:
-                        req1=[]
+                        steplist = dbsession.testcases.find_one({'_id':ObjectId(tcid)},{'steps':1,'_id':0})['steps']
                         for newvalue in objList['newKeywordsMap']:
-                            req1.append(UpdateMany({'_id':ObjectId(tcid),'steps.$.custname':ObjectId(objList['oldObjId']),'steps.$.keywordVal':newvalue},
-                            {'$set':{'steps.$.keywordVal':objList['newKeywordsMap'][newvalue]}}))
-                        dbsession.testcases.bulk_write(req1)
-                    res = {"rows":"Success"}
+                            for eachstep in steplist:
+                                if eachstep['custname'] == ObjectId(objList['oldObjId']) and eachstep['keywordVal']==newvalue:
+                                    dbsession.testcases.update({'_id':ObjectId(tcid),'steps.'+str(eachstep['stepNo']-1)+'.custname':ObjectId(objList['oldObjId']),'steps.'+str(eachstep['stepNo']-1)+'.keywordVal':newvalue},
+                                    {'$set':{'steps.'+str(eachstep['stepNo']-1)+'.keywordVal':objList['newKeywordsMap'][newvalue]}})
+                    res={'rows':'Success'}
                 elif data["param"] == "WebserviceScrapeData":
                     screenId = ObjectId(data["screenId"])
                     scrapeinfo = json.loads(data["scrapedata"])
