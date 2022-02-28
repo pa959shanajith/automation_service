@@ -104,11 +104,39 @@ def LoadServices(app, redissession, dbsession, *args):
                     dbsession.thirdpartyintegration.insert_one(requestdata)
                 elif(requestdata["query"] == 'saveZephyrDetails_ICE'):
                     requestdata["type"] = "Zephyr"
-                    dbsession.thirdpartyintegration.insert_one(requestdata)
-                    dbsession.thirdpartyintegration.delete_many({"type":"Zephyr","testscenarioid":requestdata["testscenarioid"]})
-                    dbsession.thirdpartyintegration.delete_many({"type":"Zephyr","testid":requestdata["testid"]})
-                    dbsession.thirdpartyintegration.insert_one(requestdata)
-                    res= {"rows":"success"}                  
+                    testcases = requestdata["testname"]
+                    scenarios = requestdata["testscenarioid"]
+                    testcaselist=list(dbsession.thirdpartyintegration.find({"type":"Zephyr","testscenarioid":requestdata["testscenarioid"]}))
+                    testscenarios=list(dbsession.thirdpartyintegration.find({"type":"Zephyr","testname":requestdata["testname"]}))
+                    if len(scenarios) == 1 and len(testcaselist) != 0:
+                        z_tid=testcaselist[0]['testid']
+                        z_tn=testcaselist[0]['testname']
+                        z_rd=testcaselist[0]['reqdetails']
+                        z_pid=testcaselist[0]['parentid']
+                        z_treeid=testcaselist[0]['treeid']
+                        requestdata_tid = requestdata["testid"]
+                        requestdata_tn = requestdata["testname"]
+                        requestdata_rd = requestdata["reqdetails"]
+                        requestdata_treeid = requestdata["treeid"]
+                        requestdata_pid = requestdata["parentid"]
+                        for a in range(len(requestdata_tid)):
+                            if requestdata_tid[a] not in z_tid:
+                                z_tid.append(requestdata_tid[a])
+                                z_tn.append(requestdata_tn[a])
+                                z_rd.append(requestdata_rd[a])
+                                z_pid.append(requestdata_pid[a])
+                                z_treeid.append(requestdata_treeid[a])
+                        dbsession.thirdpartyintegration.update_one({"type":"Zephyr","testscenarioid":requestdata["testscenarioid"]}, {'$set': {"testid":z_tid,"testname":z_tn,"reqdetails":z_rd,"treeid":z_treeid,"parentid":z_pid}})
+                    elif len(testcases) == 1 and len(testscenarios) != 0:
+                        z_ts=testscenarios[0]['testscenarioid']
+                        requestdata_ts = requestdata["testscenarioid"]
+                        for a in requestdata_ts:
+                            if a not in z_ts:
+                                z_ts.append(a)
+                        dbsession.thirdpartyintegration.update_one({"type":"Zephyr","testname":requestdata["testname"]}, {'$set': {"testscenarioid":z_ts}})
+                    else:
+                        dbsession.thirdpartyintegration.insert_one(requestdata)
+                    res= {"rows":"success"}
             else:
                 app.logger.warn('Empty data received. getting saveIntegrationDetails_ICE.')
         except Exception as e:
@@ -146,7 +174,9 @@ def LoadServices(app, redissession, dbsession, *args):
                                 zephyrmaplist=list(dbsession.thirdpartyintegration.find({"type":"Zephyr","testscenarioid":{'$in':list(scenarios.keys())}}))
                                 if len(zephyrmaplist) > 0:
                                     for i in zephyrmaplist:
-                                        i['testscenarioname'] = scenarios[i['testscenarioid']]
+                                        i['testscenarioname']=[]
+                                        for j in i['testscenarioid']:
+                                            i['testscenarioname'].append(scenarios[j])
                                     result.extend(zephyrmaplist)
                         res= {"rows":result}
             else:
@@ -187,32 +217,62 @@ def LoadServices(app, redissession, dbsession, *args):
             app.logger.debug("Inside updateMapDetails_ICE. Query: "+str(requestdata["query"]))
             if not isemptyrequest(requestdata):
                 if(requestdata["query"] == 'updateMapDetails_ICE'):
-                    for mapObj in requestdata["mapList"]:
-                        result1 = list(dbsession.thirdpartyintegration.find({"_id":ObjectId(mapObj["mapid"]),"type":"ALM"}))
-                        if "testscenarioid" in mapObj:
-                            #updating scenarioid
-                            scenarioid = mapObj["testscenarioid"]
-                            for i in scenarioid:
-                                result1[0]['testscenarioid'].remove(i)
-                            if len(result1[0]['testscenarioid']) == 0 :
-                                dbsession.thirdpartyintegration.delete_one({"_id":ObjectId(mapObj["mapid"]),"type":"ALM"})
-                            else:
-                                dbsession.thirdpartyintegration.update_one({"_id":ObjectId(mapObj["mapid"])}, {'$set': {"testscenarioid":result1[0]['testscenarioid']}})
-                        elif "qctestcase" in mapObj:
-                            #updating testcase
-                            testcase = mapObj["qctestcase"]
-                            folderpath = mapObj["qcfolderpath"]
-                            testset = mapObj["qctestset"]
-                            for i in range(len(testcase)):
-                                index = result1[0]['qctestcase'].index(testcase[i])
-                                del result1[0]['qcfolderpath'][index]
-                                del result1[0]['qctestset'][index]
-                                del result1[0]['qctestcase'][index]
-                            if len(result1[0]['qctestcase']) == 0 :
-                                dbsession.thirdpartyintegration.delete_one({"_id":ObjectId(mapObj["mapid"]),"type":"ALM"})
-                            else:
-                                dbsession.thirdpartyintegration.update_one({"_id":ObjectId(mapObj["mapid"])}, {'$set': {"qctestcase":result1[0]['qctestcase'], "qcfolderpath":result1[0]['qcfolderpath'], "qctestset":result1[0]['qctestset']}})
-                    res= {"rows":"success"}                  
+                    if requestdata['screenType']=='ALM':
+                        for mapObj in requestdata["mapList"]:
+                            result1 = list(dbsession.thirdpartyintegration.find({"_id":ObjectId(mapObj["mapid"]),"type":"ALM"}))
+                            if "testscenarioid" in mapObj:
+                                #updating scenarioid
+                                scenarioid = mapObj["testscenarioid"]
+                                for i in scenarioid:
+                                    result1[0]['testscenarioid'].remove(i)
+                                if len(result1[0]['testscenarioid']) == 0 :
+                                    dbsession.thirdpartyintegration.delete_one({"_id":ObjectId(mapObj["mapid"]),"type":"ALM"})
+                                else:
+                                    dbsession.thirdpartyintegration.update_one({"_id":ObjectId(mapObj["mapid"])}, {'$set': {"testscenarioid":result1[0]['testscenarioid']}})
+                            elif "qctestcase" in mapObj:
+                                #updating testcase
+                                testcase = mapObj["qctestcase"]
+                                folderpath = mapObj["qcfolderpath"]
+                                testset = mapObj["qctestset"]
+                                for i in range(len(testcase)):
+                                    index = result1[0]['qctestcase'].index(testcase[i])
+                                    del result1[0]['qcfolderpath'][index]
+                                    del result1[0]['qctestset'][index]
+                                    del result1[0]['qctestcase'][index]
+                                if len(result1[0]['qctestcase']) == 0 :
+                                    dbsession.thirdpartyintegration.delete_one({"_id":ObjectId(mapObj["mapid"]),"type":"ALM"})
+                                else:
+                                    dbsession.thirdpartyintegration.update_one({"_id":ObjectId(mapObj["mapid"])}, {'$set': {"qctestcase":result1[0]['qctestcase'], "qcfolderpath":result1[0]['qcfolderpath'], "qctestset":result1[0]['qctestset']}})
+                        res= {"rows":"success"}
+                    elif requestdata['screenType']=='Zephyr':
+                        app.logger.debug("Inside updateMapDetails_ICE. Zephyr unsync ")
+                        for mapObj in requestdata["mapList"]:
+                            result1 = list(dbsession.thirdpartyintegration.find({"_id":ObjectId(mapObj["mapid"]),"type":"Zephyr"}))
+                            if "testscenarioid" in mapObj:
+                                #updating scenarioid
+                                scenarioid = mapObj["testscenarioid"]
+                                for i in scenarioid:
+                                    result1[0]['testscenarioid'].remove(i)
+                                if len(result1[0]['testscenarioid']) == 0 :
+                                    dbsession.thirdpartyintegration.delete_one({"_id":ObjectId(mapObj["mapid"]),"type":"Zephyr"})
+                                else:
+                                    dbsession.thirdpartyintegration.update_one({"_id":ObjectId(mapObj["mapid"])}, {'$set': {"testscenarioid":result1[0]['testscenarioid']}})
+                            elif "testCaseNames" in mapObj:
+                                #updating testcase
+                                testid = mapObj["testid"]
+                                testname = mapObj["testCaseNames"]
+                                for i in range(len(testname)):
+                                    index = result1[0]['testname'].index(testname[i])
+                                    del result1[0]['testid'][index]
+                                    del result1[0]['testname'][index]
+                                    del result1[0]['treeid'][index]
+                                    del result1[0]['parentid'][index]
+                                    del result1[0]['reqdetails'][index]
+                                if len(result1[0]['testname']) == 0 :
+                                    dbsession.thirdpartyintegration.delete_one({"_id":ObjectId(mapObj["mapid"]),"type":"Zephyr"})
+                                else:
+                                    dbsession.thirdpartyintegration.update_one({"_id":ObjectId(mapObj["mapid"])}, {'$set': {"testid":result1[0]['testid'], "testname":result1[0]['testname'],"treeid":result1[0]['treeid'],"parentid":result1[0]['parentid'],"reqdetails":result1[0]['reqdetails']}})
+                        res= {"rows":"success"}
             else:
                 app.logger.warn('Empty data received. updating after unsyc.')
         except Exception as e:
