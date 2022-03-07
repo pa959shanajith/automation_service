@@ -5,6 +5,7 @@
 from utils import *
 from Crypto.Cipher import AES
 import codecs
+from pymongo import UpdateOne, DeleteOne
 
 def unpad(data):
     return data[0:-ord(data[-1])]
@@ -245,7 +246,8 @@ def LoadServices(app, redissession, dbsession, *args):
                                     dbsession.thirdpartyintegration.update_one({"_id":ObjectId(mapObj["mapid"])}, {'$set': {"qctestcase":result1[0]['qctestcase'], "qcfolderpath":result1[0]['qcfolderpath'], "qctestset":result1[0]['qctestset']}})
                         res= {"rows":"success"}
                     elif requestdata['screenType']=='Zephyr':
-                        app.logger.debug("Inside updateMapDetails_ICE. Zephyr unsync ")
+                        app.logger.debug("Inside updateMapDetails_ICE - Zephyr unsync")
+                        req=[]
                         for mapObj in requestdata["mapList"]:
                             result1 = list(dbsession.thirdpartyintegration.find({"_id":ObjectId(mapObj["mapid"]),"type":"Zephyr"}))
                             if "testscenarioid" in mapObj:
@@ -254,12 +256,11 @@ def LoadServices(app, redissession, dbsession, *args):
                                 for i in scenarioid:
                                     result1[0]['testscenarioid'].remove(i)
                                 if len(result1[0]['testscenarioid']) == 0 :
-                                    dbsession.thirdpartyintegration.delete_one({"_id":ObjectId(mapObj["mapid"]),"type":"Zephyr"})
+                                    req.append(DeleteOne({"_id":ObjectId(mapObj["mapid"]),"type":"Zephyr"}))
                                 else:
-                                    dbsession.thirdpartyintegration.update_one({"_id":ObjectId(mapObj["mapid"])}, {'$set': {"testscenarioid":result1[0]['testscenarioid']}})
+                                    req.append(UpdateOne({"_id":ObjectId(mapObj["mapid"])}, {'$set': {"testscenarioid":result1[0]['testscenarioid']}}))
                             elif "testCaseNames" in mapObj:
                                 #updating testcase
-                                testid = mapObj["testid"]
                                 testname = mapObj["testCaseNames"]
                                 for i in range(len(testname)):
                                     index = result1[0]['testname'].index(testname[i])
@@ -269,9 +270,11 @@ def LoadServices(app, redissession, dbsession, *args):
                                     del result1[0]['parentid'][index]
                                     del result1[0]['reqdetails'][index]
                                 if len(result1[0]['testname']) == 0 :
-                                    dbsession.thirdpartyintegration.delete_one({"_id":ObjectId(mapObj["mapid"]),"type":"Zephyr"})
+                                    req.append(DeleteOne({"_id":ObjectId(mapObj["mapid"]),"type":"Zephyr"}))
                                 else:
-                                    dbsession.thirdpartyintegration.update_one({"_id":ObjectId(mapObj["mapid"])}, {'$set': {"testid":result1[0]['testid'], "testname":result1[0]['testname'],"treeid":result1[0]['treeid'],"parentid":result1[0]['parentid'],"reqdetails":result1[0]['reqdetails']}})
+                                    req.append(UpdateOne({"_id":ObjectId(mapObj["mapid"])}, {'$set': {"testid":result1[0]['testid'], "testname":result1[0]['testname'],"treeid":result1[0]['treeid'],"parentid":result1[0]['parentid'],"reqdetails":result1[0]['reqdetails']}}))
+                        if len(req)!=0:
+                            dbsession.thirdpartyintegration.bulk_write(req)
                         res= {"rows":"success"}
             else:
                 app.logger.warn('Empty data received. updating after unsyc.')
