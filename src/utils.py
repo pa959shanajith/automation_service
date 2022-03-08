@@ -208,7 +208,9 @@ ecodeServices = {
     "avoDiscoverMap":"447",
     "avoDiscoverReset":"448",
     "fetchAvoDiscoverMap":"449",
-    "getMappedDiscoverUser":"450"
+    "getMappedDiscoverUser":"450",
+    "manageZephyrDetails":"451",
+    "getDetails_Zephyr":"452"
 }
 
 

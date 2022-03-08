@@ -1352,9 +1352,8 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
         try:
             requestdata=json.loads(request.data)
             if not isemptyrequest(requestdata):
-                isUserExist = dbsession.userpreference.find_one({"user":ObjectId(requestdata["userId"])}, {'_id':1})
-                isZephyrUserExist = dbsession.userpreference.find_one({"user":ObjectId(requestdata["userId"]), 'Zephyr':{'$exists':True, '$ne': None}})
                 zephyrObject = {}
+                userObject = dbsession.userpreference.find_one({"user":ObjectId(requestdata["userId"])})
                 if 'zephyrUrl' in requestdata :
                     zephyrObject["url"] = requestdata["zephyrUrl"]
                 if 'zephyrUsername' in requestdata and 'zephyrPassword' in requestdata :
@@ -1363,32 +1362,30 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
                 if 'zephyrToken' in requestdata :
                     zephyrObject["token"] = requestdata["zephyrToken"]
                 if requestdata["action"]=="delete":
-                    result = "success"
-                    if isUserExist==None:
-                        result = "fail"
-                    elif isZephyrUserExist!=None:
-                        dbsession.userpreference.update_one({"_id":isUserExist["_id"]},{"$unset":{ 'Zephyr':""}})
+                    if userObject==None:
+                        return jsonify({'rows':'fail'})
+                    elif userObject != None and 'Zephyr' in userObject:
+                        dbsession.userpreference.update_one({"_id":userObject["_id"]},{"$unset":{ 'Zephyr':""}})
                 elif requestdata["action"]=='create':
-                    if isZephyrUserExist!=None:
-                        result = "fail"
+                    if userObject != None and 'Zephyr' in userObject:
+                        return jsonify({'rows':'fail'})
                     else:
-                        if isUserExist==None:
+                        if userObject==None:
                             data['user'] = ObjectId(requestdata["userId"])
                             data['Zephyr'] = zephyrObject
                             dbsession.userpreference.insert_one(data)
-                            result = "success"
                         else:
                             data['Zephyr'] = zephyrObject
-                            dbsession.userpreference.update_one({"_id":ObjectId(isUserExist["_id"])},{"$set":data})
-                            result = "success"
+                            dbsession.userpreference.update_one({"_id":ObjectId(userObject["_id"])},{"$set":data})
                 elif requestdata["action"]=='update':
-                    if isUserExist==None:
-                        result = "fail"
+                    if userObject==None:
+                        return jsonify({'rows':'fail'})
                     else:
                         data['Zephyr'] = zephyrObject
-                        dbsession.userpreference.update_one({"_id":ObjectId(isUserExist["_id"])},{"$set":data})
-                        result = "success"
-            res['rows'] = result
+                        dbsession.userpreference.update_one({"_id":ObjectId(userObject["_id"])},{"$set":data})
+                return jsonify({'rows':'success'})
+            else:
+                return jsonify({'rows':'fail'})
         except Exception as e:
             app.logger.debug(traceback.format_exc())
             servicesException("manageZephyrDetails",e)
