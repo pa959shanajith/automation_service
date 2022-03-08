@@ -1324,6 +1324,73 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
             servicesException("manageJiraDetails",e)
         return jsonify(res)
 
+    #Fetch Zephyr data 
+    @app.route('/admin/getDetails_Zephyr', methods=['POST'])
+    def getDetails_Zephyr():
+        app.logger.info("Inside getDetails_Zephyr")
+        res={'rows':'fail'}
+        try:
+            requestdata=json.loads(request.data)
+            if not isemptyrequest(requestdata):
+                result=dbsession.userpreference.find_one({"user":ObjectId(requestdata["userId"])}, {'Zephyr':1, '_id':0})
+                if result:
+                    res={'rows':result['Zephyr']}
+                else:
+                    res={'rows':"empty"}    
+            else:
+                app.logger.warn('Empty data received in getDetails_Zephyr fetch.')
+        except Exception as e:
+            servicesException("getDetails_Zephyr",e)
+        return jsonify(res)
+
+    #manage ZEPHYR Details
+    @app.route('/admin/manageZephyrDetails',methods=['POST'])
+    def manageZephyrDetails():
+        app.logger.info("Inside manageZephyrDetails")
+        res={'rows':'fail'}
+        data={}
+        try:
+            requestdata=json.loads(request.data)
+            if not isemptyrequest(requestdata):
+                zephyrObject = {}
+                userObject = dbsession.userpreference.find_one({"user":ObjectId(requestdata["userId"])})
+                if 'zephyrUrl' in requestdata :
+                    zephyrObject["url"] = requestdata["zephyrUrl"]
+                if 'zephyrUsername' in requestdata and 'zephyrPassword' in requestdata :
+                    zephyrObject["username"] = requestdata["zephyrUsername"]
+                    zephyrObject["password"] = requestdata["zephyrPassword"]
+                if 'zephyrToken' in requestdata :
+                    zephyrObject["token"] = requestdata["zephyrToken"]
+                if requestdata["action"]=="delete":
+                    if userObject==None:
+                        return jsonify({'rows':'fail'})
+                    elif userObject != None and 'Zephyr' in userObject:
+                        dbsession.userpreference.update_one({"_id":userObject["_id"]},{"$unset":{ 'Zephyr':""}})
+                elif requestdata["action"]=='create':
+                    if userObject != None and 'Zephyr' in userObject:
+                        return jsonify({'rows':'fail'})
+                    else:
+                        if userObject==None:
+                            data['user'] = ObjectId(requestdata["userId"])
+                            data['Zephyr'] = zephyrObject
+                            dbsession.userpreference.insert_one(data)
+                        else:
+                            data['Zephyr'] = zephyrObject
+                            dbsession.userpreference.update_one({"_id":ObjectId(userObject["_id"])},{"$set":data})
+                elif requestdata["action"]=='update':
+                    if userObject==None:
+                        return jsonify({'rows':'fail'})
+                    else:
+                        data['Zephyr'] = zephyrObject
+                        dbsession.userpreference.update_one({"_id":ObjectId(userObject["_id"])},{"$set":data})
+                return jsonify({'rows':'success'})
+            else:
+                return jsonify({'rows':'fail'})
+        except Exception as e:
+            app.logger.debug(traceback.format_exc())
+            servicesException("manageZephyrDetails",e)
+        return jsonify(res)
+
     #service to map avo discover configuration
     @app.route('/admin/avoDiscoverMap',methods=['POST'])
     def avoDiscoverMap():
