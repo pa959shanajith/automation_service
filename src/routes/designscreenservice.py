@@ -168,7 +168,7 @@ def LoadServices(app, redissession, dbsession):
                     objList = data["replaceObjList"]
                     old_id=ObjectId(objList['oldObjId'])
                     new_obj=objList['newObjectData']
-                    new_obj["parent"]=screenId
+                    new_obj["parent"]=[screenId]
                     req.append(ReplaceOne({"_id":old_id},new_obj))
                     dbsession.dataobjects.bulk_write(req)
                     dbsession.screens.update({"_id":screenId},{"$set":{"modifiedby":modifiedby,'modifiedbyrole':modifiedbyrole,"modifiedon" : datetime.now()}})
@@ -308,9 +308,6 @@ def LoadServices(app, redissession, dbsession):
                 newlist = []
                 for eachobj in data['objMap']:
                     newlist.append(data['objMap'][eachobj])
-
-                if 'path' in newlist:
-                    newlist = list(map(lambda x: x.replace('path','element'),newlist))
 
                 for i in keywordquery:
                     if i['objecttype'] in newlist:
