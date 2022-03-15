@@ -174,10 +174,13 @@ def LoadServices(app, redissession, dbsession, *args):
                                 scenarios = {str(i['_id']):i['name'] for i in scenariolist}
                                 zephyrmaplist=list(dbsession.thirdpartyintegration.find({"type":"Zephyr","testscenarioid":{'$in':list(scenarios.keys())}}))
                                 if len(zephyrmaplist) > 0:
-                                    for i in zephyrmaplist:
-                                        i['testscenarioname']=[]
-                                        for j in i['testscenarioid']:
-                                            i['testscenarioname'].append(scenarios[j])
+                                    for mapping in zephyrmaplist:
+                                        mapping['testscenarioname']=[]
+                                        for scenarioId in list(mapping['testscenarioid']):
+                                            if scenarioId in scenarios:
+                                                mapping['testscenarioname'].append(scenarios[scenarioId])
+                                            else:
+                                                mapping['testscenarioid'].remove(scenarioId)
                                     result.extend(zephyrmaplist)
                         res= {"rows":result}
             else:
