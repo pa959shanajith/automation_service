@@ -1356,6 +1356,8 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
                 userObject = dbsession.userpreference.find_one({"user":ObjectId(requestdata["userId"])})
                 if 'zephyrUrl' in requestdata :
                     zephyrObject["url"] = requestdata["zephyrUrl"]
+                if 'zephyrAuthType' in requestdata :
+                    zephyrObject["authType"] = requestdata["zephyrAuthType"]
                 if 'zephyrUsername' in requestdata and 'zephyrPassword' in requestdata :
                     zephyrObject["username"] = requestdata["zephyrUsername"]
                     zephyrObject["password"] = requestdata["zephyrPassword"]
