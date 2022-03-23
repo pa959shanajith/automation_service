@@ -99,10 +99,67 @@ def LoadServices(app, redissession, dbsession, *args):
                     res= {"rows":"success"}
                 elif(requestdata["query"] == 'saveZephyrDetails_ICE' and 'oldtestid' in requestdata):
                     requestdata["type"] = "Zephyr"
-                    dbsession.thirdpartyintegration.delete_many({"type":"Zephyr","testscenarioid":requestdata["testscenarioid"]})
-                    dbsession.thirdpartyintegration.delete_many({"type":"Zephyr","testid":requestdata["oldtestid"]})
-                    del requestdata['oldtestid']
-                    dbsession.thirdpartyintegration.insert_one(requestdata)
+                    testcases = requestdata["oldtestid"]
+                    
+                    #fetch old test mapping
+                    findqueryold = {"type":"Zephyr","testid":requestdata["oldtestid"],"testname":requestdata["oldtestname"],"treeid":requestdata["oldtreeid"]}
+                    if "oldparentid" in requestdata and requestdata["oldparentid"] != "-1": findqueryold["parentid"] = requestdata["oldparentid"]
+                    tests=list(dbsession.thirdpartyintegration.find(findqueryold))
+                    
+                    #fetch new test mapping
+                    findquerynew = {"type":"Zephyr","testid":requestdata["testid"],"testname":requestdata["testname"],"treeid":requestdata["treeid"]}
+                    if "parentid" in requestdata and requestdata["parentid"] != "-1": findquerynew["parentid"] = requestdata["parentid"]
+                    testsnew=list(dbsession.thirdpartyintegration.find(findquerynew))
+                    
+                    #old test mapping is found
+                    if len(tests) == 1:
+                        #read old test data
+                        scenarioId=tests[0]['testscenarioid']
+                        z_tid=tests[0]['testid']
+                        z_tn=tests[0]['testname']
+                        z_rd=tests[0]['reqdetails']
+                        z_pid=tests[0]['parentid']
+                        z_treeid=tests[0]['treeid']
+                        
+                        #remove old test from mapping
+                        ind = z_tid.index(requestdata["oldtestid"])
+                        z_tid.pop(ind)
+                        z_tn.pop(ind)
+                        z_rd.pop(ind)
+                        z_pid.pop(ind)
+                        z_treeid.pop(ind)
+                        
+                        #add new test to the mapping
+                        z_tid.append(requestdata["testid"])
+                        z_tn.append(requestdata["testname"])
+                        z_rd.append(requestdata["reqdetails"])
+                        z_pid.append(requestdata["parentid"])
+                        z_treeid.append(requestdata["treeid"])
+                        
+                        #update the mapping with i. old test removed and ii. new test added
+                        dbsession.thirdpartyintegration.update_one({"type":"Zephyr","testscenarioid":scenarioId}, {'$set': {"testid":z_tid,"testname":z_tn,"reqdetails":z_rd,"treeid":z_treeid,"parentid":z_pid,"projectid":requestdata["projectid"],"releaseid":requestdata["releaseid"]}})
+                        
+                        #old test mapping is found and new test is also already mapped to some scenario
+                        if len(testsnew) == 1:
+                            #read new test mapping data
+                            scenarioId=testsnew[0]['testscenarioid']
+                            z_tid=testsnew[0]['testid']
+                            z_tn=testsnew[0]['testname']
+                            z_rd=testsnew[0]['reqdetails']
+                            z_pid=testsnew[0]['parentid']
+                            z_treeid=testsnew[0]['treeid']
+                            
+                            #remove old test from mapping
+                            ind = z_tid.index(requestdata["testid"])
+                            z_tid.pop(ind)
+                            z_tn.pop(ind)
+                            z_rd.pop(ind)
+                            z_pid.pop(ind)
+                            z_treeid.pop(ind)
+                            
+                            #update the mapping after removing new test
+                            dbsession.thirdpartyintegration.update_one({"type":"Zephyr","testscenarioid":scenarioId}, {'$set': {"testid":z_tid,"testname":z_tn,"reqdetails":z_rd,"treeid":z_treeid,"parentid":z_pid,"projectid":requestdata["projectid"],"releaseid":requestdata["releaseid"]}})
+                    res= {"rows":"success"}
                 elif(requestdata["query"] == 'saveZephyrDetails_ICE'):
                     requestdata["type"] = "Zephyr"
                     testcases = requestdata["testname"]
