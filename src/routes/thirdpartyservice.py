@@ -182,10 +182,10 @@ def LoadServices(app, redissession, dbsession, *args):
                         for a in range(len(requestdata_tid)):
                             if str(requestdata_tn[a]) in z_tn and str(requestdata_tid[a]) in z_tid and '-1' not in z_pid and str(requestdata_treeid[a]) in z_treeid:
                                 pass
-                            elif str(requestdata_tn[a]) in z_tn and str(requestdata_tid[a]) in str(z_tid) and '-1' in z_pid and str(requestdata_treeid[a]) in str(z_treeid):
+                            elif str(requestdata_tn[a]) in z_tn and str(requestdata_tid[a]) in z_tid and '-1' in z_pid and str(requestdata_treeid[a]) in z_treeid:
                                 if str(requestdata_treeid[a])==z_treeid[0] and str(requestdata_tid[a])==z_tid[0] and str(requestdata_tn[a])==z_tn[0]:
                                     z_pid[0]=requestdata_pid[a]
-                            elif str(requestdata_tn[a]) not in z_tn and str(requestdata_tid[a]) not in str(z_tid) and str(requestdata_pid[a]) not in str(z_pid):
+                            elif str(requestdata_tn[a]) not in z_tn and str(requestdata_tid[a]) not in z_tid and str(requestdata_pid[a]) not in z_pid:
                                 z_tid.append(requestdata_tid[a])
                                 z_tn.append(requestdata_tn[a])
                                 z_rd.append(requestdata_rd[a])
