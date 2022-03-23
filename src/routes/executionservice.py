@@ -252,9 +252,13 @@ def LoadServices(app, redissession, dbsession):
                     limit = 15000
                     reportitems = []
                     ind=1
-                    for x in range(0, len(rows), limit):
+                    x=0
+                    while True:
                         reportitems.append({'index':ind,'rows':rows[x:x+limit]})
+                        x+=limit
                         ind+=1
+                        if x>=len(rows):
+                            break
                     ritems = dbsession.reportitems.insert_many(reportitems)
 
                     querydata = {
