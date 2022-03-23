@@ -166,7 +166,7 @@ def LoadServices(app, redissession, dbsession, *args):
                     scenarios = requestdata["testscenarioid"]
                     testcaselist=list(dbsession.thirdpartyintegration.find({"type":"Zephyr","testscenarioid":requestdata["testscenarioid"]}))
                     findquerynew = {"type":"Zephyr","testid":requestdata["testid"],"testname":requestdata["testname"],"treeid":requestdata["treeid"]}
-                    if "parentid" in requestdata and requestdata["parentid"] != "-1": findquerynew["parentid"] = requestdata["parentid"]
+                    # if "parentid" in requestdata and requestdata["parentid"] != "-1": findquerynew["parentid"] = requestdata["parentid"]
                     testscenarios=list(dbsession.thirdpartyintegration.find(findquerynew))
                     if len(scenarios) == 1 and len(testcaselist) != 0:
                         z_tid=testcaselist[0]['testid']
@@ -180,12 +180,16 @@ def LoadServices(app, redissession, dbsession, *args):
                         requestdata_treeid = requestdata["treeid"]
                         requestdata_pid = requestdata["parentid"]
                         for a in range(len(requestdata_tid)):
-                            if str(requestdata_tn[a]) in z_tn and str(requestdata_tid[a]) in z_tid and '-1' not in z_pid and str(requestdata_treeid[a]) in z_treeid:
-                                pass
-                            elif str(requestdata_tn[a]) in z_tn and str(requestdata_tid[a]) in z_tid and '-1' in z_pid and str(requestdata_treeid[a]) in z_treeid:
-                                if str(requestdata_treeid[a])==z_treeid[0] and str(requestdata_tid[a])==z_tid[0] and str(requestdata_tn[a])==z_tn[0]:
-                                    z_pid[0]=requestdata_pid[a]
-                            elif str(requestdata_tn[a]) not in z_tn and str(requestdata_tid[a]) not in z_tid and str(requestdata_pid[a]) not in z_pid:
+                            temp_flag=False
+                            for b in range(len(z_tn)):
+                                if str(requestdata_tn[a]) == z_tn[b] and str(requestdata_tid[a]) == z_tid[b] and z_pid[b]=='-1' and str(requestdata_treeid[a]) == z_treeid[b]:
+                                    z_pid[b]=requestdata_pid[a]
+                                    temp_flag=True
+                                    break
+                                elif str(requestdata_tn[a]) == z_tn[b] and str(requestdata_tid[a]) == z_tid[b] and str(requestdata_pid[a])==z_pid[b] and str(requestdata_treeid[a]) == z_treeid[b]:
+                                    temp_flag=True
+                                    break
+                            if not(temp_flag):
                                 z_tid.append(requestdata_tid[a])
                                 z_tn.append(requestdata_tn[a])
                                 z_rd.append(requestdata_rd[a])
