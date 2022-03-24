@@ -165,7 +165,9 @@ def LoadServices(app, redissession, dbsession, *args):
                     testcases = requestdata["testname"]
                     scenarios = requestdata["testscenarioid"]
                     testcaselist=list(dbsession.thirdpartyintegration.find({"type":"Zephyr","testscenarioid":requestdata["testscenarioid"]}))
-                    testscenarios=list(dbsession.thirdpartyintegration.find({"type":"Zephyr","testname":requestdata["testname"]}))
+                    findquerynew = {"type":"Zephyr","testid":requestdata["testid"],"testname":requestdata["testname"],"treeid":requestdata["treeid"]}
+                    # if "parentid" in requestdata and requestdata["parentid"] != "-1": findquerynew["parentid"] = requestdata["parentid"]
+                    testscenarios=list(dbsession.thirdpartyintegration.find(findquerynew))
                     if len(scenarios) == 1 and len(testcaselist) != 0:
                         z_tid=testcaselist[0]['testid']
                         z_tn=testcaselist[0]['testname']
@@ -178,7 +180,16 @@ def LoadServices(app, redissession, dbsession, *args):
                         requestdata_treeid = requestdata["treeid"]
                         requestdata_pid = requestdata["parentid"]
                         for a in range(len(requestdata_tid)):
-                            if requestdata_tid[a] not in z_tid:
+                            temp_flag=False
+                            for b in range(len(z_tn)):
+                                if str(requestdata_tn[a]) == z_tn[b] and str(requestdata_tid[a]) == z_tid[b] and z_pid[b]=='-1' and str(requestdata_treeid[a]) == z_treeid[b]:
+                                    z_pid[b]=requestdata_pid[a]
+                                    temp_flag=True
+                                    break
+                                elif str(requestdata_tn[a]) == z_tn[b] and str(requestdata_tid[a]) == z_tid[b] and str(requestdata_pid[a])==z_pid[b] and str(requestdata_treeid[a]) == z_treeid[b]:
+                                    temp_flag=True
+                                    break
+                            if not(temp_flag):
                                 z_tid.append(requestdata_tid[a])
                                 z_tn.append(requestdata_tn[a])
                                 z_rd.append(requestdata_rd[a])
@@ -188,10 +199,15 @@ def LoadServices(app, redissession, dbsession, *args):
                     elif len(testcases) == 1 and len(testscenarios) != 0:
                         z_ts=testscenarios[0]['testscenarioid']
                         requestdata_ts = requestdata["testscenarioid"]
+                        z_testcase_pid=testscenarios[0]['parentid']
+                        if z_testcase_pid[0]=='-1':
+                            if str(requestdata['treeid'][0])==testscenarios[0]['treeid'][0] and str(requestdata['testid'][0])==testscenarios[0]['testid'][0] and str(requestdata['testname'][0])==testscenarios[0]['testname'][0]:
+                                z_testcase_pid[0]=str(requestdata['parentid'][0])
+                                dbsession.thirdpartyintegration.update_one(findquerynew, {'$set': {"parentid":z_testcase_pid}})
                         for a in requestdata_ts:
                             if a not in z_ts:
                                 z_ts.append(a)
-                        dbsession.thirdpartyintegration.update_one({"type":"Zephyr","testname":requestdata["testname"]}, {'$set': {"testscenarioid":z_ts}})
+                        dbsession.thirdpartyintegration.update_one(findquerynew, {'$set': {"testscenarioid":z_ts}})
                     else:
                         dbsession.thirdpartyintegration.insert_one(requestdata)
                     res= {"rows":"success"}
