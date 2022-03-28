@@ -123,94 +123,39 @@ def LoadServices(app, redissession, dbsession):
             requestdata=json.loads(request.data)
             app.logger.debug("Inside getReport")
             if not isemptyrequest(requestdata):
-                query = dbsession.reports.aggregate([
-                    {'$match':{'_id':ObjectId(requestdata["reportid"])}},
-                    { '$lookup':{
-                            'from':'testscenarios',
-                            'let':{'testscenarioid':'$testscenarioid'},
-                            'pipeline':[
-                                { '$match': { '$expr': { '$eq': ['$_id', '$$testscenarioid']}}}
-                            ],
-                            'as':'testscenarios'
-                        }
-                    },
-                    { '$lookup':{
-                            'from':'executions',
-                            'let':{'excid':'$executionid'},
-                            'pipeline':[
-                                { '$match': { '$expr': { '$eq': ['$_id', '$$excid']}}},
-                                { '$lookup': {
-                                    'from': 'testsuites',
-                                    'let': { 'tsid': {'$arrayElemAt':['$parent',0]}},
-                                    'pipeline': [
-                                        { '$match': { '$expr': { '$eq': ['$_id', '$$tsid'] }}},
-                                        { '$lookup': {
-                                            'from': 'projects',
-                                            'let': {'cycleid':'$cycleid'},
-                                            'pipeline':[
-                                                { "$unwind":"$releases"},
-                                                { "$unwind":"$releases.cycles"},
-                                                { "$match": { '$expr': { '$eq': ['$releases.cycles._id', '$$cycleid']}}},
-                                                { "$project":{'_id':1,'releases':1,'domain':1,'name':1}}
-                                            ],
-                                            'as' : 'proj' 
-                                            }
-                                        }
-                                    ],
-                                    'as': 'testsuites'
-                                }},
-                                {'$project': {'projects':{'$arrayElemAt':[{'$arrayElemAt':['$testsuites.proj',0]},0]},'cycleid':{'$arrayElemAt':['$testsuites.cycleid',0]},'name':{'$arrayElemAt':['$testsuites.name',0]},'_id':0}}
-                            ],
-                            'as':'executions'
-                        }         
-                    },
-                    { '$lookup': {
-                            'from': 'reportitems',
-                            'let': { 'pid': '$reportitems' },
-                            'pipeline': [
-                                { '$match': { '$expr': { '$in': ['$_id', '$$pid'] } } },
-                                {'$unwind': '$rows'},
-                                { '$replaceRoot': { 'newRoot': '$rows' } }
-                            ],
-                            'as':'rows'
-                        }
-                    },
-                    {'$project':{
-                            'rows':1,
-                            'executedtime':1,
-                            'overallstatus':1,
-                            'cycleid':{'$arrayElemAt':['$executions.cycleid',0]},
-                            'testsuitename':{'$arrayElemAt':['$executions.name',0]},
-                            'projects':{'$arrayElemAt':['$executions.projects',0]},
-                            'testscenarioname':{'$arrayElemAt':['$testscenarios.name',0]},
-                            'testscenarioid':{'$arrayElemAt':['$testscenarios._id',0]},
-                            'executionid':1
-                        }
-                    }
-                ])
-                reportobj = list(query)
-                if len(reportobj) == 0:
-                    res['rows'] = []
-                    return res
-                reportobj=reportobj[0]
-                reportData = {"rows":reportobj["rows"],"overallstatus":reportobj["overallstatus"]}
-                prjobj = reportobj['projects']
+                reports = list(dbsession.reports.find({"_id":ObjectId(requestdata["reportid"])}))
+                report_items= list(dbsession.reportitems.find({"_id":reports[0]["reportitems"][0]}))
+                scenarios = list(dbsession.testscenarios.find({"_id":reports[0]["testscenarioid"]}))
+                execs = list(dbsession.executions.find({"_id":reports[0]["executionid"]}))
+                testsuites = list(dbsession.testsuites.find({"_id":execs[0]["parent"][0]}))
+                projs = list(dbsession.projects.find({"releases.cycles._id":testsuites[0]["cycleid"]},{'_id':1,'releases':{'$elemMatch': {"cycles._id":testsuites[0]["cycleid"]}},'domain':1,'name':1}))
+                
+                for cyc in projs[0]["releases"][0]["cycles"]:
+                    if testsuites[0]["cycleid"] == cyc["_id"]:
+                        cyclename = cyc["name"]
+                        break
+                        
+                reportData = {"rows":report_items[0]["rows"],"overallstatus":reports[0]["overallstatus"]}
                 query = {
                     'report': reportData,
-                    'executionid': reportobj['executionid'],
-                    'executedtime': reportobj["executedtime"],
-                    'testscenarioid': reportobj["testscenarioid"],
-                    'testscenarioname': reportobj["testscenarioname"],
-                    'testsuitename': reportobj["testsuitename"],
-                    'projectid': prjobj["_id"],
-                    'domainname': prjobj["domain"],
-                    'projectname': prjobj["name"],
-                    'releasename': prjobj["releases"]["name"],
-                    'cyclename': prjobj["releases"]["cycles"]["name"]
+                    'executionid': reports[0]['executionid'],
+                    'executedtime': reports[0]["executedtime"],
+                    'testscenarioid': reports[0]["testscenarioid"],
+                    'testscenarioname': scenarios[0]["name"],
+                    'testsuitename': testsuites[0]["name"],
+                    'projectid': projs[0]["_id"],
+                    'domainname': projs[0]["domain"],
+                    'projectname': projs[0]["name"],
+                    'releasename': projs[0]["releases"][0]["name"],
+                    'cyclename': cyclename
                 }
                 res= {"rows":query}
             else:
                 app.logger.warn('Empty data received. report.')
+        except KeyError as ex:
+            app.logger.debug(ex)
+            res['rows'] = []
+            return res
         except Exception as getreportexc:
             servicesException("getReport",getreportexc)
         return flask.Response(flask.json.dumps(res), mimetype="application/json")
