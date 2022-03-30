@@ -120,6 +120,8 @@ def LoadServices(app, redissession, dbsession, *args):
                         z_rd=tests[0]['reqdetails']
                         z_pid=tests[0]['parentid']
                         z_treeid=tests[0]['treeid']
+                        z_prid=tests[0]['projectid']
+                        z_rid=tests[0]['releaseid']
                         
                         #remove old test from mapping
                         ind = z_tid.index(requestdata["oldtestid"])
@@ -128,6 +130,8 @@ def LoadServices(app, redissession, dbsession, *args):
                         z_rd.pop(ind)
                         z_pid.pop(ind)
                         z_treeid.pop(ind)
+                        z_prid.pop(ind)
+                        z_rid.pop(ind)
                         
                         #add new test to the mapping
                         z_tid.append(requestdata["testid"])
@@ -135,9 +139,11 @@ def LoadServices(app, redissession, dbsession, *args):
                         z_rd.append(requestdata["reqdetails"])
                         z_pid.append(requestdata["parentid"])
                         z_treeid.append(requestdata["treeid"])
+                        z_prid.append(requestdata["projectid"])
+                        z_rid.append(requestdata["releaseid"])
                         
                         #update the mapping with i. old test removed and ii. new test added
-                        dbsession.thirdpartyintegration.update_one({"type":"Zephyr","testscenarioid":scenarioId}, {'$set': {"testid":z_tid,"testname":z_tn,"reqdetails":z_rd,"treeid":z_treeid,"parentid":z_pid,"projectid":requestdata["projectid"],"releaseid":requestdata["releaseid"]}})
+                        dbsession.thirdpartyintegration.update_one({"type":"Zephyr","testscenarioid":scenarioId}, {'$set': {"testid":z_tid,"testname":z_tn,"reqdetails":z_rd,"treeid":z_treeid,"parentid":z_pid,"projectid":z_prid,"releaseid":z_rid}})
                         
                         #old test mapping is found and new test is also already mapped to some scenario
                         if len(testsnew) == 1:
@@ -148,6 +154,8 @@ def LoadServices(app, redissession, dbsession, *args):
                             z_rd=testsnew[0]['reqdetails']
                             z_pid=testsnew[0]['parentid']
                             z_treeid=testsnew[0]['treeid']
+                            z_prid=testsnew[0]['projectid']
+                            z_rid=testsnew[0]['releaseid']
                             
                             #remove old test from mapping
                             ind = z_tid.index(requestdata["testid"])
@@ -156,9 +164,11 @@ def LoadServices(app, redissession, dbsession, *args):
                             z_rd.pop(ind)
                             z_pid.pop(ind)
                             z_treeid.pop(ind)
+                            z_prid.pop(ind)
+                            z_rid.pop(ind)
                             
                             #update the mapping after removing new test
-                            dbsession.thirdpartyintegration.update_one({"type":"Zephyr","testscenarioid":scenarioId}, {'$set': {"testid":z_tid,"testname":z_tn,"reqdetails":z_rd,"treeid":z_treeid,"parentid":z_pid,"projectid":requestdata["projectid"],"releaseid":requestdata["releaseid"]}})
+                            dbsession.thirdpartyintegration.update_one({"type":"Zephyr","testscenarioid":scenarioId}, {'$set': {"testid":z_tid,"testname":z_tn,"reqdetails":z_rd,"treeid":z_treeid,"parentid":z_pid,"projectid":z_prid,"releaseid":z_rid}})
                     res= {"rows":"success"}
                 elif(requestdata["query"] == 'saveZephyrDetails_ICE'):
                     requestdata["type"] = "Zephyr"
@@ -174,11 +184,15 @@ def LoadServices(app, redissession, dbsession, *args):
                         z_rd=testcaselist[0]['reqdetails']
                         z_pid=testcaselist[0]['parentid']
                         z_treeid=testcaselist[0]['treeid']
+                        z_prid=testcaselist[0]['projectid']
+                        z_rid=testcaselist[0]['releaseid']
                         requestdata_tid = requestdata["testid"]
                         requestdata_tn = requestdata["testname"]
                         requestdata_rd = requestdata["reqdetails"]
                         requestdata_treeid = requestdata["treeid"]
                         requestdata_pid = requestdata["parentid"]
+                        requestdata_prid = requestdata["projectid"]
+                        requestdata_rid = requestdata["releaseid"]
                         for a in range(len(requestdata_tid)):
                             temp_flag=False
                             for b in range(len(z_tn)):
@@ -195,7 +209,9 @@ def LoadServices(app, redissession, dbsession, *args):
                                 z_rd.append(requestdata_rd[a])
                                 z_pid.append(requestdata_pid[a])
                                 z_treeid.append(requestdata_treeid[a])
-                        dbsession.thirdpartyintegration.update_one({"type":"Zephyr","testscenarioid":requestdata["testscenarioid"]}, {'$set': {"testid":z_tid,"testname":z_tn,"reqdetails":z_rd,"treeid":z_treeid,"parentid":z_pid}})
+                                z_prid.append(requestdata_prid[a])
+                                z_rid.append(requestdata_rid[a])
+                        dbsession.thirdpartyintegration.update_one({"type":"Zephyr","testscenarioid":requestdata["testscenarioid"]}, {'$set': {"testid":z_tid,"testname":z_tn,"reqdetails":z_rd,"treeid":z_treeid,"parentid":z_pid,"projectid":z_prid,"releaseid":z_rid}})
                     elif len(testcases) == 1 and len(testscenarios) != 0:
                         z_ts=testscenarios[0]['testscenarioid']
                         requestdata_ts = requestdata["testscenarioid"]
