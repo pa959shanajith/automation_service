@@ -361,10 +361,12 @@ def LoadServices(app, redissession, dbsession, *args):
                                     del result1[0]['treeid'][index]
                                     del result1[0]['parentid'][index]
                                     del result1[0]['reqdetails'][index]
+                                    del result1[0]['projectid'][index]
+                                    del result1[0]['releaseid'][index]
                                 if len(result1[0]['testname']) == 0 :
                                     req.append(DeleteOne({"_id":ObjectId(mapObj["mapid"]),"type":"Zephyr"}))
                                 else:
-                                    req.append(UpdateOne({"_id":ObjectId(mapObj["mapid"])}, {'$set': {"testid":result1[0]['testid'], "testname":result1[0]['testname'],"treeid":result1[0]['treeid'],"parentid":result1[0]['parentid'],"reqdetails":result1[0]['reqdetails']}}))
+                                    req.append(UpdateOne({"_id":ObjectId(mapObj["mapid"])}, {'$set': {"testid":result1[0]['testid'], "testname":result1[0]['testname'],"treeid":result1[0]['treeid'],"parentid":result1[0]['parentid'],"reqdetails":result1[0]['reqdetails'],"projectid":result1[0]['projectid'],"releaseid":result1[0]['releaseid']}}))
                         if len(req)!=0:
                             dbsession.thirdpartyintegration.bulk_write(req)
                         res= {"rows":"success"}
