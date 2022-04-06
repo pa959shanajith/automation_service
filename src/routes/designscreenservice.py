@@ -154,8 +154,9 @@ def LoadServices(app, redissession, dbsession):
                     old_id=ObjectId(objList['oldObjId'])
                     new_obj=objList['newObjectData']
                     new_obj["parent"]=[screenId]
+                    newObj_id = None
                     query = list(dbsession.dataobjects.find({'_id':old_id}))
-                    if len(query[0]['parent'])>1:
+                    if len(query[0]['parent'])>=2:
                         newObj_id = dbsession.dataobjects.insert_one(new_obj).inserted_id
                         dbsession.dataobjects.update({"_id":old_id},{"$pull":{"parent":screenId}})
                         dbsession.screens.update({"_id":screenId},{"$pull":{"orderlist":str(old_id)},"$set":{"modifiedby":modifiedby,'modifiedbyrole':modifiedbyrole,"modifiedon" : datetime.now()}})
@@ -169,7 +170,7 @@ def LoadServices(app, redissession, dbsession):
                         steplist = dbsession.testcases.find_one({'_id':ObjectId(tcid)},{'steps':1,'_id':0})['steps']
                         for newvalue in objList['newKeywordsMap']:
                             for eachstep in steplist:
-                                if newObj_id and eachstep['keywordVal']==newvalue:
+                                if newObj_id != None and eachstep['keywordVal']==newvalue:
                                     dbsession.testcases.update({'_id':ObjectId(tcid),'steps.'+str(eachstep['stepNo']-1)+'.custname':ObjectId(objList['oldObjId']),'steps.'+str(eachstep['stepNo']-1)+'.keywordVal':newvalue},
                                     {'$set':{'steps.'+str(eachstep['stepNo']-1)+'.custname':newObj_id,'steps.'+str(eachstep['stepNo']-1)+'.keywordVal':objList['newKeywordsMap'][newvalue]}})
                                 elif eachstep['custname'] == ObjectId(objList['oldObjId']) and eachstep['keywordVal']==newvalue:
