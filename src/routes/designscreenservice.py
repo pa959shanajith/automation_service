@@ -5,7 +5,7 @@
 from utils import *
 from datetime import datetime
 from pymongo import InsertOne
-from pymongo import UpdateOne
+from pymongo import UpdateOne, UpdateMany
 from pymongo import ReplaceOne
 from Crypto.Cipher import AES
 import codecs
@@ -145,21 +145,38 @@ def LoadServices(app, redissession, dbsession):
                         dbsession.dataobjects.delete_many({"_id":{"$in":del_obj},"$and":[{"parent":{"$size": 1}},{"parent":screenId}]})
                     dbsession.screens.update({"_id":screenId},{"$set":{"modifiedby":modifiedby,'modifiedbyrole':modifiedbyrole,"modifiedon" : datetime.now(), "orderlist":orderList}})
                     res = {"rows":"Success"}
-                elif data["param"] == "replaceScrapeData":
-                    objList = data["objList"]
-                    screenId = ObjectId(data["screenId"])
-                    modifiedbyrole= data["roleId"]
-                    modifiedby = data["userId"]
-                    data_push=[]
+                elif data["param"] == "crossReplaceScrapeData":
                     req=[]
-                    for i in objList:
-                        old_id=ObjectId(i[0])
-                        new_obj=i[1]
-                        new_obj["parent"]=[screenId]
+                    screenId = ObjectId(data["screenId"])
+                    modifiedbyrole= ObjectId(data["roleId"])
+                    modifiedby = ObjectId(data["userId"])
+                    objList = data["replaceObjList"]
+                    old_id=ObjectId(objList['oldObjId'])
+                    new_obj=objList['newObjectData']
+                    new_obj["parent"]=[screenId]
+                    newObj_id = None
+                    query = list(dbsession.dataobjects.find({'_id':old_id}))
+                    if len(query[0]['parent'])>=2:
+                        newObj_id = dbsession.dataobjects.insert_one(new_obj).inserted_id
+                        dbsession.dataobjects.update({"_id":old_id},{"$pull":{"parent":screenId}})
+                        dbsession.screens.update({"_id":screenId},{"$pull":{"orderlist":str(old_id)},"$set":{"modifiedby":modifiedby,'modifiedbyrole':modifiedbyrole,"modifiedon" : datetime.now()}})
+                        dbsession.screens.update({"_id":screenId},{"$push":{"orderlist":str(newObj_id)}})
+                    else:
                         req.append(ReplaceOne({"_id":old_id},new_obj))
-                    dbsession.dataobjects.bulk_write(req)
-                    dbsession.screens.update({"_id":screenId},{"$set":{"modifiedby":modifiedby,'modifiedbyrole':modifiedbyrole,"modifiedon" : datetime.now()}})
-                    res = {"rows":"Success"}
+                        dbsession.dataobjects.bulk_write(req)
+                        dbsession.screens.update({"_id":screenId},{"$set":{"modifiedby":modifiedby,'modifiedbyrole':modifiedbyrole,"modifiedon" : datetime.now()}})
+                    # update the keywords inside testcases steps
+                    for tcid in objList['testcaseIds']:
+                        steplist = dbsession.testcases.find_one({'_id':ObjectId(tcid)},{'steps':1,'_id':0})['steps']
+                        for newvalue in objList['newKeywordsMap']:
+                            for eachstep in steplist:
+                                if newObj_id != None and eachstep['keywordVal']==newvalue:
+                                    dbsession.testcases.update({'_id':ObjectId(tcid),'steps.'+str(eachstep['stepNo']-1)+'.custname':ObjectId(objList['oldObjId']),'steps.'+str(eachstep['stepNo']-1)+'.keywordVal':newvalue},
+                                    {'$set':{'steps.'+str(eachstep['stepNo']-1)+'.custname':newObj_id,'steps.'+str(eachstep['stepNo']-1)+'.keywordVal':objList['newKeywordsMap'][newvalue]}})
+                                elif eachstep['custname'] == ObjectId(objList['oldObjId']) and eachstep['keywordVal']==newvalue:
+                                    dbsession.testcases.update({'_id':ObjectId(tcid),'steps.'+str(eachstep['stepNo']-1)+'.custname':ObjectId(objList['oldObjId']),'steps.'+str(eachstep['stepNo']-1)+'.keywordVal':newvalue},
+                                    {'$set':{'steps.'+str(eachstep['stepNo']-1)+'.keywordVal':objList['newKeywordsMap'][newvalue]}})
+                    res={'rows':'Success'}
                 elif data["param"] == "WebserviceScrapeData":
                     screenId = ObjectId(data["screenId"])
                     scrapeinfo = json.loads(data["scrapedata"])
@@ -257,6 +274,49 @@ def LoadServices(app, redissession, dbsession):
                 app.logger.warn('Empty data received. updating screen')
         except Exception as updatescreenexc:
             servicesException("updateScreen_ICE",updatescreenexc, True)
+        return jsonify(res)
+
+    @app.route('/design/fetchReplacedKeywords_ICE',methods=['POST'])
+    def fetchReplacedKeywords_ICE():
+        res={'rows':'fail'}
+        try:
+            data=json.loads(request.data)
+            if not isemptyrequest(data):
+                screenid = ObjectId(data['screenId'])
+                queryresult = list(dbsession.testcases.find({"screenid":screenid, "deleted":False},{"steps":1}))
+                result={
+                    'keywordList':{}
+                }
+                for i in queryresult: #loop through each testcases
+                    for k in i['steps']: #loop through each testcase steps
+                        if str(k['custname']) in data['objMap']:
+                            if str(k['custname']) in result:
+                                if k['keywordVal'] not in result[str(k['custname'])]['keywords']:
+                                    result[str(k['custname'])]['keywords'].append(k['keywordVal'])
+                                if str(i['_id']) not in result[str(k['custname'])]['testcasesids']:
+                                    result[str(k['custname'])]['testcasesids'].append(str(i['_id']))
+                            else:
+                                result[str(k['custname'])] = {'keywords':[k['keywordVal']],'testcasesids':[str(i['_id'])]}
+                        
+                # fetch keyword list
+                keywordquery = dbsession.projecttypekeywords.find_one({'name':data['appType']},{'_id':0,'keywordsmap':1})['keywordsmap']
+                
+                newlist = []
+                for eachobj in data['objMap']:
+                    newlist.append(data['objMap'][eachobj])
+
+                for i in keywordquery:
+                    if i['objecttype'] in newlist:
+                        result['keywordList'][i['objecttype']] = i['keywords']
+                        newlist.remove(i['objecttype'])
+                    if len(newlist) == 0:
+                        break
+
+                res={'rows':result}
+            else:
+                app.logger.warn('Empty data received. Fetch replaced keywords')
+        except Exception as fetchkeywordexc:
+            servicesException("fetchReplacedKeywords_ICE", fetchkeywordexc, True)
         return jsonify(res)
 
     @app.route('/design/updateIrisObjectType',methods=['POST'])
