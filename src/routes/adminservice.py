@@ -95,6 +95,7 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
                         requestdata["deactivated"]="false"
                         requestdata["addroles"]=[]
                         requestdata["projects"]=[]
+                        requestdata["welcomeStepNo"] = 0
                         if requestdata["auth"]["type"] in ["inhouse", "ldap"]:
                             requestdata["invalidCredCount"]=0
                             requestdata["auth"]["passwordhistory"]=[]
@@ -142,6 +143,18 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
                     au["defaultpassword"] = ""
                     update_query["invalidCredCount"]=0
                     update_query["auth"] = au
+                    dbsession.users.update_one({"_id":result["_id"]},{"$set":update_query})
+                    res={"rows":"success"}
+                elif (action=="stepUpdate"):
+                    result=dbsession.users.find_one({"_id":ObjectId(requestdata["user"]["userid"])})
+                    modifiedby = ObjectId(requestdata.get("modifiedby", result["_id"]))
+                    modifiedbyrole = ObjectId(requestdata.get("modifiedbyrole", result["defaultrole"]))
+                    update_query = {
+                        "modifiedby": modifiedby,
+                        "modifiedbyrole": modifiedbyrole,
+                        "modifiedon": datetime.now()
+                    }
+                    update_query["welcomeStepNo"]= requestdata["user"]["welcomeStepNo"]
                     dbsession.users.update_one({"_id":result["_id"]},{"$set":update_query})
                     res={"rows":"success"}
             else:
