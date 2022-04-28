@@ -256,6 +256,7 @@ def LoadServices(app, redissession, dbsession, licensedata):
             if not isemptyrequest(requestdata):
                 if requestdata["query"]=='loadUserInfo':
                     username = ''
+                    welcomeStepNo = None
                     if 'username' in requestdata:
                         user = dbsession.users.find_one({"name": requestdata['username']}, {"name":1})
                         if user is None: res['rows'] = 'nouser'
@@ -267,15 +268,20 @@ def LoadServices(app, redissession, dbsession, licensedata):
                             if ice_detail['icetype'] == 'ci-cd': # EULA check doesn't apply on CI-CD ICE
                                 res['rows'] = 'success'
                             else:
-                                user = dbsession.users.find_one({"_id": ice_detail["provisionedto"]}, {"name":1})
-                                if user is not None: username = user["name"]
+                                user = dbsession.users.find_one({"_id": ice_detail["provisionedto"]}, {"name":1,"welcomeStepNo":1})
+                                if user is not None: 
+                                    username = user["name"]
+                                    if ("welcomeStepNo" in user):
+                                        welcomeStepNo = user["welcomeStepNo"]
                                 else: res['rows'] = 'nouser'
-                    if username != '':
+                    if username != '' and welcomeStepNo!=None:
                         user_data = list(dbsession.eularecords.find({"username": username}))
                         if len(user_data) > 0:
                             pre_acceptance = user_data[-1]["acceptance"]
                             if pre_acceptance == "Accept":
                                 res = {'rows': 'success'}
+                    else: 
+                        res = {'rows': 'success'}
                 elif(requestdata["query"]=='checkTandC'):
                     del requestdata["query"]
                     requestdata["userId"]=ObjectId(requestdata["userId"])
