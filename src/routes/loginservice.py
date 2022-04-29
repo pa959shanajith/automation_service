@@ -258,9 +258,12 @@ def LoadServices(app, redissession, dbsession, licensedata):
                     username = ''
                     welcomeStepNo = None
                     if 'username' in requestdata:
-                        user = dbsession.users.find_one({"name": requestdata['username']}, {"name":1})
+                        user = dbsession.users.find_one({"name": requestdata['username']}, {"name":1, "welcomeStepNo":1})
                         if user is None: res['rows'] = 'nouser'
-                        else: username = requestdata['username']
+                        else:
+                            username = requestdata['username']
+                            if ("welcomeStepNo" in user):
+                                welcomeStepNo = user["welcomeStepNo"]
                     elif 'icename' in requestdata:
                         ice_detail = dbsession.icetokens.find_one({"icename":requestdata["icename"]}, {"provisionedto": 1, "icetype": 1})
                         if ice_detail is None: res['rows'] = 'nouser'
@@ -274,7 +277,7 @@ def LoadServices(app, redissession, dbsession, licensedata):
                                     if ("welcomeStepNo" in user):
                                         welcomeStepNo = user["welcomeStepNo"]
                                 else: res['rows'] = 'nouser'
-                    if username != '' and welcomeStepNo!=None:
+                    if username != '' and welcomeStepNo != None:
                         user_data = list(dbsession.eularecords.find({"username": username}))
                         if len(user_data) > 0:
                             pre_acceptance = user_data[-1]["acceptance"]
