@@ -49,11 +49,7 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
         app.logger.debug("Inside getAvailablePlugins")
         res={'rows':'fail'}
         try:
-            ice_plugins_list = []
-            for keys in licensedata['platforms']:
-                if(licensedata['platforms'][keys] == True):
-                    ice_plugins_list.append(keys)
-            res={'rows':ice_plugins_list}
+            res={'rows':licensedata['platforms']}
             return jsonify(res)
         except Exception as getallusersexc:
             servicesException("getAvailablePlugins", getallusersexc, True)
@@ -95,6 +91,7 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
                         requestdata["deactivated"]="false"
                         requestdata["addroles"]=[]
                         requestdata["projects"]=[]
+                        requestdata["welcomeStepNo"] = 0
                         if requestdata["auth"]["type"] in ["inhouse", "ldap"]:
                             requestdata["invalidCredCount"]=0
                             requestdata["auth"]["passwordhistory"]=[]
@@ -142,6 +139,18 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
                     au["defaultpassword"] = ""
                     update_query["invalidCredCount"]=0
                     update_query["auth"] = au
+                    dbsession.users.update_one({"_id":result["_id"]},{"$set":update_query})
+                    res={"rows":"success"}
+                elif (action=="stepUpdate"):
+                    result=dbsession.users.find_one({"_id":ObjectId(requestdata["user"]["userid"])})
+                    modifiedby = ObjectId(requestdata.get("modifiedby", result["_id"]))
+                    modifiedbyrole = ObjectId(requestdata.get("modifiedbyrole", result["defaultrole"]))
+                    update_query = {
+                        "modifiedby": modifiedby,
+                        "modifiedbyrole": modifiedbyrole,
+                        "modifiedon": datetime.now()
+                    }
+                    update_query["welcomeStepNo"]= requestdata["user"]["welcomeStepNo"]
                     dbsession.users.update_one({"_id":result["_id"]},{"$set":update_query})
                     res={"rows":"success"}
             else:
@@ -745,8 +754,7 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
         try:
             requestdata=json.loads(request.data)
             if not isemptyrequest(requestdata):
-                result = list(dbsession.permissions.find({"name":{"$ne":"CI_CD"}},{"name":1,"plugins":1,"_id":0}))
-                res = {'rows':result}
+                res = {'rows':licensedata['plugins']}
             else:
                 app.logger.warn('Empty data received. get user preferences.')
         except Exception as getdomainsexc:
