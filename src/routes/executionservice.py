@@ -248,7 +248,7 @@ def LoadServices(app, redissession, dbsession):
                     modifiedon = datetime.now()
                     report = json.loads(requestdata['report'])
                     rows = report['rows']
-                    overallstatus = report['overallstatus'][0]
+                    overallstatus = report['overallstatus']
                     limit = 15000
                     reportitems = []
                     ind=1
