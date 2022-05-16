@@ -1,0 +1,184 @@
+trigger:
+  - master
+
+variables:
+- name: PLATFORM
+  value: windows
+- name: NAS
+  value: \\$(NAS_IP)\$(NAS_SUBPATH)
+- name: PY_PATH
+  value: $(REPO_PATH)/$(PY_GIT_PATH)
+- name: TARGET_BRANCH
+  value: $(Build.SourceBranchName)
+- group: default_set
+- group: DAS
+
+name: $(repo_name)_$(Build.SourceBranchName)_$(Date:yyyyMMdd)$(Rev:.r)
+
+stages:
+- stage: Build
+  displayName: Build the package
+  jobs:
+  - job: BuildJob
+    pool: 
+      name: Nineteen68 Pool
+      demands:
+        - PLATFORM -equals windows
+    workspace: 
+      clean: all
+    steps:
+    - checkout: self
+      persistCredentials: true
+      path: s\DAS
+      clean: true
+
+    - script: |
+        cd $(Build.SourcesDirectory)
+        git checkout %TARGET_BRANCH%
+        git config user.name "%BUILD_USER_NAME%"
+        git config user.email "%BUILD_USER_EMAIL%"
+        del azure-pipeline.yml
+      name: ConfiguringGit
+      displayName: Configure branch and user
+    
+    - script: |
+        echo Cython Test Started!
+        cd $(Build.SourcesDirectory)
+        python .\build\cythontest.py
+      name: CythonTest
+      displayName: Test code for cython errors
+    
+    - script: |
+        cd ..
+        xcopy /I /Q /Y /E /S Z:\Build\windows\portable_python_ndac portable_python
+        cd portable_python
+      name: Get_Python
+      displayName: Get Portable Python
+
+    - script: |
+        cd $(Build.SourcesDirectory)
+        dir
+        git pull --tags -f
+        python .\build\genversion.py
+        call env.bat
+        set /p buildno=<buildno.txt
+        set tagno=AvoAssure_DAS_%buildno%
+        echo "Build Number - %buildno%"
+        echo "Tag Number - %tagno%"
+        move buildno.txt ..\buildno.txt
+        move env.bat ..\env.bat
+        echo %tagno%>..\tagno.txt
+        move /Y ../portable_python/* ./
+        move /Y ../portable_python/DLLs ./
+        move /Y ../portable_python/include ./
+        move /Y ../portable_python/Lib ./
+        move /Y ../portable_python/libs ./
+        python .\build\db_utility.py
+        move /Y .\src\server_config.json ./
+        python .\build\build.py
+        rmdir src /q /s
+        rmdir include /q /s
+        rmdir test /q /s
+        rmdir .vscode /q /s
+        del python.exe pythonw.exe README.md .project .gitignore
+        cd das_internals
+        echo %buildno% > version.txt
+        rmdir utility /q /s
+        mkdir logs
+        cd logs
+        echo E>conf.txt
+        mkdir das
+        mkdir assist
+        cd ..\..
+        move /Y .\data.db ./das_internals/logs
+        cd ..
+        rmdir portable_python /q /s
+        echo ##vso[task.setvariable variable=tagno;isOutput=true]%tagno%
+        echo ##vso[task.setvariable variable=buildno;isOutput=true]%buildno%
+        echo ##vso[task.setvariable variable=TAG_MSG;isOutput=true]%TAG_MSG%
+      name: Configuration
+      displayName: Create Tags and Configure DAS setup
+
+    - script: |
+        set tagno=%Configuration_tagno%
+        set buildno=%Configuration_buildno%
+        set TAG_MSG=%Configuration_TAG_MSG%
+        cd $(Build.SourcesDirectory)
+        git rev-parse HEAD > tempfile.txt
+        set /p commitno= <tempfile.txt
+        del tempfile.txt
+
+        echo "BUILD NUMBER=%buildno%" > versionnoDAS.txt
+        git log --first-parent --pretty=format:"%%H" -n 2 > lasttwocommit.txt
+
+        echo "Building"
+        set /p shas= < lasttwocommit.txt
+        for /F "skip=1 delims=" %%i in (lasttwocommit.txt) do set line2=%%i
+        for /F %%a in (lasttwocommit.txt) do (set line2=%%a)
+        echo %shas%
+        echo %line2%
+        set mergecommits=%line2%..%shas%
+        echo %mergecommits%
+        git log %TARGET_BRANCH% --pretty=format:"%%H - %%an       - %%cd      - %%s" %mergecommits% > releasenotesDAS.log
+        del lasttwocommit.txt
+        move /Y releasenotesDAS.log ..\
+        move /Y versionnoDAS.txt ..\
+
+        git config user.name "%BUILD_USER_NAME%"
+        git config user.email "%BUILD_USER_EMAIL%"
+        git tag -f -a %buildno% -m "%TAG_MSG%"
+
+        if "%ENABLE_TAGS%" == "TRUE" (
+        git push --tags -f
+        )
+        rmdir /s /q .git
+      name: Building
+      displayName: Building DAS Package
+    
+    - script: |
+        set tagno=%Configuration_tagno%
+        set buildno=%Configuration_buildno%
+        cd $(Build.SourcesDirectory)
+        7z.exe a -mx7 -xr!build\ ..\%tagno%.zip ..\versionnoDAS.txt ..\releasenotesDAS.log  ..\DAS\
+        cd ..
+        echo "BUILD NUMBER=%buildno%"
+        copy %tagno%.zip Z:\stage\windows_archive\NDAC
+
+        call Z:\stage\windows_archive\NDAC\updateportablepython.bat
+      name: PushToNAS
+      displayName: Pushing to stage server
+    
+    - task: CopyFiles@2
+      inputs:
+        SourceFolder: '$(Build.SourcesDirectory)\..'
+        Contents: |
+          $(Configuration.tagno).zip
+          *no.txt
+          env.bat
+        TargetFolder: '$(Build.ArtifactStagingDirectory)'
+        OverWrite: true
+        preserveTimestamp: true
+      name: CopyToStage
+      displayName: Push package to artifacts directory
+      
+    - task: PublishPipelineArtifact@1
+      inputs:
+        targetPath: '$(Build.ArtifactStagingDirectory)'
+        artifact: 'package'
+      name: Publish
+      displayName: Publishing package for Azure Pipelines
+
+    - script: |
+        echo BUILD NUMBER=%Configuration_buildno% TAG NUMBER=%Configuration_tagno%
+        dir $(Build.ArtifactStagingDirectory)
+      name: EchoArtifacts
+      displayName: Display available Artifacts
+    
+    - script: |
+        cd $(Build.SourcesDirectory)\..
+        echo Removing Build zips
+        del *.zip buildno.txt tagno.txt
+        dir
+      name: PostBuildCleanup
+      displayName: Cleaning up directory!
+        
