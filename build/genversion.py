@@ -108,8 +108,10 @@ DEV_ENV = len(env("PROD").strip()) == 0
 CBU = env("CBU").strip() or "Internal"
 BRANCH = env("TARGET_BRANCH").strip() or "master"
 MAJOR_VERSION = env("MAJOR_VERSION").strip()
-MINOR_VERSION = get_minor_ver()
-PATCH_VERSION = get_patch_ver()
+MINOR_VERSION = env("MINOR_VERSION").strip()
+PATCH_VERSION = env("PATCH_VERSION").strip()
+# MINOR_VERSION = get_minor_ver()
+# PATCH_VERSION = get_patch_ver()
 
 RELEASE_VERSION = MAJOR_VERSION+"."+MINOR_VERSION+"."+PATCH_VERSION
 print("Release number for patch is "+RELEASE_VERSION)
