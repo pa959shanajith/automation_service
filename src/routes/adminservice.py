@@ -71,6 +71,8 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
                     res={"rows":"forbidden"}
                 elif(action=="delete"):
                     result=dbsession.users.delete_one({"name":requestdata['name']})
+                    # Delete EULA record for this user
+                    dbsession.eularecords.delete_one({"username":requestdata['name']})
                     # Delete assigned tasks
                     dbsession.tasks.delete_many({"assignedto":ObjectId(requestdata["userid"]),"status":{"$ne":'complete'}})
                     dbsession.tasks.delete_many({"owner":ObjectId(requestdata["userid"]),"status":{"$ne":'complete'}})
