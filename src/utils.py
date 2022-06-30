@@ -212,6 +212,9 @@ ecodeServices = {
     "fetchReplacedKeywords_ICE":"451",
     "manageZephyrDetails":"452",
     "getDetails_Zephyr":"453",
+    "configureKey" : "454",
+    "getTestSuite": "455",
+    "getAgents": "456"
 }
 
 
