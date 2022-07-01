@@ -361,8 +361,8 @@ def LoadServices(app, redissession, dbsession):
                 insert_obj={}
                 for i in import_objects:
                     xpath_lst=['null']*12
-                    if i['update'].lower() == 'no':
-                        if not(i['objtype'] in obj_types): continue
+                    if not 'update' in i or i['update'].lower() == 'no':
+                        if not ('objtype' in i) or not(i['objtype'] in obj_types): continue
                         name=i['name']
                         if name in screen_object_names:
                             while name in screen_object_names:
@@ -378,11 +378,11 @@ def LoadServices(app, redissession, dbsession):
                         xpath=left_part+';'+xpath_lst[2]+';'+right_part
                         insert_obj['custname']=name
                         insert_obj['xpath']=xpath
-                        insert_obj['url']=wrap(i['url'],key)
-                        insert_obj['tag']=i['objtype']
+                        insert_obj['url']= wrap(i['url'],key) if 'url' in i else ""
+                        insert_obj['tag']= i['objtype'] if 'objtype' in i else ""
                         insert_obj['parent']=[ObjectId(requestdata["screenid"])]
                         dbsession.dataobjects.insert(insert_obj)
-                    if i['name'] in screen_object_names and i['update'].lower() == 'yes':
+                    elif i['name'] in screen_object_names and i['update'].lower() == 'yes':
                         for j in screen_objects:
                             if i['name'] == j['custname']:
                                 left_part=unwrap(j['xpath'].split(';')[0],key)
