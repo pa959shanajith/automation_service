@@ -1,3 +1,5 @@
+from tkinter import E
+from unicodedata import name
 from warnings import catch_warnings
 from utils import *
 import json
@@ -102,6 +104,68 @@ def LoadServices(app, redissession, dbsession):
             res['rows'] = keysList
             # if not isemptyrequest(requestdata):
             #     print("I am inside")
+
+        except Exception as e:
+            print(e)
+            return e
+        return jsonify(res)
+
+
+    @app.route('/devops/getExecScenario',methods=['POST'])
+    def getExecScenario():
+        app.logger.debug("Inside getExecScenario")
+        res={'rows':'fail'}
+        try:
+            requestdata=json.loads(request.data)
+            testSuiteId = requestdata['testSuiteId']
+            executionData = list(dbsession.configurekeys.find({"token": requestdata['key']}))
+            print(executionData[0]['executionRequest']['executionIds'].index(testSuiteId))
+            index = executionData[0]['executionRequest']['executionIds'].index(testSuiteId)
+            executionData[0]['executionRequest']['executionIds'] = [executionData[0]['executionRequest']['executionIds'][index]]
+            executionData[0]['executionRequest']['suitedetails'] = [executionData[0]['executionRequest']['suitedetails'][index]]
+
+
+            res['rows'] = executionData
+            # if not isemptyrequest(requestdata):
+            #     print("I am inside")
+
+        except Exception as e:
+            print(e)
+            return e
+        return jsonify(res)
+
+    @app.route('/devops/getScenariosForDevops',methods=['POST'])
+    def getScenariosForDevops():
+        res={'rows':'fail'}
+        try:
+            requestdata=json.loads(request.data)
+            # tab=requestdata['tab']
+            # app.logger.debug("Inside getScenariosForDevops. Query: "+str(requestdata["name"]))
+            # if 'moduleid' in requestdata and requestdata['moduleid']!=None:
+            #     mindmapdata=dbsession.mindmaps.find_one({"_id":ObjectId(requestdata["moduleid"])},{"testscenarios":1,"_id":1,"name":1,"projectid":1,"type":1,"versionnumber":1})
+            
+            
+            processedData = []
+            processedDataIndex = 0
+            for moduleDetail in requestdata:
+                scenarioids=[]
+                mindmapdata=dbsession.mindmaps.find_one({"_id":ObjectId(moduleDetail['_id'])},{"testscenarios":1})
+                processedData.append({
+                    'moduleid' : moduleDetail['_id'],
+                    "name" : moduleDetail['name'],
+                    'scenarios' : []
+                })
+                if "testscenarios" in mindmapdata:
+                    for ts in mindmapdata["testscenarios"]:
+                        if ts["_id"] not in scenarioids:
+                            scenarioids.append(ts["_id"])
+
+                    scenariodetails=list(dbsession.testscenarios.find({"_id":{"$in":scenarioids}},{"_id":1,"name":1}))
+                    processedData[processedDataIndex]['scenarios'] = scenariodetails
+                    processedDataIndex+=1
+
+            print(processedData)
+            res['rows'] = processedData
 
         except Exception as e:
             print(e)
