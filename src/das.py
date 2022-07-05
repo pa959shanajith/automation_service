@@ -49,7 +49,7 @@ elif os.path.basename(currexc).startswith("python"):
     elif os.path.isdir(parent_currdir + os.sep + needdir):
         currdir = parent_currdir
 internalspath = currdir + os.sep + "das_internals"
-config_path = currdir + os.sep + "server_config.json"
+config_path = currdir + os.sep + "src/server_config.json"
 assistpath = internalspath + os.sep + "assist"
 logspath = internalspath + os.sep + "logs"
 verpath = internalspath + os.sep + "version.txt"
@@ -174,6 +174,9 @@ def addroutes():
 
     import mindmapservice
     mindmapservice.LoadServices(app, redissession, dbsession)
+
+    import devopsservice
+    devopsservice.LoadServices(app, redissession, dbsession)
     
     if os.path.exists(gitpath):
         os.environ["GIT_PYTHON_GIT_EXECUTABLE"] = gitpath
