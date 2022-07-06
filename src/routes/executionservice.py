@@ -295,9 +295,6 @@ def LoadServices(app, redissession, dbsession):
                         for tsco in tscos: tsco["scenarioId"] = ObjectId(tsco["scenarioId"])
                     invokinguser = requestdata["scheduledby"]
                     scheduledby = {"invokinguser":ObjectId(invokinguser["invokinguser"]),"invokingusername":invokinguser["invokingusername"],"invokinguserrole":invokinguser["invokinguserrole"]}
-                    status = ""
-                    recurringpattern = ""
-                    recurringstringonhover = ""
                     if "status" in requestdata:
                         status = requestdata["status"]
                     else:
@@ -310,6 +307,10 @@ def LoadServices(app, redissession, dbsession):
                         recurringstringonhover = requestdata["recurringStringOnHover"]
                     else:
                         recurringstringonhover = "One Time"
+                    if requestdata['parentId'] != 0:	
+                        parentid = ObjectId(requestdata['parentId'])	
+                    else:	
+                        parentid = ObjectId()
                     dataquery = {
                         "scheduledon": datetime.fromtimestamp(int(requestdata['timestamp'])/1000,pytz.UTC),
                         "executeon": requestdata["executeon"],
@@ -324,7 +325,8 @@ def LoadServices(app, redissession, dbsession):
                         "scheduletype": requestdata["scheduleType"],
                         "recurringpattern": recurringpattern,
                         "time": requestdata["time"],
-                        "recurringstringonhover": recurringstringonhover
+                        "recurringstringonhover": recurringstringonhover,
+                        "parentid": parentid
                     }
                     if "smartid" in requestdata: dataquery["smartid"] = uuid.UUID(requestdata["smartid"])
                     scheduleid = dbsession.scheduledexecutions.insert(dataquery)
@@ -340,6 +342,7 @@ def LoadServices(app, redissession, dbsession):
                     findquery = {}
                     if "scheduleid" in requestdata: findquery["_id"] = ObjectId(requestdata["scheduleid"])
                     if "status" in requestdata: findquery["status"] = requestdata["status"]
+                    if "parentid" in requestdata: findquery["parentid"] = ObjectId(requestdata["parentid"])
                     res["rows"] = list(dbsession.scheduledexecutions.find(findquery))
 
                 elif(param == 'getallscheduledata'):
