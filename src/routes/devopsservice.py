@@ -12,7 +12,7 @@ def LoadServices(app, redissession, dbsession):
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
-            requestdata["token"] = "firstkey"
+            requestdata["token"] = "thirdkey"
             # print(Key)
             # To Do delete query key from requestdata.
             dbsession.configurekeys.insert_one(requestdata)
@@ -119,10 +119,12 @@ def LoadServices(app, redissession, dbsession):
             requestdata=json.loads(request.data)
             testSuiteId = requestdata['testSuiteId']
             executionData = list(dbsession.configurekeys.find({"token": requestdata['key']}))
-            print(executionData[0]['executionRequest']['executionIds'].index(testSuiteId))
-            index = executionData[0]['executionRequest']['executionIds'].index(testSuiteId)
+            print(executionData[0]['executionRequest']['testsuiteIds'].index(testSuiteId))
+            index = executionData[0]['executionRequest']['testsuiteIds'].index(testSuiteId)
             executionData[0]['executionRequest']['executionIds'] = [executionData[0]['executionRequest']['executionIds'][index]]
             executionData[0]['executionRequest']['suitedetails'] = [executionData[0]['executionRequest']['suitedetails'][index]]
+            executionData[0]['executionRequest']['testsuiteIds'] = [executionData[0]['executionRequest']['testsuiteIds'][index]]
+
 
 
             res['rows'] = executionData
