@@ -5,7 +5,7 @@
 from utils import *
 import json
 from datetime import datetime
-def LoadServices(app, redissession, dbsession, licensedata):
+def LoadServices(app, redissession, dbsession, licensedata,basecheckonls):
     setenv(app)
 
 ################################################################################
@@ -21,17 +21,20 @@ def LoadServices(app, redissession, dbsession, licensedata):
     def loadUser():
         app.logger.debug("Inside loadUser.")
         res={'rows':'fail'}
-        try:
-            requestdata=json.loads(request.data)
-            if not isemptyrequest(requestdata):
-                user_data = None
-                if requestdata["username"] != "ci_cd":
-                    user_data = dbsession.users.find_one({"name":requestdata["username"]})
-                res={'rows': user_data}
-            else:
-                app.logger.warn('Empty data received. authentication')
-        except Exception as loaduser_exc:
-            servicesException('loadUser', loaduser_exc, True)
+        if basecheckonls():
+            try:
+                requestdata=json.loads(request.data)
+                if not isemptyrequest(requestdata):
+                    user_data = None
+                    if requestdata["username"] != "ci_cd":
+                        user_data = dbsession.users.find_one({"name":requestdata["username"]})
+                    res={'rows': user_data}
+                else:
+                    app.logger.warn('Empty data received. authentication')
+            except Exception as loaduser_exc:
+                servicesException('loadUser', loaduser_exc, True)
+        else:
+            res={'rows':'Licence Expired'}       
         return jsonify(res)
 
     #DAS service for incrementing/clearing invalid password count
