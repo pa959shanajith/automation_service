@@ -4,7 +4,7 @@
 #----------DEFAULT METHODS AND IMPORTS------------DO NOT EDIT-------------------
 from utils import *
 from bson.objectid import ObjectId
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 import json
 from Crypto.Cipher import AES
 import codecs
@@ -79,7 +79,7 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
                     dbsession.tasks.update_many({"reviewer":ObjectId(requestdata["userid"]),"status":{"$ne":'complete'}},{"$set":{"status":"inprogress","reviewer":""}})
                     res={"rows":"success"}
                 elif(action=="create"):
-                    result=dbsession.users.find_one({"name":requestdata['name']},{"name":1})
+                    result=dbsession.users.find_one({"$or":[ {"name":requestdata['name']}, {"email":requestdata["email"]}]},{"name":1,"email":1})
                     if result!=None:
                         res={"rows":"exists"}
                     else:
@@ -103,11 +103,18 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
                             requestdata["auth"]["verificationpasstime"]=""
                             requestdata["auth"]["verificationpassword"]=""
                         dbsession.users.insert_one(requestdata)
-                        res={"rows":"success"}
+                        userData = {
+                            "uid":requestdata["_id"],
+                            "email":requestdata["email"],
+                            "username": requestdata["name"],
+                            "firstname":requestdata["firstname"],
+                            "lastname":requestdata["lastname"]
+                        }
+                        res={"rows":{"status":"success", "userData":userData}}
                 elif (action=="update"):
                     if(requestdata["auth"]["password"] == "" and requestdata["auth"]["type"] == "inhouse" ):
                         result=dbsession.users.find_one({"_id":ObjectId(requestdata["userid"])})["auth"]["password"]
-                        requestdata["auth"]["password"] = result;
+                        requestdata["auth"]["password"] = result
                     update_query = {
                         "firstname":requestdata["firstname"],
                         "lastname":requestdata["lastname"],
@@ -128,7 +135,7 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
                     dbsession.users.update_one({"_id":ObjectId(requestdata["userid"])},{"$set":update_query})
                     res={"rows":"success"}
                 elif (action=="resetpassword"):
-                    result=dbsession.users.find_one({"name":requestdata["name"]})
+                    result=dbsession.users.find_one({"_id":ObjectId(requestdata["user_id"])})
                     modifiedby = ObjectId(requestdata.get("modifiedby", result["_id"]))
                     modifiedbyrole = ObjectId(requestdata.get("modifiedbyrole", result["defaultrole"]))
                     update_query = {
@@ -140,6 +147,7 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
                     au["passwordhistory"]=(au["passwordhistory"] + [au["password"]])[-4:]
                     au["password"] = requestdata["password"]
                     au["defaultpassword"] = ""
+                    au["defaultpasstime"] = datetime.now(timezone.utc) - timedelta(hours = 2)
                     update_query["invalidCredCount"]=0
                     update_query["auth"] = au
                     dbsession.users.update_one({"_id":result["_id"]},{"$set":update_query, "$unset": { "firstTimeLogin": ""}})
