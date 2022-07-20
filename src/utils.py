@@ -212,6 +212,7 @@ ecodeServices = {
     "fetchReplacedKeywords_ICE":"451",
     "manageZephyrDetails":"452",
     "getDetails_Zephyr":"453",
+    "deleteScenario": "455"
 }
 
 

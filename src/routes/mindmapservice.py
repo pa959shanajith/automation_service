@@ -571,9 +571,18 @@ def LoadServices(app, redissession, dbsession):
                         idsforModule.append(iddata1)
                         updateTestcaseIDsInScenario(currentscenarioid,testcaseidsforscenario)
                     updateTestScenariosInModule(currentmoduleid,idsforModule)
+                scenarioInfo = []
                 for node in requestdata['deletednodes']:
-                    updateparent(node[1],node[0],node[2],"delete")
-                res={'rows':currentmoduleid}
+                    if node[1] == "scenarios":
+                        scenarioName, parents = updateScenarioMindmap(node[0],node[2])
+                        if parents:
+                            scenarioInfo.append({"nodeid" : node[0], "scenarioName": scenarioName, "parents":parents })
+                    else:
+                        updateparent(node[1],node[0],node[2],"delete")
+                if scenarioInfo:
+                    res = {'rows' : {"currentmoduleid" : currentmoduleid , "scenarioInfo" :scenarioInfo}}
+                else:
+                    res={'rows':currentmoduleid}
             else:
                 res={'rows':'reuseerror',"error":error}
         except Exception as e:
@@ -865,6 +874,93 @@ def LoadServices(app, redissession, dbsession):
         else:
             return False
 
+    def deleteParentScenarioFromScreens(scenarioid):
+        # childScreens = list(dbsession.screens.find({'$in' : {'parent' : ObjectId(scenarioid)}}))
+        childScreens = list(dbsession.screens.find({'parent' : [ObjectId(scenarioid)]}))
+        for screen in childScreens:
+            newparentList = []
+            for parent in screen['parent']:
+                if(str(parent)!=scenarioid):
+                    newparentList.append(parent)
+            dbsession.screens.update_one({'_id' : screen['id']} , {'$set' : {'parent' : newparentList}})
+
+    @app.route('/mindmap/deleteScenario',methods=['POST'])
+    def deleteScenario():
+        res={'rows':'fail'}
+        try:
+            requestdata=json.loads(request.data)
+            scenarioids = requestdata['scenarioIds']
+            
+            for scenarioid in scenarioids:
+                # finding the parent of the scenario
+                scenarioObjects=list(dbsession.testscenarios.find({"_id":ObjectId(scenarioid)},{"parent":1}))
+                if len(scenarioObjects)==0:
+                    continue
+                parentlist = scenarioObjects[0]['parent']
+                parentModules = list(dbsession.mindmaps.find({'_id' : {'$in':parentlist}}))
+
+                #remove the scenario from the parentModules
+                for module in parentModules:
+                    newTestScenarios = []
+                    for scenario in module['testscenarios']:
+                        if str(scenario['_id']) != scenarioid:
+                            newTestScenarios.append(scenario)
+                    dbsession.mindmaps.update_one({'_id' : module['_id']} , {'$set' : {'testscenarios' :newTestScenarios }})
+
+                #delete the scenarioID from the parent list of related screens
+                deleteParentScenarioFromScreens(scenarioid)
+
+                #permanently delete the scenario
+                dbsession.testscenarios.delete_many({'_id' : ObjectId(scenarioid)})
+            res= {'rows' : 'success'}
+        except Exception as e:
+            servicesException("deleteScenario", e, True)
+        return jsonify(res)
+
+
+    def updateScenarioMindmap(scenarioid,parentid):
+        scenarioList=list(dbsession.testscenarios.find({"_id":ObjectId(scenarioid)}))
+        if len(scenarioList) == 0:
+            return "",[]
+        oldParentList=scenarioList[0]['parent']
+        newParentList=[]
+        if len(oldParentList) == 1 and ObjectId(parentid) in oldParentList:
+            dbsession.testscenarios.delete_many({'_id' : ObjectId(scenarioid)})
+            return "",[]
+        else:
+            # delete this parent and send all other parents names back
+            flag=False
+            for pid in oldParentList:
+                if flag or str(pid)!=parentid:
+                    newParentList.append(pid)
+                else:
+                    flag=True
+            dbsession.testscenarios.update_one({'_id':ObjectId(scenarioid)},{'$set':{'parent':newParentList}})
+            parentsNameList=[]
+            #finding the name of the parent Modules
+            pNameObject = list(dbsession.mindmaps.find({'_id' : {'$in':newParentList}}, {'name':1}))
+            for pName in pNameObject:
+                parentsNameList.append(pName['name'])
+            return scenarioList[0]['name'], parentsNameList
+
+    def updateScenarioMindmapETE(scenarioid,parentid):
+        scenarioList=list(dbsession.testscenarios.find({"_id":ObjectId(scenarioid)},{"parent":1}))
+        if len(scenarioList) == 0:
+            return
+        oldParentList=scenarioList[0]['parent']
+        if len(oldParentList) == 1 and ObjectId(parentid) in oldParentList:
+            dbsession.testscenarios.delete_many({'_id' : ObjectId(scenarioid)})
+        else:
+            newParentList=[]
+            flag=False
+            for pid in oldParentList:
+                if flag or str(pid)!=parentid:
+                    newParentList.append(pid)
+                else:
+                    flag=True
+            dbsession.testscenarios.update_one({'_id':ObjectId(scenarioid)},{'$set':{'parent':newParentList}})
+    
+
     def updateparent(type,nodeid,parentid,action):
         if action=="add":
             if type=="scenarios":
@@ -1000,7 +1096,10 @@ def LoadServices(app, redissession, dbsession):
                     updateTestScenariosInModule(currentmoduleid,scenarioids)
                     # dbsession.mindmaps.update_one({"_id":ObjectId(currentmoduleid)},{'$set':{'testscenarios':scenarioids}})
                 for node in requestdata['deletednodes']:
-                    updateparent(node[1],node[0],node[2],"delete")
+                    if node[1] == "scenarios" :
+                        updateScenarioMindmapETE(node[0],node[2])
+                    else:
+                        updateparent(node[1],node[0],node[2],"delete")
                 if error==None:
                     res={'rows':currentmoduleid}
                 else:
