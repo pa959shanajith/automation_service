@@ -874,25 +874,16 @@ def LoadServices(app, redissession, dbsession):
         else:
             return False
 
-    def deleteParentScenarioFromScreens(scenarioid):
-        # childScreens = list(dbsession.screens.find({'$in' : {'parent' : ObjectId(scenarioid)}}))
-        childScreens = list(dbsession.screens.find({'parent' : [ObjectId(scenarioid)]}))
-        for screen in childScreens:
-            newparentList = []
-            for parent in screen['parent']:
-                if(str(parent)!=scenarioid):
-                    newparentList.append(parent)
-            dbsession.screens.update_one({'_id' : screen['id']} , {'$set' : {'parent' : newparentList}})
-
     @app.route('/mindmap/deleteScenario',methods=['POST'])
     def deleteScenario():
+        app.logger.debug("Inside deleteScenario")
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
             scenarioids = requestdata['scenarioIds']
             
             for scenarioid in scenarioids:
-                # finding the parent of the scenario
+                # finding the parent list of the scenario
                 scenarioObjects=list(dbsession.testscenarios.find({"_id":ObjectId(scenarioid)},{"parent":1}))
                 if len(scenarioObjects)==0:
                     continue
@@ -906,9 +897,6 @@ def LoadServices(app, redissession, dbsession):
                         if str(scenario['_id']) != scenarioid:
                             newTestScenarios.append(scenario)
                     dbsession.mindmaps.update_one({'_id' : module['_id']} , {'$set' : {'testscenarios' :newTestScenarios }})
-
-                #delete the scenarioID from the parent list of related screens
-                deleteParentScenarioFromScreens(scenarioid)
 
                 #permanently delete the scenario
                 dbsession.testscenarios.delete_many({'_id' : ObjectId(scenarioid)})
@@ -960,7 +948,6 @@ def LoadServices(app, redissession, dbsession):
                     flag=True
             dbsession.testscenarios.update_one({'_id':ObjectId(scenarioid)},{'$set':{'parent':newParentList}})
     
-
     def updateparent(type,nodeid,parentid,action):
         if action=="add":
             if type=="scenarios":
