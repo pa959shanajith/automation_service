@@ -34,7 +34,7 @@ def LoadServices(app, redissession, dbsession, licensedata,basecheckonls):
                         
                     elif requestdata["username"] != "ci_cd":
                         user_data = dbsession.users.find_one({"name":requestdata["username"]})
-                        res={'rows': user_data}
+                    res={'rows': user_data}
                 else:
                     app.logger.warn('Empty data received. authentication')
             except Exception as loaduser_exc:
