@@ -196,6 +196,7 @@ def LoadServices(app, redissession, dbsession, licensedata,basecheckonls):
                     plugins = permissions_data['plugins']
                     lic_plugins = licensedata['plugins']
                     allowed_plugins = []
+                    dictdata['isTrial'] = licensedata['isTrial']
                     for keys in ui_plugins:
                         allowed_plugins.append({ "pluginName": ui_plugins[keys],"pluginValue": False if lic_plugins[keys] == False else plugins[keys]})
                     dictdata['pluginresult']=allowed_plugins
