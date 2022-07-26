@@ -213,6 +213,7 @@ ecodeServices = {
     "manageZephyrDetails":"452",
     "getDetails_Zephyr":"453",
     "verifyUser":"454",
+    "deleteScenario": "455"
 }
 
 
