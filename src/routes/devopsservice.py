@@ -205,7 +205,8 @@ def LoadServices(app, redissession, dbsession):
                     'moduleid' : moduleDetail['_id'],
                     "name" : moduleDetail['name'],
                     'scenarios' : [],
-                    'batchname': testsuitesdata['batchname']
+                    'batchname':  testsuitesdata['batchname'] if (testsuitesdata and testsuitesdata['batchname']) else ''
+                    # 'batchname': testsuitesdata['batchname']
                 })
                 if "testscenarios" in mindmapdata:
                     for ts in mindmapdata["testscenarios"]:
@@ -233,7 +234,7 @@ def LoadServices(app, redissession, dbsession):
             requestdata=json.loads(request.data)
             # print(Key)
             # To Do delete query key from requestdata.
-            queryresult = list(dbsession.configurekeys.find({'executionRequestList': { '$elemMatch' : {'executionRequest.invokinguser': '60c071d5a7ea21cf5185ef6e'}}}))
+            queryresult = list(dbsession.configurekeys.find({'executionRequestList': { '$elemMatch' : {'executionRequest.invokinguser': requestdata['userid']}}}))
             responseData = []
             for elements in queryresult:
                 updatedExecutionReq = elements['executionRequestList'][-1]['executionRequest']
@@ -241,7 +242,8 @@ def LoadServices(app, redissession, dbsession):
                     'configurename': updatedExecutionReq['configurename'],
                     'configurekey': updatedExecutionReq['configurekey'],
                     'project': updatedExecutionReq['suitedetails'][0]['projectname'],
-                    'release': updatedExecutionReq['suitedetails'][0]['releaseid']
+                    'release': updatedExecutionReq['suitedetails'][0]['releaseid'],
+                    'executionRequest': updatedExecutionReq
                 })
             print(responseData)
             
