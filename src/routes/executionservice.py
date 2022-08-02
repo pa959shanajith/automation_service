@@ -338,6 +338,16 @@ def LoadServices(app, redissession, dbsession):
                     dbsession.scheduledexecutions.update({"_id":ObjectId(requestdata['scheduleid'])},{"$set": updatequery})
                     res["rows"] = "success"
 
+                elif(param == 'getscheduleagendajobs'):
+                    findquery = {}
+                    if "scheduleid" in requestdata: findquery["name"] = requestdata["scheduleid"]
+                    res["rows"] = list(dbsession.agendaJobs.find(findquery))
+
+                elif(param == 'cancelagendajobs'):
+                    findquery = {}
+                    if "scheduleid" in requestdata: findquery["name"] = requestdata["scheduleid"]
+                    res["rows"] = list(dbsession.agendaJobs.remove(findquery))
+
                 elif(param == 'getscheduledata'):
                     findquery = {}
                     if "scheduleid" in requestdata: findquery["_id"] = ObjectId(requestdata["scheduleid"])
