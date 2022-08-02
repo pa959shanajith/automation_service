@@ -256,7 +256,7 @@ def checkServer():
     status = 500
     try:
         if (onlineuser == True):
-            response = "pass"
+            response = json.dumps({"st":"pass", "isTrial":licensedata['isTrial']})
             status = 200
     except Exception as exc:
         servicesException("checkServer",exc)
