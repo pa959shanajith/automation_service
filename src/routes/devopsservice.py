@@ -57,7 +57,9 @@ def LoadServices(app, redissession, dbsession):
             res['rows'] = {
                 "testSuiteInfo" : queryresult[0]['executionRequestList'][-1]['executionRequest']['testsuiteIds'],
                 "edited" : queryresult[0]['executionRequestList'][-1]['executionRequest']['edited'],
-                "avoagentList": queryresult[0]['executionRequestList'][-1]['executionRequest']['avoagents']
+                "avoagentList": queryresult[0]['executionRequestList'][-1]['executionRequest']['avoagents'],
+                'executiontype': queryresult[0]['executionRequestList'][-1]['executionRequest']['executiontype'],
+                'executionListId': str(uuid.uuid4()),
                 # "avogridid" : queryresult[0]['executionRequest']['avogridid']
             }
             # if not isemptyrequest(requestdata):
@@ -273,6 +275,23 @@ def LoadServices(app, redissession, dbsession):
                 'avogrids': queryresultavogrid
             }
 
+            # if not isemptyrequest(requestdata):
+            #     print("I am inside")
+
+        except Exception as e:
+            print(e)
+            return e
+        return jsonify(res)
+
+    @app.route('/devops/deleteConfigureKey',methods=['POST'])
+    def deleteConfigureKey():
+        app.logger.debug("Inside deleteConfigureKey")
+        res={'rows':'fail'}
+        try:
+            requestdata=json.loads(request.data)        
+            result=dbsession.configurekeys.delete_one({"token":requestdata['key']})
+
+            res['rows'] = 'success'
             # if not isemptyrequest(requestdata):
             #     print("I am inside")
 
