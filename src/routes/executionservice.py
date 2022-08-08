@@ -326,7 +326,8 @@ def LoadServices(app, redissession, dbsession):
                         "recurringpattern": recurringpattern,
                         "time": requestdata["time"],
                         "recurringstringonhover": recurringstringonhover,
-                        "parentid": parentid
+                        "parentid": parentid,
+                        "startdate": datetime.fromtimestamp(int(requestdata['startDate'])/1000,pytz.UTC)
                     }
                     if "smartid" in requestdata: dataquery["smartid"] = uuid.UUID(requestdata["smartid"])
                     scheduleid = dbsession.scheduledexecutions.insert(dataquery)
