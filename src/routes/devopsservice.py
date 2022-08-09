@@ -22,14 +22,14 @@ def LoadServices(app, redissession, dbsession):
             # case-1 key not present
             if(len(keyAlreadyExist) == 0):
                 newRequestData = {item: requestdata[item] for item in requestdata if item not in {'executionRequest'}}
-                requestdata["executionRequest"]['edited'] = 0
+                requestdata["executionRequest"]['version'] = 0
                 newRequestData["executionRequestList"] = [{"executionRequest": requestdata["executionRequest"]}]
                 dbsession.configurekeys.insert_one(newRequestData)
 
             else: #key is present
                 newList = {}
                 newList["executionRequestList"] = keyAlreadyExist[0]["executionRequestList"]
-                requestdata["executionRequest"]['edited'] = keyAlreadyExist[0]["executionRequestList"][-1]['executionRequest']['edited'] + 1
+                requestdata["executionRequest"]['version'] = keyAlreadyExist[0]["executionRequestList"][-1]['executionRequest']['version'] + 1
                 newList["executionRequestList"].append({"executionRequest": requestdata["executionRequest"]})
                 dbsession.configurekeys.update({"_id":ObjectId(keyAlreadyExist[0]['_id'])},{'$set':{"executionRequestList":newList["executionRequestList"]}})
            
@@ -56,7 +56,7 @@ def LoadServices(app, redissession, dbsession):
 
             res['rows'] = {
                 "testSuiteInfo" : queryresult[0]['executionRequestList'][-1]['executionRequest']['testsuiteIds'],
-                "edited" : queryresult[0]['executionRequestList'][-1]['executionRequest']['edited'],
+                "version" : queryresult[0]['executionRequestList'][-1]['executionRequest']['version'],
                 "avoagentList": queryresult[0]['executionRequestList'][-1]['executionRequest']['avoagents'],
                 'executiontype': queryresult[0]['executionRequestList'][-1]['executionRequest']['executiontype'],
                 'executionListId': str(uuid.uuid4()),
@@ -161,8 +161,8 @@ def LoadServices(app, redissession, dbsession):
             executionData = list(dbsession.configurekeys.find({"token": requestdata['key']}))
             correctexecutionRequest = ''
             for executionRequest in executionData[0]['executionRequestList']:
-                # print(executionRequest['executionRequest']['edited'])
-                if executionRequest['executionRequest']['edited'] == requestdata['edited']:
+                # print(executionRequest['executionRequest']['version'])
+                if executionRequest['executionRequest']['version'] == requestdata['version']:
                     # print('what')
                     correctexecutionRequest = executionRequest
                     break
