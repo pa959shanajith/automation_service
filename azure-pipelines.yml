@@ -1,0 +1,15 @@
+# Simple definition to run boman-cli tool
+# Make sure you have boman.yaml file in your repo
+
+trigger:
+- main
+
+steps:
+- task: UsePythonVersion@0
+  inputs:
+    versionSpec: '3.8' # 3.6,3.7,3.9
+- script: |
+    sudo python3 -m pip install --upgrade pip
+    sudo python3 -m pip install boman-cli
+    sudo boman-cli -a run 
+  displayName: 'install boman-cli and run scan'
