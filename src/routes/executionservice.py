@@ -376,6 +376,23 @@ def LoadServices(app, redissession, dbsession):
                     for sch in schedules:
                         if "poolid" in sch and sch["poolid"] in poollist: 
                             sch["poolname"]=poollist[sch["poolid"]]
+                        if "recurringstringonhover" in sch and sch["recurringstringonhover"] != "One Time" and sch["status"] != "recurring" and "*" not in sch["recurringpattern"]:
+                            created_date = list(dbsession.scheduledexecutions.find({"_id": sch["parentid"]}))
+                            if len(created_date) > 0:
+                                if "startdate" in created_date[0]:
+                                    sch["createddate"] = created_date[0]['startdate']
+                                else:
+                                    sch["createddate"] = created_date[0]['scheduledon']
+                        elif "recurringpattern" in sch and "*" in sch["recurringpattern"]:
+                            if "startdate" in sch:
+                                sch["createddate"] = sch['startdate']
+                            else:
+                                sch["createddate"] = sch['scheduledon']
+                        elif "recurringpattern" in sch and sch["recurringpattern"] == "One Time":
+                            if "startdate" in sch:
+                                sch["createddate"] = sch['startdate']
+                            else:
+                                sch["createddate"] = sch['scheduledon']
                         testsuitenames = []
                         for tsuid in sch["testsuiteids"]: testsuitenames.append(tsumap[tsuid] if tsuid in tsumap else "")
                         sch["testsuitenames"] = testsuitenames
