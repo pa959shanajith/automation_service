@@ -267,8 +267,11 @@ def LoadServices(app, redissession, dbsession):
             requestdata=json.loads(request.data)
             # print(Key)
             # To Do delete query key from requestdata.
-            queryresultavoagent = list(dbsession.avoagents.find({}))
-            queryresultavogrid = list(dbsession.avogrids.find({}))
+            queryresultavogrid = queryresultavoagent = ''
+            if requestdata['query'] == 'all' or requestdata['query'] == 'avoAgentList':
+                queryresultavoagent = list(dbsession.avoagents.find({}))
+            if requestdata['query'] == 'all' or requestdata['query'] == 'avoGridList':
+                queryresultavogrid = list(dbsession.avogrids.find({}))
 
             res['rows'] = {
                 'avoagents': queryresultavoagent,
