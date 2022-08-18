@@ -302,3 +302,24 @@ def LoadServices(app, redissession, dbsession):
             print(e)
             return e
         return jsonify(res)
+
+    def saveAvoAgent():
+        app.logger.debug("Inside saveAvoAgent")
+        res={'rows':'fail'}
+        try:
+            requestdata=json.loads(request.data)
+
+            for agentDetail in requestdata:
+                if(agentDetail['action'] == 'update'):
+                    dbsession.avoagents.update({"_id":ObjectId(agentDetail['value']['_id'])},{'$set':{"icecount":agentDetail['value']["icecount"] , "status": agentDetail['value']['status']}})
+                else:
+                    dbsession.avoagents.delete_one({"_id":ObjectId(agentDetail['value']['_id'])})
+            
+            res['rows'] = 'success'
+            # if not isemptyrequest(requestdata):
+            #     print("I am inside")
+
+        except Exception as e:
+            print(e)
+            return e
+        return jsonify(res)
