@@ -385,7 +385,10 @@ def LoadServices(app, redissession, dbsession):
                                     else:
                                         sch["createddate"] = created_date[0]['scheduledon']
                             else:
-                                sch["createddate"] = sch['scheduledon']
+                                if "startdate" in sch:
+                                    sch["createddate"] = sch['startdate']
+                                else:
+                                    sch["createddate"] = sch['scheduledon']
                         elif "recurringpattern" in sch and "*" in sch["recurringpattern"]:
                             if "startdate" in sch:
                                 sch["createddate"] = sch['startdate']
