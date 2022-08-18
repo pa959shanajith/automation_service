@@ -377,12 +377,15 @@ def LoadServices(app, redissession, dbsession):
                         if "poolid" in sch and sch["poolid"] in poollist: 
                             sch["poolname"]=poollist[sch["poolid"]]
                         if "recurringstringonhover" in sch and sch["recurringstringonhover"] != "One Time" and sch["status"] != "recurring" and "*" not in sch["recurringpattern"]:
-                            created_date = list(dbsession.scheduledexecutions.find({"_id": sch["parentid"]}))
-                            if len(created_date) > 0:
-                                if "startdate" in created_date[0]:
-                                    sch["createddate"] = created_date[0]['startdate']
-                                else:
-                                    sch["createddate"] = created_date[0]['scheduledon']
+                            if "parentid" in sch:
+                                created_date = list(dbsession.scheduledexecutions.find({"_id": sch["parentid"]}))
+                                if len(created_date) > 0:
+                                    if "startdate" in created_date[0]:
+                                        sch["createddate"] = created_date[0]['startdate']
+                                    else:
+                                        sch["createddate"] = created_date[0]['scheduledon']
+                            else:
+                                sch["createddate"] = sch['scheduledon']
                         elif "recurringpattern" in sch and "*" in sch["recurringpattern"]:
                             if "startdate" in sch:
                                 sch["createddate"] = sch['startdate']
