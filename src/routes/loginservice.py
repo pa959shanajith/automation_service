@@ -320,7 +320,9 @@ def LoadServices(app, redissession, dbsession, licensedata,basecheckonls):
                                 else: res['rows'] = 'nouser'
                     if username != '' and welcomeStepNo != None:
                         user_data = list(dbsession.eularecords.find({"username": username}))
-                        if len(user_data) > 0:
+                        if (welcomeStepNo>0 and 'icename' in requestdata):
+                            res = {'rows': 'success'}                                       
+                        elif len(user_data) > 0:
                             pre_acceptance = user_data[-1]["acceptance"]
                             if pre_acceptance == "Accept":
                                 res = {'rows': 'success'}
