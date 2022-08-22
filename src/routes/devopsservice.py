@@ -303,6 +303,7 @@ def LoadServices(app, redissession, dbsession):
             return e
         return jsonify(res)
 
+    @app.route('/devops/saveAvoAgent',methods=['POST'])
     def saveAvoAgent():
         app.logger.debug("Inside saveAvoAgent")
         res={'rows':'fail'}
@@ -315,6 +316,47 @@ def LoadServices(app, redissession, dbsession):
                 else:
                     dbsession.avoagents.delete_one({"_id":ObjectId(agentDetail['value']['_id'])})
             
+            res['rows'] = 'success'
+            # if not isemptyrequest(requestdata):
+            #     print("I am inside")
+
+        except Exception as e:
+            print(e)
+            return e
+        return jsonify(res)
+
+    @app.route('/devops/saveAvoGrid',methods=['POST'])
+    def saveAvoGrid():
+        app.logger.debug("Inside saveAvoGrid")
+        res={'rows':'fail'}
+        try:
+
+            requestdata=json.loads(request.data)
+
+            # check whether key is already present
+            gridAlreadyExist = list(dbsession.avogrids.find({'name': requestdata["name"]}))
+
+            # case-1 key not present
+            if(len(gridAlreadyExist) == 0):
+                dbsession.avogrids.insert_one(requestdata)
+                res['rows'] = 'success'
+            
+            # if not isemptyrequest(requestdata):
+            #     print("I am inside")
+
+        except Exception as e:
+            print(e)
+            return e
+        return jsonify(res)
+
+    @app.route('/devops/deleteAvoGrid',methods=['POST'])
+    def deleteAvoGrid():
+        app.logger.debug("Inside deleteAvoGrid")
+        res={'rows':'fail'}
+        try:
+            requestdata=json.loads(request.data)        
+            result=dbsession.avogrids.delete_one({"_id":ObjectId(requestdata['_id'])})
+
             res['rows'] = 'success'
             # if not isemptyrequest(requestdata):
             #     print("I am inside")
