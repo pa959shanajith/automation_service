@@ -332,17 +332,37 @@ def LoadServices(app, redissession, dbsession):
         try:
 
             requestdata=json.loads(request.data)
-
+            action = requestdata["action"]
+            value = requestdata["value"]
             # check whether key is already present
-            gridAlreadyExist = list(dbsession.avogrids.find({'name': requestdata["name"]}))
+            gridAlreadyExist = list(dbsession.avogrids.find({'name': value["name"]}))
 
             # case-1 key not present
             if(len(gridAlreadyExist) == 0):
-                dbsession.avogrids.insert_one(requestdata)
+                if(action == "create") :
+                    dbsession.avogrids.insert_one(value)
+                else:
+                    dbsession.avogrids.update({"_id":ObjectId(requestdata['_id'])},{'$set':{"name":value["name"] , "agents": value['agents']}})
                 res['rows'] = 'success'
-            
-            # if not isemptyrequest(requestdata):
-            #     print("I am inside")
+            else:
+                res['err_msg'] = "Grid Already Exists"
+
+
+            # if(action == "create") :
+            #     # check whether key is already present
+            #     gridAlreadyExist = list(dbsession.avogrids.find({'name': value["name"]}))
+
+            #     # case-1 key not present
+            #     if(len(gridAlreadyExist) == 0):
+            #         dbsession.avogrids.insert_one(value)
+            #         res['rows'] = 'success'
+            #     else:
+            #         res['err_msg'] = "Grid Already Exists"
+            # else:
+            #     # check whether key is already present
+            #     gridAlreadyExist = list(dbsession.avogrids.find({'name': value["name"]}))
+            #     if(len(gridAlreadyExist) == 0):
+            #         dbsession.avogrids.update({"_id":ObjectId(requestdata['_id'])},{'$set':{"name":value["name"] , "agents": value['agents']}})
 
         except Exception as e:
             print(e)
