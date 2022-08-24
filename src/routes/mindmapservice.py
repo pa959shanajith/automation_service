@@ -13,6 +13,8 @@ from datetime import datetime
 from Crypto.Cipher import AES
 import codecs
 from pymongo import InsertOne
+from bson import json_util
+from bson.json_util import loads
 
 
 def LoadServices(app, redissession, dbsession):
@@ -318,6 +320,8 @@ def LoadServices(app, redissession, dbsession):
             if 'moduleid' in requestdata and requestdata['moduleid'] != None:
                 moduleMap = []
                 for modId in requestdata["moduleid"]:
+                    if type(requestdata["moduleid"]) == str:
+                        modId = requestdata["moduleid"]
                     mindmapdata = dbsession.mindmaps.find_one({"_id": ObjectId(modId)}, {
                                                             "testscenarios": 1, "_id": 1, "name": 1, "projectid": 1, "type": 1, "versionnumber": 1})
                     mindmaptype = mindmapdata["type"]
@@ -358,6 +362,7 @@ def LoadServices(app, redissession, dbsession):
                     scenariodata = {}
                     screendata = {}
                     testcasedata = {}
+                
                     data_dict = {'testscenarios': scenariodata,
                                 'screens': screendata,
                                 'testcases': testcasedata,
@@ -500,6 +505,8 @@ def LoadServices(app, redissession, dbsession):
                             finaldata["children"].append(finalscenariodata)
                         moduleMap.append(finaldata)
                     res = {'rows': moduleMap[0]}
+                    if type(requestdata["moduleid"]) == str:
+                         break
             else:
                 findquery = {"projectid": ObjectId(requestdata["projectid"])}
                 if tab == "tabCreate":
@@ -1381,7 +1388,7 @@ def LoadServices(app, redissession, dbsession):
                 app.logger.warn('Empty data received while exporting mindmap')
         except Exception as exportmindmapexc:
             servicesException("exportMindmap", exportmindmapexc, True)
-        return jsonify(res)
+        return jsonify(json.loads(json_util.dumps(res)))
 
     def update_scenarios(scenarios):
         # converting all strings to ObjectIds
@@ -1402,7 +1409,8 @@ def LoadServices(app, redissession, dbsession):
         res = {'rows': 'fail'}
         try:
             app.logger.debug("Inside importMindmap.Request: "+str(request))
-            requestdata = json.loads(request.data)
+            # requestdata = json.loads(request.data)
+            requestdata = loads(request.data)
             app.logger.debug("Inside importMindmap."+str(requestdata))
             if not isemptyrequest(requestdata):
                 createdModuleList = []
@@ -1414,15 +1422,6 @@ def LoadServices(app, redissession, dbsession):
                     
                     versionnumber = moduleObj['versionnumber']
                     if (requestdata['query'] == 'importMindmap'):
-                        #  mindmapid=ObjectId(moduleObj['_id'])
-                        # # update_scenarios(moduleObj['testscenarios'])
-                        # query below can be improved
-                        #result = dbsession.mindmaps.find_one({"_id": mindmapid})
-                        # result = None
-                        # if result != None:
-                        #     queryresult = dbsession.mindmaps.update_one({"_id": mindmapid}, {'$set': {"deleted": False, "name": moduleObj['name'], "projectid": ObjectId(moduleObj['projectid']), "testscenarios": moduleObj['testscenarios'],"screens": moduleObj['screens'],"testcases": moduleObj['testcases'], "type": moduleObj['type'], "versionnumber": moduleObj['versionnumber']}})
-                        # else:
-                        #moduleObj['_id'] = mindmapid
                             app.logger.debug("Inside importMindmap.")
                             moduleObj['projectid'] = ObjectId(
                                 moduleObj['projectid'])
@@ -1437,7 +1436,7 @@ def LoadServices(app, redissession, dbsession):
                                 screenList = []
                                 del i["parent"]
                                 del i["projectid"]   
-                                print('testscenarioid'+i['_id'])                             
+                                # print('testscenarioid'+i['_id'])                             
                                 for j in moduleObj['screens']:
                                     testcaseList=[]
                                     for scr in  j['parent']:
@@ -1472,6 +1471,10 @@ def LoadServices(app, redissession, dbsession):
                                                 projectid, screendata["name"], versionnumber, createdby, createdbyrole, currentscenarioid)
                                     queryresult=dbsession.screens.update_many({'_id':ObjectId(currentscreenid),'versionnumber':versionnumber},
                                                 {'$set':{'modifiedby':ObjectId(createdby),'modifiedbyrole':ObjectId(createdbyrole),'screenshot':screendata['screenshot'],'orderlist':screendata['orderlist'],'scrapedurl':screendata['scrapedurl'],"modifiedon" : datetime.now()}}).matched_count
+                                    orderlistids=[]
+                                    for i in screendata['orderlist']:
+                                        orderlistids.append(ObjectId(i))
+                                    queryresult=dbsession.dataobjects.update_many({'_id':{'$in':orderlistids}},{"$push":{'parent':ObjectId(currentscreenid)}})
                                     iddata2 = {"_id": ObjectId(
                                         currentscreenid), "testcases": []}
                                     for testcasedata in screendata['testcases']:
