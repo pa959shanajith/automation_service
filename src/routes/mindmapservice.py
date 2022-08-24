@@ -1368,9 +1368,11 @@ def LoadServices(app, redissession, dbsession):
                             'foreignField':"mindmapid",
                             'as': "testsuites"
                         }
-                        }
+                        },
+                        # {
+                        #     "$project": {"_id":1,"name":1,"createdby":1,"type":1,"createdbyrole":1,"projectid":1,"versionnumber":1,"testscenarios._id":1,"testscenarios.name":1,"testscenarios.parent":1,"testscenarios.projectid":1,"testcases.name":1,"testcases.screenid":1,"testcases.steps":1,"screens.name":1,"screens._id":1,"screens.scrapedurl":1,"screens.screenshot":1,"screens.parent":1,"screens.parent":1}
+                        # }
                         
-
                     ]))
 
                     if queryresult:
@@ -1469,7 +1471,7 @@ def LoadServices(app, redissession, dbsession):
                                     currentscreenid = saveScreen(
                                                 projectid, screendata["name"], versionnumber, createdby, createdbyrole, currentscenarioid)
                                     queryresult=dbsession.screens.update_many({'_id':ObjectId(currentscreenid),'versionnumber':versionnumber},
-                                                {'$set':{'modifiedby':ObjectId(createdby),'modifiedbyrole':ObjectId(createdbyrole),'screenshot':screendata['screenshot'],'scrapedurl':screendata['scrapedurl'],"modifiedon" : datetime.now()}}).matched_count
+                                                {'$set':{'modifiedby':ObjectId(createdby),'modifiedbyrole':ObjectId(createdbyrole),'screenshot':screendata['screenshot'],'orderlist':screendata['orderlist'],'scrapedurl':screendata['scrapedurl'],"modifiedon" : datetime.now()}}).matched_count
                                     iddata2 = {"_id": ObjectId(
                                         currentscreenid), "testcases": []}
                                     for testcasedata in screendata['testcases']:
@@ -1478,6 +1480,8 @@ def LoadServices(app, redissession, dbsession):
                                                     currentscreenid, testcasedata['name'], versionnumber, createdby, createdbyrole)
                                         queryresult = dbsession.testcases.update_many({'_id':ObjectId(currenttestcaseid),'versionnumber':versionnumber},
                                                     {'$set':{'modifiedby':ObjectId(createdby),'modifiedbyrole':ObjectId(createdbyrole),'steps':testcasedata['steps'],"modifiedon" : datetime.now()}}).matched_count
+                                        testcaseidsforscenario.append(
+                                            ObjectId(currenttestcaseid))
                                         iddata2["testcases"].append(
                                             ObjectId(currenttestcaseid))
                                     iddata1["screens"].append(iddata2)
