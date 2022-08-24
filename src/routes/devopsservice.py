@@ -342,7 +342,7 @@ def LoadServices(app, redissession, dbsession):
                 if(action == "create") :
                     dbsession.avogrids.insert_one(value)
                 else:
-                    dbsession.avogrids.update({"_id":ObjectId(requestdata['_id'])},{'$set':{"name":value["name"] , "agents": value['agents']}})
+                    dbsession.avogrids.update({"_id":ObjectId(value['_id'])},{'$set':{"name":value["name"] , "agents": value['agents']}})
                 res['rows'] = 'success'
             else:
                 res['err_msg'] = "Grid Already Exists"
