@@ -12,31 +12,49 @@ def LoadServices(app, redissession, dbsession):
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
-            requestdata["token"] = requestdata["executionRequest"]['configurekey']
-            # print(Key)
-            # To Do delete query key from requestdata.
 
-            # check whether key is already present
-            keyAlreadyExist = list(dbsession.configurekeys.find({'token': requestdata["token"]}))
+            if(requestdata['query'] == 'fetchExecutionData'):
+                keyDetails = list(dbsession.configurekeys.find({'token': requestdata["key"]},{'executionData': 1,'session': 1}))
+                res['rows'] = keyDetails[0]
+            else:
+                requestdata["token"] = requestdata["executionData"]['configurekey']
+                # check whether key is already present
+                keyAlreadyExist = list(dbsession.configurekeys.find({'token': requestdata["token"]}))
 
-            # case-1 key not present
-            if(len(keyAlreadyExist) == 0):
-                newRequestData = {item: requestdata[item] for item in requestdata if item not in {'executionRequest'}}
-                requestdata["executionRequest"]['version'] = 0
-                newRequestData["executionRequestList"] = [{"executionRequest": requestdata["executionRequest"]}]
-                dbsession.configurekeys.insert_one(newRequestData)
+                # case-1 key not present
+                if(len(keyAlreadyExist) == 0):
+                    # newRequestData = {item: requestdata[item] for item in requestdata if item not in {'executionRequest'}}
+                    # requestdata["executionRequest"]['version'] = 0
+                    # newRequestData["executionRequestList"] = [{"executionRequest": requestdata["executionRequest"]}]
+                    dbsession.configurekeys.insert_one(requestdata)
 
-            else: #key is present
-                newList = {}
-                newList["executionRequestList"] = keyAlreadyExist[0]["executionRequestList"]
-                requestdata["executionRequest"]['version'] = keyAlreadyExist[0]["executionRequestList"][-1]['executionRequest']['version'] + 1
-                newList["executionRequestList"].append({"executionRequest": requestdata["executionRequest"]})
-                dbsession.configurekeys.update({"_id":ObjectId(keyAlreadyExist[0]['_id'])},{'$set':{"executionRequestList":newList["executionRequestList"]}})
-           
+                else: #key is present
+                    # newList = {}
+                    # newList["executionRequestList"] = keyAlreadyExist[0]["executionRequestList"]
+                    # requestdata["executionRequest"]['version'] = keyAlreadyExist[0]["executionRequestList"][-1]['executionRequest']['version'] + 1
+                    # newList["executionRequestList"].append({"executionRequest": requestdata["executionRequest"]})
+                    dbsession.configurekeys.update({"_id":ObjectId(keyAlreadyExist[0]['_id'])},{'$set':{"executionData":requestdata["executionData"]}})
+                
+                res['rows'] = 'success'
+
+
+        except Exception as e:
+            print(e)
+            return e
+        return jsonify(res)
+
+    @app.route('/devops/executionList',methods=['POST'])
+    def executionList():
+        app.logger.debug("Inside executionList")
+        res={'rows':'fail'}
+        try:
+            requestdata=json.loads(request.data)
+            requestdata['configkey'] = requestdata['executionRequest']['configurekey']
+            requestdata['executionListId'] = requestdata['executionRequest']['executionListId']
+            dbsession.executionlist.insert_one(requestdata)
             res['rows'] = 'success'
-            # if not isemptyrequest(requestdata):
-            #     print("I am inside")
 
+                   
         except Exception as e:
             print(e)
             return e
@@ -50,16 +68,16 @@ def LoadServices(app, redissession, dbsession):
             requestdata=json.loads(request.data)
             # print(Key)
             # To Do delete query key from requestdata.
-            queryresult = list(dbsession.configurekeys.find({"token": requestdata['key']}))
-            # print(queryresult[0]['executionRequest']['testsuiteIds'])
-            print(queryresult[0]['executionRequestList'][-1]['executionRequest']['testsuiteIds'])
+            queryresult = list(dbsession.executionlist.find({'executionListId':requestdata['executionListId'],"configkey": requestdata['key']}))
+            print(queryresult[0]['executionRequest']['testsuiteIds'])
+            # print(queryresult[0]['executionRequestList'][-1]['executionRequest']['testsuiteIds'])
 
             res['rows'] = {
-                "testSuiteInfo" : queryresult[0]['executionRequestList'][-1]['executionRequest']['testsuiteIds'],
-                "version" : queryresult[0]['executionRequestList'][-1]['executionRequest']['version'],
-                "avoagentList": queryresult[0]['executionRequestList'][-1]['executionRequest']['avoagents'],
-                'executiontype': queryresult[0]['executionRequestList'][-1]['executionRequest']['executiontype'],
-                'executionListId': str(uuid.uuid4()),
+                "testSuiteInfo" : queryresult[0]['executionRequest']['testsuiteIds'],
+                "version" : '0',
+                "avoagentList": queryresult[0]['executionRequest']['avoagents'],
+                'executiontype': queryresult[0]['executionRequest']['executiontype'],
+                'executionListId': queryresult[0]['executionListId'],
                 # "avogridid" : queryresult[0]['executionRequest']['avogridid']
             }
             # if not isemptyrequest(requestdata):
@@ -158,17 +176,17 @@ def LoadServices(app, redissession, dbsession):
         try:
             requestdata=json.loads(request.data)
             testSuiteId = requestdata['testSuiteId']
-            executionData = list(dbsession.configurekeys.find({"token": requestdata['key']}))
+            executionData = list(dbsession.executionlist.find({'executionListId':requestdata['executionListId'],"configkey": requestdata['key']},{'executionRequest': 1}))
             correctexecutionRequest = ''
-            for executionRequest in executionData[0]['executionRequestList']:
-                # print(executionRequest['executionRequest']['version'])
-                if executionRequest['executionRequest']['version'] == requestdata['version']:
-                    # print('what')
-                    correctexecutionRequest = executionRequest
-                    break
+            # for executionRequest in executionData[0]['executionRequestList']:
+            #     # print(executionRequest['executionRequest']['version'])
+            #     if executionRequest['executionRequest']['version'] == requestdata['version']:
+            #         # print('what')
+            #         correctexecutionRequest = executionRequest
+            #         break
 
-            executionData[0].pop('executionRequestList')
-            executionData[0]['executionRequest'] = correctexecutionRequest['executionRequest']
+            # executionData[0].pop('executionRequestList')
+            # executionData[0]['executionRequest'] = correctexecutionRequest['executionRequest']
             print(executionData[0]['executionRequest']['testsuiteIds'].index(testSuiteId))
             index = executionData[0]['executionRequest']['testsuiteIds'].index(testSuiteId)
             executionData[0]['executionRequest']['executionIds'] = [executionData[0]['executionRequest']['executionIds'][index]]
@@ -236,15 +254,15 @@ def LoadServices(app, redissession, dbsession):
             requestdata=json.loads(request.data)
             # print(Key)
             # To Do delete query key from requestdata.
-            queryresult = list(dbsession.configurekeys.find({'executionRequestList': { '$elemMatch' : {'executionRequest.invokinguser': requestdata['userid']}}}))
+            queryresult = list(dbsession.configurekeys.find({'session.userid': requestdata['userid']}))
             responseData = []
             for elements in queryresult:
-                updatedExecutionReq = elements['executionRequestList'][-1]['executionRequest']
+                updatedExecutionReq = elements['executionData']
                 responseData.append({
                     'configurename': updatedExecutionReq['configurename'],
                     'configurekey': updatedExecutionReq['configurekey'],
-                    'project': updatedExecutionReq['suitedetails'][0]['projectname'],
-                    'release': updatedExecutionReq['suitedetails'][0]['releaseid'],
+                    'project': updatedExecutionReq['batchInfo'][0]['projectName'],
+                    'release': updatedExecutionReq['batchInfo'][0]['releaseId'],
                     'executionRequest': updatedExecutionReq
                 })
             print(responseData)
@@ -303,6 +321,7 @@ def LoadServices(app, redissession, dbsession):
             return e
         return jsonify(res)
 
+    @app.route('/devops/saveAvoAgent',methods=['POST'])
     def saveAvoAgent():
         app.logger.debug("Inside saveAvoAgent")
         res={'rows':'fail'}
