@@ -9,6 +9,8 @@ from datetime import datetime
 from Crypto.Cipher import AES
 import codecs
 from pymongo import InsertOne
+from bson import json_util
+from bson.json_util import loads
 
 def LoadServices(app, redissession, dbsession):
     setenv(app)
@@ -265,185 +267,211 @@ def LoadServices(app, redissession, dbsession):
 
 
     # New API for getting Module Details.
-    @app.route('/mindmap/getModules',methods=['POST'])
+    @app.route('/mindmap/getModules', methods=['POST'])
     def getModules():
-        res={'rows':'fail'}
+        res = {'rows': 'fail'}
         try:
-            requestdata=json.loads(request.data)
-            tab=requestdata['tab']
-            app.logger.debug("Inside getModules. Query: "+str(requestdata["name"]))
-            if 'moduleid' in requestdata and requestdata['moduleid']!=None:
-                mindmapdata=dbsession.mindmaps.find_one({"_id":ObjectId(requestdata["moduleid"])},{"testscenarios":1,"_id":1,"name":1,"projectid":1,"type":1,"versionnumber":1})
-                mindmaptype=mindmapdata["type"]
-                scenarioids=[]
-                screenids=[]
-                testcaseids=[]
-                taskids=[]
-                cycleid=requestdata['cycleid']
-                # Preparing data for fetching details of screens,testcases and scenarios
-                if "testscenarios" in mindmapdata:
-                    for ts in mindmapdata["testscenarios"]:
-                        if ts["_id"] not in scenarioids:
-                            scenarioids.append(ts["_id"])
-                        if "screens" in ts:
-                            for sc in ts["screens"]:
-                                if sc["_id"] not in screenids:
-                                    screenids.append(sc["_id"])
-                                if "testcases" in sc:
-                                    for tc in sc["testcases"]:
-                                        if tc not in testcaseids:
-                                            testcaseids.append(tc)
+            requestdata = json.loads(request.data)
+            tab = requestdata['tab']
+            app.logger.debug("Inside getModules. Query: " +
+                             str(requestdata["name"]))
+            if 'moduleid' in requestdata and requestdata['moduleid'] != None:
+                moduleMap = []
+                for modId in requestdata["moduleid"]:
+                    if type(requestdata["moduleid"]) == str:
+                        modId = requestdata["moduleid"]
+                    mindmapdata = dbsession.mindmaps.find_one({"_id": ObjectId(modId)}, {
+                                                            "testscenarios": 1, "_id": 1, "name": 1, "projectid": 1, "type": 1, "versionnumber": 1})
+                    mindmaptype = mindmapdata["type"]
+                    scenarioids = []
+                    screenids = []
+                    testcaseids = []
+                    taskids = []
+                    cycleid = requestdata['cycleid']
+                    # Preparing data for fetching details of screens,testcases and scenarios
+                    if "testscenarios" in mindmapdata:
+                        for ts in mindmapdata["testscenarios"]:
+                            if ts["_id"] not in scenarioids:
+                                scenarioids.append(ts["_id"])
+                            if "screens" in ts:
+                                for sc in ts["screens"]:
+                                    if sc["_id"] not in screenids:
+                                        screenids.append(sc["_id"])
+                                    if "testcases" in sc:
+                                        for tc in sc["testcases"]:
+                                            if tc not in testcaseids:
+                                                testcaseids.append(tc)
 
-                # Preparing data for fetching tasks based on nodeid
-                taskids.extend(scenarioids)
-                taskids.extend(screenids)
-                taskids.extend(testcaseids)
-                taskids.append(ObjectId(requestdata['moduleid']))
-                taskdetails=list(dbsession.tasks.find({"nodeid":{"$in":taskids}}))
+                    # Preparing data for fetching tasks based on nodeid
+                    taskids.extend(scenarioids)
+                    taskids.extend(screenids)
+                    taskids.extend(testcaseids)
+                    taskids.append(ObjectId(modId))
+                    taskdetails = list(dbsession.tasks.find(
+                        {"nodeid": {"$in": taskids}}))
 
-                scenariodetails=list(dbsession.testscenarios.find({"_id":{"$in":scenarioids}},{"_id":1,"name":1,"parent":1}))
-                screendetails=list(dbsession.screens.find({"_id":{"$in":screenids}},{"_id":1,"name":1,"parent":1}))
-                testcasedetails=list(dbsession.testcases.find({"_id":{"$in":testcaseids}},{"_id":1,"name":1,"parent":1}))
-                moduledata={}
-                scenariodata={}
-                screendata={}
-                testcasedata={}
-                data_dict={'testscenarios':scenariodata,
-                'screens':screendata,
-                'testcases':testcasedata,
-                'testsuites':moduledata}
-                assignTab=False
-                if tab=="tabAssign":
-                    assignTab=True
-                    for t in taskdetails:
-                        if assignTab and (mindmaptype=="endtoend" or t['nodetype']=="screens" or t['nodetype']=="testcases" or cycleid==str(t['cycleid'])):
-                            data_dict[t['nodetype']][t['nodeid']]={'task':t}
-                else:
-                    for t in taskdetails:
-                        data_dict[t['nodetype']][t['nodeid']]={'taskexists':t}
-
-                for ts in scenariodetails:
-                    if ts["_id"] in scenariodata:
-                        scenariodata[ts["_id"]]['name']=ts["name"]
-                        scenariodata[ts["_id"]]['reuse']=True if len(ts["parent"])>1 else False
+                    scenariodetails = list(dbsession.testscenarios.find(
+                        {"_id": {"$in": scenarioids}}, {"_id": 1, "name": 1, "parent": 1}))
+                    screendetails = list(dbsession.screens.find(
+                        {"_id": {"$in": screenids}}, {"_id": 1, "name": 1, "parent": 1}))
+                    testcasedetails = list(dbsession.testcases.find(
+                        {"_id": {"$in": testcaseids}}, {"_id": 1, "name": 1, "parent": 1}))
+                    moduledata = {}
+                    scenariodata = {}
+                    screendata = {}
+                    testcasedata = {}
+                
+                    data_dict = {'testscenarios': scenariodata,
+                                'screens': screendata,
+                                'testcases': testcasedata,
+                                'testsuites': moduledata}
+                    assignTab = False
+                    if tab == "tabAssign":
+                        assignTab = True
+                        for t in taskdetails:
+                            if assignTab and (mindmaptype == "endtoend" or t['nodetype'] == "screens" or t['nodetype'] == "testcases" or cycleid == str(t['cycleid'])):
+                                data_dict[t['nodetype']][t['nodeid']] = {'task': t}
                     else:
-                        scenariodata[ts["_id"]]={
-                            'name':ts["name"],
-                            'reuse': True if len(ts["parent"])>1 else False
-                        }
+                        for t in taskdetails:
+                            data_dict[t['nodetype']][t['nodeid']] = {
+                                'taskexists': t}
 
-                for sc in screendetails:
-                    if sc["_id"] in screendata:
-                        screendata[sc["_id"]]['name']=sc["name"]
-                        screendata[sc["_id"]]['reuse']=True if len(sc["parent"])>1 else False
-                    else:
-                        screendata[sc["_id"]]={
-                            "name":sc["name"],
-                            "reuse":True if len(sc["parent"])>1 else False
+                    for ts in scenariodetails:
+                        if ts["_id"] in scenariodata:
+                            scenariodata[ts["_id"]]['name'] = ts["name"]
+                            app.logger.debug("Inside ts. Query: " +
+                            str(ts["name"]))
+                            scenariodata[ts["_id"]]['reuse'] = True if len(
+                                ts["parent"]) > 1 else False
+                        else:
+                            scenariodata[ts["_id"]] = {
+                                'name': ts["name"],
+                                'reuse': True if len(ts["parent"]) > 1 else False
                             }
-                for tc in testcasedetails:
-                    if tc["_id"] in testcasedata:
-                        testcasedata[tc["_id"]]['name']=tc["name"]
-                        testcasedata[tc["_id"]]['reuse']=True if tc["parent"]>1 else False
 
+                    for sc in screendetails:
+                        if sc["_id"] in screendata:
+                            screendata[sc["_id"]]['name'] = sc["name"]
+                            screendata[sc["_id"]]['reuse'] = True if len(
+                                sc["parent"]) > 1 else False
+                        else:
+                            screendata[sc["_id"]] = {
+                                "name": sc["name"],
+                                "reuse": True if len(sc["parent"]) > 1 else False
+                            }
+                    for tc in testcasedetails:
+                        if tc["_id"] in testcasedata:
+                            testcasedata[tc["_id"]]['name'] = tc["name"]
+                            testcasedata[tc["_id"]
+                                        ]['reuse'] = True if tc["parent"] > 1 else False
+
+                        else:
+                            testcasedata[tc["_id"]] = {
+                                "name": tc["name"],
+                                "reuse": True if tc["parent"] > 1 else False
+                            }
+                    finaldata = {}
+                    finaldata["name"] = mindmapdata["name"]
+                    finaldata["_id"] = mindmapdata["_id"]
+                    finaldata["projectID"] = mindmapdata["projectid"]
+                    finaldata["type"] = "modules"
+                    finaldata["childIndex"] = 0
+                    finaldata["state"] = "saved"
+                    finaldata["versionnumber"] = mindmapdata["versionnumber"]
+                    finaldata["children"] = []
+                    finaldata["completeFlow"] = True
+                    finaldata["type"] = "modules" if mindmaptype == "basic" else "endtoend"
+                    if mindmapdata["_id"] in moduledata and 'task' in moduledata[mindmapdata["_id"]] and moduledata[mindmapdata["_id"]]["task"]["status"] != 'complete':
+                        finaldata["task"] = moduledata[mindmapdata["_id"]]["task"]
                     else:
-                        testcasedata[tc["_id"]]={
-                        "name":tc["name"],
-                        "reuse": True if tc["parent"]>1 else False
-                        }
-                finaldata={}
-                finaldata["name"]=mindmapdata["name"]
-                finaldata["_id"]=mindmapdata["_id"]
-                finaldata["projectID"]=mindmapdata["projectid"]
-                finaldata["type"]="modules"
-                finaldata["childIndex"]=0
-                finaldata["state"]="saved"
-                finaldata["versionnumber"]=mindmapdata["versionnumber"]
-                finaldata["children"]=[]
-                finaldata["completeFlow"]=True
-                finaldata["type"]="modules" if mindmaptype=="basic" else "endtoend"
-                if mindmapdata["_id"] in moduledata and 'task' in moduledata[mindmapdata["_id"]] and moduledata[mindmapdata["_id"]]["task"]["status"] != 'complete':
-                    finaldata["task"]=moduledata[mindmapdata["_id"]]["task"]
-                else:
-                    finaldata["task"]=None
-                # finaldata["task"]=moduledata[mindmapdata["_id"]]["task"] if mindmapdata["_id"] in moduledata and 'task' in moduledata[mindmapdata["_id"]] else None
-                finaldata["taskexists"]=moduledata[mindmapdata["_id"]]["taskexists"] if mindmapdata["_id"] in moduledata and 'taskexists' in moduledata[mindmapdata["_id"]] else None
+                        finaldata["task"] = None
+                    # finaldata["task"]=moduledata[mindmapdata["_id"]]["task"] if mindmapdata["_id"] in moduledata and 'task' in moduledata[mindmapdata["_id"]] else None
+                    finaldata["taskexists"] = moduledata[mindmapdata["_id"]
+                                                        ]["taskexists"] if mindmapdata["_id"] in moduledata and 'taskexists' in moduledata[mindmapdata["_id"]] else None
 
+                    projectid = mindmapdata["projectid"]
 
-                projectid=mindmapdata["projectid"]
+                    # Preparing final data in format needed
+                    if len(mindmapdata["testscenarios"]) == 0:
+                        finaldata["completeFlow"] = False
+                    i = 1
+                    if "testscenarios" in mindmapdata:
+                        for ts in mindmapdata["testscenarios"]:
+                            finalscenariodata = {}
+                            finalscenariodata["projectID"] = projectid
+                            finalscenariodata["_id"] = ts["_id"]
+                            finalscenariodata["name"] = scenariodata[ts["_id"]]["name"]
+                            finalscenariodata["type"] = "scenarios"
+                            finalscenariodata["childIndex"] = i
+                            finalscenariodata["children"] = []
+                            finalscenariodata["state"] = "saved"
+                            finalscenariodata["reuse"] = scenariodata[ts["_id"]]["reuse"]
+                            if 'task' in scenariodata[ts["_id"]] and scenariodata[ts["_id"]]["task"]["status"] != "complete":
+                                finalscenariodata["task"] = scenariodata[ts["_id"]]['task']
+                            else:
+                                finalscenariodata["task"] = None
+                            finalscenariodata["taskexists"] = scenariodata[ts["_id"]]['taskexists'] if 'taskexists' in scenariodata[ts["_id"]
+                                                                                                                                    ] and scenariodata[ts["_id"]]["taskexists"]["status"] != "complete" else None
+                            i = i+1
+                            if "screens" in ts:
+                                if len(ts["screens"]) == 0 and mindmaptype == "basic":
+                                    finaldata["completeFlow"] = False
+                                j = 1
+                                for sc in ts["screens"]:
 
-                # Preparing final data in format needed
-                if len(mindmapdata["testscenarios"])==0 :
-                    finaldata["completeFlow"]=False
-                i=1
-                if "testscenarios" in mindmapdata:
-                    for ts in mindmapdata["testscenarios"]:
-                        finalscenariodata={}
-                        finalscenariodata["projectID"]=projectid
-                        finalscenariodata["_id"]=ts["_id"]
-                        finalscenariodata["name"]=scenariodata[ts["_id"]]["name"]
-                        finalscenariodata["type"]="scenarios"
-                        finalscenariodata["childIndex"]=i
-                        finalscenariodata["children"]=[]
-                        finalscenariodata["state"]="saved"
-                        finalscenariodata["reuse"]=scenariodata[ts["_id"]]["reuse"]
-                        if 'task' in scenariodata[ts["_id"]] and scenariodata[ts["_id"]]["task"]["status"] != "complete":
-                            finalscenariodata["task"]=scenariodata[ts["_id"]]['task']  
-                        else: 
-                            finalscenariodata["task"]=None
-                        finalscenariodata["taskexists"]=scenariodata[ts["_id"]]['taskexists'] if 'taskexists' in scenariodata[ts["_id"]] and scenariodata[ts["_id"]]["taskexists"]["status"] != "complete" else None
-                        i=i+1
-                        if "screens" in ts:
-                            if len(ts["screens"])==0  and mindmaptype=="basic":
-                                finaldata["completeFlow"]=False
-                            j=1
-                            for sc in ts["screens"]:
-
-                                finalscreendata={}
-                                finalscreendata["projectID"]=projectid
-                                finalscreendata["_id"]=sc["_id"]
-                                finalscreendata["name"]=screendata[sc["_id"]]["name"]
-                                finalscreendata["type"]="screens"
-                                finalscreendata["childIndex"]=j
-                                finalscreendata["children"]=[]
-                                finalscreendata["reuse"]=screendata[sc["_id"]]["reuse"]
-                                finalscreendata["state"]="saved"
-                                if 'task' in screendata[sc["_id"]] and screendata[sc["_id"]]['task']["status"] != "complete":
-                                    finalscreendata["task"]=screendata[sc["_id"]]['task'] 
-                                else:
-                                    finalscreendata["task"]=None
-                                finalscreendata["taskexists"]=screendata[sc["_id"]]['taskexists'] if 'taskexists' in screendata[sc["_id"]]  and screendata[sc["_id"]]["taskexists"]["status"] != "complete" else None
-                                j=j+1
-                                if "testcases" in sc:
-                                    if len(sc["testcases"])==0 and mindmaptype=="basic":
-                                        finaldata["completeFlow"]=False
-                                    k=1
-                                    for tc in sc["testcases"]:
-                                        finaltestcasedata={}
-                                        finaltestcasedata["projectID"]=projectid
-                                        finaltestcasedata["_id"]=tc
-                                        finaltestcasedata["name"]=testcasedata[tc]["name"]
-                                        finaltestcasedata["type"]="testcases"
-                                        finaltestcasedata["childIndex"]=k
-                                        finaltestcasedata["children"]=[]
-                                        finaltestcasedata["reuse"]=testcasedata[tc]["reuse"]
-                                        finaltestcasedata["state"]="saved"
-                                        if 'task' in testcasedata[tc] and testcasedata[tc]['task']['status'] != 'complete':
-                                            finaltestcasedata["task"]=testcasedata[tc]['task'] 
-                                        else:
-                                            finaltestcasedata["task"]=None
-                                        finaltestcasedata["taskexists"]=testcasedata[tc]['taskexists'] if 'taskexists' in testcasedata[tc] and testcasedata[tc]['taskexists']['status'] != 'complete' else None
-                                        k=k+1
-                                        finalscreendata["children"].append(finaltestcasedata)
-                                finalscenariodata["children"].append(finalscreendata)
-                        finaldata["children"].append(finalscenariodata)
-
-                res={'rows':finaldata}
+                                    finalscreendata = {}
+                                    finalscreendata["projectID"] = projectid
+                                    finalscreendata["_id"] = sc["_id"]
+                                    finalscreendata["name"] = screendata[sc["_id"]]["name"]
+                                    finalscreendata["type"] = "screens"
+                                    finalscreendata["childIndex"] = j
+                                    finalscreendata["children"] = []
+                                    finalscreendata["reuse"] = screendata[sc["_id"]]["reuse"]
+                                    finalscreendata["state"] = "saved"
+                                    if 'task' in screendata[sc["_id"]] and screendata[sc["_id"]]['task']["status"] != "complete":
+                                        finalscreendata["task"] = screendata[sc["_id"]]['task']
+                                    else:
+                                        finalscreendata["task"] = None
+                                    finalscreendata["taskexists"] = screendata[sc["_id"]]['taskexists'] if 'taskexists' in screendata[sc["_id"]
+                                                                                                                                    ] and screendata[sc["_id"]]["taskexists"]["status"] != "complete" else None
+                                    j = j+1
+                                    if "testcases" in sc:
+                                        if len(sc["testcases"]) == 0 and mindmaptype == "basic":
+                                            finaldata["completeFlow"] = False
+                                        k = 1
+                                        for tc in sc["testcases"]:
+                                            finaltestcasedata = {}
+                                            finaltestcasedata["projectID"] = projectid
+                                            finaltestcasedata["_id"] = tc
+                                            finaltestcasedata["name"] = testcasedata[tc]["name"]
+                                            finaltestcasedata["type"] = "testcases"
+                                            finaltestcasedata["childIndex"] = k
+                                            finaltestcasedata["children"] = []
+                                            finaltestcasedata["reuse"] = testcasedata[tc]["reuse"]
+                                            finaltestcasedata["state"] = "saved"
+                                            if 'task' in testcasedata[tc] and testcasedata[tc]['task']['status'] != 'complete':
+                                                finaltestcasedata["task"] = testcasedata[tc]['task']
+                                            else:
+                                                finaltestcasedata["task"] = None
+                                            finaltestcasedata["taskexists"] = testcasedata[tc]['taskexists'] if 'taskexists' in testcasedata[
+                                                tc] and testcasedata[tc]['taskexists']['status'] != 'complete' else None
+                                            k = k+1
+                                            finalscreendata["children"].append(
+                                                finaltestcasedata)
+                                    finalscenariodata["children"].append(
+                                        finalscreendata)
+                            finaldata["children"].append(finalscenariodata)
+                        moduleMap.append(finaldata)
+                    res = {'rows': moduleMap[0]}
+                    if type(requestdata["moduleid"]) == str:
+                         break
             else:
-                findquery = {"projectid":ObjectId(requestdata["projectid"])}
-                if tab=="tabCreate": findquery["type"] = "basic"
-                queryresult=list(dbsession.mindmaps.find(findquery, {"name":1,"_id":1,"type":1}))
-                res={'rows':queryresult}
+                findquery = {"projectid": ObjectId(requestdata["projectid"])}
+                if tab == "tabCreate":
+                    findquery["type"] = "basic"
+                queryresult = list(dbsession.mindmaps.find(
+                    findquery, {"name": 1, "_id": 1, "type": 1}))
+                res = {'rows': queryresult}
         except Exception as e:
             servicesException("getModules", e, True)
         return jsonify(res)
@@ -1172,23 +1200,65 @@ def LoadServices(app, redissession, dbsession):
             return None
 
 
-    @app.route('/mindmap/exportMindmap',methods=['POST'])
+    @app.route('/mindmap/exportMindmap', methods=['POST'])
     def exportMindmap():
-        res={'rows':'fail'}
+        res = {'rows': 'fail'}
         try:
-            requestdata=json.loads(request.data)
+            requestdata = json.loads(request.data)
             app.logger.debug("Inside exportMindmap.")
             if not isemptyrequest(requestdata):
                 if (requestdata['query'] == 'exportMindmap'):
-                    mindmapid=ObjectId(requestdata['mindmapId'])
-                    queryresult = dbsession.mindmaps.find_one({"_id":mindmapid,"deleted":False},{"projectid":1,"name":1,"versionnumber":1,"deleted":1,"type":1,"testscenarios":1})
+
+                    mindmapid = [ObjectId(i) for i in requestdata['mindmapId']]
+                    # mindmapid=ObjectId(requestdata['mindmapId'])
+
+                    # queryresult = dbsession.mindmaps.find_one({"_id":mindmapid,"deleted":False},{"projectid":1,"name":1,"versionnumber":1,"deleted":1,"type":1,"testscenarios":1})
+                    queryresult = list(dbsession.mindmaps.aggregate([
+                        {'$match': {"_id": {'$in': mindmapid}}},
+                        
+                        {'$lookup': {
+                            'from': "screens",
+                            'localField': "testscenarios.screens._id",
+                            'foreignField': "_id",
+                            'as': "screens"
+                        }
+                        },
+
+                        {'$lookup': {
+                            'from': "testcases",
+                            'localField': "testscenarios.screens.testcases",
+                            'foreignField': "_id",
+                            'as': "testcases"
+                        }
+
+                        },
+                        {'$lookup': {
+                            'from': "testscenarios",
+                            'localField': "testscenarios._id",
+                            'foreignField': "_id",
+                            'as': "testscenarios"
+                        }
+                        },
+                        {'$lookup': {
+                            'from': "testsuites",
+                            'localField': "_id",
+                            'foreignField':"mindmapid",
+                            'as': "testsuites"
+                        }
+                        }
+                        # {
+                        #     "$project": {"_id":1,"name":1,"createdby":1,"type":1,"createdbyrole":1,"projectid":1,"versionnumber":1,"testscenarios._id":1,"testscenarios.name":1,"testscenarios.parent":1,"testscenarios.projectid":1,"testcases.name":1,"testcases.screenid":1,"testcases.steps":1,"screens.name":1,"screens._id":1,"screens.screenshot":1,"screens.parent":1,"screens.parent":1}
+                        # }
+                        
+                    ]))
+
                     if queryresult:
-                        res={'rows':queryresult}
+                        res = {'rows': queryresult}
             else:
                 app.logger.warn('Empty data received while exporting mindmap')
         except Exception as exportmindmapexc:
-            servicesException("exportMindmap",exportmindmapexc, True)
-        return jsonify(res)
+            servicesException("exportMindmap", exportmindmapexc, True)
+        return jsonify(json.loads(json_util.dumps(res)))
     
 
     def update_scenarios(scenarios):
@@ -1205,30 +1275,103 @@ def LoadServices(app, redissession, dbsession):
                         j['testcases'] = testcases
 
 
-    @app.route('/mindmap/importMindmap',methods=['POST'])
+    @app.route('/mindmap/importMindmap', methods=['POST'])
     def importMindmap():
-        res={'rows':'fail'}
+        res = {'rows': 'fail'}
         try:
-            requestdata=json.loads(request.data)
-            app.logger.debug("Inside importMindmap.")
+            app.logger.debug("Inside importMindmap.Request: "+str(request))
+            # requestdata = json.loads(request.data)
+            requestdata = loads(request.data)
+            app.logger.debug("Inside importMindmap."+str(requestdata))
             if not isemptyrequest(requestdata):
-                if (requestdata['query'] == 'importMindmap'):
-                    mindmapid=ObjectId(requestdata['mindmap']['_id'])
-                    update_scenarios(requestdata['mindmap']['testscenarios'])
-                    #query below can be improved
-                    result=dbsession.mindmaps.find_one({"_id":mindmapid})
-                    if result != None:
-                        queryresult = dbsession.mindmaps.update_one({"_id":mindmapid},{'$set':{"deleted":False,"name":requestdata['mindmap']['name'],"projectid": ObjectId(requestdata['mindmap']['projectid']),"testscenarios":requestdata['mindmap']['testscenarios'],"type":requestdata['mindmap']['type'],"versionnumber":requestdata['mindmap']['versionnumber']}})
-                    else:
-                        requestdata['mindmap']['_id'] = mindmapid
-                        requestdata['mindmap']['projectid'] = ObjectId(requestdata['mindmap']['projectid'])
-                        queryresult = dbsession.mindmaps.insert_one(requestdata['mindmap'])
-                    result=dbsession.mindmaps.find_one({"_id":mindmapid},{"_id":1})
+                createdModuleList = []
+                for moduleObj in requestdata['mindmap']:
+                    del moduleObj["_id"]
+                    projectid = moduleObj['projectid']
+                    createdby = moduleObj['createdby']
+                    createdbyrole = moduleObj['createdbyrole']
+                    
+                    versionnumber = moduleObj['versionnumber']
+                    if (requestdata['query'] == 'importMindmap'):
+                            app.logger.debug("Inside importMindmap.")
+                            moduleObj['projectid'] = ObjectId(
+                                moduleObj['projectid'])
+                            queryresult = dbsession.mindmaps.insert_one(
+                                moduleObj)
+                            result = dbsession.mindmaps.find_one(
+                            {"_id": queryresult.inserted_id}, {"_id": 1})
+                            createdModuleList.append(queryresult.inserted_id)
+                            scenarioList = []
+                            for i in moduleObj['testscenarios']:
+                                testscenario = {}
+                                screenList = []
+                                del i["parent"]
+                                del i["projectid"]   
+                                # print('testscenarioid'+i['_id'])                             
+                                for j in moduleObj['screens']:
+                                    testcaseList=[]
+                                    for scr in  j['parent']:
+                                        if scr == i['_id']:                                        
+                                            for k in moduleObj['testcases']:
+                                                if k['screenid'] ==j['_id']:
+                                                    testcaseList.append(k)
+                                                    j["testcases"] = testcaseList
+                                                else:
+                                                    print("else")                                        
+                                            screenList.append(j)
+                                        else:
+                                            print('scr not in')                                                           
+                                testscenario = i
+                                # if testscenario_id:
+                                del testscenario["_id"]
+                                testscenario["screens"] = screenList
+                                scenarioList.append(testscenario)
+                            currentmoduleid = queryresult.inserted_id
+
+                            idsforModule = []
+                            for scenariodata in scenarioList:
+                                testcaseidsforscenario = []
+                                currentscenarioid = saveTestScenario(
+                                    projectid, scenariodata['name'], versionnumber, createdby, createdbyrole, currentmoduleid)
+                                iddata1 = {"_id": ObjectId(
+                                    currentscenarioid), "screens": []}
+                                for screendata in scenariodata['screens']:
+                                    del screendata['_id']
+                                    del screendata['parent']
+                                    currentscreenid = saveScreen(
+                                                projectid, screendata["name"], versionnumber, createdby, createdbyrole, currentscenarioid)
+                                    queryresult=dbsession.screens.update_many({'_id':ObjectId(currentscreenid),'versionnumber':versionnumber},
+                                                {'$set':{'modifiedby':ObjectId(createdby),'modifiedbyrole':ObjectId(createdbyrole),'screenshot':screendata['screenshot'],'orderlist': screendata['orderlist'] if ('orderlist' in screendata) else [],'scrapedurl':screendata['scrapedurl'],"modifiedon" : datetime.now()}}).matched_count
+                                    if 'orderlist' in screendata:
+                                        orderlistids=[]
+                                        for i in screendata['orderlist']:
+                                            orderlistids.append(ObjectId(i))
+                                        queryresult=dbsession.dataobjects.update_many({'_id':{'$in':orderlistids}},{"$push":{'parent':ObjectId(currentscreenid)}})
+                                    iddata2 = {"_id": ObjectId(
+                                        currentscreenid), "testcases": []}
+                                    for testcasedata in screendata['testcases']:
+                                        del testcasedata['screenid']
+                                        currenttestcaseid = saveTestcase(
+                                                    currentscreenid, testcasedata['name'], versionnumber, createdby, createdbyrole)
+                                        queryresult = dbsession.testcases.update_many({'_id':ObjectId(currenttestcaseid),'versionnumber':versionnumber},
+                                                    {'$set':{'modifiedby':ObjectId(createdby),'modifiedbyrole':ObjectId(createdbyrole),"modifiedon" : datetime.now(),'steps':testcasedata['steps'],'datatables':testcasedata['datatables'] if 'datatables' in testcasedata else []}}).matched_count
+                                        testcaseidsforscenario.append(
+                                            ObjectId(currenttestcaseid))
+                                        iddata2["testcases"].append(
+                                            ObjectId(currenttestcaseid))
+                                    iddata1["screens"].append(iddata2)
+                                idsforModule.append(iddata1)
+                                updateTestcaseIDsInScenario(
+                                    currentscenarioid, testcaseidsforscenario)
+                                updateTestScenariosInModule(currentmoduleid, idsforModule)
+                                
+                            
                     if queryresult:
-                        res={'rows':result}
+                            res = {'rows': createdModuleList}
+                
             else:
                 app.logger.warn('Empty data received while importing mindmap')
         except Exception as importmindmapexc:
-            servicesException("importMindmap",importmindmapexc, True)
+            servicesException("importMindmap", importmindmapexc, True)
         return jsonify(res)
 
