@@ -227,6 +227,13 @@ def LoadServices(app, redissession, dbsession):
                             insertquery = {"batchid": batchid,"batchname": batchname,"smart":smart,"parent": [ObjectId(tsuid)],
                                 "configuration": {}, "executedby": ObjectId(requestdata['executedby']),
                                 "status": "queued", "version":requestdata['version'], "endtime": None, "starttime": starttime}
+                            if(requestdata['configurekey']):
+                                insertquery['configurekey'] = requestdata['configurekey']
+                                insertquery['executionListId'] = requestdata['executionListId']
+                                insertquery['projectId'] = requestdata['projectId']
+                                insertquery['releaseName'] = requestdata['releaseName']
+                                insertquery['cycleId'] = requestdata['cycleId']
+
                             execid = str(dbsession.executions.insert(insertquery))
                             execids[tsuid] = execid
                     res["rows"] = {"batchid": str(batchid), "execids": execids}

@@ -121,6 +121,7 @@ def LoadServices(app, redissession, dbsession):
             if(len(agentPresent) > 0):
                 requestdata['status'] = agentPresent[0]['status']
                 requestdata['createdon'] = agentPresent[0]['createdon']
+                requestdata['icecount'] = agentPresent[0]['icecount']
                 dbsession.avoagents.update({"_id":ObjectId(agentPresent[0]['_id'])},{'$set':{"recentCall":requestdata['recentCall']}})
             else:
                 dbsession.avoagents.insert_one(requestdata)
@@ -257,7 +258,7 @@ def LoadServices(app, redissession, dbsession):
             queryresult = list(dbsession.configurekeys.find({'session.userid': requestdata['userid']}))
             responseData = []
             for elements in queryresult:
-                updatedExecutionReq = elements['executionData']
+                updatedExecutionReq = elements['executionData'] 
                 responseData.append({
                     'configurename': updatedExecutionReq['configurename'],
                     'configurekey': updatedExecutionReq['configurekey'],
@@ -396,6 +397,29 @@ def LoadServices(app, redissession, dbsession):
             result=dbsession.avogrids.delete_one({"_id":ObjectId(requestdata['_id'])})
 
             res['rows'] = 'success'
+            # if not isemptyrequest(requestdata):
+            #     print("I am inside")
+
+        except Exception as e:
+            print(e)
+            return e
+        return jsonify(res)
+
+    @app.route('/devops/fetchProjectReleaseCycleDevops',methods=['POST'])
+    def fetchProjectReleaseCycleDevops():
+        app.logger.debug("Inside fetchProjectReleaseCycleDevops")
+        res={'rows':'fail'}
+        try:
+            requestdata=json.loads(request.data)
+
+            queryresult=list(dbsession.executions.find({"executionListId":requestdata["executionListId"]}))
+            if(len(queryresult) != 0):
+                res['rows'] = {
+                    'projectId': queryresult[0]['projectId'],
+                    'releaseName': queryresult[0]['releaseName'],
+                    'cycleId': queryresult[0]['cycleId']
+                }
+
             # if not isemptyrequest(requestdata):
             #     print("I am inside")
 
