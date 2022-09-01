@@ -227,7 +227,7 @@ def LoadServices(app, redissession, dbsession):
                             insertquery = {"batchid": batchid,"batchname": batchname,"smart":smart,"parent": [ObjectId(tsuid)],
                                 "configuration": {}, "executedby": ObjectId(requestdata['executedby']),
                                 "status": "queued", "version":requestdata['version'], "endtime": None, "starttime": starttime}
-                            if(requestdata['configurekey']):
+                            if('configurekey' in requestdata and requestdata['configurekey']):
                                 insertquery['configurekey'] = requestdata['configurekey']
                                 insertquery['executionListId'] = requestdata['executionListId']
                                 insertquery['projectId'] = requestdata['projectId']

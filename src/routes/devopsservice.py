@@ -21,6 +21,12 @@ def LoadServices(app, redissession, dbsession):
                 # check whether key is already present
                 keyAlreadyExist = list(dbsession.configurekeys.find({'token': requestdata["token"]}))
 
+                if(requestdata['executionData']['avogridId'] != ''):
+                    agentList = list(dbsession.avogrids.find({'_id': ObjectId(requestdata['executionData']['avogridId'])}))
+                    requestdata['executionData']['avoagents'] = {}
+                    for agents in agentList[0]['agents']:
+                        requestdata['executionData']['avoagents'][agents['Hostname']] = agents['icecount']
+
                 # case-1 key not present
                 if(len(keyAlreadyExist) == 0):
                     # newRequestData = {item: requestdata[item] for item in requestdata if item not in {'executionRequest'}}
