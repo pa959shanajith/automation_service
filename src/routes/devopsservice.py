@@ -415,20 +415,21 @@ def LoadServices(app, redissession, dbsession):
             return e
         return jsonify(res)
 
-    @app.route('/devops/fetchProjectReleaseCycleDevops',methods=['POST'])
-    def fetchProjectReleaseCycleDevops():
-        app.logger.debug("Inside fetchProjectReleaseCycleDevops")
+    @app.route('/devops/fetchModuleListDevopsReport',methods=['POST'])
+    def fetchModuleListDevopsReport():
+        app.logger.debug("Inside fetchModuleListDevopsReport")
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
 
             queryresult=list(dbsession.executions.find({"executionListId":requestdata["executionListId"]}))
+            testSuite = []
             if(len(queryresult) != 0):
-                res['rows'] = {
-                    'projectId': queryresult[0]['projectId'],
-                    'releaseName': queryresult[0]['releaseName'],
-                    'cycleId': queryresult[0]['cycleId']
-                }
+                for execution in queryresult:
+                    testSuite.append(execution['parent'][0])
+
+                testSuiteData = list(dbsession.testsuites.find({"_id" : {"$in" : testSuite}},{'_id':1,'name':1}))
+                res['rows'] = testSuiteData
 
             # if not isemptyrequest(requestdata):
             #     print("I am inside")
