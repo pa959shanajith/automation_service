@@ -429,6 +429,8 @@ def LoadServices(app, redissession, dbsession):
                     testSuite.append(execution['parent'][0])
 
                 testSuiteData = list(dbsession.testsuites.find({"_id" : {"$in" : testSuite}},{'_id':1,'name':1}))
+                for index in range(0,len(testSuite)):
+                    testSuiteData[index]['execution_Id'] = queryresult[index]['_id']
                 res['rows'] = testSuiteData
 
             # if not isemptyrequest(requestdata):
