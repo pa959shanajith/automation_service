@@ -232,7 +232,7 @@ def LoadServices(app, redissession, dbsession):
                     'moduleid' : moduleDetail['_id'],
                     "name" : moduleDetail['name'],
                     'scenarios' : [],
-                    'batchname':  testsuitesdata['batchname'] if (testsuitesdata and testsuitesdata['batchname']) else ''
+                    'batchname':  testsuitesdata['batchname'] if (testsuitesdata and 'batchname' in testsuitesdata and testsuitesdata['batchname']) else ''
                     # 'batchname': testsuitesdata['batchname']
                 })
                 if "testscenarios" in mindmapdata:
