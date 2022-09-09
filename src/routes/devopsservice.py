@@ -227,12 +227,12 @@ def LoadServices(app, redissession, dbsession):
             for moduleDetail in requestdata:
                 scenarioids=[]
                 mindmapdata=dbsession.mindmaps.find_one({"_id":ObjectId(moduleDetail['_id'])},{"testscenarios":1})
-                testsuitesdata=dbsession.testsuites.find_one({"mindmapid":ObjectId(moduleDetail['_id'])},{"batchname":1})
+                testsuitesdata=dbsession.testsuites.find_one({"mindmapid":ObjectId(moduleDetail['_id'])})
                 processedData.append({
                     'moduleid' : moduleDetail['_id'],
                     "name" : moduleDetail['name'],
                     'scenarios' : [],
-                    'batchname':  testsuitesdata['batchname'] if (testsuitesdata and testsuitesdata['batchname']) else ''
+                    'batchname':  testsuitesdata['batchname'] if (testsuitesdata and 'batchname' in testsuitesdata and testsuitesdata['batchname']) else ''
                     # 'batchname': testsuitesdata['batchname']
                 })
                 if "testscenarios" in mindmapdata:
