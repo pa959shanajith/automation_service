@@ -241,7 +241,19 @@ def LoadServices(app, redissession, dbsession):
                             scenarioids.append(ts["_id"])
 
                     scenariodetails=list(dbsession.testscenarios.find({"_id":{"$in":scenarioids}},{"_id":1,"name":1}))
-                    processedData[processedDataIndex]['scenarios'] = scenariodetails
+                    requiredScenarioDict={}
+                    for ts in scenariodetails:
+                        requiredScenarioDict[ts['_id']] = ts['name']
+                    
+                    scenarioids = []
+                    for ts in mindmapdata["testscenarios"]:
+                        scenarioids.append({
+                                '_id': ts['_id'],
+                                'name': requiredScenarioDict[ts['_id']]
+                            })
+
+                    
+                    processedData[processedDataIndex]['scenarios'] = scenarioids
                     processedDataIndex+=1
 
             print(processedData)
