@@ -55,8 +55,8 @@ def LoadServices(app, redissession, dbsession):
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
-            requestdata['configkey'] = requestdata['executionRequest']['configurekey']
-            requestdata['executionListId'] = requestdata['executionRequest']['executionListId']
+            requestdata['configkey'] = requestdata['executionData']['configurekey']
+            requestdata['executionListId'] = requestdata['executionData']['executionListId']
             dbsession.executionlist.insert_one(requestdata)
             res['rows'] = 'success'
 
@@ -183,7 +183,7 @@ def LoadServices(app, redissession, dbsession):
         try:
             requestdata=json.loads(request.data)
             testSuiteId = requestdata['testSuiteId']
-            executionData = list(dbsession.executionlist.find({'executionListId':requestdata['executionListId'],"configkey": requestdata['key']},{'executionRequest': 1}))
+            executionData = list(dbsession.executionlist.find({'executionListId':requestdata['executionListId'],"configkey": requestdata['key']}))
             correctexecutionRequest = ''
             # for executionRequest in executionData[0]['executionRequestList']:
             #     # print(executionRequest['executionRequest']['version'])
@@ -194,11 +194,16 @@ def LoadServices(app, redissession, dbsession):
 
             # executionData[0].pop('executionRequestList')
             # executionData[0]['executionRequest'] = correctexecutionRequest['executionRequest']
-            print(executionData[0]['executionRequest']['testsuiteIds'].index(testSuiteId))
-            index = executionData[0]['executionRequest']['testsuiteIds'].index(testSuiteId)
-            executionData[0]['executionRequest']['executionIds'] = [executionData[0]['executionRequest']['executionIds'][index]]
-            executionData[0]['executionRequest']['suitedetails'] = [executionData[0]['executionRequest']['suitedetails'][index]]
-            executionData[0]['executionRequest']['testsuiteIds'] = [executionData[0]['executionRequest']['testsuiteIds'][index]]
+            index = -1
+            for info in executionData[0]['executionData']['batchInfo']:
+                index+=1
+                if info['testsuiteId'] == testSuiteId:
+                    break
+            # print(executionData[0]['executionRequest']['testsuiteIds'].index(testSuiteId))
+            # index = executionData[0]['executionRequest']['testsuiteIds'].index(testSuiteId)
+            # executionData[0]['executionRequest']['executionIds'] = [executionData[0]['executionRequest']['executionIds'][index]]
+            # executionData[0]['executionRequest']['suitedetails'] = [executionData[0]['executionRequest']['suitedetails'][index]]
+            executionData[0]['executionData']['batchInfo'] = [executionData[0]['executionData']['batchInfo'][index]]
 
 
 
