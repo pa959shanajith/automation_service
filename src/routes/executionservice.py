@@ -449,6 +449,18 @@ def LoadServices(app, redissession, dbsession):
                             flag = i
                             break
                     res["rows"] = flag
+
+                elif(param == 'checkrecurringscheduleddetails'):
+                    timelist = requestdata["scheduledatetime"]
+                    flag = -1
+                    for i in range(len(timelist)):
+                        time =  timelist[i]
+                        address = requestdata["targetaddress"][i]
+                        count = dbsession.scheduledexecutions.find({"time": time, "status": "recurring", "target": address}).count()
+                        if count > 0:
+                            flag = i
+                            break
+                    res["rows"] = flag
                 app.logger.debug("Executed ScheduleTestSuite_ICE. Query: " + param)
             else:
                 app.logger.warn('Empty data received. schedule testsuite.')
