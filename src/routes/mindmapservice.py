@@ -3,6 +3,7 @@
 ################################################################################
 # ----------DEFAULT METHODS AND IMPORTS------------DO NOT EDIT-------------------
 from cgitb import lookup
+from copy import copy, deepcopy
 from multiprocessing.dummy import Array
 from types import ModuleType
 from typing import List
@@ -504,9 +505,9 @@ def LoadServices(app, redissession, dbsession):
                                         finalscreendata)
                             finaldata["children"].append(finalscenariodata)
                         moduleMap.append(finaldata)
-                    res = {'rows': moduleMap[0]}
+                    res = {'rows': moduleMap if len(moduleMap)>1 else moduleMap[0]}
                     if type(requestdata["moduleid"]) == str:
-                         break
+                            break
             else:
                 findquery = {"projectid": ObjectId(requestdata["projectid"])}
                 if tab == "tabCreate":
@@ -932,6 +933,7 @@ def LoadServices(app, redissession, dbsession):
                                 break
                             else:
                                 screendata['state'] = "renamed"
+                        
                     if screendata["screenName"] not in screen_testcase:
                         screen_testcase[screendata["screenName"]] = set()
                         for testcasedata in screendata['testcaseDetails']:
@@ -972,6 +974,7 @@ def LoadServices(app, redissession, dbsession):
                                     else:
                                         testcasedata["state"] = "renamed"
                                         testcasedata["reuse"] = False
+                                
         if error is None:
             return None
         else:
@@ -1330,6 +1333,7 @@ def LoadServices(app, redissession, dbsession):
         else:
             return None
 
+
     @app.route('/mindmap/exportMindmap', methods=['POST'])
     def exportMindmap():
         res = {'rows': 'fail'}
@@ -1389,6 +1393,7 @@ def LoadServices(app, redissession, dbsession):
         except Exception as exportmindmapexc:
             servicesException("exportMindmap", exportmindmapexc, True)
         return jsonify(json.loads(json_util.dumps(res)))
+    
 
     def update_scenarios(scenarios):
         # converting all strings to ObjectIds
@@ -1403,6 +1408,7 @@ def LoadServices(app, redissession, dbsession):
                             testcases.append(ObjectId(k))
                         j['testcases'] = testcases
    
+
 
     @app.route('/mindmap/importMindmap', methods=['POST'])
     def importMindmap():
@@ -1424,9 +1430,27 @@ def LoadServices(app, redissession, dbsession):
                     if (requestdata['query'] == 'importMindmap'):
                             app.logger.debug("Inside importMindmap.")
                             moduleObj['projectid'] = ObjectId(
-                                moduleObj['projectid'])
+                                moduleObj['projectid'])                                
+                            moduleObjCopy = deepcopy(moduleObj)
+                            del moduleObjCopy["screens"]
+                            del moduleObjCopy["testcases"]
+                            del moduleObjCopy["testscenarios"]
+                            del moduleObjCopy["testsuites"]
+                            moduleObjCopy["createdon"]= datetime.now()
+                            moduleObjCopy["createdthrough"]=moduleObj['createdthrough']
+                            createdthrough=moduleObjCopy["createdthrough"]
+                            moduleObjCopy["createdby"]:ObjectId(createdby)
+                            moduleObjCopy["createdbyrole"]=ObjectId(createdbyrole)
+                            moduleObjCopy["deleted"]=False
+                            moduleObjCopy["modifiedby"]= ObjectId(createdby)
+                            moduleObjCopy["modifiedon"] = datetime.now()
+                            moduleObjCopy["modifiedbyrole"]= ObjectId(createdbyrole)
+                            moduleObjCopy["type"]= moduleObj['type']
+                            module_type= moduleObjCopy["type"]
+                            
+                            
                             queryresult = dbsession.mindmaps.insert_one(
-                                moduleObj)
+                                moduleObjCopy)
                             result = dbsession.mindmaps.find_one(
                             {"_id": queryresult.inserted_id}, {"_id": 1})
                             createdModuleList.append(queryresult.inserted_id)
@@ -1435,7 +1459,7 @@ def LoadServices(app, redissession, dbsession):
                                 testscenario = {}
                                 screenList = []
                                 del i["parent"]
-                                del i["projectid"]   
+                                 
                                 # print('testscenarioid'+i['_id'])                             
                                 for j in moduleObj['screens']:
                                     testcaseList=[]
@@ -1503,5 +1527,31 @@ def LoadServices(app, redissession, dbsession):
         except Exception as importmindmapexc:
             servicesException("importMindmap", importmindmapexc, True)
         return jsonify(res)
- 
+    
+    @app.route('/mindmap/gitToMindmap',methods=['POST'])
+    def gitToMindmap():
+        res={'rows':'fail'}
+        try:
+            requestdata=json.loads(request.data)
+            app.logger.debug("Inside gitToMindmap.")
+            if not isemptyrequest(requestdata):
+                if (requestdata['query'] == 'gitToMindmap'):
+                    mindmapid=ObjectId(requestdata['mindmap']['_id'])
+                    update_scenarios(requestdata['mindmap']['testscenarios'])
+                    #query below can be improved
+                    result=dbsession.mindmaps.find_one({"_id":mindmapid})
+                    if result != None:
+                        queryresult = dbsession.mindmaps.update_one({"_id":mindmapid},{'$set':{"deleted":False,"name":requestdata['mindmap']['name'],"projectid": ObjectId(requestdata['mindmap']['projectid']),"testscenarios":requestdata['mindmap']['testscenarios'],"type":requestdata['mindmap']['type'],"versionnumber":requestdata['mindmap']['versionnumber']}})
+                    else:
+                        requestdata['mindmap']['_id'] = mindmapid
+                        requestdata['mindmap']['projectid'] = ObjectId(requestdata['mindmap']['projectid'])
+                        queryresult = dbsession.mindmaps.insert_one(requestdata['mindmap'])
+                    result=dbsession.mindmaps.find_one({"_id":mindmapid},{"_id":1})
+                    if queryresult:
+                        res={'rows':result}
+            else:
+                app.logger.warn('Empty data received while importing mindmap')
+        except Exception as gitToMindmapexc:
+            servicesException("gitToMindmap",gitToMindmapexc, True)
+        return jsonify(res)
    
