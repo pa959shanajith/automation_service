@@ -29,16 +29,9 @@ def LoadServices(app, redissession, dbsession):
 
                 # case-1 key not present
                 if(len(keyAlreadyExist) == 0):
-                    # newRequestData = {item: requestdata[item] for item in requestdata if item not in {'executionRequest'}}
-                    # requestdata["executionRequest"]['version'] = 0
-                    # newRequestData["executionRequestList"] = [{"executionRequest": requestdata["executionRequest"]}]
                     dbsession.configurekeys.insert_one(requestdata)
 
                 else: #key is present
-                    # newList = {}
-                    # newList["executionRequestList"] = keyAlreadyExist[0]["executionRequestList"]
-                    # requestdata["executionRequest"]['version'] = keyAlreadyExist[0]["executionRequestList"][-1]['executionRequest']['version'] + 1
-                    # newList["executionRequestList"].append({"executionRequest": requestdata["executionRequest"]})
                     dbsession.configurekeys.update({"_id":ObjectId(keyAlreadyExist[0]['_id'])},{'$set':{"executionData":requestdata["executionData"]}})
                 
                 res['rows'] = 'success'
@@ -60,7 +53,6 @@ def LoadServices(app, redissession, dbsession):
             dbsession.executionlist.insert_one(requestdata)
             res['rows'] = 'success'
 
-                   
         except Exception as e:
             print(e)
             return e
@@ -72,11 +64,7 @@ def LoadServices(app, redissession, dbsession):
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
-            # print(Key)
-            # To Do delete query key from requestdata.
             queryresult = list(dbsession.executionlist.find({'executionListId':requestdata['executionListId'],"configkey": requestdata['key']}))
-            print(queryresult[0]['executionRequest']['testsuiteIds'])
-            # print(queryresult[0]['executionRequestList'][-1]['executionRequest']['testsuiteIds'])
 
             res['rows'] = {
                 "testSuiteInfo" : queryresult[0]['executionRequest']['testsuiteIds'],
@@ -86,8 +74,6 @@ def LoadServices(app, redissession, dbsession):
                 'executionListId': queryresult[0]['executionListId'],
                 # "avogridid" : queryresult[0]['executionRequest']['avogridid']
             }
-            # if not isemptyrequest(requestdata):
-            #     print("I am inside")
 
         except Exception as e:
             print(e)
@@ -100,13 +86,8 @@ def LoadServices(app, redissession, dbsession):
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
-            # print(Key)
-            # To Do delete query key from requestdata.
             queryresult = list(dbsession.avogrids.find({"_id": ObjectId(requestdata["avogridid"])}))
-            print(queryresult[0]['avoagents'])
             res['rows'] = queryresult[0]['avoagents']
-            # if not isemptyrequest(requestdata):
-            #     print("I am inside")
 
         except Exception as e:
             print(e)
@@ -119,12 +100,9 @@ def LoadServices(app, redissession, dbsession):
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
-            # requestdata["token"] = "firstkey"
-            # print(Key)
-            # To Do delete query key from requestdata.
 
             agentPresent = list(dbsession.avoagents.find({"Hostname": requestdata["Hostname"]}))
-            if(len(agentPresent) > 0):
+            if(len(agentPresent) > 0): #agent already present then update the details
                 requestdata['status'] = agentPresent[0]['status']
                 requestdata['createdon'] = agentPresent[0]['createdon']
                 requestdata['icecount'] = agentPresent[0]['icecount']
@@ -133,8 +111,6 @@ def LoadServices(app, redissession, dbsession):
                 dbsession.avoagents.insert_one(requestdata)
 
             res['rows'] = requestdata
-            # if not isemptyrequest(requestdata):
-            #     print("I am inside")
 
         except Exception as e:
             print(e)
@@ -147,10 +123,6 @@ def LoadServices(app, redissession, dbsession):
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
-            # requestdata["token"] = "firstkey"
-            # print(Key)
-            # To Do delete query key from requestdata.
-            # fetching keys which contains given avo agent
             data = list(dbsession.configurekeys.find({"executionRequest.avoagents" : {"$in": [requestdata['avoagents']]}},{'_id': 0,'token': 1}))
             keysList = []
             for dic in data:
@@ -167,8 +139,6 @@ def LoadServices(app, redissession, dbsession):
 
 
             res['rows'] = keysList
-            # if not isemptyrequest(requestdata):
-            #     print("I am inside")
 
         except Exception as e:
             print(e)
@@ -185,31 +155,16 @@ def LoadServices(app, redissession, dbsession):
             testSuiteId = requestdata['testSuiteId']
             executionData = list(dbsession.executionlist.find({'executionListId':requestdata['executionListId'],"configkey": requestdata['key']}))
             correctexecutionRequest = ''
-            # for executionRequest in executionData[0]['executionRequestList']:
-            #     # print(executionRequest['executionRequest']['version'])
-            #     if executionRequest['executionRequest']['version'] == requestdata['version']:
-            #         # print('what')
-            #         correctexecutionRequest = executionRequest
-            #         break
-
-            # executionData[0].pop('executionRequestList')
-            # executionData[0]['executionRequest'] = correctexecutionRequest['executionRequest']
             index = -1
             for info in executionData[0]['executionData']['batchInfo']:
                 index+=1
                 if info['testsuiteId'] == testSuiteId:
                     break
-            # print(executionData[0]['executionRequest']['testsuiteIds'].index(testSuiteId))
-            # index = executionData[0]['executionRequest']['testsuiteIds'].index(testSuiteId)
-            # executionData[0]['executionRequest']['executionIds'] = [executionData[0]['executionRequest']['executionIds'][index]]
-            # executionData[0]['executionRequest']['suitedetails'] = [executionData[0]['executionRequest']['suitedetails'][index]]
             executionData[0]['executionData']['batchInfo'] = [executionData[0]['executionData']['batchInfo'][index]]
 
 
 
             res['rows'] = executionData
-            # if not isemptyrequest(requestdata):
-            #     print("I am inside")
 
         except Exception as e:
             print(e)
@@ -221,10 +176,6 @@ def LoadServices(app, redissession, dbsession):
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
-            # tab=requestdata['tab']
-            # app.logger.debug("Inside getScenariosForDevops. Query: "+str(requestdata["name"]))
-            # if 'moduleid' in requestdata and requestdata['moduleid']!=None:
-            #     mindmapdata=dbsession.mindmaps.find_one({"_id":ObjectId(requestdata["moduleid"])},{"testscenarios":1,"_id":1,"name":1,"projectid":1,"type":1,"versionnumber":1})
             
             
             processedData = []
@@ -261,7 +212,6 @@ def LoadServices(app, redissession, dbsession):
                     processedData[processedDataIndex]['scenarios'] = scenarioids
                     processedDataIndex+=1
 
-            print(processedData)
             res['rows'] = processedData
 
         except Exception as e:
@@ -276,8 +226,6 @@ def LoadServices(app, redissession, dbsession):
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
-            # print(Key)
-            # To Do delete query key from requestdata.
             queryresult = list(dbsession.configurekeys.find({'session.userid': requestdata['userid']}))
             responseData = []
             for elements in queryresult:
@@ -289,12 +237,9 @@ def LoadServices(app, redissession, dbsession):
                     'release': updatedExecutionReq['batchInfo'][0]['releaseId'],
                     'executionRequest': updatedExecutionReq
                 })
-            print(responseData)
-            
+
             res['rows'] = responseData
 
-            # if not isemptyrequest(requestdata):
-            #     print("I am inside")
 
         except Exception as e:
             print(e)
@@ -307,8 +252,6 @@ def LoadServices(app, redissession, dbsession):
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
-            # print(Key)
-            # To Do delete query key from requestdata.
             queryresultavogrid = queryresultavoagent = ''
             if requestdata['query'] == 'all' or requestdata['query'] == 'avoAgentList':
                 queryresultavoagent = list(dbsession.avoagents.find({}))
@@ -320,8 +263,6 @@ def LoadServices(app, redissession, dbsession):
                 'avogrids': queryresultavogrid
             }
 
-            # if not isemptyrequest(requestdata):
-            #     print("I am inside")
 
         except Exception as e:
             print(e)
@@ -337,8 +278,6 @@ def LoadServices(app, redissession, dbsession):
             result=dbsession.configurekeys.delete_one({"token":requestdata['key']})
 
             res['rows'] = 'success'
-            # if not isemptyrequest(requestdata):
-            #     print("I am inside")
 
         except Exception as e:
             print(e)
@@ -359,8 +298,6 @@ def LoadServices(app, redissession, dbsession):
                     dbsession.avoagents.delete_one({"_id":ObjectId(agentDetail['value']['_id'])})
             
             res['rows'] = 'success'
-            # if not isemptyrequest(requestdata):
-            #     print("I am inside")
 
         except Exception as e:
             print(e)
@@ -393,23 +330,6 @@ def LoadServices(app, redissession, dbsession):
             else:
                 res['err_msg'] = "Grid Already Exists"
 
-
-            # if(action == "create") :
-            #     # check whether key is already present
-            #     gridAlreadyExist = list(dbsession.avogrids.find({'name': value["name"]}))
-
-            #     # case-1 key not present
-            #     if(len(gridAlreadyExist) == 0):
-            #         dbsession.avogrids.insert_one(value)
-            #         res['rows'] = 'success'
-            #     else:
-            #         res['err_msg'] = "Grid Already Exists"
-            # else:
-            #     # check whether key is already present
-            #     gridAlreadyExist = list(dbsession.avogrids.find({'name': value["name"]}))
-            #     if(len(gridAlreadyExist) == 0):
-            #         dbsession.avogrids.update({"_id":ObjectId(requestdata['_id'])},{'$set':{"name":value["name"] , "agents": value['agents']}})
-
         except Exception as e:
             print(e)
             return e
@@ -424,8 +344,6 @@ def LoadServices(app, redissession, dbsession):
             result=dbsession.avogrids.delete_one({"_id":ObjectId(requestdata['_id'])})
 
             res['rows'] = 'success'
-            # if not isemptyrequest(requestdata):
-            #     print("I am inside")
 
         except Exception as e:
             print(e)
@@ -449,9 +367,6 @@ def LoadServices(app, redissession, dbsession):
                 for index in range(0,len(testSuite)):
                     testSuiteData[index]['execution_Id'] = queryresult[index]['_id']
                 res['rows'] = testSuiteData
-
-            # if not isemptyrequest(requestdata):
-            #     print("I am inside")
 
         except Exception as e:
             print(e)
