@@ -214,7 +214,18 @@ ecodeServices = {
     "getDetails_Zephyr":"453",
     "configureKey" : "454",
     "getTestSuite": "455",
-    "getAgents": "456"
+    "getAgents": "456",
+    "executionList":'457',
+    "agentDetails":'458',
+    "getExecScenario":'459',
+    "getScenariosForDevops":'460',
+    "getConfigureList":'461',
+    "saveAvoGrid": '462',
+    "saveAvoAgent":'463',
+    "deleteConfigureKey": '464',
+    "getAvoAgentAndAvoGridList": '465',
+    "fetchModuleListDevopsReport": '466',
+    "deleteAvoGrid": '467'
 }
 
 
