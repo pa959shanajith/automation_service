@@ -71,7 +71,9 @@ def LoadServices(app, redissession, dbsession):
             requestdata=json.loads(request.data)
             if not isemptyrequest(requestdata):
                 if ("batchname" in requestdata):
-                    queryresult=list(dbsession.executions.find({"batchname":requestdata["batchname"]},{"_id":1,"starttime":1,"endtime":1,"status":1,"smart":1,"batchid":1})) 
+                    queryresult=list(dbsession.executions.find({"batchname":requestdata["batchname"]},{"_id":1,"starttime":1,"endtime":1,"status":1,"smart":1,"batchid":1}))
+                elif ('execution_id' in requestdata):
+                    queryresult=list(dbsession.executions.find({"_id":requestdata["execution_id"]},{"_id":1,"starttime":1,"endtime":1,"status":1,"smart":1,"batchid":1})) 
                 else:
                     queryresult=list(dbsession.executions.find({"parent":ObjectId(requestdata["suiteid"])},{"_id":1,"starttime":1,"endtime":1,"status":1,"smart":1,"batchid":1})) 
                 res= {"rows":queryresult}
