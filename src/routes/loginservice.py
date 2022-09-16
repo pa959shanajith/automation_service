@@ -4,8 +4,8 @@
 #----------DEFAULT METHODS AND IMPORTS------------DO NOT EDIT-------------------
 from utils import *
 import json
-from datetime import datetime
-def LoadServices(app, redissession, dbsession, licensedata):
+from datetime import datetime, timezone
+def LoadServices(app, redissession, dbsession, licensedata,basecheckonls):
     setenv(app)
 
 ################################################################################
@@ -21,17 +21,42 @@ def LoadServices(app, redissession, dbsession, licensedata):
     def loadUser():
         app.logger.debug("Inside loadUser.")
         res={'rows':'fail'}
+        requestdata=json.loads(request.data)
+        if ("fnName" not in requestdata) or ((requestdata["fnName"] not in ["loadUserInfo"]) or basecheckonls()):
+            try:
+                if not isemptyrequest(requestdata):
+                    user_data = None
+                    if "fnName" in requestdata and requestdata["fnName"]=="forgotPasswordEmail":
+                        if ("username" in requestdata and requestdata["username"]): #handling duplicate email-id's
+                            user_data = [dbsession.users.find_one({"name":requestdata["username"]})]
+                        else:
+                            user_data = list(dbsession.users.find({"email":requestdata["email"]},{"_id":1,"name":1,"firstname":1,"lastname":1,"email":1,"auth":1,"invalidCredCount":1}))
+                        
+                    elif requestdata["username"] != "ci_cd":
+                        user_data = dbsession.users.find_one({"name":requestdata["username"]})
+                    res={'rows': user_data}
+                else:
+                    app.logger.warn('Empty data received. authentication')
+            except Exception as loaduser_exc:
+                servicesException('loadUser', loaduser_exc, True)
+        else:
+            res={'rows':'Licence Expired'}       
+        return jsonify(res)
+
+    @app.route('/login/verifyUser',methods=['POST'])
+    def verifyUser():
+        app.logger.debug("Inside verifyUser.")
+        res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
             if not isemptyrequest(requestdata):
                 user_data = None
-                if requestdata["username"] != "ci_cd":
-                    user_data = dbsession.users.find_one({"name":requestdata["username"]})
+                user_data = dbsession.users.find_one({"auth.type" : { "$in": ["inhouse"] },"_id":ObjectId(requestdata["user_id"])})
                 res={'rows': user_data}
             else:
-                app.logger.warn('Empty data received. authentication')
-        except Exception as loaduser_exc:
-            servicesException('loadUser', loaduser_exc, True)
+                app.logger.warn('Empty data received.')
+        except Exception as verifyuser_exc:
+            servicesException('verifyUser', verifyuser_exc, True)
         return jsonify(res)
 
     #DAS service for incrementing/clearing invalid password count
@@ -71,12 +96,27 @@ def LoadServices(app, redissession, dbsession, licensedata):
             requestdata=json.loads(request.data)
             action = requestdata["action"]
             if not isemptyrequest(requestdata):
+                if action == "checkForgotExpiry":
+                    user_data = dbsession.users.find_one({"_id":ObjectId(requestdata["user_id"])})
+                    if user_data["name"] == "ci_cd" or user_data["auth"]["type"] != "inhouse":
+                        return jsonify(res)
+                    else:
+                        defpasstime = user_data['auth']["defaultpasstime"]
+                        currtime = datetime.now(timezone.utc).replace(tzinfo=None)
+                        diff = (currtime - defpasstime).seconds/(60*60)
+                        if diff<=1:
+                            result = {"status":"success","user":user_data}
+                        else:
+                            result = "timeout"
+                    res['rows'] = result
+                    return jsonify(res)
+
                 if requestdata["username"] == "ci_cd":
                     return jsonify(res)
                 user_data = dbsession.users.find_one({"name":requestdata["username"]})
                 if action == "forgotPass":
                     defpasstime = user_data['auth']["defaultpasstime"]
-                    currtime = datetime.now()
+                    currtime = datetime.now(timezone.utc)
                     diff = (currtime - defpasstime).seconds/60
                     if diff<15:
                         result = "success"
@@ -109,8 +149,8 @@ def LoadServices(app, redissession, dbsession, licensedata):
             requestdata=json.loads(request.data)
             if not isemptyrequest(requestdata):
                 up_data = {
-                    "auth.defaultpassword": requestdata["defaultpassword"],
-                    "auth.defaultpasstime": datetime.now()
+                    # "auth.defaultpassword": requestdata["defaultpassword"],
+                    "auth.defaultpasstime": datetime.now(timezone.utc)
                 }
                 dbsession.users.update_one({"name":requestdata["username"]},{'$set': up_data})
                 res={'rows':'success'}
@@ -156,6 +196,7 @@ def LoadServices(app, redissession, dbsession, licensedata):
                     plugins = permissions_data['plugins']
                     lic_plugins = licensedata['plugins']
                     allowed_plugins = []
+                    dictdata['isTrial'] = licensedata['isTrial']
                     for keys in ui_plugins:
                         allowed_plugins.append({ "pluginName": ui_plugins[keys],"pluginValue": False if lic_plugins[keys] == False else plugins[keys]})
                     dictdata['pluginresult']=allowed_plugins
@@ -279,7 +320,9 @@ def LoadServices(app, redissession, dbsession, licensedata):
                                 else: res['rows'] = 'nouser'
                     if username != '' and welcomeStepNo != None:
                         user_data = list(dbsession.eularecords.find({"username": username}))
-                        if len(user_data) > 0:
+                        if (welcomeStepNo>0 and 'icename' in requestdata):
+                            res = {'rows': 'success'}                                       
+                        elif len(user_data) > 0:
                             pre_acceptance = user_data[-1]["acceptance"]
                             if pre_acceptance == "Accept":
                                 res = {'rows': 'success'}

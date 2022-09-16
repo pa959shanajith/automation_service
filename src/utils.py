@@ -225,12 +225,14 @@ ecodeServices = {
     "deleteConfigureKey": '464',
     "getAvoAgentAndAvoGridList": '465',
     "fetchModuleListDevopsReport": '466',
-    "deleteAvoGrid": '467'
+    "deleteAvoGrid": '467',
+    "verifyUser":"468",
+    "deleteScenario": "469"
 }
 
 
 EXEMPTED_SERVICES = ["checkUser", "validateUserState", "loadUserInfo", "logoutUser",
-  "ExecuteTestSuite_ICE_SVN", "getReport_API", "ICE_provisioning_register"]
+  "ExecuteTestSuite_ICE_SVN", "getReport_API", "ICE_provisioning_register", "verifyUser"]
 
 
 def setenv(flaskapp=None, licactive=None):

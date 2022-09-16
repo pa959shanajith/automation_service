@@ -302,6 +302,22 @@ def LoadServices(app, redissession, dbsession):
                         for tsco in tscos: tsco["scenarioId"] = ObjectId(tsco["scenarioId"])
                     invokinguser = requestdata["scheduledby"]
                     scheduledby = {"invokinguser":ObjectId(invokinguser["invokinguser"]),"invokingusername":invokinguser["invokingusername"],"invokinguserrole":invokinguser["invokinguserrole"]}
+                    if "status" in requestdata:
+                        status = requestdata["status"]
+                    else:
+                        status = "scheduled"
+                    if "recurringPattern" in requestdata:
+                        recurringpattern = requestdata["recurringPattern"]
+                    else:
+                        recurringpattern = "One Time"
+                    if "recurringStringOnHover" in requestdata:
+                        recurringstringonhover = requestdata["recurringStringOnHover"]
+                    else:
+                        recurringstringonhover = "One Time"
+                    if requestdata['parentId'] != 0:	
+                        parentid = ObjectId(requestdata['parentId'])	
+                    else:	
+                        parentid = ObjectId()
                     dataquery = {
                         "scheduledon": datetime.fromtimestamp(int(requestdata['timestamp'])/1000,pytz.UTC),
                         "executeon": requestdata["executeon"],
@@ -309,10 +325,16 @@ def LoadServices(app, redissession, dbsession):
                         "target": requestdata["targetaddress"],
                         "scenariodetails": requestdata["scenarios"],
                         "scenarioFlag": requestdata["scenarioFlag"],
-                        "status": "scheduled",
+                        "status": status,
                         "testsuiteids": [ObjectId(i) for i in requestdata['testsuiteIds']],
                         "scheduledby": scheduledby,
-                        "poolid": ObjectId(requestdata["poolid"])
+                        "poolid": ObjectId(requestdata["poolid"]),
+                        "scheduletype": requestdata["scheduleType"],
+                        "recurringpattern": recurringpattern,
+                        "time": requestdata["time"],
+                        "recurringstringonhover": recurringstringonhover,
+                        "parentid": parentid,
+                        "startdate": datetime.fromtimestamp(int(requestdata['startDate'])/1000,pytz.UTC)
                     }
                     if "smartid" in requestdata: dataquery["smartid"] = uuid.UUID(requestdata["smartid"])
                     scheduleid = dbsession.scheduledexecutions.insert(dataquery)
@@ -324,10 +346,21 @@ def LoadServices(app, redissession, dbsession):
                     dbsession.scheduledexecutions.update({"_id":ObjectId(requestdata['scheduleid'])},{"$set": updatequery})
                     res["rows"] = "success"
 
+                elif(param == 'getscheduleagendajobs'):
+                    findquery = {}
+                    if "scheduleid" in requestdata: findquery["name"] = requestdata["scheduleid"]
+                    res["rows"] = list(dbsession.agendaJobs.find(findquery))
+
+                elif(param == 'cancelagendajobs'):
+                    findquery = {}
+                    if "scheduleid" in requestdata: findquery["name"] = requestdata["scheduleid"]
+                    res["rows"] = list(dbsession.agendaJobs.remove(findquery))
+
                 elif(param == 'getscheduledata'):
                     findquery = {}
                     if "scheduleid" in requestdata: findquery["_id"] = ObjectId(requestdata["scheduleid"])
                     if "status" in requestdata: findquery["status"] = requestdata["status"]
+                    if "parentid" in requestdata: findquery["parentid"] = ObjectId(requestdata["parentid"])
                     res["rows"] = list(dbsession.scheduledexecutions.find(findquery))
 
                 elif(param == 'getallscheduledata'):
@@ -350,6 +383,29 @@ def LoadServices(app, redissession, dbsession):
                     for sch in schedules:
                         if "poolid" in sch and sch["poolid"] in poollist: 
                             sch["poolname"]=poollist[sch["poolid"]]
+                        if "recurringstringonhover" in sch and sch["recurringstringonhover"] != "One Time" and sch["status"] != "recurring" and "*" not in sch["recurringpattern"]:
+                            if "parentid" in sch:
+                                created_date = list(dbsession.scheduledexecutions.find({"_id": sch["parentid"]}))
+                                if len(created_date) > 0:
+                                    if "startdate" in created_date[0]:
+                                        sch["createddate"] = created_date[0]['startdate']
+                                    else:
+                                        sch["createddate"] = created_date[0]['scheduledon']
+                            else:
+                                if "startdate" in sch:
+                                    sch["createddate"] = sch['startdate']
+                                else:
+                                    sch["createddate"] = sch['scheduledon']
+                        elif "recurringpattern" in sch and "*" in sch["recurringpattern"]:
+                            if "startdate" in sch:
+                                sch["createddate"] = sch['startdate']
+                            else:
+                                sch["createddate"] = sch['scheduledon']
+                        elif "recurringpattern" in sch and sch["recurringpattern"] == "One Time":
+                            if "startdate" in sch:
+                                sch["createddate"] = sch['startdate']
+                            else:
+                                sch["createddate"] = sch['scheduledon']
                         testsuitenames = []
                         for tsuid in sch["testsuiteids"]: testsuitenames.append(tsumap[tsuid] if tsuid in tsumap else "")
                         sch["testsuitenames"] = testsuitenames
@@ -396,6 +452,18 @@ def LoadServices(app, redissession, dbsession):
                         timestamp =  datetime.fromtimestamp(int(timelist[i])/1000,pytz.UTC)
                         address = requestdata["targetaddress"][i]
                         count = dbsession.scheduledexecutions.find({"scheduledon": timestamp, "status": "scheduled", "target": address}).count()
+                        if count > 0:
+                            flag = i
+                            break
+                    res["rows"] = flag
+
+                elif(param == 'checkrecurringscheduleddetails'):
+                    timelist = requestdata["scheduledatetime"]
+                    flag = -1
+                    for i in range(len(timelist)):
+                        time =  timelist[i]
+                        address = requestdata["targetaddress"][i]
+                        count = dbsession.scheduledexecutions.find({"time": time, "status": "recurring", "target": address}).count()
                         if count > 0:
                             flag = i
                             break
