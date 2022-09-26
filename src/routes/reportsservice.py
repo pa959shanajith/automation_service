@@ -89,6 +89,8 @@ def LoadServices(app, redissession, dbsession):
             if not isemptyrequest(requestdata):
                 if ("batchname" in requestdata):
                     queryresult=list(dbsession.executions.find({"batchname":requestdata["batchname"]},{"_id":1,"starttime":1,"endtime":1,"status":1,"smart":1,"batchid":1}))
+                elif ('configurekey' in requestdata and 'executionListId' in requestdata):
+                    queryresult=list(dbsession.executions.find({"executionListId":requestdata["executionListId"],"parent":ObjectId(requestdata["suiteid"])},{"_id":1,"starttime":1,"endtime":1,"status":1,"smart":1,"batchid":1})) 
                 elif ('configurekey' in requestdata):
                     queryresult=list(dbsession.executions.find({"configurekey":requestdata["configurekey"],"parent":ObjectId(requestdata["suiteid"])},{"_id":1,"starttime":1,"endtime":1,"status":1,"smart":1,"batchid":1})) 
                 else:
