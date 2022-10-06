@@ -62,7 +62,7 @@ def LoadServices(app, redissession, dbsession):
                         queryresult = list(dbsession.executions.find({
                             'configurekey': requestdata['data']['configurekey'],
                             'executionListId': requestdata['data']['executionListId']
-                            },{'parent':1,'_id': 1}))
+                            },{'parent':1,'_id': 1,'starttime':1,'endtime':1}))
                     else:
                         queryresult = list(dbsession.executions.find({'configurekey': requestdata['data']['configurekey']},{'parent':1}))
 
@@ -71,7 +71,14 @@ def LoadServices(app, redissession, dbsession):
                         testSuiteNames.append(ids['parent'][0])
 
                     testSuiteNames = list(dbsession.testsuites.find({'_id': {'$in': testSuiteNames}},{'name': 1,'_id':1}))
-                    res = {"modules": testSuiteNames}
+                    dictForTestSuiteIdAndName = {}
+                    for result in testSuiteNames:
+                        dictForTestSuiteIdAndName[result['_id']] = result['name']
+                    
+                    for ids in queryresult:
+                        ids['moduleName'] = dictForTestSuiteIdAndName[ids['parent'][0]]
+                    
+                    res = queryresult if 'executionListId' in requestdata['data'] else {"modules": testSuiteNames}
 
             else:
                 app.logger.warn('Empty data received. report suites details.')
