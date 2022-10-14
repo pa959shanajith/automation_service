@@ -1,4 +1,4 @@
-from tkinter import E
+# from tkinter import E
 from unicodedata import name
 from warnings import catch_warnings
 from utils import *
@@ -229,7 +229,7 @@ def LoadServices(app, redissession, dbsession):
             queryresult = list(dbsession.configurekeys.find({'session.userid': requestdata['userid']}))
             responseData = []
             for elements in queryresult:
-                updatedExecutionReq = elements['executionData'] 
+                updatedExecutionReq = elements['executionData']
                 responseData.append({
                     'configurename': updatedExecutionReq['configurename'],
                     'configurekey': updatedExecutionReq['configurekey'],

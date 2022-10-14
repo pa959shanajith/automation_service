@@ -56,6 +56,30 @@ def LoadServices(app, redissession, dbsession):
                     ]))
                     batchresult=list(dbsession.executions.distinct('batchname',{'parent':{'$in':[i['_id'] for i in queryresult]}}))
                     res= {"rows":{"modules":queryresult,"batch":batchresult}}
+                elif(requestdata["query"] == 'getAlltestSuitesDevops'):
+                    queryresult = ''
+                    if('executionListId' in requestdata['data']):
+                        queryresult = list(dbsession.executions.find({
+                            'configurekey': requestdata['data']['configurekey'],
+                            'executionListId': requestdata['data']['executionListId']
+                            },{'parent':1,'_id': 1,'starttime':1,'endtime':1}))
+                    else:
+                        queryresult = list(dbsession.executions.find({'configurekey': requestdata['data']['configurekey']},{'parent':1}))
+
+                    testSuiteNames = []
+                    for ids in queryresult:
+                        testSuiteNames.append(ids['parent'][0])
+
+                    testSuiteNames = list(dbsession.testsuites.find({'_id': {'$in': testSuiteNames}},{'name': 1,'_id':1}))
+                    dictForTestSuiteIdAndName = {}
+                    for result in testSuiteNames:
+                        dictForTestSuiteIdAndName[result['_id']] = result['name']
+                    
+                    for ids in queryresult:
+                        ids['moduleName'] = dictForTestSuiteIdAndName[ids['parent'][0]]
+                    
+                    res = queryresult if 'executionListId' in requestdata['data'] else {"modules": testSuiteNames}
+
             else:
                 app.logger.warn('Empty data received. report suites details.')
         except Exception as getAllSuitesexc:
@@ -72,8 +96,10 @@ def LoadServices(app, redissession, dbsession):
             if not isemptyrequest(requestdata):
                 if ("batchname" in requestdata):
                     queryresult=list(dbsession.executions.find({"batchname":requestdata["batchname"]},{"_id":1,"starttime":1,"endtime":1,"status":1,"smart":1,"batchid":1}))
-                elif ('execution_id' in requestdata):
-                    queryresult=list(dbsession.executions.find({"_id":requestdata["execution_id"]},{"_id":1,"starttime":1,"endtime":1,"status":1,"smart":1,"batchid":1})) 
+                elif ('configurekey' in requestdata and 'executionListId' in requestdata):
+                    queryresult=list(dbsession.executions.find({"executionListId":requestdata["executionListId"],"parent":ObjectId(requestdata["suiteid"])},{"_id":1,"starttime":1,"endtime":1,"status":1,"smart":1,"batchid":1})) 
+                elif ('configurekey' in requestdata):
+                    queryresult=list(dbsession.executions.find({"configurekey":requestdata["configurekey"],"parent":ObjectId(requestdata["suiteid"])},{"_id":1,"starttime":1,"endtime":1,"status":1,"smart":1,"batchid":1})) 
                 else:
                     queryresult=list(dbsession.executions.find({"parent":ObjectId(requestdata["suiteid"])},{"_id":1,"starttime":1,"endtime":1,"status":1,"smart":1,"batchid":1})) 
                 res= {"rows":queryresult}
