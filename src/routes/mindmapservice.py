@@ -962,8 +962,15 @@ def LoadServices(app, redissession, dbsession):
                                     for scrn in tempScenario1["screens"]:
                                         if "_id" in scrn:
                                             if scrn["_id"]==ObjectId(screenid):
-                                                dbsession.screens.delete_many({'_id': screenid})
-                                                dbsession.dataobjects.delete_many({'parent':screenid})
+                                                dataObjects=list(dbsession.dataobjects.find({"parent":ObjectId(screenid)},{"parent":1}))
+                                                if len(dataObjects)==0:
+                                                    continue
+                                                dataObjectslist = dataObjects[0]['parent']
+                                                if len(dataObjectslist)==1:
+                                                    dbsession.dataobjects.delete_many({'parent':ObjectId(screenid)})
+                                                else:
+                                                    dbsession.dataobjects.update_many({'parent':ObjectId(screenid)},{"$pull": {"parent": ObjectId(screenid)}})
+                                                dbsession.screens.delete_many({'_id': ObjectId(screenid)})
                                                 del scrn["_id"]
                                                 for testcase in scrn["testcases"]:
                                                     dbsession.testcases.delete_many({'_id': testcase})
@@ -1018,6 +1025,14 @@ def LoadServices(app, redissession, dbsession):
                                     for screen in tempScenario["screens"]:
                                         if "_id" in screen:
                                             if screen["_id"]==ObjectId(screenid):
+                                                dataObjects=list(dbsession.dataobjects.find({"parent":ObjectId(screenid)},{"parent":1}))
+                                                if len(dataObjects)==0:
+                                                    continue
+                                                dataObjectslist = dataObjects[0]['parent']
+                                                if len(dataObjectslist)==1:
+                                                    dbsession.dataobjects.delete_many({'parent':ObjectId(screenid)})
+                                                else:
+                                                    dbsession.dataobjects.update_many({'parent':ObjectId(screenid)},{"$pull": {"parent":ObjectId(screenid)}})
                                                 del screen["_id"]
                                                 for testcase in screen["testcases"]:
                                                     dbsession.testcases.delete_many({'_id': testcase})
@@ -1028,7 +1043,6 @@ def LoadServices(app, redissession, dbsession):
 
                             dbsession.mindmaps.update_one({'_id' : module['_id']},  {'$set' : {'testscenarios':testscenarios}})
                     dbsession.screens.delete_many({'_id': ObjectId(screenid)})
-                    dbsession.dataobjects.delete_many({'parent':ObjectId(screenid)})
                     for testcaseid in testcaseids:
                         dbsession.testcases.delete_many({'_id': ObjectId(testcaseid)}) 
                                                       
@@ -1057,12 +1071,7 @@ def LoadServices(app, redissession, dbsession):
 
                                     testscenarios.append(tempScenario)
                                 dbsession.mindmaps.update_one({'_id' : module['_id']},  {'$set' : {'testscenarios':testscenarios}})
-                dbsession.testcases.delete_many({'_id': ObjectId(testcaseid)})
-                
-                                                                
-
-
-                
+                dbsession.testcases.delete_many({'_id': ObjectId(testcaseid)}) 
             res= {'rows' : 'success'}
         except Exception as e:
             servicesException("deleteScenario", e, True)
