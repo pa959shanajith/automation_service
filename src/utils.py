@@ -227,7 +227,9 @@ ecodeServices = {
     "fetchModuleListDevopsReport": '466',
     "deleteAvoGrid": '467',
     "verifyUser":"468",
-    "deleteScenario": "469"
+    "deleteScenario": "469",
+    "gitToMindmap":"470",
+    "deleteScenarioETE": "471"
 }
 
 
