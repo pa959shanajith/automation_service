@@ -923,14 +923,25 @@ def LoadServices(app, redissession, dbsession):
                 for scenario in tempModule['testscenarios']:
                     tempScenario=scenario
                     if "_id" in tempScenario:
-                        if scenario["_id"]==ObjectId(scenarioid):
-                            dbsession.testscenarios.update_many({'_id':tempScenario["_id"]},{"$pull": {"parent": tempModule['_id']}})
+                        if scenario["_id"]==ObjectId(scenarioid):                           
+                            testscenarioparent=list(dbsession.testscenarios.find({'_id':tempScenario["_id"]},{"parent":1}))
+                            for testscenarioparent in testscenarioparent:
+                                temptestscenarioparent=testscenarioparent
+                                parentList=[]
+                                for parent in temptestscenarioparent['parent']:
+                                    try:
+                                       temptestscenarioparent['parent'].remove(tempModule['_id'])
+                                       break
+                                    except:
+                                        pass                             
+                                parentList.append(temptestscenarioparent['parent'])
+                                parentLists=parentList[0]
+                                dbsession.testscenarios.update_many({'_id':tempScenario["_id"]},{'$set' : {'parent':parentLists}})                               
                             del tempScenario["_id"]
-                            break                                 
+                            break                                            
                 testscenarios.append(tempModule['testscenarios'])
                 testscenarios= testscenarios[0]                   
-                dbsession.mindmaps.update_one({'_id' : tempModule['_id']},  {'$set' : {'testscenarios':testscenarios}})
-                    
+                dbsession.mindmaps.update_one({'_id' : tempModule['_id']},  {'$set' : {'testscenarios':testscenarios}})             
                 res= {'rows' : 'success'}
         except Exception as e:
             servicesException("deleteScenarioETE", e, True)
@@ -1400,7 +1411,12 @@ def LoadServices(app, redissession, dbsession):
                         # }
                         
                     ]))
-
+                    projectid=list(dbsession.mindmaps.find({"_id":mindmapid[0]},{"projectid":1}))
+                    projecttype=dbsession.projects.find({"_id":ObjectId(projectid[0]["projectid"])},{"type":1})
+                    getProjectTypeName= list(dbsession.projecttypekeywords.find({"_id":ObjectId(projecttype[0]["type"])},{"name":1}))
+                    projectAppType={"apptype":""}
+                    projectAppType["apptype"]=getProjectTypeName[0]["name"]
+                    queryresult[0].update(projectAppType)
                     if queryresult:
                         res = {'rows': queryresult}
             else:
@@ -1503,34 +1519,37 @@ def LoadServices(app, redissession, dbsession):
                                 iddata1 = {"_id": ObjectId(
                                     currentscenarioid), "screens": []}
                                 for screendata in scenariodata['screens']:
-                                    del screendata['_id']
-                                    del screendata['parent']
-                                    currentscreenid = saveScreen(
-                                                projectid, screendata["name"], versionnumber, createdby, createdbyrole, currentscenarioid)
-                                    queryresult=dbsession.screens.update_many({'_id':ObjectId(currentscreenid),'versionnumber':versionnumber},
-                                                {'$set':{'modifiedby':ObjectId(createdby),'modifiedbyrole':ObjectId(createdbyrole),'screenshot':screendata['screenshot'],'orderlist': screendata['orderlist'] if ('orderlist' in screendata) else [],'scrapedurl':screendata['scrapedurl'],"modifiedon" : datetime.now()}}).matched_count
-                                    if 'orderlist' in screendata:
-                                        orderlistids=[]
-                                        for i in screendata['orderlist']:
-                                            orderlistids.append(ObjectId(i))
-                                        queryresult=dbsession.dataobjects.update_many({'_id':{'$in':orderlistids}},{"$push":{'parent':ObjectId(currentscreenid)}})
-                                    iddata2 = {"_id": ObjectId(
-                                        currentscreenid), "testcases": []}
-                                    for testcasedata in screendata['testcases']:
-                                        del testcasedata['screenid']
-                                        currenttestcaseid = saveTestcase(
-                                                    currentscreenid, testcasedata['name'], versionnumber, createdby, createdbyrole)
-                                        queryresult = dbsession.testcases.update_many({'_id':ObjectId(currenttestcaseid),'versionnumber':versionnumber},
-                                                    {'$set':{'modifiedby':ObjectId(createdby),'modifiedbyrole':ObjectId(createdbyrole),"modifiedon" : datetime.now(),'steps':testcasedata['steps'],'datatables':testcasedata['datatables'] if 'datatables' in testcasedata else []}}).matched_count
-                                        testcaseidsforscenario.append(
-                                            ObjectId(currenttestcaseid))
-                                        iddata2["testcases"].append(
-                                            ObjectId(currenttestcaseid))
-                                    iddata1["screens"].append(iddata2)
-                                idsforModule.append(iddata1)
-                                updateTestcaseIDsInScenario(
-                                    currentscenarioid, testcaseidsforscenario)
-                                updateTestScenariosInModule(currentmoduleid, idsforModule)
+                                    if '_id' in screendata:
+                                        del screendata['_id']
+                                    if 'parent' in screendata:
+                                        del screendata['parent']
+                                        currentscreenid = saveScreen(
+                                                    projectid, screendata["name"], versionnumber, createdby, createdbyrole, currentscenarioid)
+                                        queryresult=dbsession.screens.update_many({'_id':ObjectId(currentscreenid),'versionnumber':versionnumber},
+                                                    {'$set':{'modifiedby':ObjectId(createdby),'modifiedbyrole':ObjectId(createdbyrole),'screenshot':screendata['screenshot'],'orderlist': screendata['orderlist'] if ('orderlist' in screendata) else [],'scrapedurl':screendata['scrapedurl'],"modifiedon" : datetime.now()}}).matched_count
+                                        if 'orderlist' in screendata:
+                                            orderlistids=[]
+                                            for i in screendata['orderlist']:
+                                                orderlistids.append(ObjectId(i))
+                                            queryresult=dbsession.dataobjects.update_many({'_id':{'$in':orderlistids}},{"$push":{'parent':ObjectId(currentscreenid)}})
+                                        iddata2 = {"_id": ObjectId(
+                                            currentscreenid), "testcases": []}
+                                        for testcasedata in screendata['testcases']:
+                                            if 'screenid' in testcasedata:
+                                                del testcasedata['screenid']
+                                                currenttestcaseid = saveTestcase(
+                                                            currentscreenid, testcasedata['name'], versionnumber, createdby, createdbyrole)
+                                                queryresult = dbsession.testcases.update_many({'_id':ObjectId(currenttestcaseid),'versionnumber':versionnumber},
+                                                            {'$set':{'modifiedby':ObjectId(createdby),'modifiedbyrole':ObjectId(createdbyrole),"modifiedon" : datetime.now(),'steps':testcasedata['steps'],'datatables':testcasedata['datatables'] if 'datatables' in testcasedata else []}}).matched_count
+                                                testcaseidsforscenario.append(
+                                                    ObjectId(currenttestcaseid))
+                                                iddata2["testcases"].append(
+                                                    ObjectId(currenttestcaseid))
+                                            iddata1["screens"].append(iddata2)
+                                        idsforModule.append(iddata1)
+                                        updateTestcaseIDsInScenario(
+                                            currentscenarioid, testcaseidsforscenario)
+                                        updateTestScenariosInModule(currentmoduleid, idsforModule)
                                 
                             
                     if queryresult:
