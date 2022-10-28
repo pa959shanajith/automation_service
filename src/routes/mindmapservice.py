@@ -1545,11 +1545,11 @@ def LoadServices(app, redissession, dbsession):
                                                     ObjectId(currenttestcaseid))
                                                 iddata2["testcases"].append(
                                                     ObjectId(currenttestcaseid))
-                                            iddata1["screens"].append(iddata2)
-                                        idsforModule.append(iddata1)
-                                        updateTestcaseIDsInScenario(
+                                        iddata1["screens"].append(iddata2)
+                                idsforModule.append(iddata1)
+                                updateTestcaseIDsInScenario(
                                             currentscenarioid, testcaseidsforscenario)
-                                        updateTestScenariosInModule(currentmoduleid, idsforModule)
+                            updateTestScenariosInModule(currentmoduleid, idsforModule)
                                 
                             
                     if queryresult:
