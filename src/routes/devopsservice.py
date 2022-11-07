@@ -226,7 +226,7 @@ def LoadServices(app, redissession, dbsession):
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
-            queryresult = list(dbsession.configurekeys.find({'session.userid': requestdata['userid']}))
+            queryresult = list(dbsession.configurekeys.find({'executionData.batchInfo.projectId': requestdata['projectid']}))
             responseData = []
             for elements in queryresult:
                 updatedExecutionReq = elements['executionData']
