@@ -708,6 +708,177 @@ def LoadServices(app, redissession, dbsession):
         queryresult=dbsession.testcases.insert_one(data).inserted_id
         return queryresult
 
+
+
+    # API to Save Data of Genius
+    @app.route('/create_ice/saveGeniusMindmap',methods=['POST'])
+    def saveGeniusMindmap():
+        app.logger.debug("Inside saveGeniusMindmap")
+        res={'rows':'fail','error':'Failed to save structure.'}
+        try:
+            requestdata=json.loads(request.data)
+            requestdata=requestdata["data"]
+            projectid=requestdata['projectid']
+            # testcasename = "Tc_"+projectid
+            createdby=requestdata['userid']
+            createdbyrole=requestdata['userroleid']
+            versionnumber=requestdata['versionnumber']
+            createdthrough=requestdata['createdthrough']
+            module_type="basic"
+            error=checkReuse(requestdata)
+            currentmoduleid=None
+            if error is None:
+                for moduledata in requestdata['testsuiteDetails']:
+                    if moduledata["testsuiteId"] is None:
+                        currentmoduleid=saveTestSuite(projectid,moduledata['testsuiteName'],versionnumber,createdthrough,createdby,createdbyrole,module_type)
+                    else:
+                        if moduledata['state']=="renamed":
+                            updateModuleName(moduledata['testsuiteName'],projectid,moduledata["testsuiteId"],createdby,createdbyrole)
+                        currentmoduleid=moduledata['testsuiteId']
+                    idsforModule=[]
+                    for scenariodata in moduledata['testscenarioDetails']:
+                        testcaseidsforscenario=[]
+                        if scenariodata['testscenarioid'] is None:
+                            currentscenarioid=saveTestScenario(projectid,scenariodata['testscenarioName'],versionnumber,createdby,createdbyrole,currentmoduleid)
+                        else:
+                            if scenariodata['state']=="renamed":
+                                updateScenarioName(scenariodata['testscenarioName'],projectid,scenariodata['testscenarioid'],createdby,createdbyrole)
+                            currentscenarioid=scenariodata['testscenarioid']
+                        iddata1={"_id":ObjectId(currentscenarioid),"screens":[]}
+                        for screendata in scenariodata['screenDetails']:
+                            if screendata["screenid"] is None:
+                                if "newreuse" in screendata:
+                                    currentscreenid=getScreenID(screendata["screenName"],projectid)
+                                    updateparent("screens",currentscreenid,currentscenarioid,"add")
+                                else:
+                                    currentscreenid=saveScreen(projectid,screendata["screenName"],versionnumber,createdby,createdbyrole,currentscenarioid)
+                            else:
+                                if screendata["state"]=="renamed":
+                                    updateScreenName(screendata['screenName'],projectid,screendata['screenid'],createdby,createdbyrole)
+                                currentscreenid=screendata["screenid"]
+                                if "reuse" in screendata and screendata["reuse"]:
+                                    updateScreenAndTestcase(currentscreenid,createdby,createdbyrole)
+                                    updateparent("screens",currentscreenid,currentscenarioid,"add")
+                            iddata2={"_id":ObjectId(currentscreenid),"testcases":[]}
+                            for testcasedata in screendata['testcaseDetails']:
+                                if testcasedata["testcaseid"] is None:
+                                    if "newreuse" in testcasedata:
+                                        currenttestcaseid=getTestcaseID(currentscreenid,testcasedata['testcaseName'])
+                                        updateparent("testcases",currenttestcaseid,currentscreenid,"add")
+                                    else:
+                                        currenttestcaseid=saveTestcase(currentscreenid,testcasedata['testcaseName'],versionnumber,createdby,createdbyrole)
+                                else:
+                                    if testcasedata['state']=="renamed":
+                                        updateTestcaseName(testcasedata['testcaseName'],projectid,testcasedata['testcaseid'],createdby,createdbyrole)
+                                    currenttestcaseid=testcasedata['testcaseid']
+                                    if "reuse" in testcasedata and testcasedata["reuse"]:
+                                        updateparent("testcases",currenttestcaseid,currentscreenid,"add")
+                                testcaseidsforscenario.append(ObjectId(currenttestcaseid))
+                                iddata2["testcases"].append(ObjectId(currenttestcaseid))
+                            iddata1["screens"].append(iddata2)
+                        idsforModule.append(iddata1)
+                        updateTestcaseIDsInScenario(currentscenarioid,testcaseidsforscenario)
+                    updateTestScenariosInModule(currentmoduleid,idsforModule)
+                scenarioInfo = []
+                for node in requestdata['deletednodes']:
+                    if node[1] == "scenarios":
+                        scenarioName, parents = updateScenarioMindmap(node[0],node[2])
+                        if parents:
+                            scenarioInfo.append({"nodeid" : node[0], "scenarioName": scenarioName, "parents":parents })
+                    else:
+                        updateparent(node[1],node[0],node[2],"delete")
+                if scenarioInfo:
+                    res = {'rows' : {"currentmoduleid" : currentmoduleid , "scenarioInfo" :scenarioInfo}}
+                else:
+                    res={'rows':currentmoduleid}
+            else:
+                res={'rows':'reuseerror',"error":error}
+        except Exception as e:
+            servicesException("saveGeniusMindmap", e, True)
+        return jsonify(res)
+
+    def saveTestSuite(projectid,modulename,versionnumber,createdthrough,createdby,createdbyrole,moduletype,testscenarios=[]):
+        app.logger.debug("Inside saveTestSuite.")
+        createdon = datetime.now()
+        data={
+        "projectid":ObjectId(projectid),
+        "name":modulename,
+        "versionnumber":versionnumber,
+        "createdon":createdon,
+        "createdthrough":createdthrough,
+        "createdby":ObjectId(createdby),
+        "createdbyrole":ObjectId(createdbyrole),
+        "deleted":False,
+        "modifiedby": ObjectId(createdby),
+        "modifiedon": createdon,
+        "modifiedbyrole": ObjectId(createdbyrole),
+        "type": moduletype,
+        "testscenarios":[]
+        }
+        queryresult=dbsession.mindmaps.insert_one(data).inserted_id
+        return queryresult
+
+    def saveTestScenario(projectid,testscenarioname,versionnumber,createdby,createdbyrole,moduleid,testcaseids=[]):
+        app.logger.debug("Inside saveTestScenario.")
+        createdon = datetime.now()
+        data={
+            "name":testscenarioname,
+            "projectid":ObjectId(projectid),
+            "parent":[ObjectId(moduleid)] ,
+            "versionnumber":versionnumber,
+            "createdby":ObjectId(createdby),
+            "createdbyrole":ObjectId(createdbyrole),
+            "createdon":createdon,
+            "deleted":False,
+            "modifiedby":ObjectId(createdby),
+            "modifiedbyrole":ObjectId(createdbyrole),
+            "modifiedon":createdon,
+            "testcaseids":testcaseids
+        }
+        queryresult=dbsession.testscenarios.insert_one(data).inserted_id
+        return queryresult
+
+    def saveScreen(projectid,screenname,versionnumber,createdby,createdbyrole,scenarioid):
+        app.logger.debug("Inside saveScreen.")
+        createdon = datetime.now()
+        data={
+        "projectid":ObjectId(projectid),
+        "name":screenname,
+        "versionnumber":versionnumber,
+        "parent":[ObjectId(scenarioid)], 
+        "createdby":ObjectId(createdby),
+        "createdbyrole":ObjectId(createdbyrole),
+        "createdon":createdon,
+        "deleted":False,
+        "modifiedby":ObjectId(createdby),
+        "modifiedbyrole":ObjectId(createdbyrole),
+        "modifiedon":createdon,
+        "screenshot":"",
+        "scrapedurl":""
+        }
+        queryresult=dbsession.screens.insert_one(data).inserted_id
+        return queryresult
+
+    def saveTestcase(screenid,testcasename,versionnumber,createdby,createdbyrole):
+        app.logger.debug("Inside saveTestcase.")
+        createdon = datetime.now()
+        data={
+            "screenid": ObjectId(screenid),
+            "name":testcasename,
+            "versionnumber":versionnumber,
+            "createdby": ObjectId(createdby),
+            "createdbyrole": ObjectId(createdbyrole),
+            "createdon": createdon,
+            "modifiedby": ObjectId(createdby),
+            "modifiedbyrole": ObjectId(createdbyrole),
+            "modifiedon":createdon,
+            "steps":[],
+            "parent":1,
+            "deleted":False
+        }
+        queryresult=dbsession.testcases.insert_one(data).inserted_id
+        return queryresult
+
     @app.route('/mindmap/manageTask',methods=['POST'])
     def manageTaskDetails():
         res={'rows':'fail'}
