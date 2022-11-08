@@ -1544,7 +1544,7 @@ def LoadServices(app, redissession, dbsession):
                                             currentscreenid = saveScreen(
                                                         projectid, screendata["name"], versionnumber, createdby, createdbyrole, currentscenarioid)
                                             queryresult=dbsession.screens.update_many({'_id':ObjectId(currentscreenid),'versionnumber':versionnumber},
-                                                        {'$set':{'modifiedby':ObjectId(createdby),'modifiedbyrole':ObjectId(createdbyrole),'screenshot':screendata['screenshot'],'orderlist': screendata['orderlist'] if ('orderlist' in screendata) else [],'scrapedurl':screendata['scrapedurl'],"modifiedon" : datetime.now()}}).matched_count
+                                                        {'$set':{'modifiedby':ObjectId(createdby),'modifiedbyrole':ObjectId(createdbyrole),'screenshot':screendata['screenshot'] if ('screenshot' in screendata) else "" ,'orderlist': screendata['orderlist'] if ('orderlist' in screendata) else [],'scrapedurl':screendata['scrapedurl'] if ('scrapedurl' in screendata) else "" ,"modifiedon" : datetime.now()}}).matched_count
                                             if 'orderlist' in screendata:
                                                 orderlistids=[]
                                                 for i in screendata['orderlist']:
@@ -1572,7 +1572,7 @@ def LoadServices(app, redissession, dbsession):
                                                         currenttestcaseid = saveTestcase(
                                                                 currentscreenid, testcasedata['name'], versionnumber, createdby, createdbyrole)
                                                         queryresult = dbsession.testcases.update_many({'_id':ObjectId(currenttestcaseid),'versionnumber':versionnumber},
-                                                                    {'$set':{'modifiedby':ObjectId(createdby),'modifiedbyrole':ObjectId(createdbyrole),"modifiedon" : datetime.now(),'steps':testcasedata['steps'],'datatables':testcasedata['datatables'] if 'datatables' in testcasedata else []}}).matched_count
+                                                                    {'$set':{'modifiedby':ObjectId(createdby),'modifiedbyrole':ObjectId(createdbyrole),"modifiedon" : datetime.now(),'steps':testcasedata['steps'] if ('steps' in testcasedata) else [],'datatables':testcasedata['datatables'] if 'datatables' in testcasedata else []}}).matched_count
                                                         testcaseidsforscenario.append(
                                                             ObjectId(currenttestcaseid))
                                                         iddata2["testcases"].append(
@@ -1582,7 +1582,7 @@ def LoadServices(app, redissession, dbsession):
                                                     currenttestcaseid = saveTestcase(
                                                                 currentscreenid, testcasedata['name'], versionnumber, createdby, createdbyrole)
                                                     queryresult = dbsession.testcases.update_many({'_id':ObjectId(currenttestcaseid),'versionnumber':versionnumber},
-                                                                {'$set':{'modifiedby':ObjectId(createdby),'modifiedbyrole':ObjectId(createdbyrole),"modifiedon" : datetime.now(),'steps':testcasedata['steps'],'datatables':testcasedata['datatables'] if 'datatables' in testcasedata else []}}).matched_count
+                                                                {'$set':{'modifiedby':ObjectId(createdby),'modifiedbyrole':ObjectId(createdbyrole),"modifiedon" : datetime.now(),'steps':testcasedata['steps'] if ('steps' in testcasedata) else [],'datatables':testcasedata['datatables'] if 'datatables' in testcasedata else []}}).matched_count
                                                     testcaseidsforscenario.append(
                                                         ObjectId(currenttestcaseid))
                                                     iddata2["testcases"].append(
