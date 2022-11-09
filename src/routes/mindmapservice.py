@@ -1014,7 +1014,7 @@ def LoadServices(app, redissession, dbsession):
                         testscenarios.append(tempmodule['testscenarios'])
                         testscenario=testscenarios[0]                    
                         dbsession.mindmaps.update_one({'_id' : tempmodule['_id']},  {'$set' : {'testscenarios':testscenario}})
-                        dbsession.testsuites.update_one({'name':tempModule1['name']},{"$pull": {"testscenarioids":ObjectId(scenarioid)}})
+                        dbsession.testsuites.update_one({'name':tempmodule['name']},{"$pull": {"testscenarioids":ObjectId(scenarioid)}})
                     
                 
                 dbsession.testscenarios.delete_many({'_id': ObjectId(scenarioid)})
