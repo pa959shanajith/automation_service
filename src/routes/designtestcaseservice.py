@@ -327,7 +327,7 @@ def LoadServices(app, redissession, dbsession):
             return None
 
     def getTestcaseID(screenid,testcasename):
-        testcaseid = list(dbsession.testcases.find({"screenid": ObjectId(screenid),"name": testcasename,"deleted": False}, {"_id": 1}))
+        testcaseid = list(dbsession.testcases.find({"screenid": screenid,"name": testcasename,"deleted": False}, {"_id": 1}))
         if len(testcaseid) != 0:
             res = str(testcaseid[0]["_id"])
         else:
