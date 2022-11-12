@@ -18,6 +18,21 @@ def LoadServices(app, redissession, dbsession):
                 res['rows'] = keyDetails[0]
             else:
                 requestdata["token"] = requestdata["executionData"]['configurekey']
+
+                # GEtting data parameterization
+                for testsuite in requestdata['executionData']['batchInfo']:
+                    testsuiteData = list(dbsession.testsuites.find({'mindmapid':ObjectId(testsuite['testsuiteId'])}))
+
+                    scenarioIndexFromFronEnd = 0
+                    scenarioIndexFromBackEnd = 0
+                    for scenarioids in testsuiteData[0]['testscenarioids']:
+                        if scenarioIndexFromFronEnd < len(testsuite['suiteDetails']) and ObjectId(testsuite['suiteDetails'][scenarioIndexFromFronEnd]['scenarioId']) == scenarioids:
+                            testsuite['suiteDetails'][scenarioIndexFromFronEnd]['condition'] = testsuiteData[0]['conditioncheck'][scenarioIndexFromBackEnd]
+                            testsuite['suiteDetails'][scenarioIndexFromFronEnd]['dataparam'] = [testsuiteData[0]['getparampaths'][scenarioIndexFromBackEnd]]
+                            scenarioIndexFromFronEnd+=1
+                            scenarioIndexFromBackEnd+=1
+
+
                 # check whether key is already present
                 keyAlreadyExist = list(dbsession.configurekeys.find({'token': requestdata["token"]}))
 
@@ -33,7 +48,7 @@ def LoadServices(app, redissession, dbsession):
 
                 else: #key is present
                     dbsession.configurekeys.update({"_id":ObjectId(keyAlreadyExist[0]['_id'])},{'$set':{"executionData":requestdata["executionData"]}})
-                
+
                 res['rows'] = 'success'
 
 
@@ -226,6 +241,7 @@ def LoadServices(app, redissession, dbsession):
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
+            # queryresult = list(dbsession.configurekeys.find({'executionData.batchInfo.projectId': requestdata['projectid']}))
             queryresult = list(dbsession.configurekeys.find({'session.userid': requestdata['userid']}))
             responseData = []
             for elements in queryresult:
