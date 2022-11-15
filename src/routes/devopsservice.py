@@ -23,6 +23,9 @@ def LoadServices(app, redissession, dbsession):
                 for testsuite in requestdata['executionData']['batchInfo']:
                     testsuiteData = list(dbsession.testsuites.find({'mindmapid':ObjectId(testsuite['testsuiteId'])}))
 
+                    # To handle if readTestSuite_api not being called
+                    if not testsuiteData:
+                        continue
                     scenarioIndexFromFronEnd = 0
                     scenarioIndexFromBackEnd = 0
                     for scenarioids in testsuiteData[0]['testscenarioids']:
