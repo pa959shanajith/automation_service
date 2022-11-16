@@ -978,20 +978,20 @@ def LoadServices(app, redissession, dbsession):
                                             if scrn["_id"]==ObjectId(screenid):
                                                 dataObjects=list(dbsession.dataobjects.find({"parent":ObjectId(screenid)},{"parent":1}))
                                                 if len(dataObjects)==0:
-                                                   del scrn["_id"] 
-                                                   del scrn["testcases"]
+                                                   del scrn["_id"]                                                   
                                                 else:                                                    
                                                     dataObjectslist = dataObjects[0]['parent']
                                                     if len(dataObjectslist)==1:
                                                         dbsession.dataobjects.delete_many({'parent':ObjectId(screenid)})
                                                     else:
                                                         dbsession.dataobjects.update_many({'parent':ObjectId(screenid)},{"$pull": {"parent": ObjectId(screenid)}})
-                                                    dbsession.screens.delete_many({'_id': ObjectId(screenid)})
                                                     del scrn["_id"]
+                                                dbsession.screens.delete_many({'_id': ObjectId(screenid)})                                                
+                                                if "testcases" in scrn:
                                                     for testcase in scrn["testcases"]:
                                                         dbsession.testcases.delete_many({'_id': testcase})
                                                         dbsession.testscenarios.update_many({'_id':scen["_id"]},{"$pull": {"testcaseids": testcase}})
-                                                    del scrn["testcases"]                                        
+                                                        del scrn["testcases"]                                        
                         testscenarios1.append(tempModule1['testscenarios']) 
                         testscenario1= testscenarios1[0]                               
                         dbsession.mindmaps.update_one({'_id' : tempModule1['_id']},  {'$set' : {'testscenarios':testscenario1}})
@@ -1045,8 +1045,7 @@ def LoadServices(app, redissession, dbsession):
                                             if screen["_id"]==ObjectId(screenid):
                                                 dataObjects=list(dbsession.dataobjects.find({"parent":ObjectId(screenid)},{"parent":1}))
                                                 if len(dataObjects)==0:
-                                                   del screen["_id"] 
-                                                   del screen["testcases"]
+                                                   del screen["_id"]                                                                                                     
                                                 else:
                                                     dataObjectslist = dataObjects[0]['parent']
                                                     if len(dataObjectslist)==1:
@@ -1054,10 +1053,11 @@ def LoadServices(app, redissession, dbsession):
                                                     else:
                                                         dbsession.dataobjects.update_many({'parent':ObjectId(screenid)},{"$pull": {"parent":ObjectId(screenid)}})
                                                     del screen["_id"]
+                                                if "testcases" in screen:
                                                     for testcase in screen["testcases"]:
                                                         dbsession.testcases.delete_many({'_id': testcase})
                                                         dbsession.testscenarios.update_many({'_id':scenario["_id"]},{"$pull": {"testcaseids": testcase}})
-                                                    del screen["testcases"]                                            
+                                                        del screen["testcases"]                                            
                             testscenarios.append(tempModule['testscenarios'])
                             testscenario=testscenarios[0]
                             dbsession.mindmaps.update_one({'_id' : tempModule['_id']},  {'$set' : {'testscenarios':testscenario}})
