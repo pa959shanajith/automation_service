@@ -30,18 +30,25 @@ def LoadServices(app, redissession, dbsession):
                     del testsuite['suiteDetails']
 
                     scenarioIndexFromBackEnd = -1
+                    scenarioIndexFromFrontEnd = 0
                     testsuite['suiteDetails'] = []
                     for scenarioids in testsuiteData[0]['testscenarioids']:
                         scenarioIndexFromBackEnd+=1
-                        scenarioName = list(dbsession.testscenarios.find({'_id':scenarioids},{'name': 1}))
-                        if testsuiteData[0]['donotexecute'][scenarioIndexFromBackEnd]:
-                            testsuite['suiteDetails'].append({
-                                "condition" : testsuiteData[0]['conditioncheck'][scenarioIndexFromBackEnd],
-                                "dataparam" : [testsuiteData[0]['getparampaths'][scenarioIndexFromBackEnd]],
-                                "scenarioName" : scenarioName[0]['name'],
-                                "scenarioId" : str(scenarioids),
-                                "accessibilityParameters" : []
-                            })
+
+                        if scenarioIndexFromFrontEnd >= len(requestdata['executionData']['donotexe']['current'][testsuite['testsuiteId']]):
+                            break
+
+                        if requestdata['executionData']['donotexe']['current'][testsuite['testsuiteId']][scenarioIndexFromFrontEnd] == scenarioIndexFromBackEnd:
+                            scenarioIndexFromFrontEnd+=1
+                            scenarioName = list(dbsession.testscenarios.find({'_id':scenarioids},{'name': 1}))
+                            if testsuiteData[0]['donotexecute'][scenarioIndexFromBackEnd]:
+                                testsuite['suiteDetails'].append({
+                                    "condition" : testsuiteData[0]['conditioncheck'][scenarioIndexFromBackEnd],
+                                    "dataparam" : [testsuiteData[0]['getparampaths'][scenarioIndexFromBackEnd]],
+                                    "scenarioName" : scenarioName[0]['name'],
+                                    "scenarioId" : str(scenarioids),
+                                    "accessibilityParameters" : []
+                                })
 
 
                 # check whether key is already present
