@@ -229,7 +229,13 @@ ecodeServices = {
     "verifyUser":"468",
     "deleteScenario": "469",
     "gitToMindmap":"470",
-    "deleteScenarioETE": "471"
+    "deleteScenarioETE": "471",
+    "userCreateProject_ICE": "472",
+    "userUpdateProject_ICE":"473",
+    "getUsers_ICE":"474",
+    "updateScreen_Genius":"475",
+    "updateTestCase_Genius":"476",
+    "saveGeniusMindmap":"477"
 }
 
 
