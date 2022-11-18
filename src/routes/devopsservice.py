@@ -22,6 +22,8 @@ def LoadServices(app, redissession, dbsession):
                 # GEtting data parameterization
                 for testsuite in requestdata['executionData']['batchInfo']:
                     testsuiteData = list(dbsession.testsuites.find({'mindmapid':ObjectId(testsuite['testsuiteId'])}))
+                    # sorting the data
+                    requestdata['executionData']['donotexe']['current'][testsuite['testsuiteId']].sort()
 
                     # To handle if document is not present in testsuite collection
                     if not testsuiteData:
@@ -41,14 +43,13 @@ def LoadServices(app, redissession, dbsession):
                         if requestdata['executionData']['donotexe']['current'][testsuite['testsuiteId']][scenarioIndexFromFrontEnd] == scenarioIndexFromBackEnd:
                             scenarioIndexFromFrontEnd+=1
                             scenarioName = list(dbsession.testscenarios.find({'_id':scenarioids},{'name': 1}))
-                            if testsuiteData[0]['donotexecute'][scenarioIndexFromBackEnd]:
-                                testsuite['suiteDetails'].append({
-                                    "condition" : testsuiteData[0]['conditioncheck'][scenarioIndexFromBackEnd],
-                                    "dataparam" : [testsuiteData[0]['getparampaths'][scenarioIndexFromBackEnd]],
-                                    "scenarioName" : scenarioName[0]['name'],
-                                    "scenarioId" : str(scenarioids),
-                                    "accessibilityParameters" : []
-                                })
+                            testsuite['suiteDetails'].append({
+                                "condition" : testsuiteData[0]['conditioncheck'][scenarioIndexFromBackEnd],
+                                "dataparam" : [testsuiteData[0]['getparampaths'][scenarioIndexFromBackEnd]],
+                                "scenarioName" : scenarioName[0]['name'],
+                                "scenarioId" : str(scenarioids),
+                                "accessibilityParameters" : []
+                            })
 
 
                 # check whether key is already present
