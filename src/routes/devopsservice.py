@@ -18,6 +18,32 @@ def LoadServices(app, redissession, dbsession):
                 res['rows'] = keyDetails[0]
             else:
                 requestdata["token"] = requestdata["executionData"]['configurekey']
+
+                # GEtting data parameterization
+                for testsuite in requestdata['executionData']['batchInfo']:
+                    testsuiteData = list(dbsession.testsuites.find({'mindmapid':ObjectId(testsuite['testsuiteId'])}))
+
+                    # To handle if document is not present in testsuite collection
+                    if not testsuiteData:
+                        continue
+
+                    del testsuite['suiteDetails']
+
+                    scenarioIndexFromBackEnd = -1
+                    testsuite['suiteDetails'] = []
+                    for scenarioids in testsuiteData[0]['testscenarioids']:
+                        scenarioIndexFromBackEnd+=1
+                        scenarioName = list(dbsession.testscenarios.find({'_id':scenarioids},{'name': 1}))
+                        if testsuiteData[0]['donotexecute'][scenarioIndexFromBackEnd]:
+                            testsuite['suiteDetails'].append({
+                                "condition" : testsuiteData[0]['conditioncheck'][scenarioIndexFromBackEnd],
+                                "dataparam" : [testsuiteData[0]['getparampaths'][scenarioIndexFromBackEnd]],
+                                "scenarioName" : scenarioName[0]['name'],
+                                "scenarioId" : str(scenarioids),
+                                "accessibilityParameters" : []
+                            })
+
+
                 # check whether key is already present
                 keyAlreadyExist = list(dbsession.configurekeys.find({'token': requestdata["token"]}))
 
@@ -33,7 +59,7 @@ def LoadServices(app, redissession, dbsession):
 
                 else: #key is present
                     dbsession.configurekeys.update({"_id":ObjectId(keyAlreadyExist[0]['_id'])},{'$set':{"executionData":requestdata["executionData"]}})
-                
+
                 res['rows'] = 'success'
 
 
