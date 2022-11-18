@@ -1531,3 +1531,147 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
                     result[str(ice["_id"])] = ice
             
         return result
+
+
+    @app.route('/plugins/userCreateProject_ICE',methods=['POST'])
+    def userCreateProject_ICE():
+
+        res={'rows':'fail'}
+
+        try:
+
+            requestdata=json.loads(request.data)
+
+            app.logger.debug("Inside userCreateProject_ICE. Query: create Project")
+
+            if not isemptyrequest(requestdata):
+
+                requestdata["createdon"]=requestdata["modifiedon"]=datetime.now()
+
+                requestdata["type"]=dbsession.projecttypekeywords.find_one({"name":requestdata["type"]},{"_id":1})["_id"]
+
+                requestdata["createdon"]=requestdata["modifiedon"]=datetime.now()
+
+                requestdata["createdbyrole"]=ObjectId(requestdata["createdbyrole"])
+
+                requestdata["createdby"]=ObjectId(requestdata["createdby"])
+
+                requestdata["modifiedby"]=ObjectId(requestdata["modifiedby"])
+
+                requestdata["modifiedbyrole"]=ObjectId(requestdata["modifiedbyrole"])
+
+                for i in requestdata["releases"]:
+
+                    i["createdon"]=requestdata["createdon"]
+
+                    i["modifiedon"]=requestdata["modifiedon"]
+
+                    i["createdbyrole"]=requestdata["createdbyrole"]
+
+                    i["createdby"]=requestdata["createdby"]
+
+                    i["modifiedby"]=requestdata["modifiedby"]
+
+                    i["modifiedbyrole"]=requestdata["modifiedbyrole"]
+
+                    for j in i["cycles"]:
+
+                        j["_id"]=ObjectId()
+
+                        j["createdon"]=requestdata["createdon"]
+
+                        j["modifiedon"]=requestdata["modifiedon"]
+
+                        j["createdbyrole"]=requestdata["createdbyrole"]
+
+                        j["createdby"]=requestdata["createdby"]
+
+                        j["modifiedby"]=requestdata["modifiedby"]
+
+                        j["modifiedbyrole"]=requestdata["modifiedbyrole"]
+
+                project_details = requestdata
+                del project_details['assignedUsers']
+                project_id=dbsession.projects.insert_one(project_details)
+
+                for user_id in requestdata['assignedUsers']:
+
+                    # for user_id in each_dict:
+
+                    if requestdata['assignedUsers'][user_id]==True:
+
+                        dbsession.users.update_one({"_id":ObjectId(user_id)},{"$push":{"projects":project_id.inserted_id}})
+
+                res={"rows":"success"}
+
+            else:
+
+                app.logger.warn('Empty data received. create project.')
+
+        except Exception as createprojectexc:
+
+            servicesException("userCreateProject_ICE", createprojectexc, True)
+
+        return jsonify(res)
+
+
+
+
+    @app.route('/plugins/userUpdateProject_ICE',methods=['POST'])
+
+    def userUpdateProject_ICE():
+
+        res={'rows':'fail'}
+
+        try:
+
+            requestdata=json.loads(request.data)
+
+            # app.logger.debug("Inside userUpdateProject_ICE. Query: "+str(requestdata["query"]))
+
+            if not isemptyrequest(requestdata):
+
+                # assignedUsers = requestdata["assignedUsers"].keys()
+                dbsession.projects.update_one({"_id":ObjectId(requestdata["project_id"])},{"$set":{"modifiedbyrole":ObjectId(requestdata["modifiedbyrole"]),"modifiedby":ObjectId(requestdata["modifiedby"]),"modifiedon":datetime.now()}})
+
+                for user_id in requestdata['assignedUsers']:
+
+                    # for usser_id in each_dict:
+
+                    if requestdata['assignedUsers'][user_id]==True:
+
+                        dbsession.users.update_one({"_id":ObjectId(user_id)},{"$push":{"projects":ObjectId(requestdata["project_id"])}})
+
+                    elif requestdata['assignedUsers'][user_id]==False:
+
+                        dbsession.users.update_one({"_id":ObjectId(user_id)},{"$pull":{"projects":ObjectId(requestdata["project_id"])}})
+
+                res={'rows':'success'}
+
+            else:
+
+                app.logger.warn('Empty data received. update project.')
+
+        except Exception as updateprojectexc:
+
+            servicesException("userUpdateProject_ICE", updateprojectexc, True)
+
+        return jsonify(res)
+
+
+
+    @app.route('/plugins/getUsers_ICE',methods=['POST'])
+    def getUsers_ICE():
+        res={'rows':'fail'}
+        try:
+            requestdata=json.loads(request.data)
+            # app.logger.debug("Inside getUsers_ICE. Query: "+str(requestdata["query"]))
+            if not isemptyrequest(requestdata):
+                result=list(dbsession.users.find({"projects":{"$in":[ObjectId(requestdata["project_id"])]}},{"name":1,"_id":1}))
+                result1=list(dbsession.users.find({"defaultrole":{"$nin":[ObjectId("5db0022cf87fdec084ae49a9"),ObjectId("5f0ee20fba8ae8b8a603b5b6")]},"projects":{"$nin":[ObjectId(requestdata["project_id"])]}},{"name":1,"_id":1}))
+                res={'rows':{"assignedUsers":result, "unassignedUsers":result1}}
+            else:
+                app.logger.warn('Empty data received. update project.')
+        except Exception as getUsersexc:
+            servicesException("getUsers_ICE", getUsersexc, True)
+        return jsonify(res)
