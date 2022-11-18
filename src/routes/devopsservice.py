@@ -22,6 +22,8 @@ def LoadServices(app, redissession, dbsession):
                 # GEtting data parameterization
                 for testsuite in requestdata['executionData']['batchInfo']:
                     testsuiteData = list(dbsession.testsuites.find({'mindmapid':ObjectId(testsuite['testsuiteId'])}))
+                    # sorting the data
+                    requestdata['executionData']['donotexe']['current'][testsuite['testsuiteId']].sort()
 
                     # To handle if document is not present in testsuite collection
                     if not testsuiteData:
@@ -30,11 +32,17 @@ def LoadServices(app, redissession, dbsession):
                     del testsuite['suiteDetails']
 
                     scenarioIndexFromBackEnd = -1
+                    scenarioIndexFromFrontEnd = 0
                     testsuite['suiteDetails'] = []
                     for scenarioids in testsuiteData[0]['testscenarioids']:
                         scenarioIndexFromBackEnd+=1
-                        scenarioName = list(dbsession.testscenarios.find({'_id':scenarioids},{'name': 1}))
-                        if testsuiteData[0]['donotexecute'][scenarioIndexFromBackEnd]:
+
+                        if scenarioIndexFromFrontEnd >= len(requestdata['executionData']['donotexe']['current'][testsuite['testsuiteId']]):
+                            break
+
+                        if requestdata['executionData']['donotexe']['current'][testsuite['testsuiteId']][scenarioIndexFromFrontEnd] == scenarioIndexFromBackEnd:
+                            scenarioIndexFromFrontEnd+=1
+                            scenarioName = list(dbsession.testscenarios.find({'_id':scenarioids},{'name': 1}))
                             testsuite['suiteDetails'].append({
                                 "condition" : testsuiteData[0]['conditioncheck'][scenarioIndexFromBackEnd],
                                 "dataparam" : [testsuiteData[0]['getparampaths'][scenarioIndexFromBackEnd]],
