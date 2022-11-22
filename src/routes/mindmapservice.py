@@ -947,8 +947,8 @@ def LoadServices(app, redissession, dbsession):
                 res= {'rows' : 'success'}
         except Exception as e:
             servicesException("deleteScenarioETE", e, True)
-        return jsonify(res)
-            
+        return jsonify(res)           
+   
 
     @app.route('/mindmap/deleteScenario',methods=['POST'])
     def deleteScenario():
@@ -978,16 +978,16 @@ def LoadServices(app, redissession, dbsession):
                                             if scrn["_id"]==ObjectId(screenid):
                                                 dataObjects=list(dbsession.dataobjects.find({"parent":ObjectId(screenid)},{"parent":1}))
                                                 if len(dataObjects)==0:
-                                                   del scrn["_id"] 
-                                                   del scrn["testcases"]
+                                                   del scrn["_id"]                                                   
                                                 else:                                                    
                                                     dataObjectslist = dataObjects[0]['parent']
                                                     if len(dataObjectslist)==1:
                                                         dbsession.dataobjects.delete_many({'parent':ObjectId(screenid)})
                                                     else:
                                                         dbsession.dataobjects.update_many({'parent':ObjectId(screenid)},{"$pull": {"parent": ObjectId(screenid)}})
-                                                    dbsession.screens.delete_many({'_id': ObjectId(screenid)})
                                                     del scrn["_id"]
+                                                dbsession.screens.delete_many({'_id': ObjectId(screenid)})                                                
+                                                if "testcases" in scrn:
                                                     for testcase in scrn["testcases"]:
                                                         dbsession.testcases.delete_many({'_id': testcase})
                                                         dbsession.testscenarios.update_many({'_id':scen["_id"]},{"$pull": {"testcaseids": testcase}})
@@ -1045,8 +1045,7 @@ def LoadServices(app, redissession, dbsession):
                                             if screen["_id"]==ObjectId(screenid):
                                                 dataObjects=list(dbsession.dataobjects.find({"parent":ObjectId(screenid)},{"parent":1}))
                                                 if len(dataObjects)==0:
-                                                   del screen["_id"] 
-                                                   del screen["testcases"]
+                                                   del screen["_id"]                                                                                                     
                                                 else:
                                                     dataObjectslist = dataObjects[0]['parent']
                                                     if len(dataObjectslist)==1:
@@ -1054,6 +1053,7 @@ def LoadServices(app, redissession, dbsession):
                                                     else:
                                                         dbsession.dataobjects.update_many({'parent':ObjectId(screenid)},{"$pull": {"parent":ObjectId(screenid)}})
                                                     del screen["_id"]
+                                                if "testcases" in screen:
                                                     for testcase in screen["testcases"]:
                                                         dbsession.testcases.delete_many({'_id': testcase})
                                                         dbsession.testscenarios.update_many({'_id':scenario["_id"]},{"$pull": {"testcaseids": testcase}})
@@ -1371,53 +1371,12 @@ def LoadServices(app, redissession, dbsession):
             app.logger.debug("Inside exportMindmap.")
             if not isemptyrequest(requestdata):
                 if (requestdata['query'] == 'exportMindmap'):
-
-                    mindmapid = [ObjectId(i) for i in requestdata['mindmapId']]
-                    # mindmapid=ObjectId(requestdata['mindmapId'])
-
-                    # queryresult = dbsession.mindmaps.find_one({"_id":mindmapid,"deleted":False},{"projectid":1,"name":1,"versionnumber":1,"deleted":1,"type":1,"testscenarios":1})
-                    # queryresult = list(dbsession.mindmaps.aggregate([
-                    #     {'$match': {"_id": {'$in': mindmapid}}},
-                        
-                    #     {'$lookup': {
-                    #         'from': "screens",
-                    #         'localField': "testscenarios.screens._id",
-                    #         'foreignField': "_id",
-                    #         'as': "screens"
-                    #     }
-                    #     },
-
-                    #     {'$lookup': {
-                    #         'from': "testcases",
-                    #         'localField': "testscenarios.screens.testcases",
-                    #         'foreignField': "_id",
-                    #         'as': "testcases"
-                    #     }
-
-                    #     },
-                    #     {'$lookup': {
-                    #         'from': "testscenarios",
-                    #         'localField': "testscenarios._id",
-                    #         'foreignField': "_id",
-                    #         'as': "testscenarios"
-                    #     }
-                    #     },
-                    #     {'$lookup': {
-                    #         'from': "testsuites",
-                    #         'localField': "_id",
-                    #         'foreignField':"mindmapid",
-                    #         'as': "testsuites"
-                    #     }
-                    #     }
-                    #     # {
-                    #     #     "$project": {"_id":1,"name":1,"createdby":1,"type":1,"createdbyrole":1,"projectid":1,"versionnumber":1,"testscenarios._id":1,"testscenarios.name":1,"testscenarios.parent":1,"testscenarios.projectid":1,"testcases.name":1,"testcases.screenid":1,"testcases.steps":1,"screens.name":1,"screens._id":1,"screens.screenshot":1,"screens.parent":1,"screens.parent":1}
-                    #     # }
-                        
-                    # ]))
-                    
+                    if type(requestdata['mindmapId']) == str:
+                        mindmapid=[]
+                        mindmapid.append(ObjectId(requestdata["mindmapId"]))
+                    else:
+                        mindmapid = [ObjectId(i) for i in requestdata['mindmapId']]
                     moduledataList=[]
-                   
-                    # testsuiteDatalist=[]
                     for mindmap in mindmapid:
                         mindmapdata=list(dbsession.mindmaps.find({'_id':mindmap}))                      
                         for module in mindmapdata:
