@@ -991,7 +991,7 @@ def LoadServices(app, redissession, dbsession):
                                                     for testcase in scrn["testcases"]:
                                                         dbsession.testcases.delete_many({'_id': testcase})
                                                         dbsession.testscenarios.update_many({'_id':scen["_id"]},{"$pull": {"testcaseids": testcase}})
-                                                        del scrn["testcases"]                                        
+                                                    del scrn["testcases"]                                        
                         testscenarios1.append(tempModule1['testscenarios']) 
                         testscenario1= testscenarios1[0]                               
                         dbsession.mindmaps.update_one({'_id' : tempModule1['_id']},  {'$set' : {'testscenarios':testscenario1}})
@@ -1057,7 +1057,7 @@ def LoadServices(app, redissession, dbsession):
                                                     for testcase in screen["testcases"]:
                                                         dbsession.testcases.delete_many({'_id': testcase})
                                                         dbsession.testscenarios.update_many({'_id':scenario["_id"]},{"$pull": {"testcaseids": testcase}})
-                                                        del screen["testcases"]                                            
+                                                    del screen["testcases"]                                            
                             testscenarios.append(tempModule['testscenarios'])
                             testscenario=testscenarios[0]
                             dbsession.mindmaps.update_one({'_id' : tempModule['_id']},  {'$set' : {'testscenarios':testscenario}})
