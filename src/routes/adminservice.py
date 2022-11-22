@@ -1590,15 +1590,15 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
 
                         j["modifiedbyrole"]=requestdata["modifiedbyrole"]
 
-                project_details = requestdata
-                del project_details['assignedUsers']
-                project_id=dbsession.projects.insert_one(project_details)
+                assignedUsers=requestdata["assignedUsers"]
+                del requestdata["assignedUsers"]
+                project_id=dbsession.projects.insert_one({ **requestdata, 'assignedUsers': None })
 
-                for user_id in requestdata['assignedUsers']:
+                for user_id in assignedUsers:
 
                     # for user_id in each_dict:
 
-                    if requestdata['assignedUsers'][user_id]==True:
+                    if assignedUsers[user_id]==True:
 
                         dbsession.users.update_one({"_id":ObjectId(user_id)},{"$push":{"projects":project_id.inserted_id}})
 
