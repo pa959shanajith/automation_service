@@ -187,16 +187,21 @@ def LoadServices(app, redissession, dbsession):
         try:
             requestdata=json.loads(request.data)
             testSuiteId = requestdata['testSuiteId']
+
+            # Fetching the data
             executionData = list(dbsession.executionlist.find({'executionListId':requestdata['executionListId'],"configkey": requestdata['key']}))
             correctexecutionRequest = ''
+            agentList = executionData[0]['executionData']['avoagents'] if len(executionData[0]['executionData']['avoagents']) > 0 else ''
             index = -1
             for info in executionData[0]['executionData']['batchInfo']:
                 index+=1
                 if info['testsuiteId'] == testSuiteId:
                     break
             executionData[0]['executionData']['batchInfo'] = [executionData[0]['executionData']['batchInfo'][index]]
-
-
+            
+            # Updating the agent sent from Ice.
+            agentList.append(requestdata['agentNameFromIce'])
+            executionData = dbsession.executionlist.update({'executionListId':requestdata['executionListId'],"configkey": requestdata['key']},{'$set':{"executionData.avoagents":agentList}})
 
             res['rows'] = executionData
 
