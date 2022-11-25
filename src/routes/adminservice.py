@@ -1592,7 +1592,7 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
 
                 assignedUsers=requestdata["assignedUsers"]
                 del requestdata["assignedUsers"]
-                project_id=dbsession.projects.insert_one({ **requestdata, 'assignedUsers': None })
+                project_id=dbsession.projects.insert_one(requestdata)
 
                 for user_id in assignedUsers:
 
