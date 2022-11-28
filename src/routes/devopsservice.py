@@ -190,8 +190,8 @@ def LoadServices(app, redissession, dbsession):
 
             # Fetching the data
             executionData = list(dbsession.executionlist.find({'executionListId':requestdata['executionListId'],"configkey": requestdata['key']}))
+            updatedData = executionData
             correctexecutionRequest = ''
-            agentList = executionData[0]['executionData']['avoagents'] if len(executionData[0]['executionData']['avoagents']) > 0 else ''
             index = -1
             for info in executionData[0]['executionData']['batchInfo']:
                 index+=1
@@ -199,11 +199,12 @@ def LoadServices(app, redissession, dbsession):
                     break
             executionData[0]['executionData']['batchInfo'] = [executionData[0]['executionData']['batchInfo'][index]]
             
-            # Updating the agent sent from Ice.
-            agentList.append(requestdata['agentNameFromIce'])
-            executionData = dbsession.executionlist.update({'executionListId':requestdata['executionListId'],"configkey": requestdata['key']},{'$set':{"executionData.avoagents":agentList}})
-
             res['rows'] = executionData
+            
+            # Updating the agent sent from Ice.
+            updatedData[0]['executionData']['batchInfo'][index]['agentName'] = requestdata['agentName']
+            executionData = dbsession.executionlist.update({'executionListId':requestdata['executionListId'],"configkey": requestdata['key']},{'$set':{"executionData.batchInfo": updatedData.executionData.batchInfo}})
+
 
         except Exception as e:
             print(e)
