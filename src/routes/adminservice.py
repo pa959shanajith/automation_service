@@ -71,6 +71,8 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
                     res={"rows":"forbidden"}
                 elif(action=="delete"):
                     result=dbsession.users.delete_one({"name":requestdata['name']})
+                    # Delete EULA record for this user
+                    dbsession.eularecords.delete_one({"username":requestdata['name']})
                     # Delete assigned tasks
                     dbsession.tasks.delete_many({"assignedto":ObjectId(requestdata["userid"]),"status":{"$ne":'complete'}})
                     dbsession.tasks.delete_many({"owner":ObjectId(requestdata["userid"]),"status":{"$ne":'complete'}})
@@ -92,6 +94,7 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
                         requestdata["addroles"]=[]
                         requestdata["projects"]=[]
                         requestdata["welcomeStepNo"] = 0
+                        requestdata["firstTimeLogin"] = True
                         if requestdata["auth"]["type"] in ["inhouse", "ldap"]:
                             requestdata["invalidCredCount"]=0
                             requestdata["auth"]["passwordhistory"]=[]
@@ -139,7 +142,7 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
                     au["defaultpassword"] = ""
                     update_query["invalidCredCount"]=0
                     update_query["auth"] = au
-                    dbsession.users.update_one({"_id":result["_id"]},{"$set":update_query})
+                    dbsession.users.update_one({"_id":result["_id"]},{"$set":update_query, "$unset": { "firstTimeLogin": ""}})
                     res={"rows":"success"}
                 elif (action=="stepUpdate"):
                     result=dbsession.users.find_one({"_id":ObjectId(requestdata["user"]["userid"])})
