@@ -174,6 +174,9 @@ def addroutes():
 
     import mindmapservice
     mindmapservice.LoadServices(app, redissession, dbsession)
+
+    import devopsservice
+    devopsservice.LoadServices(app, redissession, dbsession)
     
     if os.path.exists(gitpath):
         os.environ["GIT_PYTHON_GIT_EXECUTABLE"] = gitpath

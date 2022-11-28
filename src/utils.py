@@ -212,8 +212,22 @@ ecodeServices = {
     "fetchReplacedKeywords_ICE":"451",
     "manageZephyrDetails":"452",
     "getDetails_Zephyr":"453",
-    "verifyUser":"454",
-    "deleteScenario": "455"
+    "configureKey" : "454",
+    "getTestSuite": "455",
+    "getAgents": "456",
+    "executionList":'457',
+    "agentDetails":'458',
+    "getExecScenario":'459',
+    "getScenariosForDevops":'460',
+    "getConfigureList":'461',
+    "saveAvoGrid": '462',
+    "saveAvoAgent":'463',
+    "deleteConfigureKey": '464',
+    "getAvoAgentAndAvoGridList": '465',
+    "fetchModuleListDevopsReport": '466',
+    "deleteAvoGrid": '467',
+    "verifyUser":"468",
+    "deleteScenario": "469"
 }
 
 
