@@ -140,7 +140,8 @@ def LoadServices(app, redissession, dbsession):
                 requestdata['status'] = agentPresent[0]['status']
                 requestdata['createdon'] = agentPresent[0]['createdon']
                 requestdata['icecount'] = agentPresent[0]['icecount']
-                dbsession.avoagents.update({"_id":ObjectId(agentPresent[0]['_id'])},{'$set':{"recentCall":requestdata['recentCall']}})
+                requestdata['currentIceCount'] = requestdata['currentIceCount'] if 'currentIceCount' in requestdata else 0
+                dbsession.avoagents.update({"_id":ObjectId(agentPresent[0]['_id'])},{'$set':{"recentCall":requestdata['recentCall'] , "currentIceCount" : requestdata['currentIceCount']}})
             else:
                 dbsession.avoagents.insert_one(requestdata)
 
