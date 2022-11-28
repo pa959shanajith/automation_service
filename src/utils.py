@@ -212,11 +212,13 @@ ecodeServices = {
     "fetchReplacedKeywords_ICE":"451",
     "manageZephyrDetails":"452",
     "getDetails_Zephyr":"453",
+    "verifyUser":"454",
+    "deleteScenario": "455"
 }
 
 
 EXEMPTED_SERVICES = ["checkUser", "validateUserState", "loadUserInfo", "logoutUser",
-  "ExecuteTestSuite_ICE_SVN", "getReport_API", "ICE_provisioning_register"]
+  "ExecuteTestSuite_ICE_SVN", "getReport_API", "ICE_provisioning_register", "verifyUser"]
 
 
 def setenv(flaskapp=None, licactive=None):

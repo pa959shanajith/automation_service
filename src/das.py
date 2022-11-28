@@ -104,8 +104,8 @@ dasport = "1990"
 redis_dbup = False
 mongo_dbup = False
 onlineuser = False
-gracePeriodTimer=None
-twoDayTimer=None
+# gracePeriodTimer=None
+# twoDayTimer=None
 licensedata=None
 grace_period = 172800
 LS_CRITICAL_ERR_CODE=['199','120','121','123','124','125']
@@ -167,7 +167,7 @@ sys.path.append(currfiledir+os.sep+"utility")
 def addroutes():
     app.logger.debug("Loading services")
     import loginservice
-    loginservice.LoadServices(app, redissession, dbsession, licensedata)
+    loginservice.LoadServices(app, redissession, dbsession, licensedata,basecheckonls)
 
     import adminservice
     adminservice.LoadServices(app, redissession, dbsession, licensedata, ice_das_key, ldap_key)
@@ -256,7 +256,7 @@ def checkServer():
     status = 500
     try:
         if (onlineuser == True):
-            response = "pass"
+            response = json.dumps({"st":"pass", "isTrial":licensedata['isTrial']})
             status = 200
     except Exception as exc:
         servicesException("checkServer",exc)
@@ -659,13 +659,13 @@ def updateonls():
                 dbdata['mdlinfo']=modelinfores
                 dataholder('update',dbdata)
                 app.logger.critical(printErrorCodes('216'))
-                startTwoDaysTimer()
+                # startTwoDaysTimer()
     except Exception as e:
         app.logger.debug(e)
         app.logger.error(printErrorCodes('202'))
 
 def connectingls(data):
-    global lsRetryCount,twoDayTimer,grace_period
+    global lsRetryCount  #,twoDayTimer,grace_period
     lsRetryCount+=1
     connectionstatus=False
     try:
@@ -676,11 +676,11 @@ def connectingls(data):
                 del dbdata['grace_period']
                 dataholder('update',dbdata)
             lsRetryCount=0
-            grace_period = 172800
+            # grace_period = 172800
             connectionstatus = lsresponse.content
-            if (twoDayTimer != None and twoDayTimer.isAlive()):
-                twoDayTimer.cancel()
-                twoDayTimer=None
+            # if (twoDayTimer != None and twoDayTimer.isAlive()):
+            #     twoDayTimer.cancel()
+            #     twoDayTimer=None
     except Exception as e:
         app.logger.debug(e)
         app.logger.error(printErrorCodes('208'))
@@ -777,7 +777,7 @@ def dataholder_profj(ops,*args):
 
 def checkSetup():
     app.logger.debug("Inside Setup Check")
-    global grace_period
+    # global grace_period
     endas=False
     errCode=0
     #checks if the db is already existing,
@@ -789,8 +789,8 @@ def checkSetup():
     if dbexists:
         dbdata=dataholder('select')
         if dbdata:
-            if('grace_period' in dbdata):
-                grace_period = dbdata['grace_period']
+            # if('grace_period' in dbdata):
+            #     grace_period = dbdata['grace_period']
             dbmacid=dbdata['macid']
             sysmacid=sysMAC
             if len(dbmacid)==0:
@@ -827,13 +827,13 @@ def beginserver(host = '127.0.0.1', **kwargs):
         app.logger.critical(printErrorCodes('207'))
 
 def stopserver():
-    global onlineuser, gracePeriodTimer
-    if(gracePeriodTimer != None and gracePeriodTimer.isAlive()):
-        gracePeriodTimer.cancel()
-        gracePeriodTimer = None
-        dbdata = dataholder('select')
-        dbdata['grace_period']=0
-        dataholder('update',dbdata)
+    global onlineuser #, gracePeriodTimer
+    # if(gracePeriodTimer != None and gracePeriodTimer.isAlive()):
+    #     gracePeriodTimer.cancel()
+    #     gracePeriodTimer = None
+    #     dbdata = dataholder('select')
+    #     dbdata['grace_period']=0
+    #     dataholder('update',dbdata)
     onlineuser = False
     app.logger.error(printErrorCodes('205'))
 
