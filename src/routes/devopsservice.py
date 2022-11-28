@@ -203,7 +203,7 @@ def LoadServices(app, redissession, dbsession):
             
             # Updating the agent sent from Ice.
             updatedData[0]['executionData']['batchInfo'][index]['agentName'] = requestdata['agentName']
-            executionData = dbsession.executionlist.update({'executionListId':requestdata['executionListId'],"configkey": requestdata['key']},{'$set':{"executionData.batchInfo": updatedData.executionData.batchInfo}})
+            executionData = dbsession.executionlist.update({'executionListId':requestdata['executionListId'],"configkey": requestdata['key']},{'$set':{"executionData.batchInfo": updatedData[0]['executionData']['batchInfo']}})
 
 
         except Exception as e:
