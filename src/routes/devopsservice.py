@@ -140,7 +140,8 @@ def LoadServices(app, redissession, dbsession):
                 requestdata['status'] = agentPresent[0]['status']
                 requestdata['createdon'] = agentPresent[0]['createdon']
                 requestdata['icecount'] = agentPresent[0]['icecount']
-                dbsession.avoagents.update({"_id":ObjectId(agentPresent[0]['_id'])},{'$set':{"recentCall":requestdata['recentCall']}})
+                requestdata['currentIceCount'] = requestdata['currentIceCount'] if 'currentIceCount' in requestdata else 0
+                dbsession.avoagents.update({"_id":ObjectId(agentPresent[0]['_id'])},{'$set':{"recentCall":requestdata['recentCall'] , "currentIceCount" : requestdata['currentIceCount']}})
             else:
                 dbsession.avoagents.insert_one(requestdata)
 
@@ -187,7 +188,10 @@ def LoadServices(app, redissession, dbsession):
         try:
             requestdata=json.loads(request.data)
             testSuiteId = requestdata['testSuiteId']
+
+            # Fetching the data
             executionData = list(dbsession.executionlist.find({'executionListId':requestdata['executionListId'],"configkey": requestdata['key']}))
+            updatedData = executionData
             correctexecutionRequest = ''
             index = -1
             for info in executionData[0]['executionData']['batchInfo']:
@@ -195,10 +199,13 @@ def LoadServices(app, redissession, dbsession):
                 if info['testsuiteId'] == testSuiteId:
                     break
             executionData[0]['executionData']['batchInfo'] = [executionData[0]['executionData']['batchInfo'][index]]
-
-
-
+            
             res['rows'] = executionData
+            
+            # Updating the agent sent from Ice.
+            updatedData[0]['executionData']['batchInfo'][index]['agentName'] = requestdata['agentName']
+            executionData = dbsession.executionlist.update({'executionListId':requestdata['executionListId'],"configkey": requestdata['key']},{'$set':{"executionData.batchInfo": updatedData[0]['executionData']['batchInfo']}})
+
 
         except Exception as e:
             print(e)
