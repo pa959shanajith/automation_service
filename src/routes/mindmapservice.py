@@ -1507,6 +1507,7 @@ def LoadServices(app, redissession, dbsession):
                             moduleObjCopy["modifiedon"] = datetime.now()
                             moduleObjCopy["modifiedbyrole"]= ObjectId(createdbyrole)
                             moduleObjCopy["type"]= moduledataList[0]['type']
+                            moduleObjCopy["testscenarios"]= []
                             module_type= moduleObjCopy["type"]                          
                             queryresult = dbsession.mindmaps.insert_one(
                                 moduleObjCopy)
