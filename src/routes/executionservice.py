@@ -336,7 +336,8 @@ def LoadServices(app, redissession, dbsession):
                         "parentid": parentid,
                         "startdate": datetime.fromtimestamp(int(requestdata['startDate'])/1000,pytz.UTC),
                         "configurekey": requestdata["configureKey"],
-                        "configurename": requestdata["configureName"]
+                        "configurename": requestdata["configureName"],
+                        "endafter": requestdata["endAfter"]
                     }
                     if "smartid" in requestdata: dataquery["smartid"] = uuid.UUID(requestdata["smartid"])
                     scheduleid = dbsession.scheduledexecutions.insert(dataquery)
