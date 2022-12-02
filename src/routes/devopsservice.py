@@ -198,14 +198,13 @@ def LoadServices(app, redissession, dbsession):
                 index+=1
                 if info['testsuiteId'] == testSuiteId:
                     break
-            executionData[0]['executionData']['batchInfo'] = [executionData[0]['executionData']['batchInfo'][index]]
-            
-            res['rows'] = executionData
             
             # Updating the agent sent from Ice.
             updatedData[0]['executionData']['batchInfo'][index]['agentName'] = requestdata['agentName']
-            executionData = dbsession.executionlist.update({'executionListId':requestdata['executionListId'],"configkey": requestdata['key']},{'$set':{"executionData.batchInfo": updatedData[0]['executionData']['batchInfo']}})
+            updatedResponse = dbsession.executionlist.update_many({'executionListId':requestdata['executionListId'],"configkey": requestdata['key']},{'$set':{"executionData.batchInfo": updatedData[0]['executionData']['batchInfo']}})
 
+            executionData[0]['executionData']['batchInfo'] = [executionData[0]['executionData']['batchInfo'][index]]
+            res['rows'] = executionData
 
         except Exception as e:
             print(e)
