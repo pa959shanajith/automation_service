@@ -1376,45 +1376,49 @@ def LoadServices(app, redissession, dbsession):
                         mindmapid.append(ObjectId(requestdata["mindmapId"]))
                     else:
                         mindmapid = [ObjectId(i) for i in requestdata['mindmapId']]
-                    moduledataList=[]
-                    for mindmap in mindmapid:
-                        mindmapdata=list(dbsession.mindmaps.find({'_id':mindmap}))                      
-                        for module in mindmapdata:
-                            mindmapData=list(dbsession.mindmaps.find({'_id':module["_id"]},{"_id":1,"createdby":1,"createdbyrole":1,"createdon":1,"createdthrough":1,"deleted":1,"modifiedby":1,"modifiedbyrole":1,"modifiedon":1,"name":1,"projectid":1,"type":1,"versionnumber":1,"testscenarios":1}))
-                            tscList=[]
-                            if "testscenarios" in module:
-                                for testscenarios in module["testscenarios"]:
-                                    if "_id" in testscenarios:
-                                        testscenarioData=list(dbsession.testscenarios.find({'_id':testscenarios["_id"]}))
-                                        if len(testscenarioData)>0:
-                                            tsc=testscenarioData[0]
-                                            tsc["screens"]=[]
-                                            if "screens" in testscenarios:
-                                                for screens in testscenarios["screens"]:
-                                                    if "_id" in screens:
-                                                        screenData=list(dbsession.screens.find({'_id':screens["_id"]}))
-                                                        if len(screenData)>0:
-                                                            scr=screenData[0]                                                                        
-                                                            scr["testcases"]=[]
-                                                            if "testcases" in screens:                               
-                                                                for testcase in screens["testcases"]:
-                                                                    if testcase:
-                                                                        testcaseData=list(dbsession.testcases.find({'_id':testcase}))
-                                                                        if len(testcaseData)>0:
-                                                                            scr["testcases"].append(testcaseData[0])
-                                                                tsc["screens"].append(scr)                                                                                                                    
-                                                tscList.append(tsc)                                                
-                                mindmapData[0]["testscenarios"]=tscList
-                                moduledataList.append(mindmapData[0])                                                 
-                    queryresult=moduledataList                                        
+                    
+            # #         moduledataList=[]
+            # #         for mindmap in mindmapid:
+            # #             mindmapdata=list(dbsession.mindmaps.find({'_id':mindmap}))                      
+            # #             for module in mindmapdata:
+            # #                 mindmapData=list(dbsession.mindmaps.find({'_id':module["_id"]},{"_id":1,"createdby":1,"createdbyrole":1,"createdon":1,"createdthrough":1,"deleted":1,"modifiedby":1,"modifiedbyrole":1,"modifiedon":1,"name":1,"projectid":1,"type":1,"versionnumber":1,"testscenarios":1}))
+            # #                 tscList=[]
+            # #                 if "testscenarios" in module:
+            # #                     for testscenarios in module["testscenarios"]:
+            # #                         if "_id" in testscenarios:
+            # #                             testscenarioData=list(dbsession.testscenarios.find({'_id':testscenarios["_id"]}))
+            # #                             if len(testscenarioData)>0:
+            # #                                 tsc=testscenarioData[0]
+            # #                                 tsc["screens"]=[]
+            # #                                 if "screens" in testscenarios:
+            # #                                     for screens in testscenarios["screens"]:
+            # #                                         if "_id" in screens:
+            # #                                             screenData=list(dbsession.screens.find({'_id':screens["_id"]}))
+            # #                                             if len(screenData)>0:
+            # #                                                 scr=screenData[0]                                                                        
+            # #                                                 scr["testcases"]=[]
+            # #                                                 if "testcases" in screens:                               
+            # #                                                     for testcase in screens["testcases"]:
+            # #                                                         if testcase:
+            # #                                                             testcaseData=list(dbsession.testcases.find({'_id':testcase}))
+            # #                                                             if len(testcaseData)>0:
+            # #                                                                 scr["testcases"].append(testcaseData[0])
+            # #                                                     tsc["screens"].append(scr)                                                                                                                    
+            # #                                     tscList.append(tsc)                                                
+            # #                     mindmapData[0]["testscenarios"]=tscList
+            # #                     moduledataList.append(mindmapData[0])                                                 
+                    queryresult=mindmapid                                        
                     projectid=list(dbsession.mindmaps.find({"_id":mindmapid[0]},{"projectid":1}))
                     projecttype=dbsession.projects.find({"_id":ObjectId(projectid[0]["projectid"])},{"type":1})
                     getProjectTypeName= list(dbsession.projecttypekeywords.find({"_id":ObjectId(projecttype[0]["type"])},{"name":1}))
                     projectAppType={"apptype":""}
+                    projectId={"projectid":""}
+                    projectId["projectid"]=projectid[0]["projectid"]
                     projectAppType["apptype"]=getProjectTypeName[0]["name"]
-                    queryresult[0].update(projectAppType)
+                    queryresult.append(projectAppType)
+                    queryresult.append(projectId)
                     if queryresult:
-                        res = {'rows': queryresult}
+                        res = {'rows': mindmapid}
             else:
                 app.logger.warn('Empty data received while exporting mindmap')
         except Exception as exportmindmapexc:
@@ -1448,36 +1452,69 @@ def LoadServices(app, redissession, dbsession):
                 createdModuleList = []
                 screenNames=[]
                 scenarioIds=[]
-                testcaseNames=[]
+                testcaseNames=[]                
                 for moduleObj in requestdata['mindmap']:
-                    del moduleObj["_id"]
-                    projectid = moduleObj['projectid']
-                    createdby = moduleObj['createdby']
-                    createdbyrole = moduleObj['createdbyrole']
-                    
-                    versionnumber = moduleObj['versionnumber']
+                    if type(moduleObj)==dict:
+                        continue                                       
+                    mindmapdata=list(dbsession.mindmaps.find({'_id':moduleObj}))  
+                    moduledataList=[]                    
+                    for module in mindmapdata:                        
+                        mindmapData=list(dbsession.mindmaps.find({'_id':module["_id"]},{"_id":1,"createdby":1,"createdbyrole":1,"createdon":1,"createdthrough":1,"deleted":1,"modifiedby":1,"modifiedbyrole":1,"modifiedon":1,"name":1,"projectid":1,"type":1,"versionnumber":1,"testscenarios":1}))
+                        tscList=[]
+                        if "testscenarios" in module:
+                            for testscenarios in module["testscenarios"]:
+                                if "_id" in testscenarios:
+                                    testscenarioData=list(dbsession.testscenarios.find({'_id':testscenarios["_id"]}))
+                                    if len(testscenarioData)>0:
+                                        tsc=testscenarioData[0]
+                                        tsc["screens"]=[]
+                                        if "screens" in testscenarios:
+                                            for screens in testscenarios["screens"]:
+                                                if "_id" in screens:
+                                                    screenData=list(dbsession.screens.find({'_id':screens["_id"]}))
+                                                    if len(screenData)>0:
+                                                        scr=screenData[0]                                                                        
+                                                        scr["testcases"]=[]
+                                                        if "testcases" in screens:                               
+                                                            for testcase in screens["testcases"]:
+                                                                if testcase:
+                                                                    testcaseData=list(dbsession.testcases.find({'_id':testcase}))
+                                                                    if len(testcaseData)>0:
+                                                                        scr["testcases"].append(testcaseData[0])
+                                                            tsc["screens"].append(scr)                                                                                                                    
+                                            tscList.append(tsc)                                                
+                            mindmapData[0]["testscenarios"]=tscList
+                    moduledataList.append(mindmapData[0])
+                    # del moduledataList[0]['projectid']
+                    projectid = requestdata['mindmap'][-1]["projectid"]
+                    moduledataList[0]['projectid']=requestdata['mindmap'][-1]["projectid"]
+                    createdby = moduledataList[0]['createdby']
+                    createdbyrole = moduledataList[0]['createdbyrole']
+                    del moduledataList[0]['_id']
+                    versionnumber = moduledataList[0]['versionnumber']
                     if (requestdata['query'] == 'importMindmap'):
                             app.logger.debug("Inside importMindmap.")
-                            moduleObj['projectid'] = ObjectId(
-                                moduleObj['projectid'])
-                            moduleObjCopy = deepcopy(moduleObj)
+                            moduledataList[0]['projectid'] = ObjectId(
+                               moduledataList[0]['projectid'])
+                            moduleObjCopy = deepcopy(moduledataList[0])
                             moduleObjCopy["createdon"]= datetime.now()
-                            moduleObjCopy["createdthrough"]=moduleObj['createdthrough']
+                            moduleObjCopy["createdthrough"]=moduledataList[0]['createdthrough']
                             createdthrough=moduleObjCopy["createdthrough"]
-                            moduleObjCopy["createdby"]:ObjectId(createdby)
+                            moduleObjCopy["createdby"]=ObjectId(createdby)
                             moduleObjCopy["createdbyrole"]=ObjectId(createdbyrole)
                             moduleObjCopy["deleted"]=False
                             moduleObjCopy["modifiedby"]= ObjectId(createdby)
                             moduleObjCopy["modifiedon"] = datetime.now()
                             moduleObjCopy["modifiedbyrole"]= ObjectId(createdbyrole)
-                            moduleObjCopy["type"]= moduleObj['type']
+                            moduleObjCopy["type"]= moduledataList[0]['type']
+                            moduleObjCopy["testscenarios"]= []
                             module_type= moduleObjCopy["type"]                          
                             queryresult = dbsession.mindmaps.insert_one(
                                 moduleObjCopy)
                             result = dbsession.mindmaps.find_one(
                             {"_id": queryresult.inserted_id}, {"_id": 1})
                             createdModuleList.append(queryresult.inserted_id)
-                            scenarioList = moduleObj['testscenarios']                            
+                            scenarioList = moduledataList[0]['testscenarios']                            
                             currentmoduleid = queryresult.inserted_id
                             idsforModule = []
                             for scenariodata in scenarioList:
