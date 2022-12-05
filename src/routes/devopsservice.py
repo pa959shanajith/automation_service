@@ -413,3 +413,32 @@ def LoadServices(app, redissession, dbsession):
             print(e)
             return e
         return jsonify(res)
+
+    @app.route('/devops/cacheData',methods=['POST'])
+    def cacheData():
+        app.logger.debug("Inside cacheData")
+        res={'rows':'fail'}
+        try:
+            requestdata=json.loads(request.data)
+
+
+            cacheResult = list(dbsession.cachedb.find({}))
+
+            if 'query' in requestdata:
+                if(len(cacheResult) != 0):
+                    del cacheResult[0]['_id']
+
+                res['rows'] = cacheResult
+            else:
+                if(len(cacheResult) == 0):
+                    dbsession.cachedb.insert_one(requestdata)
+
+                else: #key is present
+                    dbsession.cachedb.replace_one({"_id":cacheResult[0]['_id']},requestdata)
+
+                res['rows'] = 'pass'
+
+        except Exception as e:
+            print(e)
+            return e
+        return jsonify(res)
