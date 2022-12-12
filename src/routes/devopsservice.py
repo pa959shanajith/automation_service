@@ -452,7 +452,7 @@ def LoadServices(app, redissession, dbsession):
             listOfModules = list(dbsession.executionlist.find({'executionListId':requestdata['executionListId']}))
 
             agentModuleList = []
-            if 'executionData.batchInfo' in listOfModules[0]:
+            if 'executionData' in listOfModules[0]:
                 for testsuite in listOfModules[0]['executionData']['batchInfo']:
                     agentModuleList.append({
                         'testsuiteName':testsuite['testsuiteName'],
