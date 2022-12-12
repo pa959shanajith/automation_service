@@ -442,3 +442,29 @@ def LoadServices(app, redissession, dbsession):
             print(e)
             return e
         return jsonify(res)
+
+    @app.route('/devops/getAgentModuleList',methods=['POST'])
+    def getAgentModuleList():
+        app.logger.debug("Inside getAgentModuleList")
+        res={'rows':'fail'}
+        try:
+            requestdata=json.loads(request.data)
+            listOfModules = list(dbsession.executionlist.find({'executionListId':requestdata['executionListId']}))
+
+            agentModuleList = []
+            if 'executionData.batchInfo' in listOfModules[0]:
+                for testsuite in listOfModules[0]['executionData']['batchInfo']:
+                    agentModuleList.append({
+                        'testsuiteName':testsuite['testsuiteName'],
+                        'agentName': testsuite['agentName'] if 'agentName' in testsuite else ''
+                    })
+
+                res['rows'] = agentModuleList
+
+            else:
+                res['rows'] = 'fail'
+
+        except Exception as e:
+            print(e)
+            return e
+        return jsonify(res)
