@@ -180,14 +180,22 @@ def LoadServices(app, redissession, dbsession):
                     'projecttypes':projecttype_names,
                     'domains':[]
                 }
-                userid=requestdata['userid']
-                dbconn=dbsession["users"]
-                projectIDResult=list(dbconn.find({"_id":ObjectId(userid)},{"projects":1}))
+                if 'userrole' in requestdata and requestdata['userrole'] == "Test Manager":
+                    dbconn=dbsession["projects"]
+                    projectIDResult=list(dbconn.find({},{"_id":1}))
+                else:
+                    userid=requestdata['userid']
+                    dbconn=dbsession["users"]
+                    projectIDResult=list(dbconn.find({"_id":ObjectId(userid)},{"projects":1}))
                 if(len(projectIDResult)!=0):
                     dbconn=dbsession["mindmaps"]
                     prjids=[]
-                    for pid in projectIDResult[0]["projects"]:
-                        prjids.append(str(pid))
+                    if "projects" in projectIDResult[0]:
+                        for pid in projectIDResult[0]["projects"]:
+                            prjids.append(str(pid))
+                    else:
+                        for pid in projectIDResult:
+                            prjids.append(str(pid["_id"]))
                     if(requestdata['query'] == 'emptyflag'):
                         # Check this flag
                         modulequeryresult=dbconn.distinct('projectid')
