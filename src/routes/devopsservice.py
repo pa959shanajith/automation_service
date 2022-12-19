@@ -48,7 +48,7 @@ def LoadServices(app, redissession, dbsession):
                                 "dataparam" : [testsuiteData[0]['getparampaths'][scenarioIndexFromBackEnd]],
                                 "scenarioName" : scenarioName[0]['name'],
                                 "scenarioId" : str(scenarioids),
-                                "accessibilityParameters" : []
+                                "accessibilityParameters" : testsuiteData[0]['accessibilityParameters'] if 'accessibilityParameters' in testsuiteData[0] else []
                             })
 
 
