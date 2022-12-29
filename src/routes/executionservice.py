@@ -485,7 +485,7 @@ def LoadServices(app, redissession, dbsession):
                     tscos = dbsession.testscenarios.find({}, {"projectid": 1})
                     tscomap = {}
                     for tsco in tscos: tscomap[tsco["_id"]] = prjmap[tsco["projectid"]] if tsco["projectid"] in prjmap else "-"
-                    scheduledon = datetime.fromtimestamp(int(requestdata['scheduledDate'])/1000,pytz.UTC)
+                    scheduledon = datetime.fromtimestamp(int(requestdata['scheduledDate'])/1000)
                     scheduledon = scheduledon.replace(tzinfo=None)
                     schedules = list(dbsession.scheduledexecutions.find({"$and": [{"scheduledon":scheduledon}, {"configurekey": requestdata["configKey"]}, {"configurename": requestdata["configName"]}]}))
                     poollist={}
