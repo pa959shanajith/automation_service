@@ -17,6 +17,13 @@ def LoadServices(app, redissession, dbsession):
                 keyDetails = list(dbsession.configurekeys.find({'token': requestdata["key"]},{'executionData': 1,'session': 1}))
                 res['rows'] = keyDetails[0]
             else:
+                checkForName =  list(dbsession.configurekeys.find({'executionData.configurename': requestdata['executionData']['configurename'] , 'executionData.batchInfo.projectName':requestdata['executionData']['batchInfo'][0]['projectName'], 'executionData.configurekey': {'$ne':requestdata['executionData']['configurekey'] }},{'executionData': 1}))
+
+                # check if already configurename exists
+                if(len(checkForName) != 0):
+                    res['rows'] = {'error':{'CONTENT':'Configure name already exists'}}
+                    return res['rows']
+
                 requestdata["token"] = requestdata["executionData"]['configurekey']
 
                 # GEtting data parameterization
