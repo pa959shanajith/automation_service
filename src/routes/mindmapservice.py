@@ -1554,7 +1554,38 @@ def LoadServices(app, redissession, dbsession):
                         mindmapid=[]
                         mindmapid.append(ObjectId(requestdata["mindmapId"]))
                     else:
-                        mindmapid = [ObjectId(i) for i in requestdata['mindmapId']]                                                
+                        mindmapid = [ObjectId(i) for i in requestdata['mindmapId']]
+                    
+            # #         moduledataList=[]
+            # #         for mindmap in mindmapid:
+            # #             mindmapdata=list(dbsession.mindmaps.find({'_id':mindmap}))                      
+            # #             for module in mindmapdata:
+            # #                 mindmapData=list(dbsession.mindmaps.find({'_id':module["_id"]},{"_id":1,"createdby":1,"createdbyrole":1,"createdon":1,"createdthrough":1,"deleted":1,"modifiedby":1,"modifiedbyrole":1,"modifiedon":1,"name":1,"projectid":1,"type":1,"versionnumber":1,"testscenarios":1}))
+            # #                 tscList=[]
+            # #                 if "testscenarios" in module:
+            # #                     for testscenarios in module["testscenarios"]:
+            # #                         if "_id" in testscenarios:
+            # #                             testscenarioData=list(dbsession.testscenarios.find({'_id':testscenarios["_id"]}))
+            # #                             if len(testscenarioData)>0:
+            # #                                 tsc=testscenarioData[0]
+            # #                                 tsc["screens"]=[]
+            # #                                 if "screens" in testscenarios:
+            # #                                     for screens in testscenarios["screens"]:
+            # #                                         if "_id" in screens:
+            # #                                             screenData=list(dbsession.screens.find({'_id':screens["_id"]}))
+            # #                                             if len(screenData)>0:
+            # #                                                 scr=screenData[0]                                                                        
+            # #                                                 scr["testcases"]=[]
+            # #                                                 if "testcases" in screens:                               
+            # #                                                     for testcase in screens["testcases"]:
+            # #                                                         if testcase:
+            # #                                                             testcaseData=list(dbsession.testcases.find({'_id':testcase}))
+            # #                                                             if len(testcaseData)>0:
+            # #                                                                 scr["testcases"].append(testcaseData[0])
+            # #                                                     tsc["screens"].append(scr)                                                                                                                    
+            # #                                     tscList.append(tsc)                                                
+            # #                     mindmapData[0]["testscenarios"]=tscList
+            # #                     moduledataList.append(mindmapData[0])                                                 
                     queryresult=mindmapid                                        
                     projectid=list(dbsession.mindmaps.find({"_id":mindmapid[0]},{"projectid":1}))
                     projecttype=dbsession.projects.find({"_id":ObjectId(projectid[0]["projectid"])},{"type":1})

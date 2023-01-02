@@ -13,6 +13,13 @@ def LoadServices(app, redissession, dbsession):
         try:
             requestdata=json.loads(request.data)
 
+            checkForName =  list(dbsession.configurekeys.find({'executionData.configurename': requestdata['executionData']['configurename']},{'executionData': 1}))
+
+            # check if already configurename exists
+            if(len(checkForName) != 0 and checkForName[0]['executionData']['configurekey'] != requestdata['executionData']['configurekey']):
+                res['rows'] = {'error':{'CONTENT':'Configure name already exists'}}
+                return res['rows']
+
             if(requestdata['query'] == 'fetchExecutionData'):
                 keyDetails = list(dbsession.configurekeys.find({'token': requestdata["key"]},{'executionData': 1,'session': 1}))
                 res['rows'] = keyDetails[0]
@@ -205,14 +212,13 @@ def LoadServices(app, redissession, dbsession):
                 index+=1
                 if info['testsuiteId'] == testSuiteId:
                     break
-            executionData[0]['executionData']['batchInfo'] = [executionData[0]['executionData']['batchInfo'][index]]
-            
-            res['rows'] = executionData
             
             # Updating the agent sent from Ice.
             updatedData[0]['executionData']['batchInfo'][index]['agentName'] = requestdata['agentName']
-            executionData = dbsession.executionlist.update({'executionListId':requestdata['executionListId'],"configkey": requestdata['key']},{'$set':{"executionData.batchInfo": updatedData[0]['executionData']['batchInfo']}})
+            updatedResponse = dbsession.executionlist.update_many({'executionListId':requestdata['executionListId'],"configkey": requestdata['key']},{'$set':{"executionData.batchInfo": updatedData[0]['executionData']['batchInfo']}})
 
+            executionData[0]['executionData']['batchInfo'] = [executionData[0]['executionData']['batchInfo'][index]]
+            res['rows'] = executionData
 
         except Exception as e:
             print(e)
@@ -415,6 +421,61 @@ def LoadServices(app, redissession, dbsession):
                 for index in range(0,len(testSuite)):
                     testSuiteData[index]['execution_Id'] = queryresult[index]['_id']
                 res['rows'] = testSuiteData
+
+        except Exception as e:
+            print(e)
+            return e
+        return jsonify(res)
+
+    @app.route('/devops/cacheData',methods=['POST'])
+    def cacheData():
+        app.logger.debug("Inside cacheData")
+        res={'rows':'fail'}
+        try:
+            requestdata=json.loads(request.data)
+
+
+            cacheResult = list(dbsession.cachedb.find({}))
+
+            if 'query' in requestdata:
+                if(len(cacheResult) != 0):
+                    del cacheResult[0]['_id']
+
+                res['rows'] = cacheResult
+            else:
+                if(len(cacheResult) == 0):
+                    dbsession.cachedb.insert_one(requestdata)
+
+                else: #key is present
+                    dbsession.cachedb.replace_one({"_id":cacheResult[0]['_id']},requestdata)
+
+                res['rows'] = 'pass'
+
+        except Exception as e:
+            print(e)
+            return e
+        return jsonify(res)
+
+    @app.route('/devops/getAgentModuleList',methods=['POST'])
+    def getAgentModuleList():
+        app.logger.debug("Inside getAgentModuleList")
+        res={'rows':'fail'}
+        try:
+            requestdata=json.loads(request.data)
+            listOfModules = list(dbsession.executionlist.find({'executionListId':requestdata['executionListId']}))
+
+            agentModuleList = []
+            if 'executionData' in listOfModules[0]:
+                for testsuite in listOfModules[0]['executionData']['batchInfo']:
+                    agentModuleList.append({
+                        'testsuiteName':testsuite['testsuiteName'],
+                        'agentName': testsuite['agentName'] if 'agentName' in testsuite else ''
+                    })
+
+                res['rows'] = agentModuleList
+
+            else:
+                res['rows'] = 'fail'
 
         except Exception as e:
             print(e)

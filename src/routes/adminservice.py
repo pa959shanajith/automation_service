@@ -92,7 +92,11 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
                         requestdata["modifiedon"]=datetime.now()
                         requestdata["deactivated"]="false"
                         requestdata["addroles"]=[]
-                        requestdata["projects"]=[]
+                        result=list(dbsession.projects.find({"name":"Avo Trial"},{"_id":1}))
+                        if result:
+                            requestdata["projects"]=[result[0]["_id"]]
+                        else:
+                            requestdata["projects"]=[]
                         requestdata["welcomeStepNo"] = 0
                         requestdata["firstTimeLogin"] = True
                         if requestdata["auth"]["type"] in ["inhouse", "ldap"]:
