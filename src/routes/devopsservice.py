@@ -13,13 +13,6 @@ def LoadServices(app, redissession, dbsession):
         try:
             requestdata=json.loads(request.data)
 
-            checkForName =  list(dbsession.configurekeys.find({'executionData.configurename': requestdata['executionData']['configurename']},{'executionData': 1}))
-
-            # check if already configurename exists
-            if(len(checkForName) != 0 and checkForName[0]['executionData']['configurekey'] != requestdata['executionData']['configurekey']):
-                res['rows'] = {'error':{'CONTENT':'Configure name already exists'}}
-                return res['rows']
-
             if(requestdata['query'] == 'fetchExecutionData'):
                 keyDetails = list(dbsession.configurekeys.find({'token': requestdata["key"]},{'executionData': 1,'session': 1}))
                 res['rows'] = keyDetails[0]
