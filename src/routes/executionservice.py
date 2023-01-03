@@ -46,7 +46,7 @@ def LoadServices(app, redissession, dbsession):
                 if(param == 'gettestsuite'):
                     mindmapid = ObjectId(requestdata['mindmapid'])
                     cycleid = ObjectId(requestdata['cycleid'])
-                    filterquery = {"conditioncheck":1,"getparampaths":1,"donotexecute":1,"testscenarioids":1}
+                    filterquery = {"conditioncheck":1,"getparampaths":1,"donotexecute":1,"testscenarioids":1,"accessibilityParameters":1}
                     testsuite = dbsession.testsuites.find_one({"cycleid":cycleid, "mindmapid":mindmapid, "deleted":query['delete_flag']}, filterquery)
                     create_suite = testsuite is None
                     mindmaps = dbsession.mindmaps.find_one({"_id": mindmapid, "deleted":query['delete_flag']})
@@ -78,6 +78,7 @@ def LoadServices(app, redissession, dbsession):
                         querydata["deleted"] = mindmaps["deleted"]
                         querydata["donotexecute"] = [1] * tsclen
                         querydata["getparampaths"] = [' '] * tsclen
+                        querydata["accessibilityParameters"] = []
                         testsuiteid = dbsession.testsuites.insert(querydata)
                     else:
                         testsuiteid = testsuite["_id"]
@@ -85,6 +86,7 @@ def LoadServices(app, redissession, dbsession):
                         getparampaths_ts = testsuite["getparampaths"]
                         donotexecute_ts = testsuite["donotexecute"]
                         conditioncheck_ts = testsuite["conditioncheck"]
+                        accessibilityParameters_ts = testsuite["accessibilityParameters"] if "accessibilityParameters" in testsuite else []
                         getparampaths = []
                         conditioncheck = []
                         donotexecute = []
@@ -105,12 +107,13 @@ def LoadServices(app, redissession, dbsession):
                         querydata["conditioncheck"] = conditioncheck
                         querydata["donotexecute"] = donotexecute
                         querydata["getparampaths"] = getparampaths
+                        querydata["accessibilityParameters"] = accessibilityParameters_ts
                         dbsession.testsuites.update_one({"_id": testsuiteid, "deleted": query['delete_flag']}, {'$set': querydata})
 
                     res['rows'] = {
                         "testsuiteid": testsuiteid, "conditioncheck": querydata["conditioncheck"],
                         "donotexecute": querydata["donotexecute"], "getparampaths": querydata["getparampaths"],
-                        "testscenarioids": testscenarioids, "name": querydata["name"], "batchname": querydata["batchname"]
+                        "testscenarioids": testscenarioids, "name": querydata["name"], "batchname": querydata["batchname"], "accessibilityParameters": querydata["accessibilityParameters"]
                     }
 
                 elif(param == 'gettestscenario'):
