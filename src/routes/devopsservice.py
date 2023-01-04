@@ -58,6 +58,15 @@ def LoadServices(app, redissession, dbsession):
                                 "accessibilityParameters" : testsuiteData[0]['accessibilityParameters'] if 'accessibilityParameters' in testsuiteData[0] else []
                             })
 
+                    # updating the donotexecute array present in testsuite with the donotexe file coming from from-end
+                    testsuiteData[0]['donotexecute'] = [0]*len(testsuiteData[0]['donotexecute'])
+                    for index in requestdata['executionData']['donotexe']['current'][testsuite['testsuiteId']]:
+                        testsuiteData[0]['donotexecute'][index] = 1
+
+                    dbsession.testsuites.update({"mindmapid":ObjectId(testsuite['testsuiteId'])},{'$set':{"donotexecute":testsuiteData[0]['donotexecute']}})
+                    
+                    
+
 
                 # check whether key is already present
                 keyAlreadyExist = list(dbsession.configurekeys.find({'token': requestdata["token"]}))
