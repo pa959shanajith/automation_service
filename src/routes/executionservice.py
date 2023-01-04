@@ -168,6 +168,10 @@ def LoadServices(app, redissession, dbsession):
                 del querydata["query"]
                 querydata["modifiedon"]= datetime.now()
                 querydata["testscenarioids"] = [ObjectId(i) for i in requestdata['testscenarioids']]
+                if "accessibilityParameters" in querydata:
+                    querydata["accessibilityParameters"] = [i for i in querydata["accessibilityParameters"] if i is not None]
+                else:
+                    querydata["accessibilityParameters"] = []
                 dbsession.testsuites.update_one({"_id": testsuiteid}, {"$set":querydata})
                 res={'rows':'Success'}
                 app.logger.debug("Executed updateTestSuite_ICE. Query: " + param)
@@ -657,4 +661,3 @@ def LoadServices(app, redissession, dbsession):
         except Exception as getalltaskssexc:
             servicesException("checkApproval",getalltaskssexc, True)
             return jsonify(res)
-
