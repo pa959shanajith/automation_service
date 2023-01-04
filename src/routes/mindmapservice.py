@@ -327,10 +327,21 @@ def LoadServices(app, redissession, dbsession):
 
                     scenariodetails = list(dbsession.testscenarios.find(
                         {"_id": {"$in": scenarioids}}, {"_id": 1, "name": 1, "parent": 1}))
-                    screendetails = list(dbsession.screens.find(
-                        {"_id": {"$in": screenids}}, {"_id": 1, "name": 1, "parent": 1}))
-                    testcasedetails = list(dbsession.testcases.find(
-                        {"_id": {"$in": testcaseids}}, {"_id": 1, "name": 1, "parent": 1}))
+
+                    testcasedetails = list(dbsession.testcases.aggregate([
+                        {'$match': {"_id": {"$in": testcaseids}}},
+                        {'$project':{'stepsLen':{ '$cond': { 'if': { '$isArray': "$steps" },
+                         'then': { '$size': "$steps" }, 'else': 0}} ,'_id': 1 , 'name': 1,'parent':1}}]))
+
+                    screendetails = list(dbsession.screens.aggregate([
+                        {'$match': {"_id": {"$in": screenids}}},
+                        {'$project':{'objLen':{ '$cond': { 'if': { '$isArray': "$orderlist" },
+                         'then': { '$size': "$orderlist" }, 'else': 0}} ,'_id': 1 , 'name': 1,'parent':1}}]))
+
+                    # screendetails = list(dbsession.screens.find(
+                    #     {"_id": {"$in": screenids}}, {"_id": 1, "name": 1, "parent": 1,"orderlist":1}))
+                    # testcasedetails = list(dbsession.testcases.find(
+                    #     {"_id": {"$in": testcaseids}}, {"_id": 1, "name": 1, "parent": 1,"steps":1}))
                     moduledata = {}
                     scenariodata = {}
                     screendata = {}
@@ -369,21 +380,25 @@ def LoadServices(app, redissession, dbsession):
                             screendata[sc["_id"]]['name'] = sc["name"]
                             screendata[sc["_id"]]['reuse'] = True if len(
                                 sc["parent"]) > 1 else False
+                            screendata[sc["_id"]]['objLen'] = sc["objLen"]
                         else:
                             screendata[sc["_id"]] = {
                                 "name": sc["name"],
-                                "reuse": True if len(sc["parent"]) > 1 else False
+                                "reuse": True if len(sc["parent"]) > 1 else False,
+                                "objLen" : sc["objLen"]
                             }
                     for tc in testcasedetails:
                         if tc["_id"] in testcasedata:
                             testcasedata[tc["_id"]]['name'] = tc["name"]
                             testcasedata[tc["_id"]
                                         ]['reuse'] = True if tc["parent"] > 1 else False
+                            testcasedata[tc["_id"]]['stepsLen'] = tc["stepsLen"]
 
                         else:
                             testcasedata[tc["_id"]] = {
                                 "name": tc["name"],
-                                "reuse": True if tc["parent"] > 1 else False
+                                "reuse": True if tc["parent"] > 1 else False,
+                                "stepsLen": tc["stepsLen"]
                             }
                     finaldata = {}
                     finaldata["name"] = mindmapdata["name"]
@@ -443,6 +458,7 @@ def LoadServices(app, redissession, dbsession):
                                             finalscreendata["childIndex"] = j
                                             finalscreendata["children"] = []
                                             finalscreendata["reuse"] = screendata[sc["_id"]]["reuse"]
+                                            finalscreendata["objLen"] = screendata[sc["_id"]]["objLen"]
                                             finalscreendata["state"] = "saved"
                                             if 'task' in screendata[sc["_id"]] and screendata[sc["_id"]]['task']["status"] != "complete":
                                                 finalscreendata["task"] = screendata[sc["_id"]]['task']
@@ -466,6 +482,7 @@ def LoadServices(app, redissession, dbsession):
                                                         finaltestcasedata["children"] = []
                                                         finaltestcasedata["reuse"] = testcasedata[tc]["reuse"]
                                                         finaltestcasedata["state"] = "saved"
+                                                        finaltestcasedata["stepsLen"] = testcasedata[tc]["stepsLen"]
                                                         if 'task' in testcasedata[tc] and testcasedata[tc]['task']['status'] != 'complete':
                                                             finaltestcasedata["task"] = testcasedata[tc]['task']
                                                         else:
@@ -474,7 +491,7 @@ def LoadServices(app, redissession, dbsession):
                                                             tc] and testcasedata[tc]['taskexists']['status'] != 'complete' else None
                                                         k = k+1
                                                         finalscreendata["children"].append(
-                                                            finaltestcasedata)
+                                                                finaltestcasedata)
                                             finalscenariodata["children"].append(
                                                 finalscreendata)
                                 finaldata["children"].append(finalscenariodata)
