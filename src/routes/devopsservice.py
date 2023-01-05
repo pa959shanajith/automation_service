@@ -21,7 +21,7 @@ def LoadServices(app, redissession, dbsession):
 
                 # check if already configurename exists
                 if(len(checkForName) != 0):
-                    res['rows'] = {'error':{'CONTENT':'Configure name already exists'}}
+                    res['rows'] = {'error':{'CONTENT':'Execution Profile name already exists'}}
                     return res['rows']
 
                 requestdata["token"] = requestdata["executionData"]['configurekey']
@@ -57,6 +57,15 @@ def LoadServices(app, redissession, dbsession):
                                 "scenarioId" : str(scenarioids),
                                 "accessibilityParameters" : testsuiteData[0]['accessibilityParameters'] if 'accessibilityParameters' in testsuiteData[0] else []
                             })
+
+                    # updating the donotexecute array present in testsuite with the donotexe file coming from from-end
+                    testsuiteData[0]['donotexecute'] = [0]*len(testsuiteData[0]['donotexecute'])
+                    for index in requestdata['executionData']['donotexe']['current'][testsuite['testsuiteId']]:
+                        testsuiteData[0]['donotexecute'][index] = 1
+
+                    dbsession.testsuites.update({"mindmapid":ObjectId(testsuite['testsuiteId'])},{'$set':{"donotexecute":testsuiteData[0]['donotexecute']}})
+                    
+                    
 
 
                 # check whether key is already present
