@@ -21,7 +21,7 @@ def LoadServices(app, redissession, dbsession):
 
                 # check if already configurename exists
                 if(len(checkForName) != 0):
-                    res['rows'] = {'error':{'CONTENT':'Execution Profile name already exists'}}
+                    res['rows'] = {'error':{'CONTENT':'Configure name already exists'}}
                     return res['rows']
 
                 requestdata["token"] = requestdata["executionData"]['configurekey']
