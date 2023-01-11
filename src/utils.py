@@ -235,7 +235,8 @@ ecodeServices = {
     "getUsers_ICE":"474",
     "updateScreen_Genius":"475",
     "updateTestCase_Genius":"476",
-    "saveGeniusMindmap":"477"
+    "saveGeniusMindmap":"477",
+    "exportToProject":"478"
 }
 
 
