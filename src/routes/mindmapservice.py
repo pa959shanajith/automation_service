@@ -1794,32 +1794,6 @@ def LoadServices(app, redissession, dbsession):
 
                                                             {"$out":"Imported_screen"}
                     ])
-                    dbsession.Import_testcases.aggregate([
-                                            {"$match":{"old_screenid":{"$exists":"true"},"projectid":projectid}},
-                                            {'$lookup': {
-                                                'from': "Imported_screen",
-                                                'localField': "old_screenid",
-                                                'foreignField': "old_id",
-                                                'as': "screendata"
-                                            }},{"$unwind":"$screendata"},
-                                            { "$project" : {"screenid":"$screendata._id","name" : 1,
-                                                            
-                                                            "versionnumber" : 1,
-                                                            "createdby" :1 ,
-                                                            "createdbyrole" :1 ,
-                                                            "createdon" :1,
-                                                            "deleted" : 1,
-                                                            "modifiedby" :1,
-                                                            "modifiedbyrole" : 1,
-                                                            "modifiedon" :1,
-                                                            "parent":{ "$size":"$screendata.parent" },
-                                                            "steps":1,
-                                                            "old_screenid":1,
-                                                            "old_id":1,
-                                                            "_id":1}},
-                                                {"$out":"Imported_testcase"}
-                                                ])
-
                     dbsession.Import_scenarios.aggregate([
                                             {'$match': {"projectid":projectid}},
                                             
@@ -1957,6 +1931,31 @@ def LoadServices(app, redissession, dbsession):
                         dbsession.Imported_modules.update_one({ "_id":  currentmoduleid},{'$set':{'testscenarios':idsforModule}})                       
                     # dbsession.Imported_screen.
                     # dbsession.Imported_testcase
+                    dbsession.Import_testcases.aggregate([
+                                            {"$match":{"old_screenid":{"$exists":"true"},"projectid":projectid}},
+                                            {'$lookup': {
+                                                'from': "Imported_screen",
+                                                'localField': "old_screenid",
+                                                'foreignField': "old_id",
+                                                'as': "screendata"
+                                            }},{"$unwind":"$screendata"},
+                                            { "$project" : {"screenid":"$screendata._id","name" : 1,
+                                                            
+                                                            "versionnumber" : 1,
+                                                            "createdby" :1 ,
+                                                            "createdbyrole" :1 ,
+                                                            "createdon" :1,
+                                                            "deleted" : 1,
+                                                            "modifiedby" :1,
+                                                            "modifiedbyrole" : 1,
+                                                            "modifiedon" :1,
+                                                            "parent":{ "$size":"$screendata.parent" },
+                                                            "steps":1,
+                                                            "old_screenid":1,
+                                                            "old_id":1,
+                                                            "_id":1}},
+                                                {"$out":"Imported_testcase"}
+                                                ])
                     dbsession.Imported_modules.aggregate([{"$unset":["tsIds"]},{"$out":"Imported_modules"}])
                     dbsession.Imported_scenarios.aggregate([{"$unset":["old_id","old_parent","screens"]},{"$out":"Imported_scenarios"}])
                     dbsession.Imported_screen.aggregate([{"$unset":["old_id","old_parent","testcases"]},{"$out":"Imported_screen"}])
