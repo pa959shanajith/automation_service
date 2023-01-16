@@ -227,6 +227,14 @@ def LoadServices(app, redissession, dbsession, *args):
                     else:
                         dbsession.thirdpartyintegration.insert_one(requestdata)
                     res= {"rows":"success"}
+                elif(requestdata["query"] == 'saveJiraDetails_ICE'):
+                    print(requestdata)
+                    requestdata["type"] = "Jira"
+                    dbsession.thirdpartyintegration.insert_one(requestdata)
+                    dbsession.thirdpartyintegration.delete_many({"type":"Jira","testscenarioid":requestdata["testscenarioid"]})
+                    dbsession.thirdpartyintegration.delete_many({"type":"Jira","testCode":requestdata["testCode"]})
+                    dbsession.thirdpartyintegration.insert_one(requestdata)
+                    res= {"rows":"success"}
             else:
                 app.logger.warn('Empty data received. getting saveIntegrationDetails_ICE.')
         except Exception as e:
@@ -272,6 +280,27 @@ def LoadServices(app, redissession, dbsession, *args):
                                                 mapping['testscenarioid'].remove(scenarioId)
                                     result.extend(zephyrmaplist)
                         res= {"rows":result}
+                elif(requestdata["query"] == 'jiradetails'):
+                    result = []
+                    projectlist=list(dbsession.users.find({"_id":ObjectId(requestdata["userid"])},{"projects":1}))
+                    if len(projectlist) > 0:
+                        projects = projectlist[0]['projects']
+                        scenariolist=list(dbsession.testscenarios.find({"projectid":{'$in':projects},"deleted":False,"$where":"this.parent.length>0"},{"name":1,"_id":1}))
+                        if len(scenariolist) > 0:
+                            scenarios = {str(i['_id']):i['name'] for i in scenariolist}
+                            temp_result=list(dbsession.thirdpartyintegration.find({"type":"Jira"}))
+                            if len(temp_result) > 0:
+                                for mapping in temp_result:
+                                    mapping['testscenarioname']=[]
+                                    # for scenarioId in mapping['testscenarioid']:
+                                    scenarioId=mapping['testscenarioid']
+                                    if scenarioId in scenarios:
+                                        mapping['testscenarioname'].append(scenarios[scenarioId])
+                                    else:
+                                        mapping['testscenarioid'].remove(scenarioId)
+                                result.extend(temp_result)
+                    print(result)
+                    res= {"rows":result}
             else:
                 app.logger.warn('Empty data received. getting QcMappedList.')
         except Exception as e:
