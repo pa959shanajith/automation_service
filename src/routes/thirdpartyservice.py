@@ -299,6 +299,13 @@ def LoadServices(app, redissession, dbsession, *args):
                                     else:
                                         mapping['testscenarioid'].remove(scenarioId)
                                 result.extend(temp_result)
+                    if 'scenarioName' in requestdata:
+                        for i in result:
+                            if requestdata['scenarioName']==i['testscenarioname'][0]:
+                                result=i
+                                break
+                            else:
+                                result=[]
                     print(result)
                     res= {"rows":result}
             else:
