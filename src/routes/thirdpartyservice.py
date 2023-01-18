@@ -228,7 +228,7 @@ def LoadServices(app, redissession, dbsession, *args):
                         dbsession.thirdpartyintegration.insert_one(requestdata)
                     res= {"rows":"success"}
                 elif(requestdata["query"] == 'saveJiraDetails_ICE'):
-                    print(requestdata)
+                    # print(requestdata)
                     requestdata["type"] = "Jira"
                     dbsession.thirdpartyintegration.insert_one(requestdata)
                     dbsession.thirdpartyintegration.delete_many({"type":"Jira","testscenarioid":requestdata["testscenarioid"]})
@@ -306,7 +306,7 @@ def LoadServices(app, redissession, dbsession, *args):
                                 break
                             else:
                                 result=[]
-                    print(result)
+                    # print(result)
                     res= {"rows":result}
             else:
                 app.logger.warn('Empty data received. getting QcMappedList.')
