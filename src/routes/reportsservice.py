@@ -516,4 +516,131 @@ def LoadServices(app, redissession, dbsession):
                 res['errMsg']='Invalid Request : Parameter missing'
             servicesException("getExecution_metrics_API", getmetricsexc, True)
         return jsonify(res)
+
+    #fetching the report by executionId - For synchronous Execution
+    @app.route('/reports/getDevopsReport_API',methods=['POST'])
+    def getDevopsReport_API():
+        res={'rows':'fail','errMsg':''}
+        errMsgVal=''
+        errMsg='Invalid '
+        errIds=[]
+        finalQuery=[]
+        correctScenarios=[]
+        try:
+            requestdata=json.loads(request.data)
+            app.logger.debug("Inside getDevopsReport_API")
+            if not isemptyrequest(requestdata) and valid_objectid(requestdata['executionId']):
+                filter1 = {"executionid":ObjectId(requestdata["executionId"])}
+                if("scenarioIds" in requestdata):
+                    scenarioIds = dbsession.reports.distinct("testscenarioid", filter1)
+                    for scenId in requestdata["scenarioIds"]:
+                        if len(scenId.strip())==0:
+                            continue
+                        try:
+                            if ObjectId(scenId) not in scenarioIds:
+                                errIds.append(str(scenId))
+                            else:
+                                correctScenarios.append(ObjectId(scenId))
+                        except:
+                            errIds.append(str(scenId))
+                    if len(correctScenarios) != 0 or len(errIds) != 0:
+                        filter1["testscenarioid"] = {"$in":correctScenarios}
+
+                query = dbsession.reports.aggregate([
+                    {'$match':{'testscenarioid':{"$in":correctScenarios},"executionid":ObjectId(requestdata["executionId"])}},
+                    { '$lookup':{
+                            'from':'testscenarios',
+                            'let':{'testscenarioid':'$testscenarioid'},
+                            'pipeline':[
+                                { '$match': { '$expr': { '$eq': ['$_id', '$$testscenarioid']}}}
+                            ],
+                            'as':'testscenarios'
+                        }
+                    },
+                    { '$lookup':{
+                            'from':'executions',
+                            'let':{'excid':'$executionid'},
+                            'pipeline':[
+                                { '$match': { '$expr': { '$eq': ['$_id', '$$excid']}}},
+                                { '$lookup': {
+                                    'from': 'testsuites',
+                                    'let': { 'tsid': {'$arrayElemAt':['$parent',0]}},
+                                    'pipeline': [
+                                        { '$match': { '$expr': { '$eq': ['$_id', '$$tsid'] }}},
+                                        { '$lookup': {
+                                            'from': 'projects',
+                                            'let': {'cycleid':'$cycleid'},
+                                            'pipeline':[
+                                                { "$unwind":"$releases"},
+                                                { "$unwind":"$releases.cycles"},
+                                                { "$match": { '$expr': { '$eq': ['$releases.cycles._id', '$$cycleid']}}},
+                                                { "$project":{'_id':1,'releases':1,'domain':1,'name':1}}
+                                            ],
+                                            'as' : 'proj' 
+                                            }
+                                        }
+                                    ],
+                                    'as': 'testsuites'
+                                }},
+                                {'$project': {'projects':{'$arrayElemAt':[{'$arrayElemAt':['$testsuites.proj',0]},0]},'mindmapid':{'$arrayElemAt':['$testsuites.mindmapid',0]},'cycleid':{'$arrayElemAt':['$testsuites.cycleid',0]},'name':{'$arrayElemAt':['$testsuites.name',0]},'_id':0}}
+                            ],
+                            'as':'executions'
+                        }         
+                    },
+                    # { '$lookup': {
+                    #         'from': 'reportitems',
+                    #         'let': { 'pid': '$reportitems' },
+                    #         'pipeline': [
+                    #             { '$match': { '$expr': { '$in': ['$_id', '$$pid'] } } },
+                    #             {'$unwind': '$rows'},
+                    #             { '$replaceRoot': { 'newRoot': '$rows' } }
+                    #         ],
+                    #         'as':'rows'
+                    #     }
+                    # },
+                    {'$project':{
+                            # 'rows':1,
+                            'executedtime':1,
+                            'overallstatus':1,
+                            'cycleid':{'$arrayElemAt':['$executions.cycleid',0]},
+                            'testsuitename':{'$arrayElemAt':['$executions.name',0]},
+                            'mindmapid':{'$arrayElemAt':['$executions.mindmapid',0]},
+                            'projects':{'$arrayElemAt':['$executions.projects',0]},
+                            'testscenarioname':{'$arrayElemAt':['$testscenarios.name',0]},
+                            'testscenarioid':{'$arrayElemAt':['$testscenarios._id',0]},
+                            'executionid':1
+                        }
+                    }
+                ])
+                finalQuery=[]
+                for reportobj in list(query):
+                    prjobj = reportobj['projects']
+                    data={
+                        'report': {
+                            # "rows":reportobj["rows"],
+                            "overallstatus":reportobj["overallstatus"]},
+                        'testscenarioid': reportobj["testscenarioid"],
+                        'testscenarioname': reportobj["testscenarioname"],
+                        'domainname': prjobj["domain"],
+                        'projectname': prjobj["name"],
+                        'reportid': reportobj["_id"],
+                        'releasename': prjobj["releases"]["name"],
+                        'cyclename': prjobj["releases"]["cycles"]["name"],
+                        'moduleid': reportobj["mindmapid"],
+                        'testsuitename': reportobj["testsuitename"]
+                    }
+                    finalQuery.append(data)
+                res["rows"] = finalQuery
+                if len(errIds) != 0:
+                    res["errMsg"] = errMsg+'Scenario Id(s): '+(','.join(errIds))
+            else:
+                app.logger.warn('Empty data received. report.')
+                res["errMsg"] = "Invalid Execution ID"
+        except Exception as getreportexc:
+            if errMsgVal:
+                res['errMsg']=errMsg+'Execution Id: '+errMsgVal
+            servicesException("getReport_API", getreportexc, True)
+        return flask.Response(flask.json.dumps(res), mimetype="application/json")
+
+
 # END OF REPORTS
