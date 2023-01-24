@@ -1208,7 +1208,8 @@ def LoadServices(app, redissession, dbsession):
                                         del scenario["_id"]                                                                
                                         del scenario["screens"]                                                                   
                         testscenarios.append(tempmodule['testscenarios'])
-                        testscenario=testscenarios[0]                    
+                        testscenario=testscenarios[0] 
+                        testscenario=[i for i in testscenario if i]                   
                         dbsession.mindmaps.update_one({'_id' : tempmodule['_id']},  {'$set' : {'testscenarios':testscenario}})
                         dbsession.testsuites.update_one({'name':tempmodule['name']},{"$pull": {"testscenarioids":ObjectId(scenarioid)}})
                     
@@ -1644,7 +1645,11 @@ def LoadServices(app, redissession, dbsession):
                     dbsession.Import_module_ids.drop()
                     dbsession.Import_scenario_ids.drop()
                     dbsession.Import_screen_ids.drop()
-                    dbsession.Import_testcase_ids.drop() 
+                    dbsession.Import_testcase_ids.drop()
+                    dbsession.dtobs.drop() 
+                    dbsession.dobjectsids.drop()
+                    dbsession.dobjects_parent.drop()
+                    
 
                     dbsession.mindmaps.aggregate([
                         {'$match': {"_id": {'$in':mindmapid}}},
@@ -1757,35 +1762,17 @@ def LoadServices(app, redissession, dbsession):
                                 "from":"Import_screens",
                                 "localField":"parent",
                                 "foreignField":"old_id",
-                                "as": "screens"}},
-                                {"$unwind":"$screens"},
-
-                                {"$addFields": {
-                                                "suboptions": { "$map": {
-                                                "input": "$parent",
-                                                "as": "r",
-                                                "in": { "$toString": "$$r" }
-                                            }
-                                            },"screen_id":[{ "$toString":"$screens._id"}]}},
-                                            {"$set":{"temp_parent":{ '$concatArrays': [ '$suboptions', '$screen_id' ]}}},
-                                            {"$project":{"parent":{"$map": {
-                                                "input": "$temp_parent",
-                                                "as": "r",
-                                                "in": { "$toObjectId": "$$r" }}},
-                                            "_id" : 1,
-                                    "custname" : 1,
-                                    "fullSS" : 1,
-                                    "height" : 1,
-                                    "hiddentag" : 1,
-                                    "left" : 1,
-                                    
-                                    "tag" : 1,
-                                    "top" : 1,
-                                    "url" : 1,
-                                    "viewTop" : 1,
-                                    "width" :1,
-                                    "xpath" :1 }
-                                        },{"$out":"dtobs"}
+                                "as": "screens"}}, {"$unwind":"$screens"},
+                                { "$group": {
+                                            "_id": '$_id',
+                                            "doc": { "$first": '$$ROOT' }
+                                            } },
+                                            { "$replaceRoot": {
+                                                "newRoot": '$doc'
+                                            } },
+                                {"$project":{"screens":0 }
+                                        },
+                                        {"$out":"dtobs"}
                                 ])
                     mindmapdata=dbsession.Import_mindmaps.aggregate([{"$project":{"_id":1,"tsIds":1}},{"$out":"Import_module_ids"}])
                     mindmapIds=list(dbsession.Import_module_ids.find({}))
@@ -1795,6 +1782,26 @@ def LoadServices(app, redissession, dbsession):
                     screenIds=list(dbsession.Import_screen_ids.find({}))
                     testcasedata=dbsession.Import_testcases.aggregate([{"$project":{"_id":1,"old_id":1,"name":1,"old_screenid":1}},{"$out":"Import_testcase_ids"}])
                     testcaseIds=list(dbsession.Import_testcase_ids.find({}))
+                    dataobjectsdata=dbsession.dtobs.aggregate([{"$project":{"_id":1,"parent":1}},{"$out":"dobjectsids"}])
+                    dataobjectids=list(dbsession.dobjectsids.find({}))
+
+                    dobjectsparent=[]
+                    for i in dataobjectids:
+                        dobarray={"_id":"","parent":[]}
+                        dobarray["_id"]=i["_id"]
+                        parentlist=i["parent"]
+                        for j in i["parent"]:
+                            for k in screenIds:
+                                if j==k["old_id"]:
+                                    parentlist.append(k["_id"])
+                        dobarray["parent"].append(parentlist)
+                        dobarray["parent"]=dobarray["parent"][0]
+                        dobjectsparent.append(dobarray)
+                    
+                        
+                    mycoll=dbsession["dobjects_parent"]
+                    if len(dobjectsparent)>0:
+                        dbsession.dobjects_parent.insert_many(dobjectsparent)
 
                     mdmaptscen=[]
                     for i in mindmapIds:
@@ -1822,7 +1829,8 @@ def LoadServices(app, redissession, dbsession):
                                     iddata2["testcases"].append(currenttestcaseid)
                                 iddata1["screens"].append(iddata2)
                             idsforModule.append(iddata1)
-                            array2["testscenarios"].append(idsforModule[0])
+                        array2["testscenarios"].append(idsforModule)
+                        array2["testscenarios"]=array2["testscenarios"][0]
                         mdmaptscen.append(array2)
 
                     mycoll=dbsession["mindmap_testscenarios"]
@@ -1839,7 +1847,8 @@ def LoadServices(app, redissession, dbsession):
                         scentestcase.append(array1)
                     
                     mycoll=dbsession["scenario_testcase"]
-                    dbsession.scenario_testcase.insert_many(scentestcase)
+                    if len(scentestcase)>0:
+                        dbsession.scenario_testcase.insert_many(scentestcase)
 
                     screenParent=[]
                     for i in screenIds:
@@ -1853,9 +1862,20 @@ def LoadServices(app, redissession, dbsession):
                         screenParent.append(nestarray)
                     
                     mycoll=dbsession["screen_parent"]
-                    dbsession.screen_parent.insert_many(screenParent)
+                    if len(screenParent)>0:
+                        dbsession.screen_parent.insert_many(screenParent)
 
-                    
+
+                    dbsession.dtobs.aggregate([
+                        {'$lookup': {
+                                    'from': "dobjects_parent",
+                                    'localField': "_id",
+                                    'foreignField': "_id",
+                                    'as': "parentdobs"
+                                    }
+                                            },{"$set":{"parent":"$parentdobs.parent"}},{"$unwind":"$parent"},
+                        { "$project" : {"parentdobs":0}},{"$out":"dtobs"}
+                                    ])
 
                     dbsession.Import_mindmaps.aggregate([
                         {"$match":{"tsIds":{"$exists":"true"},"projectid":projectid}},
@@ -1865,25 +1885,10 @@ def LoadServices(app, redissession, dbsession):
                                                 'foreignField': "_id",
                                                 'as': "mindmapscenariodata"
                                             }
-                                            },
-                        { "$project" : {"name" : 1,
-                                        "projectid" :1,
-                                        "versionnumber" : 1,
-                                        "createdby" :1 ,
-                                        "createdbyrole" :1 ,
-                                        "createdon" :1,
-                                        "deleted" : 1,
-                                        "modifiedby" :1,
-                                        "modifiedbyrole" : 1,
-                                        "modifiedon" :1,
-                                        "createdthrough":1,
-                                        "type":1,
-                                        "old_id":1,
-                                        "testscenarios":"$mindmapscenariodata.testscenarios"
-                                        
-                                    }},{"$unwind":"$testscenarios"},{"$out":"Import_mindmaps"}
+                                            },{"$set":{"testscenarios":"$mindmapscenariodata.testscenarios"}},{"$unwind":"$testscenarios"},
+                        { "$project" : {"mindmapscenariodata":0}},{"$out":"Import_mindmaps"}
                                     ])
-                    
+                                      
                     dbsession.Import_scenarios.aggregate([
                                             {'$match': {"projectid":projectid}},
                                             
@@ -1899,24 +1904,11 @@ def LoadServices(app, redissession, dbsession):
                                                 'foreignField': "old_id",
                                                 'as': "moduledata"
                                             }
-                                            },                               
-                                            { "$project" : { "parent" : "$moduledata._id",
-                                                "_id" :1,
-                                                            "name" : 1,
-                                                            "projectid" :1,
-                                                            "versionnumber" : 1,
-                                                            "createdby" :1 ,
-                                                            "createdbyrole" :1 ,
-                                                            "createdon" :1,
-                                                            "deleted" : 1,
-                                                            "modifiedby" :1,
-                                                            "modifiedbyrole" : 1,
-                                                            "modifiedon" :1,
-                                                            "testcaseids" :"$scentestcasedata.testcaseids",
-                                                            "old_id":1,
-                                                            "old_parent":1,                                                           
+                                            },  {"$set":{"parent" : "$moduledata._id","testcaseids" :"$scentestcasedata.testcaseids"}},
+                                            {"$unwind":"$testcaseids"},                            
+                                            { "$project" : {  "scentestcasedata":0,  "moduledata":0                                                        
                                                             
-                    }},{"$unwind":"$testcaseids"},
+                    }},
                                             
                                             {'$out':"Import_scenarios"}
                                             ])
@@ -1933,27 +1925,13 @@ def LoadServices(app, redissession, dbsession):
                                                 'foreignField': "parent",
                                                 'as': "dataobjects"
                                             }
-                                            },{ "$project" : { "parent" : "$scrparent.parent","_id" :1,
-                                                            "name" : 1,
-                                                            "projectid" :1,
-                                                            "versionnumber" : 1,
-                                                            "createdby" :1 ,
-                                                            "createdbyrole" :1 ,
-                                                            "createdon" :1,
-                                                            "deleted" : 1,
-                                                            "modifiedby" :1,
-                                                            "modifiedbyrole" : 1,
-                                                            "modifiedon" :1,
-                                                            "screenshot":1,
-                                                            "scrapedurl":1,
-                                                            "orderlist":{"$map": {
+                                            },
+                                            {"$set":{"parent" : "$scrparent.parent","orderlist":{"$map": {
                                                                 "input": "$dataobjects._id",
                                                                 "as": "r",
-                                                                "in": { "$toString": "$$r" }}},
-                                                            "old_id":1,
-                                                            "old_parent":1                                                           
-                                                
-                                                            }},{"$unwind":"$parent"},{"$out":"Import_screens"}
+                                                                "in": { "$toString": "$$r" }}}}},{"$unwind":"$parent"},
+                                            { "$project" : { "scrparent":0,"dataobjects":0
+                                                            }},{"$out":"Import_screens"}
 
                     ])
 
@@ -1965,22 +1943,8 @@ def LoadServices(app, redissession, dbsession):
                                                 'foreignField': "old_id",
                                                 'as': "screendata"
                                             }},
-                                            {"$unwind":"$screendata"},{'$set': {'parent': 0}},
-                                            { "$project" : {"screenid":"$screendata._id","name" : 1,
-                                                            "projectid":1,
-                                                            "versionnumber" : 1,
-                                                            "createdby" :1 ,
-                                                            "createdbyrole" :1 ,
-                                                            "createdon" :1,
-                                                            "deleted" : 1,
-                                                            "modifiedby" :1,
-                                                            "modifiedbyrole" : 1,
-                                                            "modifiedon" :1,
-                                                            "steps":1,
-                                                            "old_screenid":1,
-                                                            "old_id":1,
-                                                            "parent":1,
-                                                            "_id":1}},
+                                            {"$unwind":"$screendata"},{'$set': {'parent': 0,"screenid":"$screendata._id"}},
+                                            { "$project" : {"screendata":0}},
                                                 {"$out":"Import_testcases"}
                                                 ])
                     
@@ -2008,7 +1972,8 @@ def LoadServices(app, redissession, dbsession):
                                             testcaseparent.append(array3)
 
                     mycoll=dbsession["testcase_parent"]
-                    dbsession.testcase_parent.insert_many(testcaseparent)
+                    if len(testcaseparent)>0:
+                        dbsession.testcase_parent.insert_many(testcaseparent)
                    
                     dbsession.Import_testcases.aggregate([
                                             {"$match":{"old_screenid":{"$exists":"true"},"projectid":projectid}},
@@ -2018,22 +1983,8 @@ def LoadServices(app, redissession, dbsession):
                                                 'localField': "_id",
                                                 'foreignField': "_id",
                                                 'as': "testcaseparentdata"
-                                            }},
-                                            { "$project" : {"screenid":1,"name" : 1,
-                                                            
-                                                            "versionnumber" : 1,
-                                                            "createdby" :1 ,
-                                                            "createdbyrole" :1 ,
-                                                            "createdon" :1,
-                                                            "deleted" : 1,
-                                                            "modifiedby" :1,
-                                                            "modifiedbyrole" : 1,
-                                                            "modifiedon" :1,
-                                                            "steps":1,
-                                                            "old_screenid":1,
-                                                            "old_id":1,
-                                                            "parent":"$testcaseparentdata.parent",
-                                                            "_id":1}},{"$unwind":"$parent"},
+                                            }},{"$set":{"parent":"$testcaseparentdata.parent"}},{"$unwind":"$parent"},
+                                            { "$project" : {"testcaseparentdata":0,"projectid":0}},
                                                 {"$out":"Import_testcases"}
                                                 ])
                     
@@ -2070,12 +2021,31 @@ def LoadServices(app, redissession, dbsession):
                     dbsession.Import_scenario_ids.drop()
                     dbsession.Import_screen_ids.drop()
                     dbsession.Import_testcase_ids.drop()
+                    dbsession.dtobs.drop() 
+                    dbsession.dobjectsids.drop()
+                    dbsession.dobjects_parent.drop()
                     queryresult="success"
                 if queryresult:
                     res = {'rows': mindmapid}
             else:
                 app.logger.warn('Empty data received while exporting mindmap')
         except Exception as exportToProjectexc:
+            dbsession.Import_mindmaps.drop()
+            dbsession.Import_scenarios.drop()
+            dbsession.Import_screens.drop()
+            dbsession.Import_testcases.drop()
+            dbsession.mindmap_testscenarios.drop()
+            dbsession.scenario_testcase.drop()
+            dbsession.screen_parent.drop()
+            dbsession.testcase_parent.drop()
+            dbsession.Import_module_ids.drop()
+            dbsession.Import_scenario_ids.drop()
+            dbsession.Import_screen_ids.drop()
+            dbsession.Import_testcase_ids.drop()
+            dbsession.dtobs.drop() 
+            dbsession.dobjectsids.drop()
+            dbsession.dobjects_parent.drop()
+             
             servicesException("exportToProject", exportToProjectexc, True)
         return jsonify(json.loads(json_util.dumps(res)))
     
