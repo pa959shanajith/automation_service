@@ -1208,7 +1208,8 @@ def LoadServices(app, redissession, dbsession):
                                         del scenario["_id"]                                                                
                                         del scenario["screens"]                                                                   
                         testscenarios.append(tempmodule['testscenarios'])
-                        testscenario=testscenarios[0]                    
+                        testscenario=testscenarios[0] 
+                        testscenario=[i for i in testscenario if i]                   
                         dbsession.mindmaps.update_one({'_id' : tempmodule['_id']},  {'$set' : {'testscenarios':testscenario}})
                         dbsession.testsuites.update_one({'name':tempmodule['name']},{"$pull": {"testscenarioids":ObjectId(scenarioid)}})
                     
@@ -1644,7 +1645,8 @@ def LoadServices(app, redissession, dbsession):
                     dbsession.Import_module_ids.drop()
                     dbsession.Import_scenario_ids.drop()
                     dbsession.Import_screen_ids.drop()
-                    dbsession.Import_testcase_ids.drop() 
+                    dbsession.Import_testcase_ids.drop()
+                    dbsession.dtobs.drop() 
 
                     dbsession.mindmaps.aggregate([
                         {'$match': {"_id": {'$in':mindmapid}}},
@@ -1822,7 +1824,8 @@ def LoadServices(app, redissession, dbsession):
                                     iddata2["testcases"].append(currenttestcaseid)
                                 iddata1["screens"].append(iddata2)
                             idsforModule.append(iddata1)
-                            array2["testscenarios"].append(idsforModule[0])
+                        array2["testscenarios"].append(idsforModule)
+                        array2["testscenarios"]=array2["testscenarios"][0]
                         mdmaptscen.append(array2)
 
                     mycoll=dbsession["mindmap_testscenarios"]
@@ -1839,7 +1842,8 @@ def LoadServices(app, redissession, dbsession):
                         scentestcase.append(array1)
                     
                     mycoll=dbsession["scenario_testcase"]
-                    dbsession.scenario_testcase.insert_many(scentestcase)
+                    if len(scentestcase)>0:
+                        dbsession.scenario_testcase.insert_many(scentestcase)
 
                     screenParent=[]
                     for i in screenIds:
@@ -1853,7 +1857,8 @@ def LoadServices(app, redissession, dbsession):
                         screenParent.append(nestarray)
                     
                     mycoll=dbsession["screen_parent"]
-                    dbsession.screen_parent.insert_many(screenParent)
+                    if len(screenParent)>0:
+                        dbsession.screen_parent.insert_many(screenParent)
 
                     
 
@@ -2008,7 +2013,8 @@ def LoadServices(app, redissession, dbsession):
                                             testcaseparent.append(array3)
 
                     mycoll=dbsession["testcase_parent"]
-                    dbsession.testcase_parent.insert_many(testcaseparent)
+                    if len(testcaseparent)>0:
+                        dbsession.testcase_parent.insert_many(testcaseparent)
                    
                     dbsession.Import_testcases.aggregate([
                                             {"$match":{"old_screenid":{"$exists":"true"},"projectid":projectid}},
@@ -2070,12 +2076,26 @@ def LoadServices(app, redissession, dbsession):
                     dbsession.Import_scenario_ids.drop()
                     dbsession.Import_screen_ids.drop()
                     dbsession.Import_testcase_ids.drop()
+                    dbsession.dtobs.drop()
                     queryresult="success"
                 if queryresult:
                     res = {'rows': mindmapid}
             else:
                 app.logger.warn('Empty data received while exporting mindmap')
         except Exception as exportToProjectexc:
+            dbsession.Import_mindmaps.drop()
+            dbsession.Import_scenarios.drop()
+            dbsession.Import_screens.drop()
+            dbsession.Import_testcases.drop()
+            dbsession.mindmap_testscenarios.drop()
+            dbsession.scenario_testcase.drop()
+            dbsession.screen_parent.drop()
+            dbsession.testcase_parent.drop()
+            dbsession.Import_module_ids.drop()
+            dbsession.Import_scenario_ids.drop()
+            dbsession.Import_screen_ids.drop()
+            dbsession.Import_testcase_ids.drop()
+            dbsession.dtobs.drop() 
             servicesException("exportToProject", exportToProjectexc, True)
         return jsonify(json.loads(json_util.dumps(res)))
     
