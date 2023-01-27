@@ -94,7 +94,6 @@ omgall = "".join(['\x4e','\x69','\x6e','\x65','\x74','\x65','\x65','\x6e','\x36'
     '\x6c','\x69','\x63','\x65','\x6e','\x73','\x69','\x6e','\x67'])
 ldap_key = "".join(['l','!','g','#','t','W','3','l','g','G','h','1','3','@','(',
     'c','E','s','$','T','p','R','0','T','c','O','I','-','k','3','y','S'])
-KEY_SERVER = "".join(['n','I','N','3','t','3','e','n','6','8','l','I','(','e','N','s','!','n','G','S','3','R','^','e','R','s','E','r','V','e','Rr'])
 activeicesessions={}
 latest_access_time=datetime.now()
 ip_regex = r"^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$"
@@ -105,8 +104,6 @@ dasport = "1990"
 redis_dbup = False
 mongo_dbup = False
 onlineuser = False
-expiryTime=None
-licenseServer=None
 # gracePeriodTimer=None
 # twoDayTimer=None
 licensedata=None
@@ -115,7 +112,7 @@ LS_CRITICAL_ERR_CODE=['199','120','121','123','124','125']
 lsRetryCount=0
 sysMAC=None
 chronographTimer=None
-dbsession=redissession=redissession_db2=client=None
+dbsession=redissession=redissession_db2=None
 
 #Variables for ProfJ
 questions=[] # to store the questions
@@ -169,55 +166,52 @@ sys.path.append(currfiledir+os.sep+"utility")
 
 def addroutes():
     app.logger.debug("Loading services")
-    # import licenseManager
-    # licenseManager.LoadServices(app, client)
-
     import loginservice
-    loginservice.LoadServices(app, redissession, client, licensedata,basecheckonls)
+    loginservice.LoadServices(app, redissession, dbsession, licensedata,basecheckonls)
 
     import adminservice
-    adminservice.LoadServices(app, redissession, client, licensedata, ice_das_key, ldap_key)
+    adminservice.LoadServices(app, redissession, dbsession, licensedata, ice_das_key, ldap_key)
 
     import mindmapservice
-    mindmapservice.LoadServices(app, redissession, client)
+    mindmapservice.LoadServices(app, redissession, dbsession)
 
     import devopsservice
-    devopsservice.LoadServices(app, redissession, client)
+    devopsservice.LoadServices(app, redissession, dbsession)
     
     if os.path.exists(gitpath):
         os.environ["GIT_PYTHON_GIT_EXECUTABLE"] = gitpath
         import gitservice
-        gitservice.LoadServices(app, redissession, client, ldap_key)
+        gitservice.LoadServices(app, redissession, dbsession, ldap_key)
 
     import designscreenservice
-    designscreenservice.LoadServices(app, redissession, client)
+    designscreenservice.LoadServices(app, redissession, dbsession)
 
     import designtestcaseservice
-    designtestcaseservice.LoadServices(app, redissession, client)
+    designtestcaseservice.LoadServices(app, redissession, dbsession)
 
     import executionservice
-    executionservice.LoadServices(app, redissession, client)
+    executionservice.LoadServices(app, redissession, dbsession)
 
     import thirdpartyservice
-    thirdpartyservice.LoadServices(app, redissession, client, ldap_key)
+    thirdpartyservice.LoadServices(app, redissession, dbsession, ldap_key)
 
     import reportsservice
-    reportsservice.LoadServices(app, redissession, client)
+    reportsservice.LoadServices(app, redissession, dbsession)
 
     import utilitiesservice
-    utilitiesservice.LoadServices(app, redissession, client)
+    utilitiesservice.LoadServices(app, redissession, dbsession)
 
     import neurongraphsservice
-    neurongraphsservice.LoadServices(app, redissession, client)
+    neurongraphsservice.LoadServices(app, redissession, dbsession)
     
     import benchmarkservice
-    benchmarkservice.LoadServices(app,redissession,client)
+    benchmarkservice.LoadServices(app,redissession,dbsession)
 
     import partitionservice
-    partitionservice.LoadServices(app,redissession,client)
+    partitionservice.LoadServices(app,redissession,dbsession)
 
     import notificationservice
-    notificationservice.LoadServices(app,redissession,client)
+    notificationservice.LoadServices(app,redissession,dbsession)
 
     #Prof J First Service: Getting Best Matches
     @app.route('/chatbot/getTopMatches_ProfJ',methods=['POST'])
@@ -265,7 +259,7 @@ def checkServer():
     status = 500
     try:
         if (onlineuser == True):
-            response = json.dumps({"st":"pass"})
+            response = json.dumps({"st":"pass", "isTrial":licensedata['isTrial']})
             status = 200
     except Exception as exc:
         servicesException("checkServer",exc)
@@ -282,11 +276,6 @@ def updateActiveIceSessions():
     ice_ts = None
     try:
         requestdata = json.loads(request.data)
-        clientName="avoassure"
-        if "host" in requestdata:
-            if re.search(".*avoassure.ai",requestdata["host"]):
-                clientName=requestdata["host"].split('.')[0]   
-        dbsession=client[clientName]
         app.logger.debug("Inside updateActiveIceSessions. Query: "+str(requestdata["query"]))
         if not isemptyrequest(requestdata):
             sess = redissession.get('icesessions')
@@ -581,32 +570,52 @@ def getMacAddress():
 
 
 def basecheckonls():
-    global onlineuser,licensedata,expiryTime,licenseServer
     app.logger.debug("Inside basecheckonls")
     basecheckstatus = False
-    if not licenseServer["enable"] :
-        licensedata=getLSData(licenseServer["path"])
-        if licensedata != False:
-            basecheckstatus = True
+    try:
+        dbdata = dataholder('select')
+        token=dbdata['tkn']
+        EXPECTING_RESPONSE=str(int(time.time()*24150))
+        baserequest= {
+            "action": "register",
+            "token": token,
+            "lCheck": str(latest_access_time),
+            "ts": EXPECTING_RESPONSE
+        }
+        baserequest=wrap(json.dumps(baserequest),omgall)
+        connectresponse = connectingls(baserequest)
+        if connectresponse != False:
+            actresp = unwrap(connectresponse,omgall)
+            actresp = json.loads(actresp)
+            if actresp['ots']==EXPECTING_RESPONSE:
+                EXPECTING_RESPONSE=''
+                if actresp['res'] == 'F':
+                    emsg="[ECODE: "+actresp['ecode']+"] "+actresp['message']
+                    if (actresp['ecode'] in LS_CRITICAL_ERR_CODE):
+                        app.logger.critical(emsg)
+                        stopserver()
+                    else:
+                        app.logger.error(emsg)
+                elif actresp['res'] == 'S':
+                    global onlineuser,licensedata
+                    licensedata=actresp['ldata']
+                    if token==actresp['token']:
+                        basecheckstatus = True
+                    else:
+                        dbdata['tkn']=actresp['token']
+                        basecheckstatus=dataholder('update',dbdata)
+                    onlineuser = True
+                    setenv(licactive=onlineuser)
         else:
-            basecheckstatus = False   
-
-        if expiryTime == None:
-            expiryTime=float(licensedata['lsinfo']['expireson'])
-            basecheckstatus = True
-            onlineuser = True
-            setenv(licactive=onlineuser)
-        
-        if expiryTime > int(str(datetime.now().timestamp()).split('.')[0]+"000"):
-                basecheckstatus = True  
-        licensedata=licensedata['licensedata']
-    
-    else:
-        licensedata={"licenseServer":licenseServer["url"]}
-        basecheckstatus = True
-        onlineuser = True
-        setenv(licactive=onlineuser)
-    
+            if lsRetryCount<3:
+                app.logger.info(printErrorCodes('215'))
+                time.sleep(10)
+                basecheckstatus=basecheckonls()
+            else:
+                app.logger.critical(printErrorCodes('216'))
+    except Exception as e:
+        app.logger.debug(e)
+        app.logger.error(printErrorCodes('201'))
     return basecheckstatus
 
 def updateonls():
@@ -919,61 +928,6 @@ def wrap(data, key, iv=b'0'*16):
     hex_data = aes.encrypt(pad(data.encode('utf-8')))
     return codecs.encode(hex_data, 'hex').decode('utf-8')
 
-def decrypt_node(hex_data, key, iv=b'0'*16):
-    data = codecs.decode(hex_data.strip(), 'hex')
-    aes = AES.new(key.encode('utf-8'), AES.MODE_CBC, iv)
-    return unpad(aes.decrypt(data).decode('utf-8'))
-
-def encrypt_node(data, key, iv=b'0'*16):
-    aes = AES.new(key.encode('utf-8'), AES.MODE_CBC, iv)
-    hex_data = aes.encrypt(pad(data.encode('utf-8')))
-    return codecs.encode(hex_data, 'hex').decode('utf-8')
-
-def dbConnector(ops,*args):
-    data = False
-    if ops=='check':
-        if os.access(db_path,os.R_OK):
-            data = True
-    else:
-        # CREATE DATABASE CONNECTION
-        conn = sqlite3.connect(db_path)
-        if ops=='select':
-            #Retrieve the data from db and decrypt it
-            cursor = conn.cursor()
-            result = cursor.execute("SELECT info from lsdetails WHERE lsid = 'LS001'")
-            data = list(result)
-            if len(data) >= 0:
-                data = data[0][0]
-            data = decrypt_node(data, KEY_SERVER)
-            data = json.loads(data)
-            # Backward compatibility
-            old_key = "nd"+"ac"
-            if old_key in data:
-                data["das"] = data[old_key]
-                del data[old_key]
-                datatodb = encrypt_node(json.dumps(data), KEY_SERVER)
-                cursor.execute("UPDATE lsdetails SET info = ? WHERE lsid = 'LS001'",[datatodb])
-        elif ops=='update':
-            #Encrypt data and update in db
-            datatodb = json.dumps(args[0])
-            datatodb = encrypt_node(datatodb, KEY_SERVER)
-            cursor1 = conn.execute("UPDATE lsdetails SET info = ? WHERE lsid = 'LS001'",[datatodb])
-            data=True
-        conn.commit()
-        conn.close()
-    return data
-
-
-def getLSData(LS_Path):
-    global db_path
-    db_path=LS_Path
-    if os.path.isfile(db_path):
-        dbdata=dbConnector('select')
-        msg=dbdata
-        if dbdata:
-            return msg
-    else:
-        return False  
 ################################################################################
 # END OF GENERIC FUNCTIONS
 ################################################################################
@@ -1176,17 +1130,8 @@ class ProfJ():
 ################################################################################
 
 def main():
-    global lsip,lsport,dasport,mongo_dbup,redis_dbup,chronographTimer,licenseServer,client
+    global lsip,lsport,dasport,mongo_dbup,redis_dbup,chronographTimer
     global redissession,dbsession,redissession_db2
-    das_conf_obj = open(config_path, 'r')
-    das_conf = json.load(das_conf_obj)
-    das_conf_obj.close()
-    lsip = das_conf['licenseserverip']
-    licenseServer=das_conf['licenseServer']
-    if licenseServer != '':
-        cleandas=True
-    else:
-        cleandas = checkSetup()
     cleandas = checkSetup()
     creds = {}
     kwargs = {}
@@ -1245,6 +1190,10 @@ def main():
         return True
 
     try:
+        das_conf_obj = open(config_path, 'r')
+        das_conf = json.load(das_conf_obj)
+        das_conf_obj.close()
+        lsip = das_conf['licenseserverip']
         if not re.match(ip_regex, lsip):
             app.logger.warning("License server IP provided in configuration file is not an IP address. Treating the value provided as DNS name")
         if 'licenseserverport' in das_conf:
@@ -1286,25 +1235,20 @@ def main():
 
     try:
         mongodb_conf = das_conf['avoassuredb']
-        # mongo_user=creds['avoassuredb']['username']
-        # mongo_pass=creds['avoassuredb']['password']
-        mongo_user=unwrap("78e14edcbd37e5e43b1fc2a535f41637",db_keys)
-        mongo_pass=unwrap("da4e266febec8e0b395cebc604966a87",db_keys)
+        mongo_user=creds['avoassuredb']['username']
+        mongo_pass=creds['avoassuredb']['password']
         hosts = [mongodb_conf["host"] + ':' + str(mongodb_conf["port"])]
-        # if "replicanodes" in mongodb_conf and len(mongodb_conf["replicanodes"]) > 0:
-        #     rnodes = mongodb_conf["replicanodes"]
-        #     for rn in rnodes:
-        #         if "host" in rn and "port" in rn:
-        #             hosts += [rn["host"] + ':' + str(rn["port"])]
-        # client = MongoClient(hosts, username = mongo_user, password = mongo_pass,
-            # authSource = 'avoassure', appname = 'AvoAssureDAS', authMechanism = 'SCRAM-SHA-1',
-            # replicaSet = 'avoassuredbreplica', readPreference = 'primaryPreferred')
-        client = MongoClient(hosts, username = mongo_user, password = mongo_pass,authSource = 'admin', 
-            appname = 'AvoAssureDAS', authMechanism = 'SCRAM-SHA-1')
-        
+        if "replicanodes" in mongodb_conf and len(mongodb_conf["replicanodes"]) > 0:
+            rnodes = mongodb_conf["replicanodes"]
+            for rn in rnodes:
+                if "host" in rn and "port" in rn:
+                    hosts += [rn["host"] + ':' + str(rn["port"])]
+        client = MongoClient(hosts, username = mongo_user, password = mongo_pass,
+            authSource = 'avoassure', appname = 'AvoAssureDAS', authMechanism = 'SCRAM-SHA-1',
+            replicaSet = 'avoassuredbreplica', readPreference = 'primaryPreferred')
         if client.server_info():
             mongo_dbup = True
-        # dbsession = client.avoassure
+        dbsession = client.avoassure
     except Exception as e:
         app.logger.debug(e)
         app.logger.critical(printErrorCodes('206'))
@@ -1331,6 +1275,3 @@ if __name__ == '__main__':
     initLoggers(parserArgs)
     sysMAC = str(getMacAddress()).strip()
     main()
-
-
-
