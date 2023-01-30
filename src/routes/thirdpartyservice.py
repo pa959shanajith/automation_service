@@ -228,7 +228,6 @@ def LoadServices(app, redissession, dbsession, *args):
                         dbsession.thirdpartyintegration.insert_one(requestdata)
                     res= {"rows":"success"}
                 elif(requestdata["query"] == 'saveJiraDetails_ICE'):
-                    # print(requestdata)
                     requestdata["type"] = "Jira"
                     dbsession.thirdpartyintegration.insert_one(requestdata)
                     dbsession.thirdpartyintegration.delete_many({"type":"Jira","testscenarioid":requestdata["testscenarioid"]})
@@ -288,16 +287,13 @@ def LoadServices(app, redissession, dbsession, *args):
                         scenariolist=list(dbsession.testscenarios.find({"projectid":{'$in':projects},"deleted":False,"$where":"this.parent.length>0"},{"name":1,"_id":1}))
                         if len(scenariolist) > 0:
                             scenarios = {str(i['_id']):i['name'] for i in scenariolist}
-                            temp_result=list(dbsession.thirdpartyintegration.find({"type":"Jira"}))
+                            temp_result=list(dbsession.thirdpartyintegration.find({"type":"Jira","testscenarioid":{'$in':list(scenarios.keys())}}))
                             if len(temp_result) > 0:
                                 for mapping in temp_result:
                                     mapping['testscenarioname']=[]
-                                    # for scenarioId in mapping['testscenarioid']:
                                     scenarioId=mapping['testscenarioid']
                                     if scenarioId in scenarios:
                                         mapping['testscenarioname'].append(scenarios[scenarioId])
-                                    else:
-                                        mapping['testscenarioid'].remove(scenarioId)
                                 result.extend(temp_result)
                     if 'scenarioName' in requestdata:
                         for i in result:
@@ -306,7 +302,6 @@ def LoadServices(app, redissession, dbsession, *args):
                                 break
                             else:
                                 result=[]
-                    # print(result)
                     res= {"rows":result}
             else:
                 app.logger.warn('Empty data received. getting QcMappedList.')
