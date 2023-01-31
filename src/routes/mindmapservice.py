@@ -1713,16 +1713,17 @@ def LoadServices(app, redissession, dbsession):
                                     "scrapedurl":"$screens_a.scrapedurl",
                                     "orderlist":"$screens_a.orderlist"}},{"$out":"Import_screens"}])
 
-                    dbsession.Import_screens.aggregate([
+                    dbsession.Import_screens.aggregate(
+                        [
                                     { "$group": {
                                         "_id": '$name',
                                         "doc": { "$first": '$$ROOT' }
                                     } },
                                     { "$replaceRoot": {
                                         "newRoot": '$doc'
-                                    } },
-                                    { "$out": 'Import_screens' }
-                                    ]) 
+                                    }},
+                                    
+                                    {"$out":"Import_screens"}], allowDiskUse= True)
                     dbsession.mindmaps.aggregate([
                                 {'$match': {"_id": {'$in':mindmapid}}},
                                 {"$lookup":{
@@ -1748,6 +1749,7 @@ def LoadServices(app, redissession, dbsession):
                                     }},{"$out":"Import_testcases"}])
                                     
                     dbsession.Import_testcases.aggregate([
+                        
                                     { "$group": {
                                         "_id": '$old_id',
                                         "doc": { "$first": '$$ROOT' }
@@ -1756,7 +1758,7 @@ def LoadServices(app, redissession, dbsession):
                                         "newRoot": '$doc'
                                     } },
                                     { "$out": 'Import_testcases' }
-                                    ])
+                                    ], allowDiskUse= True)
                     dbsession.dataobjects.aggregate([
                                 {"$lookup":{
                                 "from":"Import_screens",
@@ -1773,7 +1775,7 @@ def LoadServices(app, redissession, dbsession):
                                 {"$project":{"screens":0 }
                                         },
                                         {"$out":"dtobs"}
-                                ])
+                                ], allowDiskUse= True)
                     mindmapdata=dbsession.Import_mindmaps.aggregate([{"$project":{"_id":1,"tsIds":1}},{"$out":"Import_module_ids"}])
                     mindmapIds=list(dbsession.Import_module_ids.find({}))
                     scenariodata=dbsession.Import_scenarios.aggregate([{"$project":{"_id":1,"old_id":1,"testcaseids":1}},{"$out":"Import_scenario_ids"}])
