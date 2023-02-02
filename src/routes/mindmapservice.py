@@ -1205,8 +1205,9 @@ def LoadServices(app, redissession, dbsession):
                             for scenario in tempmodule['testscenarios']:
                                 if "_id" in  scenario:           
                                     if scenario["_id"]==ObjectId(scenarioid):
-                                        del scenario["_id"]                                                                
-                                        del scenario["screens"]                                                                   
+                                        del scenario["_id"]
+                                        if "screens" in scenario:                                                                
+                                            del scenario["screens"]                                                                   
                         testscenarios.append(tempmodule['testscenarios'])
                         testscenario=testscenarios[0] 
                         testscenario=[i for i in testscenario if i]                   
