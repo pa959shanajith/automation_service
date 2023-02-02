@@ -1831,11 +1831,11 @@ def LoadServices(app, redissession, dbsession):
                                                         if testcase == l["old_id"]: 
                                                             currenttestcaseid=l["_id"]                                                           
                                                 iddata2["testcases"].append(currenttestcaseid)
-                                            iddata1["screens"].append(iddata2)
-                                    idsforModule.append(iddata1)
-                            array2["testscenarios"].append(idsforModule)
-                            array2["testscenarios"]=array2["testscenarios"][0]
-                            mdmaptscen.append(array2)
+                                        iddata1["screens"].append(iddata2)
+                                idsforModule.append(iddata1)
+                        array2["testscenarios"].append(idsforModule)
+                        array2["testscenarios"]=array2["testscenarios"][0]
+                        mdmaptscen.append(array2)
 
                     mycoll=dbsession["mindmap_testscenarios"]
                     dbsession.mindmap_testscenarios.insert_many(mdmaptscen)
