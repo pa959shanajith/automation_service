@@ -1205,8 +1205,9 @@ def LoadServices(app, redissession, dbsession):
                             for scenario in tempmodule['testscenarios']:
                                 if "_id" in  scenario:           
                                     if scenario["_id"]==ObjectId(scenarioid):
-                                        del scenario["_id"]                                                                
-                                        del scenario["screens"]                                                                   
+                                        del scenario["_id"]
+                                        if "screens" in scenario:                                                                
+                                            del scenario["screens"]                                                                   
                         testscenarios.append(tempmodule['testscenarios'])
                         testscenario=testscenarios[0] 
                         testscenario=[i for i in testscenario if i]                   
@@ -1652,7 +1653,7 @@ def LoadServices(app, redissession, dbsession):
                     
 
                     dbsession.mindmaps.aggregate([
-                        {'$match': {"_id": {'$in':mindmapid}}},
+                        {'$match': {"_id": {'$in':mindmapid},"type":"basic"}},
                         {"$project":{"_id":0,
                                     "old_id":"$_id",
                                     "name":1,
@@ -1670,7 +1671,7 @@ def LoadServices(app, redissession, dbsession):
                                     "tsIds":"$testscenarios"
                                     }},{"$out":"Import_mindmaps"}])
                     dbsession.mindmaps.aggregate([
-                         {'$match': {"_id": {'$in':mindmapid}}},
+                         {'$match': {"_id": {'$in':mindmapid},"type":"basic"}},
                         {"$lookup":{
                                 'from': "testscenarios",
                                 'localField': "testscenarios._id",
@@ -1690,7 +1691,7 @@ def LoadServices(app, redissession, dbsession):
                                     "modifiedon":createdon,
                                     "testcaseids":"$testscenarios_a.testcaseids"}},{"$out":"Import_scenarios"}])
                     dbsession.mindmaps.aggregate([
-                         {'$match': {"_id": {'$in':mindmapid}}},
+                         {'$match': {"_id": {'$in':mindmapid},"type":"basic"}},
                             {"$lookup":{
                                     'from': "screens",
                                     'localField': "testscenarios.screens._id",
@@ -1713,18 +1714,19 @@ def LoadServices(app, redissession, dbsession):
                                     "scrapedurl":"$screens_a.scrapedurl",
                                     "orderlist":"$screens_a.orderlist"}},{"$out":"Import_screens"}])
 
-                    dbsession.Import_screens.aggregate([
+                    dbsession.Import_screens.aggregate(
+                        [
                                     { "$group": {
                                         "_id": '$name',
                                         "doc": { "$first": '$$ROOT' }
                                     } },
                                     { "$replaceRoot": {
                                         "newRoot": '$doc'
-                                    } },
-                                    { "$out": 'Import_screens' }
-                                    ]) 
+                                    }},
+                                    
+                                    {"$out":"Import_screens"}], allowDiskUse= True)
                     dbsession.mindmaps.aggregate([
-                                {'$match': {"_id": {'$in':mindmapid}}},
+                                {'$match': {"_id": {'$in':mindmapid},"type":"basic"}},
                                 {"$lookup":{
                                     'from': "testcases",
                                     'localField': "testscenarios.screens.testcases",
@@ -1748,6 +1750,7 @@ def LoadServices(app, redissession, dbsession):
                                     }},{"$out":"Import_testcases"}])
                                     
                     dbsession.Import_testcases.aggregate([
+                        
                                     { "$group": {
                                         "_id": '$old_id',
                                         "doc": { "$first": '$$ROOT' }
@@ -1756,7 +1759,7 @@ def LoadServices(app, redissession, dbsession):
                                         "newRoot": '$doc'
                                     } },
                                     { "$out": 'Import_testcases' }
-                                    ])
+                                    ], allowDiskUse= True)
                     dbsession.dataobjects.aggregate([
                                 {"$lookup":{
                                 "from":"Import_screens",
@@ -1773,7 +1776,7 @@ def LoadServices(app, redissession, dbsession):
                                 {"$project":{"screens":0 }
                                         },
                                         {"$out":"dtobs"}
-                                ])
+                                ], allowDiskUse= True)
                     mindmapdata=dbsession.Import_mindmaps.aggregate([{"$project":{"_id":1,"tsIds":1}},{"$out":"Import_module_ids"}])
                     mindmapIds=list(dbsession.Import_module_ids.find({}))
                     scenariodata=dbsession.Import_scenarios.aggregate([{"$project":{"_id":1,"old_id":1,"testcaseids":1}},{"$out":"Import_scenario_ids"}])
@@ -1809,26 +1812,28 @@ def LoadServices(app, redissession, dbsession):
                         array2["_id"]=i["_id"]
                         currentmoduleid=i["_id"]
                         idsforModule=[]
-                        # if len(i["tsIds"])>0:
-                        for tsId in i["tsIds"]:
-                            for j in ScenarioIds:
-                                if tsId["_id"]==j["old_id"]:
-                                    currentscenarioid=j["_id"]
-                            iddata1={"_id":currentscenarioid,"screens":[]}
-                            # if len(tsId["screens"])>0:
-                            for screens in tsId["screens"]:
-                                for k in screenIds:
-                                    if screens["_id"]==k["old_id"]:
-                                        currentscreenid=k["_id"]
-                                iddata2={"_id":currentscreenid,"testcases":[]}
-                                # if len(screens["testcases"])>0:
-                                for testcase in screens["testcases"]:
-                                    for l in testcaseIds:
-                                        if testcase == l["old_id"]: 
-                                            currenttestcaseid=l["_id"]                                                           
-                                    iddata2["testcases"].append(currenttestcaseid)
-                                iddata1["screens"].append(iddata2)
-                            idsforModule.append(iddata1)
+                        if "tsIds" in i:
+                            for tsId in i["tsIds"]:
+                                for j in ScenarioIds:
+                                    if tsId["_id"]==j["old_id"]:
+                                        currentscenarioid=j["_id"]
+                                iddata1={"_id":currentscenarioid,"screens":[]}
+                                if "screens" in tsId:
+                                    for screens in tsId["screens"]:
+                                        for k in screenIds:
+                                            if "_id" in screens:
+                                                if screens["_id"]==k["old_id"]:
+                                                    currentscreenid=k["_id"]
+                                        iddata2={"_id":currentscreenid,"testcases":[]}
+                                        if "testcases" in screens:
+                                            for testcase in screens["testcases"]:
+                                                for l in testcaseIds:
+                                                    if testcase:
+                                                        if testcase == l["old_id"]: 
+                                                            currenttestcaseid=l["_id"]                                                           
+                                                iddata2["testcases"].append(currenttestcaseid)
+                                        iddata1["screens"].append(iddata2)
+                                idsforModule.append(iddata1)
                         array2["testscenarios"].append(idsforModule)
                         array2["testscenarios"]=array2["testscenarios"][0]
                         mdmaptscen.append(array2)
