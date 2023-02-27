@@ -17,6 +17,13 @@ def LoadServices(app, redissession, dbsession):
                 keyDetails = list(dbsession.configurekeys.find({'token': requestdata["key"]},{'executionData': 1,'session': 1}))
                 res['rows'] = keyDetails[0]
             else:
+                checkForName =  list(dbsession.configurekeys.find({'executionData.configurename': requestdata['executionData']['configurename'] , 'executionData.batchInfo.projectName':requestdata['executionData']['batchInfo'][0]['projectName'], 'executionData.configurekey': {'$ne':requestdata['executionData']['configurekey'] }},{'executionData': 1}))
+
+                # check if already configurename exists
+                if(len(checkForName) != 0):
+                    res['rows'] = {'error':{'CONTENT':'Execution Profile name already exists'}}
+                    return res['rows']
+
                 requestdata["token"] = requestdata["executionData"]['configurekey']
 
                 # GEtting data parameterization
@@ -48,8 +55,17 @@ def LoadServices(app, redissession, dbsession):
                                 "dataparam" : [testsuiteData[0]['getparampaths'][scenarioIndexFromBackEnd]],
                                 "scenarioName" : scenarioName[0]['name'],
                                 "scenarioId" : str(scenarioids),
-                                "accessibilityParameters" : []
+                                "accessibilityParameters" : testsuiteData[0]['accessibilityParameters'] if 'accessibilityParameters' in testsuiteData[0] else []
                             })
+
+                    # updating the donotexecute array present in testsuite with the donotexe file coming from from-end
+                    testsuiteData[0]['donotexecute'] = [0]*len(testsuiteData[0]['donotexecute'])
+                    for index in requestdata['executionData']['donotexe']['current'][testsuite['testsuiteId']]:
+                        testsuiteData[0]['donotexecute'][index] = 1
+
+                    dbsession.testsuites.update({"mindmapid":ObjectId(testsuite['testsuiteId'])},{'$set':{"donotexecute":testsuiteData[0]['donotexecute']}})
+                    
+                    
 
 
                 # check whether key is already present
@@ -266,8 +282,7 @@ def LoadServices(app, redissession, dbsession):
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
-            # queryresult = list(dbsession.configurekeys.find({'executionData.batchInfo.projectId': requestdata['projectid']}))
-            queryresult = list(dbsession.configurekeys.find({'session.userid': requestdata['userid']}))
+            queryresult = list(dbsession.configurekeys.find({'executionData.batchInfo.projectId': requestdata['projectid']}))
             responseData = []
             for elements in queryresult:
                 updatedExecutionReq = elements['executionData']

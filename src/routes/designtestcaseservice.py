@@ -317,6 +317,194 @@ def LoadServices(app, redissession, dbsession):
         return jsonify(res)
 
 
+
+
+    def getScreenID(screenname,projectid):
+        screenname=list(dbsession.screens.find({"projectid":ObjectId(projectid),"name":screenname,"deleted":False},{"_id":1}))
+        if len(screenname)==1:
+            return str(screenname[0]["_id"])
+        else:   
+            return None
+
+    def getTestcaseID(screenid,testcasename):
+        testcaseid = list(dbsession.testcases.find({"screenid": screenid,"name": testcasename,"deleted": False}, {"_id": 1}))
+        if len(testcaseid) != 0:
+            res = str(testcaseid[0]["_id"])
+        else:
+            res = None
+        return res
+
+
+
+    #test case updating service Genius
+    @app.route('/design/updateTestCase_Genius',methods=['POST'])
+    def updateTestCase_Genius():
+        res={'rows':'fail'}
+        try:
+            data = json.loads(request.data)
+            # app.logger.debug(request.data)
+            # app.logger.debug('Inside updateTestCase_Genius. Query: '+str(requestdata['query']))
+            testcasedetails = data['testcasesteps']
+            if not isemptyrequest(data):
+                for requestdata in testcasedetails:
+                    
+                    # tcid = requestdata['testcaseid']
+                    projectid = requestdata['projectid']
+                    screenname = requestdata['screenname']
+                    testcasename = requestdata['testcasename']
+                    screenId = ObjectId(getScreenID(screenname,projectid))
+                    tcid = getTestcaseID(screenId,testcasename)
+                    
+
+                    query_screen = dbsession.testcases.find_one({'_id':ObjectId(tcid),'versionnumber':requestdata['versionnumber']},{'screenid':1,'datatables':1})
+                    dtables = requestdata.get('datatables', '')
+                    if len(dtables) > 0:
+                        #update removed datatable tcs by removing current tcid
+                        dbsession.datatables.update_many({"name": {'$nin': dtables}, "testcaseIds": tcid}, 
+                            {"$pull": {"testcaseIds": tcid}})
+                        #update each datatable tcs list by adding tcid
+                        dbsession.datatables.update_many({"name": {'$in': dtables}, "testcaseIds": {"$ne": tcid}}, 
+                            {"$push": {"testcaseIds": tcid}})
+                    elif 'datatables' in query_screen and len(query_screen['datatables']) > 0:
+                        dbsession.datatables.update_many({"name": {'$in': query_screen['datatables']}, "testcaseIds": tcid}, {"$pull": {"testcaseIds": tcid}})
+                    queryresult1 = list(dbsession.dataobjects.find({'parent':query_screen['screenid']}))
+                    screenQuery = list(dbsession.screens.find({'_id':query_screen['screenid']}))
+                    custnames = {}
+                    updated_objects = {}
+                    orderlist = []
+                    updateOrder = False
+                    if (queryresult1 != []):
+                        custnames = {i['custname'].strip():i for i in queryresult1 if "custname" in i}
+                    if (screenQuery != []):
+                        orderlist = screenQuery[0]['orderlist'] if 'orderlist' in screenQuery[0] else []
+                    steps = []
+                    if not (requestdata['import_status']):
+                        if len(requestdata['copiedTestCases'])>0:
+                            copiedObjects = [ObjectId(i) for i in set(requestdata['copiedTestCases'])]
+                            copiedObjectList = list(dbsession.dataobjects.find({'_id':{'$in':copiedObjects}}))
+                            mapNew =[]
+                            addNew = []
+                            for co in copiedObjectList:
+                                if co['custname'] in custnames:
+                                    if co['_id'] != custnames[co['custname']]['_id']:
+                                        cname = co['custname']
+                                        try:
+                                            s_cname = cname.split('_')
+                                            ind = int(s_cname.pop())
+                                            n_cname = '_'.join(s_cname)
+                                        except:
+                                            ind = 0
+                                            n_cname = cname
+                                        while True:
+                                            ind += 1
+                                            if n_cname+'_'+str(ind) not in custnames:
+                                                co["custname"] = n_cname+'_'+str(ind)
+                                                break
+                                        cid = co['_id']
+                                        del co['parent']
+                                        co['_id'] = ObjectId()
+                                        orderlist.append(str(co['_id']))
+                                        updateOrder = True
+                                        addNew.append(co)
+                                        custnames[co['custname']] = co
+                                        updated_objects[cid] = co['_id']
+                                else:
+                                    if query_screen['screenid'] not in co['parent']:
+                                        co['parent'].append(query_screen['screenid'])
+                                        if (str(co['_id']) not in orderlist):
+                                            orderlist.append(str(co['_id']))
+                                            updateOrder = True
+                                        updateOrder = True
+                                        mapNew.append(co)
+                            for mn in mapNew:
+                                custnames[mn['custname']] = mn
+                                dbsession.dataobjects.save(mn)
+                            adddataobjects(query_screen['screenid'],addNew)
+                        for so in requestdata['testcasesteps']:
+                            cid = cname = so["custname"].strip()
+                            if cname in custnames: cid = custnames[cname]["_id"]
+                            if ("objectid" in so) and (ObjectId(so["objectid"]) in updated_objects):
+                                cid = updated_objects[ObjectId(so["objectid"])]
+                            steps.append({
+                                "stepNo": so["stepNo"],
+                                "custname": cid,
+                                "keywordVal": so["keywordVal"],
+                                "inputVal": so["inputVal"],
+                                "outputVal": so["outputVal"],
+                                "appType": so["appType"],
+                                "remarks": so["remarks"] if ("remarks" in so) else "",
+                                "addDetails": so["addTestCaseDetailsInfo"] if ("addTestCaseDetailsInfo" in so) else "",
+                                "cord": so["cord"] if ("cord" in so) else ""
+                            })
+                        del requestdata['testcasesteps']
+                    else:
+                        #Import testcase
+                        missingCustname = {}
+                        for so in requestdata['testcasesteps']:
+                            cid = cname = so["custname"].strip()
+                            if cname in custnames:
+                                if ('objectName' in so) and ('xpath' in custnames[cname]) and (so["objectName"] == custnames[cname]['xpath']):
+                                    cid = custnames[cname]["_id"]
+                                else:
+                                    cid = ObjectId()
+                                    orderlist.append(str(cid))
+                                    updateOrder = True
+                                    try:
+                                        s_cname = cname.split('_')
+                                        ind = int(s_cname.pop())
+                                        n_cname = '_'.join(s_cname)
+                                    except:
+                                        ind = 0
+                                        n_cname = cname
+                                    while True:
+                                        if n_cname+'_'+str(ind+1) not in custnames:
+                                            so["custname"] = n_cname+'_'+str(ind+1)
+                                            break
+                                        elif ('objectName' in so) and ('xpath' in custnames[n_cname+'_'+str(ind+1)]) and (so["objectName"] == custnames[n_cname+'_'+str(ind+1)]['xpath']):
+                                            cid = custnames[n_cname+'_'+str(ind+1)]["_id"]
+                                            break
+                                        ind += 1
+                                    if so["custname"] not in custnames:
+                                        custnames[so["custname"]] = {"_id":cid,"xpath":so["objectName"],"url":so['url'] if 'url' in so else ""}
+                                        missingCustname[cid] = so
+                            elif (cname not in custnames) and (cname not in defcn):
+                                cid = ObjectId()
+                                orderlist.append(str(cid))
+                                updateOrder = True
+                                custnames[cname] = {"_id":cid,"xpath":so["objectName"],"url":so['url'] if 'url' in so else ""}
+                                missingCustname[cid] = so
+                            steps.append({
+                                "stepNo": so["stepNo"],
+                                "custname": cid,
+                                "keywordVal": so["keywordVal"],
+                                "inputVal": so["inputVal"],
+                                "outputVal": so["outputVal"],
+                                "appType": so["appType"],
+                                "remarks": so["remarks"] if ("remarks" in so) else "",
+                                "addDetails": so["addTestCaseDetailsInfo"] if ("addTestCaseDetailsInfo" in so) else "",
+                                "cord": so["cord"] if ("cord" in so) else ""
+                            })
+                        del requestdata['testcasesteps']
+                        createdataobjects(query_screen['screenid'], missingCustname)
+
+                    #query to update tescase
+                    if(requestdata['query'] == 'updatetestcasedata'):
+                        queryresult = dbsession.testcases.update_many({'_id':ObjectId(tcid),'versionnumber':requestdata['versionnumber']},
+                                    {'$set':{'modifiedby':ObjectId(requestdata['modifiedby']),'modifiedbyrole':ObjectId(requestdata['modifiedbyrole']),'steps':steps,'datatables':dtables,"modifiedon" : datetime.now()}}).matched_count
+                        if updateOrder:
+                            screenQueryResult = dbsession.screens.update({"_id":query_screen['screenid']},{"$set":{"modifiedby":ObjectId(requestdata['modifiedby']), 'modifiedbyrole':ObjectId(requestdata['modifiedbyrole']),"modifiedon" : datetime.now(), 'orderlist': orderlist}})
+                            if queryresult > 0 and screenQueryResult:
+                                res= {'rows': 'success'}
+                        elif queryresult > 0:
+                            res= {'rows': 'success'}
+            else:
+                app.logger.warn('Empty data received. updating testcases')
+        except Exception as updatetestcaseexception:
+            servicesException('updateTestCase_Genius', updatetestcaseexception, True)
+        return jsonify(res)
+
+
+
     def update_steps(steps,dataObjects):
         del_flag = False
         try:
@@ -337,6 +525,10 @@ def LoadServices(app, redissession, dbsession):
                             j['original_device_width'] = dataObjects[j['custname']]['original_device_width']
                             j['original_device_height'] = dataObjects[j['custname']]['original_device_height']
                         j['objectid'] = j['custname']
+                        j['top'] = dataObjects[j['custname']]['top'] if 'top' in dataObjects[j['custname']] else ""
+                        j['left'] = dataObjects[j['custname']]['left'] if 'left' in dataObjects[j['custname']] else ""
+                        j['width'] = dataObjects[j['custname']]['width'] if 'width' in dataObjects[j['custname']] else ""
+                        j['height'] = dataObjects[j['custname']]['height'] if 'height' in dataObjects[j['custname']] else ""
                         j['custname'] = dataObjects[j['custname']]['custname']
                     elif (j['custname'] not in defcn or j['custname']=='OBJECT_DELETED'):
                         j['custname'] = 'OBJECT_DELETED'

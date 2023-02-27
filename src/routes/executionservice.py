@@ -46,7 +46,7 @@ def LoadServices(app, redissession, dbsession):
                 if(param == 'gettestsuite'):
                     mindmapid = ObjectId(requestdata['mindmapid'])
                     cycleid = ObjectId(requestdata['cycleid'])
-                    filterquery = {"conditioncheck":1,"getparampaths":1,"donotexecute":1,"testscenarioids":1}
+                    filterquery = {"conditioncheck":1,"getparampaths":1,"donotexecute":1,"testscenarioids":1,"accessibilityParameters":1}
                     testsuite = dbsession.testsuites.find_one({"cycleid":cycleid, "mindmapid":mindmapid, "deleted":query['delete_flag']}, filterquery)
                     create_suite = testsuite is None
                     mindmaps = dbsession.mindmaps.find_one({"_id": mindmapid, "deleted":query['delete_flag']})
@@ -78,6 +78,7 @@ def LoadServices(app, redissession, dbsession):
                         querydata["deleted"] = mindmaps["deleted"]
                         querydata["donotexecute"] = [1] * tsclen
                         querydata["getparampaths"] = [' '] * tsclen
+                        querydata["accessibilityParameters"] = []
                         testsuiteid = dbsession.testsuites.insert(querydata)
                     else:
                         testsuiteid = testsuite["_id"]
@@ -85,6 +86,7 @@ def LoadServices(app, redissession, dbsession):
                         getparampaths_ts = testsuite["getparampaths"]
                         donotexecute_ts = testsuite["donotexecute"]
                         conditioncheck_ts = testsuite["conditioncheck"]
+                        accessibilityParameters_ts = testsuite["accessibilityParameters"] if "accessibilityParameters" in testsuite else []
                         getparampaths = []
                         conditioncheck = []
                         donotexecute = []
@@ -105,12 +107,13 @@ def LoadServices(app, redissession, dbsession):
                         querydata["conditioncheck"] = conditioncheck
                         querydata["donotexecute"] = donotexecute
                         querydata["getparampaths"] = getparampaths
+                        querydata["accessibilityParameters"] = accessibilityParameters_ts
                         dbsession.testsuites.update_one({"_id": testsuiteid, "deleted": query['delete_flag']}, {'$set': querydata})
 
                     res['rows'] = {
                         "testsuiteid": testsuiteid, "conditioncheck": querydata["conditioncheck"],
                         "donotexecute": querydata["donotexecute"], "getparampaths": querydata["getparampaths"],
-                        "testscenarioids": testscenarioids, "name": querydata["name"], "batchname": querydata["batchname"]
+                        "testscenarioids": testscenarioids, "name": querydata["name"], "batchname": querydata["batchname"], "accessibilityParameters": querydata["accessibilityParameters"]
                     }
 
                 elif(param == 'gettestscenario'):
@@ -165,6 +168,10 @@ def LoadServices(app, redissession, dbsession):
                 del querydata["query"]
                 querydata["modifiedon"]= datetime.now()
                 querydata["testscenarioids"] = [ObjectId(i) for i in requestdata['testscenarioids']]
+                if "accessibilityParameters" in querydata:
+                    querydata["accessibilityParameters"] = [i for i in querydata["accessibilityParameters"] if i is not None]
+                else:
+                    querydata["accessibilityParameters"] = []
                 dbsession.testsuites.update_one({"_id": testsuiteid}, {"$set":querydata})
                 res={'rows':'Success'}
                 app.logger.debug("Executed updateTestSuite_ICE. Query: " + param)
@@ -334,7 +341,10 @@ def LoadServices(app, redissession, dbsession):
                         "time": requestdata["time"],
                         "recurringstringonhover": recurringstringonhover,
                         "parentid": parentid,
-                        "startdate": datetime.fromtimestamp(int(requestdata['startDate'])/1000,pytz.UTC)
+                        "startdate": datetime.fromtimestamp(int(requestdata['startDate'])/1000,pytz.UTC),
+                        "configurekey": requestdata["configureKey"],
+                        "configurename": requestdata["configureName"],
+                        "endafter": requestdata["endAfter"]
                     }
                     if "smartid" in requestdata: dataquery["smartid"] = uuid.UUID(requestdata["smartid"])
                     scheduleid = dbsession.scheduledexecutions.insert(dataquery)
@@ -376,7 +386,7 @@ def LoadServices(app, redissession, dbsession):
                     tscos = dbsession.testscenarios.find({}, {"projectid": 1})
                     tscomap = {}
                     for tsco in tscos: tscomap[tsco["_id"]] = prjmap[tsco["projectid"]] if tsco["projectid"] in prjmap else "-"
-                    schedules = list(dbsession.scheduledexecutions.find({}))
+                    schedules = list(dbsession.scheduledexecutions.find({"$and": [{"configurekey": requestdata["configKey"]}, {"configurename": requestdata["configName"]}]}))
                     poollist={}
                     pool = list(dbsession.icepools.find({}, {"poolname": 1}))
                     for pid in pool: poollist[pid['_id']] = pid['poolname']
@@ -468,6 +478,69 @@ def LoadServices(app, redissession, dbsession):
                             flag = i
                             break
                     res["rows"] = flag
+
+                elif(param == 'getallscheduledataondate'):
+                    prjtypes = dbsession.projecttypekeywords.find({}, {"name": 1})
+                    ptmap = {}
+                    for pt in prjtypes: ptmap[pt["_id"]] = pt["name"]
+                    projects = dbsession.projects.find({}, {"type": 1})
+                    prjmap = {}
+                    for prj in projects: prjmap[prj["_id"]] = ptmap[prj["type"]]
+                    tsuites = dbsession.testsuites.find({}, {"name": 1})
+                    tsumap = {}
+                    for tsu in tsuites: tsumap[tsu["_id"]] = tsu["name"]
+                    tscos = dbsession.testscenarios.find({}, {"projectid": 1})
+                    tscomap = {}
+                    for tsco in tscos: tscomap[tsco["_id"]] = prjmap[tsco["projectid"]] if tsco["projectid"] in prjmap else "-"
+                    scheduledon = datetime.fromtimestamp(int(requestdata['scheduledDate'])/1000)
+                    scheduledon = scheduledon.replace(tzinfo=None)
+                    schedules = list(dbsession.scheduledexecutions.find({"$and": [{"scheduledon":scheduledon}, {"configurekey": requestdata["configKey"]}, {"configurename": requestdata["configName"]}]}))
+                    poollist={}
+                    pool = list(dbsession.icepools.find({}, {"poolname": 1}))
+                    for pid in pool: poollist[pid['_id']] = pid['poolname']
+                    for sch in schedules:
+                        if "poolid" in sch and sch["poolid"] in poollist: 
+                            sch["poolname"]=poollist[sch["poolid"]]
+                        if "recurringstringonhover" in sch and sch["recurringstringonhover"] != "One Time" and sch["status"] != "recurring" and "*" not in sch["recurringpattern"]:
+                            if "parentid" in sch:
+                                created_date = list(dbsession.scheduledexecutions.find({"_id": sch["parentid"]}))
+                                if len(created_date) > 0:
+                                    if "startdate" in created_date[0]:
+                                        sch["createddate"] = created_date[0]['startdate']
+                                    else:
+                                        sch["createddate"] = created_date[0]['scheduledon']
+                            else:
+                                if "startdate" in sch:
+                                    sch["createddate"] = sch['startdate']
+                                else:
+                                    sch["createddate"] = sch['scheduledon']
+                        elif "recurringpattern" in sch and "*" in sch["recurringpattern"]:
+                            if "startdate" in sch:
+                                sch["createddate"] = sch['startdate']
+                            else:
+                                sch["createddate"] = sch['scheduledon']
+                        elif "recurringpattern" in sch and sch["recurringpattern"] == "One Time":
+                            if "startdate" in sch:
+                                sch["createddate"] = sch['startdate']
+                            else:
+                                sch["createddate"] = sch['scheduledon']
+                        testsuitenames = []
+                        for tsuid in sch["testsuiteids"]: testsuitenames.append(tsumap[tsuid] if tsuid in tsumap else "")
+                        sch["testsuitenames"] = testsuitenames
+                        if sch['scheduledon']:
+                            if sch["status"] == "scheduled" and datetime.utcnow() - sch['scheduledon'] >= timedelta(days=3):
+                                missed_executions.append(UpdateOne({"_id":sch['_id']},{"$set":{"status":"Missed"}}))
+                                sch["status"] = "Missed"
+                            elif sch["status"] == "inprogress" and datetime.utcnow() - sch['scheduledon'] >= timedelta(days=15):
+                                missed_executions.append(UpdateOne({"_id":sch['_id']},{"$set":{"status":"Failed"}}))
+                                sch["status"] = "Failed"
+                        if sch["status"] == "Failed 01": sch["status"] = "Missed"
+                        elif sch["status"] == "Failed 02": sch["status"] = "Failed"
+                        for tscos in sch["scenariodetails"]:
+                            if type(tscos) == dict: break
+                            for tsco in tscos: tsco["appType"] = tscomap[tsco["scenarioId"]]
+                    res["rows"] = schedules
+                    if len(missed_executions) > 0: dbsession.scheduledexecutions.bulk_write(missed_executions)
                 app.logger.debug("Executed ScheduleTestSuite_ICE. Query: " + param)
             else:
                 app.logger.warn('Empty data received. schedule testsuite.')
@@ -588,4 +661,3 @@ def LoadServices(app, redissession, dbsession):
         except Exception as getalltaskssexc:
             servicesException("checkApproval",getalltaskssexc, True)
             return jsonify(res)
-
