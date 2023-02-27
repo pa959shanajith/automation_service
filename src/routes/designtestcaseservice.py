@@ -351,7 +351,7 @@ def LoadServices(app, redissession, client ,getClientName):
             # app.logger.debug('Inside updateTestCase_Genius. Query: '+str(requestdata['query']))
             testcasedetails = data['testcasesteps']
             if not isemptyrequest(data):
-                clientName=getClientName(requestdata)         
+                clientName=getClientName(data)         
                 dbsession=client[clientName]
                 for requestdata in testcasedetails:
                     
