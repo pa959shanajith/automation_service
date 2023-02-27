@@ -500,7 +500,7 @@ def getClientName(requestdata):
     clientName="avoassure"
     try:
         if "host" in requestdata:
-            if ['localhost','127.0.0.1'] not in requestdata["host"]:
+            if 'localhost' not in requestdata["host"] and '127.0.0.1' not in requestdata["host"]:
                 clientName=requestdata["host"].split('.')[0] 
     except Exception as e:
         app.logger.error(e)
