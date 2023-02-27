@@ -231,7 +231,7 @@ def LoadServices(app, redissession, dbsession, *args):
                     requestdata["type"] = "Jira"
                     dbsession.thirdpartyintegration.insert_one(requestdata)
                     dbsession.thirdpartyintegration.delete_many({"type":"Jira","testscenarioid":requestdata["testscenarioid"]})
-                    dbsession.thirdpartyintegration.delete_many({"type":"Jira","testCode":requestdata["testCode"]})
+                    dbsession.thirdpartyintegration.delete_many({"type":"Jira","itemCode":requestdata["itemCode"]})
                     dbsession.thirdpartyintegration.insert_one(requestdata)
                     res= {"rows":"success"}
             else:
@@ -419,13 +419,14 @@ def LoadServices(app, redissession, dbsession, *args):
                             elif "testCaseNames" in mapObj:
                                 #updating testcase
                                 testname = mapObj["testCaseNames"]
-                                if testname[0] == result1[0]['testCode']:
+                                if testname[0] == result1[0]['itemCode']:
                                     result1[0]['projectid']=''
                                     result1[0]['projectName']=''
                                     result1[0]['projectCode']=''
-                                    result1[0]['testId']=''
-                                    result1[0]['testCode']=''
-                                if result1[0]['testCode'] == '' :
+                                    result1[0]['itemId']=''
+                                    result1[0]['itemCode']=''
+                                    result1[0]['itemType']=''
+                                if result1[0]['itemCode'] == '' :
                                     req.append(DeleteOne({"_id":ObjectId(mapObj["mapid"]),"type":"Jira"}))
                                 # else:
                                 #     req.append(UpdateOne({"_id":ObjectId(mapObj["mapid"])}, {'$set': {"testid":result1[0]['testid'], "testname":result1[0]['testname'],"treeid":result1[0]['treeid'],"parentid":result1[0]['parentid'],"reqdetails":result1[0]['reqdetails'],"projectid":result1[0]['projectid'],"releaseid":result1[0]['releaseid']}}))
