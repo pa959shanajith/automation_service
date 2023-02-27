@@ -7,7 +7,7 @@ from datetime import datetime
 from pymongo import InsertOne
 
 
-def LoadServices(app, redissession, dbsession):
+def LoadServices(app, redissession, client ,getClientName):
     setenv(app)
 
 ################################################################################
@@ -31,6 +31,8 @@ def LoadServices(app, redissession, dbsession):
             requestdata=json.loads(request.data)
             app.logger.debug("Inside getAllSuites_ICE. Query: "+str(requestdata["query"]))
             if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)        
+                dbsession=client[clientName]
                 if(requestdata["query"] == 'projects'):
                     queryresult1=dbsession.users.find_one({"_id": ObjectId(requestdata["userid"])},{"projects":1,"_id":0})
                     queryresult=list(dbsession.projects.find({"_id":{"$in":queryresult1["projects"]}},{"name":1,"releases":1,"type":1}))
@@ -94,6 +96,8 @@ def LoadServices(app, redissession, dbsession):
         try:
             requestdata=json.loads(request.data)
             if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)        
+                dbsession=client[clientName]
                 if ("batchname" in requestdata):
                     queryresult=list(dbsession.executions.find({"batchname":requestdata["batchname"]},{"_id":1,"starttime":1,"endtime":1,"status":1,"smart":1,"batchid":1}))
                 elif ('configurekey' in requestdata and 'executionListId' in requestdata):
@@ -118,6 +122,8 @@ def LoadServices(app, redissession, dbsession):
             requestdata=json.loads(request.data)
             app.logger.debug("Inside reportStatusScenarios_ICE. Query: "+str(requestdata["query"]))
             if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)         
+                dbsession=client[clientName]
                 if(requestdata["query"] == 'executiondetails'):
                     queryresult = list(dbsession.reports.aggregate([
                     {'$match':{"executionid":{'$in':[ObjectId(i)for i in requestdata["executionid"]]}}},
@@ -151,6 +157,8 @@ def LoadServices(app, redissession, dbsession):
             requestdata=json.loads(request.data)
             app.logger.debug("Inside getReport")
             if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)         
+                dbsession=client[clientName]
                 reports = list(dbsession.reports.find({"_id":ObjectId(requestdata["reportid"])}))
                 report_items= list(dbsession.reportitems.find({"_id":reports[0]["reportitems"][0]}))
                 scenarios = list(dbsession.testscenarios.find({"_id":reports[0]["testscenarioid"]}))
@@ -197,6 +205,8 @@ def LoadServices(app, redissession, dbsession):
             requestdata=json.loads(request.data)
             app.logger.debug("Inside updateReportData.")
             if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)        
+                dbsession=client[clientName]
                 queryresult = dbsession.reports.find({"_id":ObjectId(requestdata["reportid"])},{"reportitems":1})
                 report = queryresult[0]['reportitems']
                 limit = 15000
@@ -248,6 +258,8 @@ def LoadServices(app, redissession, dbsession):
             requestdata=json.loads(request.data)
             app.logger.debug("Inside getReport_API")
             if not isemptyrequest(requestdata) and valid_objectid(requestdata['executionId']):
+                clientName=getClientName(requestdata)         
+                dbsession=client[clientName]
                 filter1 = {"executionid":ObjectId(requestdata["executionId"])}
                 if("scenarioIds" in requestdata):
                     scenarioIds = dbsession.reports.distinct("testscenarioid", filter1)
@@ -367,6 +379,8 @@ def LoadServices(app, redissession, dbsession):
             requestdata=json.loads(request.data)
             param = str(requestdata["query"])
             app.logger.debug("Inside getAccessibilityTestingData_ICE. Query: " + param)
+            clientName=getClientName(requestdata)         
+            dbsession=client[clientName]
             if requestdata["query"] == 'screendata':
                 reports_data = dbsession.accessibilityreports.find({"cycleid": ObjectId(requestdata['cycleid'])},{"screenid":1,"screenname":1})
                 result = {}
@@ -424,6 +438,8 @@ def LoadServices(app, redissession, dbsession):
         result = {}
         try:
             requestdata=json.loads(request.data)
+            clientName=getClientName(requestdata)        
+            dbsession=client[clientName]
             reports = dbsession.accessibilityreports.find({"executionid":ObjectId(requestdata["executionid"])})
             result = list(reports)
             res['rows'] = result
@@ -442,6 +458,8 @@ def LoadServices(app, redissession, dbsession):
             app.logger.debug("Inside getExecution_metrics_API")
             arr = []
             if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)        
+                dbsession=client[clientName]
                 status_dict={'pass':'Pass','fail':'Fail','skipped':'Skipped','incomplete':'Incomplete','terminate':'Terminate'}
                 if requestdata['fromdate'] and requestdata['todate']:
                     start=requestdata["fromdate"]
@@ -532,6 +550,8 @@ def LoadServices(app, redissession, dbsession):
             requestdata=json.loads(request.data)
             app.logger.debug("Inside getDevopsReport_API")
             if not isemptyrequest(requestdata) and valid_objectid(requestdata['executionId']):
+                clientName=getClientName(requestdata)        
+                dbsession=client[clientName]
                 filter1 = {"executionid":ObjectId(requestdata["executionId"])}
                 if("scenarioIds" in requestdata):
                     scenarioIds = dbsession.reports.distinct("testscenarioid", filter1)

@@ -11,7 +11,7 @@ import partition_scenarios
 import dateutil.parser as DP
 
 
-def LoadServices(app, redissession, dbsession):
+def LoadServices(app, redissession, client ,getClientName):
     setenv(app)
 
 ################################################################################
@@ -26,15 +26,17 @@ def LoadServices(app, redissession, dbsession):
     def get_partitions():
         app.logger.debug("Inside get_partitions")
         requestdata = json.loads(request.data)
+        clientName=getClientName(requestdata)         
+        dbsession=client[clientName]
         res = {'result': 'fail'}
         timearr = {}
         taskarr = []
         time_usr = {}
         ipPartitions = {}
         modPartitions = {}
-        users = bench_mark_sort(requestdata['ipAddressList'])
+        users = bench_mark_sort(dbsession,requestdata['ipAddressList'])
         if requestdata["time"] != "Now":
-            users,flag = load_sort(users,requestdata["time"])
+            users,flag = load_sort(dbsession,users,requestdata["time"])
         else:
             flag = False
         try:
@@ -42,7 +44,7 @@ def LoadServices(app, redissession, dbsession):
                 for i in range(len(requestdata['scenarios'])):
                     time = 0
                     scid = requestdata['scenarios'][i]['scenarioId']
-                    time = get_time(scid)
+                    time = get_time(dbsession,scid)
                     if scid in timearr:
                         scid = scid + str(i)
                     timearr[scid] = time
@@ -60,7 +62,7 @@ def LoadServices(app, redissession, dbsession):
                     for j in range(len(modules[i]['suiteDetails'])):
                         scid = modules[i]['suiteDetails'][j]['scenarioId']
                         mod_scn[modules[i]['testsuiteId']].append(scid)
-                        time = time + get_time(scid)
+                        time = time + get_time(dbsession,scid)
                     timearr[modules[i]['testsuiteId']] = time            
                 partitions = partition_scenarios.main(timearr, len(users))
                 
@@ -88,7 +90,7 @@ def LoadServices(app, redissession, dbsession):
         if flag: res["result"] = "busy"
         return jsonify(res)
 
-    def load_sort(users, time):
+    def load_sort(dbsession,users, time):
         available_users = []
         unavailable = 0
         for i in range(len(users)):
@@ -104,7 +106,7 @@ def LoadServices(app, redissession, dbsession):
                 scenario_details = latest['scenariodetails']
                 for j in range(len(scenario_details)):
                     for k in range(len(scenario_details[j])):
-                        prev_time = prev_time + get_time(scenario_details[j][k]['scenarioId'])
+                        prev_time = prev_time + get_time(dbsession,scenario_details[j][k]['scenarioId'])
                 end_time = latest['scheduledon']
                 end_dtm = end_time + datetime.timedelta(0,int(prev_time))
                 if end_dtm < dtm:
@@ -121,7 +123,7 @@ def LoadServices(app, redissession, dbsession):
         return available_users,False
         
 
-    def get_time(scid):
+    def get_time(dbsession,scid):
         result = dbsession.executiontimes.find({"testscenarioid": scid})
         if result is None or result.count() == 0:
             return 315
@@ -130,7 +132,7 @@ def LoadServices(app, redissession, dbsession):
         else:
             return result[0]['mean']
 
-    def bench_mark_sort(users):
+    def bench_mark_sort(dbsession,users):
         try:
             score = []
             scoreMap = {}

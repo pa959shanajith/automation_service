@@ -15,7 +15,7 @@ def unwrap(hex_data, key, iv=b'0'*16):
     aes = AES.new(key.encode('utf-8'), AES.MODE_CBC, iv)
     return unpad(aes.decrypt(data).decode('utf-8'))
 
-def LoadServices(app, redissession, dbsession, *args):
+def LoadServices(app, redissession, client ,getClientName, *args):
     setenv(app)
     ldap_key = args[0]
 ################################################################################
@@ -34,6 +34,8 @@ def LoadServices(app, redissession, dbsession, *args):
             requestdata=json.loads(request.data)
             app.logger.debug("Inside qcProjectDetails_ICE. Query: "+str(requestdata["query"]))
             if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)       
+                dbsession=client[clientName]
                 if(requestdata["query"] == 'getprojectDetails'):
                     result=list(dbsession.users.find({"_id":ObjectId(requestdata["userid"])},{"projects":1}))
                     res= {"rows":result}
@@ -58,6 +60,8 @@ def LoadServices(app, redissession, dbsession, *args):
             requestdata=json.loads(request.data)
             app.logger.debug("Inside saveIntegrationDetails_ICE. Query: "+str(requestdata["query"]))
             if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)       
+                dbsession=client[clientName]
                 if(requestdata["query"] == 'saveQcDetails_ICE'):
                     requestdata["type"] = "ALM"
                     testcases = requestdata["qctestcase"]
@@ -247,6 +251,8 @@ def LoadServices(app, redissession, dbsession, *args):
             requestdata=json.loads(request.data)
             app.logger.debug("Inside viewIntegrationMappedList_ICE. Query: "+str(requestdata["query"]))
             if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)        
+                dbsession=client[clientName]
                 if(requestdata["query"] == 'qcdetails'):
                     if "testscenarioid" in requestdata:
                         result=list(dbsession.thirdpartyintegration.find({"type":"ALM","testscenarioid":requestdata["testscenarioid"]}))
@@ -316,6 +322,8 @@ def LoadServices(app, redissession, dbsession, *args):
             requestdata=json.loads(request.data)
             app.logger.debug("Inside getMappedDetails. Query: "+str(requestdata["query"]))
             if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)         
+                dbsession=client[clientName]
                 if("releaseId" in requestdata):
                     result=list(dbsession.thirdpartyintegration.find({"type":"Zephyr","releaseid":int(requestdata["releaseId"])}))
                     res= {"rows":result}
@@ -340,6 +348,8 @@ def LoadServices(app, redissession, dbsession, *args):
             requestdata=json.loads(request.data)
             app.logger.debug("Inside updateMapDetails_ICE. Query: "+str(requestdata["query"]))
             if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)         
+                dbsession=client[clientName]
                 if(requestdata["query"] == 'updateMapDetails_ICE'):
                     if requestdata['screenType']=='ALM':
                         for mapObj in requestdata["mapList"]:
@@ -448,6 +458,8 @@ def LoadServices(app, redissession, dbsession, *args):
         try:
             requestdata=json.loads(request.data)
             if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)         
+                dbsession=client[clientName]
                 userid = ObjectId(requestdata['userid'])
                 discoverDocument = dbsession.thirdpartyintegration.find_one({ "type": "AvoDiscover", "avodiscoverconfig.userid": userid})
                 if discoverDocument is not None:

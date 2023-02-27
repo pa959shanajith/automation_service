@@ -21,7 +21,6 @@ REGISTER_STATUS="registered"
 PROVISION_STATUS="provisioned"
 DEREGISTER_STATUS="deregistered"
 
-onlineuser = False
 dasport = "1990"
 
 ui_plugins = {"alm":"Integration","apg":"APG","dashboard":"Dashboard",
@@ -235,10 +234,9 @@ EXEMPTED_SERVICES = ["checkUser", "validateUserState", "loadUserInfo", "logoutUs
   "ExecuteTestSuite_ICE_SVN", "getReport_API", "ICE_provisioning_register", "verifyUser"]
 
 
-def setenv(flaskapp=None, licactive=None):
-    global app, onlineuser
+def setenv(flaskapp=None):
+    global app
     if flaskapp is not None: app = flaskapp
-    if licactive is not None: onlineuser = licactive
 
 def printErrorCodes(ecode):
     msg = "[ECODE: " + ecode + "] " + ERR_CODE[ecode]
@@ -252,15 +250,11 @@ def servicesException(srv, exc, trace=False):
 
 def isemptyrequest(requestdata):
     flag = False
-    if (onlineuser == True):
-        for key in requestdata:
-            if (key not in ['additionalroles', 'getparampaths', 'testcasesteps'] and
-              requestdata[key] in ['undefined', '', 'null', None]):
-                app.logger.warn(str(key)+" is empty")
-                flag = True
-    else:
-        flag = 0
-        app.logger.critical(printErrorCodes('203'))
+    for key in requestdata:
+        if (key not in ['additionalroles', 'getparampaths', 'testcasesteps'] and
+            requestdata[key] in ['undefined', '', 'null', None]):
+            app.logger.warn(str(key)+" is empty")
+            flag = True
     return flag
 
 def getupdatetime():

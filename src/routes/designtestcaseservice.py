@@ -7,8 +7,7 @@ from Crypto.Cipher import AES
 import codecs
 from pymongo import InsertOne
 from datetime import datetime
-
-def LoadServices(app, redissession, dbsession):
+def LoadServices(app, redissession, client ,getClientName):
     setenv(app)
     defcn = ['@Window', '@Object', '@System', '@Excel', '@Mobile', '@Android_Custom', '@Word', '@Custom', '@CustomiOS',
                                 '@Generic', '@Browser', '@Action', '@Email', '@BrowserPopUp', '@Sap','@Oebs', 'WebService List', 'Mainframe List', 'OBJECT_DELETED']
@@ -23,6 +22,8 @@ def LoadServices(app, redissession, dbsession):
         app.logger.debug('Inside getKeywordDetails')
         res={'rows':'fail'}
         try:
+            clientName="avoassure"      
+            dbsession=client[clientName]
             projecttypename = str(request.data,'utf-8')
             if not (projecttypename == '' or projecttypename == 'undefined'
                     or projecttypename == 'null' or projecttypename == None):
@@ -44,6 +45,8 @@ def LoadServices(app, redissession, dbsession):
             app.logger.debug('Inside getTestcasesByScenarioId_ICE. Query: '
                 +str(requestdata['query']))
             if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)         
+                dbsession=client[clientName]
                 if(requestdata['query'] == 'gettestcasedetails'):
                     ids = list(dbsession.testscenarios.find({'_id':ObjectId(requestdata['testscenarioid'])},{'testcaseids':1,'_id':0}))
                     if (ids != []):
@@ -81,7 +84,7 @@ def LoadServices(app, redissession, dbsession):
         except:
             return hex_data
 
-    def adddataobjects(pid, d):
+    def adddataobjects(dbsession,pid, d):
         if len(d) == 0: return False
         req = []
         for row in d:
@@ -157,7 +160,7 @@ def LoadServices(app, redissession, dbsession):
                 dodata["tag"] = "_".join(so["custname"].split("_")[0:2])
             elif so["appType"] == ["Generic", "SAP", "Webservice", "Mainframe", "System"]: pass
             custnameToAdd.append(dodata)
-        adddataobjects(scrid, custnameToAdd)
+        adddataobjects(dbsession,scrid, custnameToAdd)
 
 
     #test case updating service
@@ -168,6 +171,8 @@ def LoadServices(app, redissession, dbsession):
             requestdata=json.loads(request.data)
             app.logger.debug('Inside updateTestCase_ICE. Query: '+str(requestdata['query']))
             if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)         
+                dbsession=client[clientName]
                 tcid = requestdata['testcaseid']
                 query_screen = dbsession.testcases.find_one({'_id':ObjectId(tcid),'versionnumber':requestdata['versionnumber']},{'screenid':1,'datatables':1})
                 dtables = requestdata.get('datatables', '')
@@ -232,7 +237,7 @@ def LoadServices(app, redissession, dbsession):
                         for mn in mapNew:
                             custnames[mn['custname']] = mn
                             dbsession.dataobjects.save(mn)
-                        adddataobjects(query_screen['screenid'],addNew)
+                        adddataobjects(dbsession,query_screen['screenid'],addNew)
                     for so in requestdata['testcasesteps']:
                         cid = cname = so["custname"].strip()
                         if cname in custnames: cid = custnames[cname]["_id"]
@@ -319,14 +324,14 @@ def LoadServices(app, redissession, dbsession):
 
 
 
-    def getScreenID(screenname,projectid):
+    def getScreenID(dbsession,screenname,projectid):
         screenname=list(dbsession.screens.find({"projectid":ObjectId(projectid),"name":screenname,"deleted":False},{"_id":1}))
         if len(screenname)==1:
             return str(screenname[0]["_id"])
         else:   
             return None
 
-    def getTestcaseID(screenid,testcasename):
+    def getTestcaseID(dbsession,screenid,testcasename):
         testcaseid = list(dbsession.testcases.find({"screenid": screenid,"name": testcasename,"deleted": False}, {"_id": 1}))
         if len(testcaseid) != 0:
             res = str(testcaseid[0]["_id"])
@@ -346,14 +351,16 @@ def LoadServices(app, redissession, dbsession):
             # app.logger.debug('Inside updateTestCase_Genius. Query: '+str(requestdata['query']))
             testcasedetails = data['testcasesteps']
             if not isemptyrequest(data):
+                clientName=getClientName(requestdata)         
+                dbsession=client[clientName]
                 for requestdata in testcasedetails:
                     
                     # tcid = requestdata['testcaseid']
                     projectid = requestdata['projectid']
                     screenname = requestdata['screenname']
                     testcasename = requestdata['testcasename']
-                    screenId = ObjectId(getScreenID(screenname,projectid))
-                    tcid = getTestcaseID(screenId,testcasename)
+                    screenId = ObjectId(getScreenID(dbsession,screenname,projectid))
+                    tcid = getTestcaseID(dbsession,screenId,testcasename)
                     
 
                     query_screen = dbsession.testcases.find_one({'_id':ObjectId(tcid),'versionnumber':requestdata['versionnumber']},{'screenid':1,'datatables':1})
@@ -419,7 +426,7 @@ def LoadServices(app, redissession, dbsession):
                             for mn in mapNew:
                                 custnames[mn['custname']] = mn
                                 dbsession.dataobjects.save(mn)
-                            adddataobjects(query_screen['screenid'],addNew)
+                            adddataobjects(dbsession,query_screen['screenid'],addNew)
                         for so in requestdata['testcasesteps']:
                             cid = cname = so["custname"].strip()
                             if cname in custnames: cid = custnames[cname]["_id"]
@@ -525,10 +532,6 @@ def LoadServices(app, redissession, dbsession):
                             j['original_device_width'] = dataObjects[j['custname']]['original_device_width']
                             j['original_device_height'] = dataObjects[j['custname']]['original_device_height']
                         j['objectid'] = j['custname']
-                        j['top'] = dataObjects[j['custname']]['top'] if 'top' in dataObjects[j['custname']] else ""
-                        j['left'] = dataObjects[j['custname']]['left'] if 'left' in dataObjects[j['custname']] else ""
-                        j['width'] = dataObjects[j['custname']]['width'] if 'width' in dataObjects[j['custname']] else ""
-                        j['height'] = dataObjects[j['custname']]['height'] if 'height' in dataObjects[j['custname']] else ""
                         j['custname'] = dataObjects[j['custname']]['custname']
                     elif (j['custname'] not in defcn or j['custname']=='OBJECT_DELETED'):
                         j['custname'] = 'OBJECT_DELETED'
@@ -548,6 +551,8 @@ def LoadServices(app, redissession, dbsession):
             requestdata=json.loads(request.data)
             app.logger.debug('Inside readTestCase_ICE. Query: '+str(requestdata['query']))
             if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)        
+                dbsession=client[clientName]
                 if(requestdata['query'] == 'testcaseids'):
                     if not isinstance(requestdata['testcaseid'], list):
                         requestdata['testcaseid'] = [requestdata['testcaseid']]

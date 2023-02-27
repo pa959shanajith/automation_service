@@ -23,7 +23,7 @@ from pymongo import UpdateOne
 
 query = {'delete_flag': False}
 
-def LoadServices(app, redissession, dbsession):
+def LoadServices(app, redissession, client ,getClientName):
     setenv(app)
 
 ################################################################################
@@ -42,6 +42,8 @@ def LoadServices(app, redissession, dbsession):
             requestdata=json.loads(request.data)
             param = str(requestdata["query"])
             if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)        
+                dbsession=client[clientName]
                 app.logger.info("Inside readTestSuite_ICE. Query: " + param)
                 if(param == 'gettestsuite'):
                     mindmapid = ObjectId(requestdata['mindmapid'])
@@ -162,6 +164,8 @@ def LoadServices(app, redissession, dbsession):
             param = str(requestdata["query"])
             app.logger.debug("Inside updateTestSuite_ICE. Query: " + param)
             if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)        
+                dbsession=client[clientName]
                 testsuiteid = ObjectId(requestdata['testsuiteid'])
                 querydata = requestdata
                 del querydata["testsuiteid"]
@@ -180,7 +184,27 @@ def LoadServices(app, redissession, dbsession):
         except Exception as updatetestsuiteexc:
             servicesException("updateTestSuite_ICE", updatetestsuiteexc, True)
         return jsonify(res)
+    def getExecutionsCount(dbsession):
+        totalSteps=0
+        try:
+            executionsList=list(dbsession.executions.find({"starttime" :{'$gte' : datetime(datetime.now().year, datetime.now().month, 1, 00, 00, 00)}}))
+            for exec in executionsList:
+                for ts in exec["parent"]:
+                    tsc=list(dbsession.testsuites.find({"_id" :ts}))
+                    for tscenerio in tsc:
+                        tsids=list()
+                        for i in tscenerio["testscenarioids"]:
+                            temp=list(map(lambda x: x["testcaseids"], list(dbsession.testscenarios.find({"_id" :i}))))
+                            for y in temp:
+                                for z in y:
+                                    tsids.append(z)
+                        for testCase in tsids:
+                            testData=dbsession.testcases.find_one({"_id" :testCase})
+                            totalSteps = totalSteps + len(testData["steps"])
 
+        except Exception as execuitetestsuiteexc:
+            servicesException("ExecuteTestSuite_ICE", execuitetestsuiteexc, True)
+        return totalSteps
     @app.route('/suite/ExecuteTestSuite_ICE',methods=['POST'])
     def ExecuteTestSuite_ICE() :
         res={'rows':'fail'}
@@ -189,6 +213,13 @@ def LoadServices(app, redissession, dbsession):
             param = str(requestdata["query"])
             app.logger.debug("Inside ExecuteTestSuite_ICE. Query: " + param)
             if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)        
+                dbsession=client[clientName]
+                maxExec=dbsession.licenseManager.find_one({"client": clientName})['data']['TE']
+                totalExec=getExecutionsCount(dbsession)
+                if 'Unlimited' != maxExec:
+                    if int(maxExec) < totalExec:
+                        return res
                 if param == 'testcasedetails' and valid_objectid(requestdata['id']):
                     tsc = dbsession.testscenarios.find_one({"_id": ObjectId(requestdata['id']),"deleted":query['delete_flag']},{"testcaseids":1})
                     if tsc is not None:
@@ -304,6 +335,8 @@ def LoadServices(app, redissession, dbsession):
             app.logger.debug("Inside ScheduleTestSuite_ICE. Query: " + param)
             missed_executions = []
             if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)      
+                dbsession=client[clientName]
                 if(param == 'insertscheduledata'):
                     for tscos in requestdata["scenarios"]:
                         for tsco in tscos: tsco["scenarioId"] = ObjectId(tsco["scenarioId"])
@@ -555,6 +588,8 @@ def LoadServices(app, redissession, dbsession):
             requestdata=json.loads(request.data)
             app.logger.debug("Inside getTestcaseDetailsForScenario_ICE")
             if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)        
+                dbsession=client[clientName]
                 screenids = [ObjectId(i) for i in requestdata['screenids']]
                 screens = list(dbsession.screens.find({"_id": {"$in": screenids},
                     "deleted":query['delete_flag']},{"name":1,"projectid":1}))
@@ -594,6 +629,8 @@ def LoadServices(app, redissession, dbsession):
         flag=False
         try:
             requestdata=json.loads(request.data)
+            clientName=getClientName(requestdata)         
+            dbsession=client[clientName]
             scenario_ids=[]
             screenid=[]
             testcaseid=[]

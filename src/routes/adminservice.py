@@ -9,6 +9,7 @@ import json
 from Crypto.Cipher import AES
 import codecs
 import uuid
+import requests
 
 def wrap(data, key, iv=b'0'*16):
     aes = AES.new(key.encode('utf-8'), AES.MODE_CBC, iv)
@@ -28,7 +29,7 @@ def unwrap(hex_data, key, iv=b'0'*16):
     aes = AES.new(key.encode('utf-8'), AES.MODE_CBC, iv)
     return unpad(aes.decrypt(data).decode('utf-8'))
 
-def LoadServices(app, redissession, dbsession,licensedata,*args):
+def LoadServices(app, redissession, client,getClientName,licensedata,*args):
     setenv(app)
     ice_das_key = args[0]
     ldap_key = args[1]
@@ -49,7 +50,11 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
         app.logger.debug("Inside getAvailablePlugins")
         res={'rows':'fail'}
         try:
-            res={'rows':licensedata['platforms']}
+            requestdata=json.loads(request.data)
+            clientName=getClientName(requestdata)       
+            dbsession=client[clientName]
+            res={'rows':dbsession.licenseManager.find_one({"client":clientName})["data"]}
+            # res={'rows':licensedata['platforms']}
             return jsonify(res)
         except Exception as getallusersexc:
             servicesException("getAvailablePlugins", getallusersexc, True)
@@ -66,6 +71,9 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
             del requestdata["action"]
             app.logger.info("Inside manageUserDetails. Query: "+str(action))
             if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)           
+                dbsession=client[clientName]
+                lsData=dbsession.licenseManager.find_one({"client":clientName})["data"]
                 if requestdata["name"] in ["support.avoassure","ci_cd"]:
                     app.logger.error("Cannot perform read/write operation on priviliged user: "+requestdata["name"])
                     res={"rows":"forbidden"}
@@ -98,7 +106,8 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
                         else:
                             requestdata["projects"]=[]
                         requestdata["welcomeStepNo"] = 0
-                        requestdata["firstTimeLogin"] = True
+                        if "Trial" in lsData["LicenseTypes"]:
+                            requestdata["firstTimeLogin"] = True
                         if requestdata["auth"]["type"] in ["inhouse", "ldap"]:
                             requestdata["invalidCredCount"]=0
                             requestdata["auth"]["passwordhistory"]=[]
@@ -181,6 +190,8 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
         try:
             requestdata=json.loads(request.data)
             if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)           
+                dbsession=client[clientName]
                 if "userid" in requestdata:
                     result=dbsession.users.find_one({"_id":ObjectId(requestdata["userid"])},{"name":1,"firstname":1,"lastname":1,"email":1,"defaultrole":1,"addroles":1,"auth":1})
                     if result is not None:
@@ -209,6 +220,8 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
         try:
             requestdata=json.loads(request.data)
             if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)             
+                dbsession=client[clientName]
                 result = list(dbsession.users.find({'invalidCredCount': 5}))
                 res={'rows':result}
             else:
@@ -224,6 +237,8 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
         try:
             requestdata=json.loads(request.data)
             if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)           
+                dbsession=client[clientName]
                 up_data = {
                     "invalidCredCount": 0,
                     "auth.verificationpassword": "",
@@ -243,8 +258,11 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
         res={'rows':'fail'}
         try:
             requestdata={}
+            clientName="avoassure"
             if request.data:
                 requestdata=json.loads(request.data)
+                clientName=getClientName(requestdata)     
+            dbsession=client[clientName]
             if "id" in requestdata:
                 result=list(dbsession.permissions.find({"_id":requestdata["id"]},{"name":1}))
                 res={'rows':result}
@@ -261,6 +279,9 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
         app.logger.debug("Inside getDomains_ICE")
         res={'rows':'fail'}
         try:
+            requestdata=json.loads(request.data)
+            clientName=getClientName(requestdata)     
+            dbsession=client[clientName]
             result=dbsession.projects.distinct("domain")
             res={'rows':result}
         except Exception as getdomainsexc:
@@ -275,6 +296,8 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
         try:
             requestdata=json.loads(request.data)
             if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)         
+                dbsession=client[clientName]
                 if "user_id" in requestdata:
                     dbsession.thirdpartyintegration.update_many({"type":"TOKENS","userid":ObjectId(requestdata["user_id"]),"deactivated":"active","expireson":{"$lt":datetime.today()}},{"$set":{"deactivated":"expired"}})
                     query=list(dbsession.thirdpartyintegration.find({"type":"TOKENS","userid":ObjectId(requestdata["user_id"])},{"hash":0}))
@@ -292,6 +315,8 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
             action=requestdata["action"]
             del requestdata["action"]
             if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)            
+                dbsession=client[clientName]
                 if action == "create":
                     if all(key in requestdata for key in ('userid', 'hash','name')):
                         query=dbsession.thirdpartyintegration.find_one({"type":"TOKENS","name":requestdata["name"],"userid":ObjectId(requestdata["userid"])})
@@ -323,6 +348,8 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
             requestdata=json.loads(request.data)
             app.logger.debug("Inside getNames_ICE. Query: "+str(requestdata["type"]))
             if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)         
+                dbsession=client[clientName]
                 if requestdata["type"] =="domainsall" :
                     result=list(dbsession.projects.find({"domain":requestdata["id"][0]},{"_id":1,"name":1}))
                     res={'rows':result}
@@ -348,6 +375,13 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
             requestdata=json.loads(request.data)
             app.logger.debug("Inside createProject_ICE. Query: create Project")
             if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)           
+                dbsession=client[clientName]
+                licensedata = dbsession.licenseManager.find_one({"client":clientName})["data"]
+                if licensedata['PA'] != "Unlimited":
+                    projectsCount=len(list(dbsession.projects.find({})))
+                    if projectsCount >= int(licensedata['PA']):
+                        return res
                 requestdata["createdon"]=requestdata["modifiedon"]=datetime.now()
                 requestdata["type"]=dbsession.projecttypekeywords.find_one({"name":requestdata["type"]},{"_id":1})["_id"]
                 requestdata["createdon"]=requestdata["modifiedon"]=datetime.now()
@@ -386,6 +420,8 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
             requestdata=json.loads(request.data)
             app.logger.debug("Inside updateProject_ICE. Query: "+str(requestdata["query"]))
             if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)           
+                dbsession=client[clientName]
                 if(requestdata['query'] == 'deleterelease'):
                     # dbsession.projects.update({"id":ObjectId(requestdata["projectid"])},{"$pull":{"releases.name":requestdata["releasename"]}})
                     res={"rows":"success"}
@@ -466,6 +502,8 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
             requestdata=json.loads(request.data)
             app.logger.debug("Inside getDetails_ICE.")
             if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)           
+                dbsession=client[clientName]
                 if requestdata["type"] == "gitdomaindetails":
                     prj_list = []
                     rdata = requestdata['id']
@@ -502,6 +540,8 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
             requestdata=json.loads(request.data)
             app.logger.info("Inside manageLDAPConfig. Action is "+str(requestdata['action']))
             if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)          
+                dbsession=client[clientName]
                 query_filter = {"type":"LDAP","name":requestdata["name"]}
                 result=dbsession.thirdpartyintegration.find_one(query_filter)
                 bc = "bindcredentials"
@@ -549,6 +589,8 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
             if not isemptyrequest(requestdata):
                 query_filter = {"type":"LDAP"}
                 if "name" in requestdata:
+                    clientName=getClientName(requestdata)           
+                    dbsession=client[clientName]
                     query_filter["name"] = requestdata["name"]
                     result = dbsession.thirdpartyintegration.find_one(query_filter)
                     if result is None: result = []
@@ -574,6 +616,8 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
             requestdata=json.loads(request.data)
             app.logger.info("Inside manageSAMLConfig. Action is "+str(requestdata['action']))
             if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)         
+                dbsession=client[clientName]
                 query_filter = {"type":"SAML","name":requestdata["name"]}
                 result=dbsession.thirdpartyintegration.find_one(query_filter)
                 if requestdata['action'] == "delete":
@@ -606,6 +650,8 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
         try:
             requestdata=json.loads(request.data)
             if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)            
+                dbsession=client[clientName]
                 query_filter = {"type":"SAML"}
                 if "name" in requestdata:
                     query_filter["name"] = requestdata["name"]
@@ -627,6 +673,8 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
             requestdata=json.loads(request.data)
             app.logger.info("Inside manageOIDCConfig. Action is "+str(requestdata['action']))
             if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)            
+                dbsession=client[clientName]
                 query_filter = {"type":"OIDC","name":requestdata["name"]}
                 result=dbsession.thirdpartyintegration.find_one(query_filter)
                 if requestdata['action'] == "delete":
@@ -659,6 +707,8 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
         try:
             requestdata=json.loads(request.data)
             if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)           
+                dbsession=client[clientName]
                 query_filter = {"type":"OIDC"}
                 if "name" in requestdata:
                     query_filter["name"] = requestdata["name"]
@@ -681,6 +731,8 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
         try:
             requestdata=json.loads(request.data)
             if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)           
+                dbsession=client[clientName]
                 domains=dbsession.projects.distinct("domain")
                 project={}
                 for i in domains:
@@ -730,6 +782,8 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
             app.logger.debug("Inside getAssignedProjects_ICE. Query: "
                 +str(requestdata["query"]))
             if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)            
+                dbsession=client[clientName]
                 if(requestdata['query'] == 'projectid'):
                     result=dbsession.users.find_one({"_id":ObjectId(requestdata["userid"])},{"projects":1,"_id":0})
                     res={"rows":result}
@@ -754,6 +808,8 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
         try:
             requestdata=json.loads(request.data)
             if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)            
+                dbsession=client[clientName]
                 result=list(dbsession.users.find({"projects":{"$in":[ObjectId(requestdata["projectid"])]}},{"name":1,"defaultrole":1,"addroles":1}))
                 res={"rows":result}
             else:
@@ -783,6 +839,8 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
         try:
             requestdata=json.loads(request.data)
             if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)            
+                dbsession=client[clientName]
                 find_args = {}
                 if "user" in requestdata:
                     find_args["provisionedto"] = ObjectId(requestdata["user"])
@@ -812,6 +870,8 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
         try:
             requestdata=json.loads(request.data)
             if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)             
+                dbsession=client[clientName]
                 query = str(requestdata.pop("query"))
                 app.logger.debug("Inside provisionICE. Query: "+query)
                 token=str(uuid.uuid4())
@@ -858,6 +918,8 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
             channel = str(requestdata['channel'] if 'channel' in requestdata else '')
             app.logger.info("Inside manageNotificationChannels. Action is "+action+". Channel is "+channel)
             if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)             
+                dbsession=client[clientName]
                 query_filter = {"channel":channel,"name":requestdata["name"]}
                 result=dbsession.notifications.find_one(query_filter)
                 if result is None:
@@ -905,6 +967,8 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
             action = str(requestdata['action'])
             channel = str(requestdata['channel'] if 'channel' in requestdata else '')
             if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)             
+                dbsession=client[clientName]
                 query_filter = {"channel":channel}
                 data_filter = None
                 name = requestdata["name"] if "name" in requestdata else ""
@@ -968,6 +1032,8 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
         try:
             requestdata=json.loads(request.data)
             if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)            
+                dbsession=client[clientName]
                 projectId = ObjectId(requestdata['projectId'])
                 del_flag = False
                 del_testcases = []
@@ -1021,6 +1087,8 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
         inputdata = {}
         error = True
         try:
+            clientName=getClientName(requestdata)             
+            dbsession=client[clientName]
             result = dbsession.icepools.find({"poolname":requestdata['poolname']})
             index = result.count() - 1
             result = None
@@ -1053,6 +1121,8 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
         result = []
         projectids = convert_objectids(requestdata['projectids'])
         try:
+            clientName=getClientName(requestdata)             
+            dbsession=client[clientName]
             project_users = dbsession.users.find({"projects": { "$in": projectids}})
             for user in project_users:
                 user_ice = dbsession.icetokens.find({"provisionedto":user["_id"],"poolid":{"$ne":"None"}})
@@ -1075,6 +1145,8 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
         res={'rows':'fail'}
         poolids = convert_objectids(requestdata['poolids'])
         try:
+            clientName=getClientName(requestdata)             
+            dbsession=client[clientName]
             for pool in poolids:
                 dbsession.icepools.delete_one({"_id":pool})
                 ice_list = dbsession.icetokens.update_many({"poolid":pool},{"$set":{"poolid":"None"}})
@@ -1093,6 +1165,8 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
         result['available_ice'] = {}
         result['unavailable_ice'] = {}
         try:
+            clientName=getClientName(requestdata)            
+            dbsession=client[clientName]
             unavailable_ice = dbsession.icetokens.find({"poolid":{"$ne":"None"}})
             available_ice = dbsession.icetokens.find({"poolid":"None"})
             for ice in available_ice:
@@ -1115,6 +1189,8 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
         ice_list = []
         poolids = requestdata['poolids']
         try:
+            clientName=getClientName(requestdata)            
+            dbsession=client[clientName]
             for pool in poolids:
                 ice_list = dbsession.icetokens.find({"poolid":ObjectId(pool)})
                 for ice in ice_list:
@@ -1136,6 +1212,8 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
         ice_list = []
         poolids = requestdata['poolids']
         try:
+            clientName=getClientName(requestdata)             
+            dbsession=client[clientName]
             ice_list = dbsession.icetokens.find({"provisionedto":ObjectId(userid)})
             for ice in ice_list:
                 if not ice["poolid"] or str(ice["poolid"]) in poolids or str(ice["poolid"]) == "None":
@@ -1157,6 +1235,8 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
         projectids = convert_objectids(requestdata['projectids'])
         poolid = requestdata["poolid"]
         try:
+            clientName=getClientName(requestdata)             
+            dbsession=client[clientName]
             if projectids is not None and len(projectids) > 0:
                 pool_list = dbsession.icepools.find({"projectids":{"$in":projectids}})
             elif poolid is not None and poolid == "all":
@@ -1187,6 +1267,8 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
         modifiedby = requestdata["modifiedby"]
         modifiedbyrole = requestdata["modifiedbyrole"]
         try:
+            clientName=getClientName(requestdata)            
+            dbsession=client[clientName]
             pool = dbsession.icepools.find({"_id":ObjectId(poolid)})
             if not pool or pool.count() == 0:
                 res["rows"] = "Pool does not exist"; 
@@ -1222,6 +1304,8 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
         res={'rows':'fail'}
         data={}
         try:
+            clientName=getClientName(requestdata)             
+            dbsession=client[clientName]
             #check whether the git configuration name is unique
             chk_gitname = dbsession.gitconfiguration.find_one({"name":requestdata["gitConfigName"]},{"name":1})
             if chk_gitname!=None and requestdata["action"]=='create':
@@ -1273,6 +1357,8 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
         try:
             requestdata=json.loads(request.data)
             if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)            
+                dbsession=client[clientName]
                 result=dbsession.gitconfiguration.find_one({"gituser":ObjectId(requestdata["userId"]),"projectid":ObjectId(requestdata["projectId"])},{'name':1, 'gitaccesstoken':1, 'giturl':1, 'gitusername':1,'gituseremail':1, '_id':0})
                 if result:
                     result['gitaccesstoken'] = unwrap(result['gitaccesstoken'],ldap_key)
@@ -1293,6 +1379,8 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
         try:
             requestdata=json.loads(request.data)
             if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)           
+                dbsession=client[clientName]
                 result=dbsession.userpreference.find_one({"user":ObjectId(requestdata["userId"])}, {'JIRA':1, '_id':0})
                 if result:
                     res={'rows':result['JIRA']}
@@ -1313,6 +1401,8 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
         try:
             requestdata=json.loads(request.data)
             if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)             
+                dbsession=client[clientName]
                 result = dbsession.userpreference.find_one({"user":ObjectId(requestdata["userId"])}, {'_id':1})
                 result1 = dbsession.userpreference.find_one({"user":ObjectId(requestdata["userId"]), 'JIRA':{'$exists':True, '$ne': None}})
                 if requestdata["action"]=="delete":
@@ -1355,6 +1445,8 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
         try:
             requestdata=json.loads(request.data)
             if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)             
+                dbsession=client[clientName]
                 result=dbsession.userpreference.find_one({"user":ObjectId(requestdata["userId"])}, {'Zephyr':1, '_id':0})
                 if result:
                     res={'rows':result['Zephyr']}
@@ -1375,6 +1467,8 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
         try:
             requestdata=json.loads(request.data)
             if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)             
+                dbsession=client[clientName]
                 zephyrObject = {}
                 userObject = dbsession.userpreference.find_one({"user":ObjectId(requestdata["userId"])})
                 if 'zephyrUrl' in requestdata :
@@ -1425,6 +1519,8 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
         avoDiscoverFlag = False
         try:
             requestdata=json.loads(request.data)
+            clientName=getClientName(requestdata)             
+            dbsession=client[clientName]
             action = requestdata['action']
             avodiscoverurl = requestdata['avodiscoverurl']
             avodiscoverauthurl = requestdata['avodiscoverauthurl']
@@ -1467,6 +1563,8 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
         avodiscover_flag=False
         try:
             requestdata=json.loads(request.data)
+            clientName=getClientName(requestdata)             
+            dbsession=client[clientName]
             if(requestdata['action'] == 'unmap'):
                 query = dbsession.thirdpartyintegration.find_one({'type':'AvoDiscover'})
                 tid = ObjectId(requestdata['targetid'])
@@ -1495,6 +1593,10 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
         result={}
         data=[]
         try:
+            requestdata=json.loads(request.data)
+            
+            clientName=getClientName(requestdata)            
+            dbsession=client[clientName]
             query = list(dbsession.thirdpartyintegration.find({'type':'AvoDiscover'},{'_id':0}))
             if(len(query)==0):
                 return jsonify({"rows":"empty"})
@@ -1515,6 +1617,9 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
 
     def updatePoolid_ICE(poolid = "", addition = [], deletion = []):
         if check_array_exists(addition):
+            requestdata=json.loads(request.data)
+            clientName=getClientName(requestdata)             
+            dbsession=client[clientName]
             for id in addition:
                 dbsession.icetokens.update_one({"_id":ObjectId(id)},{"$set":{"poolid":poolid}})
         if check_array_exists(deletion):
@@ -1529,6 +1634,9 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
 
     def get_ice(poolids):
         result = {}
+        requestdata=json.loads(request.data)
+        clientName=getClientName(requestdata)             
+        dbsession=client[clientName]
         for pool in poolids:
                 ice_list = dbsession.icetokens.find({"poolid":ObjectId(pool)})
                 for ice in ice_list:
@@ -1545,6 +1653,8 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
         try:
 
             requestdata=json.loads(request.data)
+            clientName=getClientName(requestdata)             
+            dbsession=client[clientName]
 
             app.logger.debug("Inside userCreateProject_ICE. Query: create Project")
 
@@ -1630,6 +1740,8 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
         try:
 
             requestdata=json.loads(request.data)
+            clientName=getClientName(requestdata)             
+            dbsession=client[clientName]
 
             # app.logger.debug("Inside userUpdateProject_ICE. Query: "+str(requestdata["query"]))
 
@@ -1669,6 +1781,8 @@ def LoadServices(app, redissession, dbsession,licensedata,*args):
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
+            clientName=getClientName(requestdata)             
+            dbsession=client[clientName]
             # app.logger.debug("Inside getUsers_ICE. Query: "+str(requestdata["query"]))
             if not isemptyrequest(requestdata):
                 result=list(dbsession.users.find({"projects":{"$in":[ObjectId(requestdata["project_id"])]}},{"name":1,"_id":1}))
