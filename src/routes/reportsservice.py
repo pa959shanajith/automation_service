@@ -305,19 +305,19 @@ def LoadServices(app, redissession, dbsession):
                             'as':'executions'
                         }         
                     },
-                    { '$lookup': {
-                            'from': 'reportitems',
-                            'let': { 'pid': '$reportitems' },
-                            'pipeline': [
-                                { '$match': { '$expr': { '$in': ['$_id', '$$pid'] } } },
-                                {'$unwind': '$rows'},
-                                { '$replaceRoot': { 'newRoot': '$rows' } }
-                            ],
-                            'as':'rows'
-                        }
-                    },
+                    # { '$lookup': {
+                    #         'from': 'reportitems',
+                    #         'let': { 'pid': '$reportitems' },
+                    #         'pipeline': [
+                    #             { '$match': { '$expr': { '$in': ['$_id', '$$pid'] } } },
+                    #             {'$unwind': '$rows'},
+                    #             { '$replaceRoot': { 'newRoot': '$rows' } }
+                    #         ],
+                    #         'as':'rows'
+                    #     }
+                    # },
                     {'$project':{
-                            'rows':1,
+                            # 'rows':1,
                             'executedtime':1,
                             'overallstatus':1,
                             'cycleid':{'$arrayElemAt':['$executions.cycleid',0]},
@@ -334,7 +334,9 @@ def LoadServices(app, redissession, dbsession):
                 for reportobj in list(query):
                     prjobj = reportobj['projects']
                     data={
-                        'report': {"rows":reportobj["rows"],"overallstatus":reportobj["overallstatus"]},
+                        'report': {
+                            # "rows":reportobj["rows"],
+                            "overallstatus":reportobj["overallstatus"]},
                         'testscenarioid': reportobj["testscenarioid"],
                         'testscenarioname': reportobj["testscenarioname"],
                         'domainname': prjobj["domain"],
