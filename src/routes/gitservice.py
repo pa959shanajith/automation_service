@@ -32,7 +32,7 @@ def unwrap(hex_data, key, iv=b'0'*16):
     aes = AES.new(key.encode('utf-8'), AES.MODE_CBC, iv)
     return unpad(aes.decrypt(data).decode('utf-8'))
 
-def LoadServices(app, redissession, dbsession, *args):
+def LoadServices(app, redissession, client ,getClientName, *args):
     setenv(app)
     ldap_key = args[0]
     defcn = ['@Window', '@Object', '@System', '@Excel', '@Mobile', '@Android_Custom', '@Word', '@Custom', '@CustomiOS',
@@ -58,6 +58,8 @@ def LoadServices(app, redissession, dbsession, *args):
         try:
             requestdata=json.loads(request.data)
             if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)       
+                dbsession=client[clientName]
                 versionName=requestdata['gitVersion']
                 moduleName=requestdata['folderPath']
                 userid=requestdata['userid']
@@ -127,6 +129,9 @@ def LoadServices(app, redissession, dbsession, *args):
         app.logger.debug("Inside executionJson")
         res={'rows':'fail'}
         try:
+            requestdata=json.loads(request.data)
+            clientName=getClientName(requestdata)        
+            dbsession=client[clientName]
             mindmap_data=result['moduledata']
             screen_info=result['screendata']
             testcase_info=result['tcdata']
@@ -217,6 +222,8 @@ def LoadServices(app, redissession, dbsession, *args):
         try:
             requestdata=json.loads(request.data)
             if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)       
+                dbsession=client[clientName]
                 del_flag = False
 
                 project_id = dbsession.mindmaps.find_one({"_id":ObjectId(requestdata["moduleId"])},{"projectid":1,"_id":0})
@@ -367,6 +374,8 @@ def LoadServices(app, redissession, dbsession, *args):
             delpath=currdir+os.sep+"mindmapGit"
             data={}
             if not isemptyrequest(module_data):
+                clientName=getClientName(requestdata)        
+                dbsession=client[clientName]
                 git_details = dbsession.gitconfiguration.find_one({"name":module_data["gitname"],"gituser":ObjectId(module_data["userid"])},{"projectid":1})
 
                 git_path=currdir+os.sep+'exportGit'+os.sep+module_data["userid"]
@@ -417,6 +426,8 @@ def LoadServices(app, redissession, dbsession, *args):
         try:
             requestdata=json.loads(request.data)
             if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)        
+                dbsession=client[clientName]
                 projectid = requestdata["projectid"]
                 gitname = requestdata["gitname"]
                 gitBranch = requestdata["gitbranch"]
@@ -575,7 +586,7 @@ def LoadServices(app, redissession, dbsession, *args):
                                 "cord": so["cord"] if ("cord" in so) else ""
                             })
                         del tc
-                        createdataobjects(query_screen['screenid'], missingCustname)
+                        createdataobjects(dbsession,query_screen['screenid'], missingCustname)
 
                         #query to update tescase
                         queryresult = dbsession.testcases.update_many({'_id':ObjectId(testcaseid),'versionnumber':0},
@@ -589,7 +600,7 @@ def LoadServices(app, redissession, dbsession, *args):
         remove_dir(git_path)
         return res
 
-    def adddataobjects(pid, d):
+    def adddataobjects(dbsession,pid, d):
         if len(d) == 0: return False
         req = []
         for row in d:
@@ -599,7 +610,7 @@ def LoadServices(app, redissession, dbsession, *args):
             req.append(InsertOne(row))
         dbsession.dataobjects.bulk_write(req)
 
-    def createdataobjects(scrid, objs):
+    def createdataobjects(dbsession,scrid, objs):
         custnameToAdd = []
         for e in objs:
             so = objs[e]
@@ -659,7 +670,7 @@ def LoadServices(app, redissession, dbsession, *args):
                 dodata["tag"] = "_".join(so["custname"].split("_")[0:2])
             elif so["appType"] == ["Generic", "SAP", "Webservice", "Mainframe", "System"]: pass
             custnameToAdd.append(dodata)
-        adddataobjects(scrid, custnameToAdd)
+        adddataobjects(dbsession,scrid, custnameToAdd)
 
     def getScrapeData(hex_data):
         try:

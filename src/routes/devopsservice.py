@@ -3,8 +3,8 @@ from unicodedata import name
 from warnings import catch_warnings
 from utils import *
 import json
-def LoadServices(app, redissession, dbsession):
-    setenv(app)
+def LoadServices(app, redissession, client ,getClientName):
+    setenv(app) 
 
     @app.route('/devops/configurekey',methods=['POST'])
     def configureKey():
@@ -12,6 +12,8 @@ def LoadServices(app, redissession, dbsession):
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
+            clientName=getClientName(requestdata)       
+            dbsession=client[clientName]
 
             if(requestdata['query'] == 'fetchExecutionData'):
                 keyDetails = list(dbsession.configurekeys.find({'token': requestdata["key"]},{'executionData': 1,'session': 1}))
@@ -98,6 +100,8 @@ def LoadServices(app, redissession, dbsession):
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
+            clientName=getClientName(requestdata)       
+            dbsession=client[clientName]
             requestdata['configkey'] = requestdata['executionData']['configurekey']
             requestdata['executionListId'] = requestdata['executionData']['executionListId']
             dbsession.executionlist.insert_one(requestdata)
@@ -114,6 +118,8 @@ def LoadServices(app, redissession, dbsession):
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
+            clientName=getClientName(requestdata)       
+            dbsession=client[clientName]
             queryresult = list(dbsession.executionlist.find({'executionListId':requestdata['executionListId'],"configkey": requestdata['key']}))
 
             res['rows'] = {
@@ -136,6 +142,8 @@ def LoadServices(app, redissession, dbsession):
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
+            clientName=getClientName(requestdata)        
+            dbsession=client[clientName]
             queryresult = list(dbsession.avogrids.find({"_id": ObjectId(requestdata["avogridid"])}))
             res['rows'] = queryresult[0]['avoagents']
 
@@ -150,7 +158,8 @@ def LoadServices(app, redissession, dbsession):
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
-
+            clientName=getClientName(requestdata)      
+            dbsession=client[clientName]
             agentPresent = list(dbsession.avoagents.find({"Hostname": requestdata["Hostname"]}))
             if(len(agentPresent) > 0): #agent already present then update the details
                 requestdata['status'] = agentPresent[0]['status']
@@ -174,6 +183,8 @@ def LoadServices(app, redissession, dbsession):
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
+            clientName=getClientName(requestdata)        
+            dbsession=client[clientName]
             data = list(dbsession.configurekeys.find({"executionRequest.avoagents" : {"$in": [requestdata['avoagents']]}},{'_id': 0,'token': 1}))
             keysList = []
             for dic in data:
@@ -204,6 +215,8 @@ def LoadServices(app, redissession, dbsession):
         try:
             requestdata=json.loads(request.data)
             testSuiteId = requestdata['testSuiteId']
+            clientName=getClientName(requestdata)        
+            dbsession=client[clientName]
 
             # Fetching the data
             executionData = list(dbsession.executionlist.find({'executionListId':requestdata['executionListId'],"configkey": requestdata['key']}))
@@ -232,8 +245,11 @@ def LoadServices(app, redissession, dbsession):
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
-            
-            
+            clientName="avoassure"
+            if "host" in requestdata[-1]:
+                clientName=requestdata[-1]["host"].split('.')[0]        
+            dbsession=client[clientName]
+            del(requestdata[-1])
             processedData = []
             processedDataIndex = 0
             for moduleDetail in requestdata:
@@ -269,9 +285,7 @@ def LoadServices(app, redissession, dbsession):
                     processedDataIndex+=1
 
             res['rows'] = processedData
-
         except Exception as e:
-            print(e)
             return e
         return jsonify(res)
 
@@ -282,6 +296,8 @@ def LoadServices(app, redissession, dbsession):
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
+            clientName=getClientName(requestdata)        
+            dbsession=client[clientName]
             queryresult = list(dbsession.configurekeys.find({'executionData.batchInfo.projectId': requestdata['projectid']}))
             responseData = []
             for elements in queryresult:
@@ -308,6 +324,8 @@ def LoadServices(app, redissession, dbsession):
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
+            clientName=getClientName(requestdata)         
+            dbsession=client[clientName]
             queryresultavogrid = queryresultavoagent = ''
             if requestdata['query'] == 'all' or requestdata['query'] == 'avoAgentList':
                 queryresultavoagent = list(dbsession.avoagents.find({}))
@@ -330,7 +348,9 @@ def LoadServices(app, redissession, dbsession):
         app.logger.debug("Inside deleteConfigureKey")
         res={'rows':'fail'}
         try:
-            requestdata=json.loads(request.data)        
+            requestdata=json.loads(request.data)  
+            clientName=getClientName(requestdata)       
+            dbsession=client[clientName]      
             result=dbsession.configurekeys.delete_one({"token":requestdata['key']})
 
             res['rows'] = 'success'
@@ -348,6 +368,8 @@ def LoadServices(app, redissession, dbsession):
             requestdata=json.loads(request.data)
 
             for agentDetail in requestdata:
+                clientName=getClientName(requestdata)         
+                dbsession=client[clientName]
                 if(agentDetail['action'] == 'update'):
                     dbsession.avoagents.update({"_id":ObjectId(agentDetail['value']['_id'])},{'$set':{"icecount":agentDetail['value']["icecount"] , "status": agentDetail['value']['status']}})
                 else:
@@ -367,6 +389,8 @@ def LoadServices(app, redissession, dbsession):
         try:
 
             requestdata=json.loads(request.data)
+            clientName=getClientName(requestdata)         
+            dbsession=client[clientName]
             action = requestdata["action"]
             value = requestdata["value"]
             # check whether key is already present
@@ -396,7 +420,9 @@ def LoadServices(app, redissession, dbsession):
         app.logger.debug("Inside deleteAvoGrid")
         res={'rows':'fail'}
         try:
-            requestdata=json.loads(request.data)        
+            requestdata=json.loads(request.data) 
+            clientName=getClientName(requestdata)        
+            dbsession=client[clientName]       
             result=dbsession.avogrids.delete_one({"_id":ObjectId(requestdata['_id'])})
 
             res['rows'] = 'success'
@@ -412,6 +438,8 @@ def LoadServices(app, redissession, dbsession):
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
+            clientName=getClientName(requestdata)         
+            dbsession=client[clientName]
 
             queryresult=list(dbsession.executions.find({"executionListId":requestdata["executionListId"]}))
             testSuite = []
@@ -435,8 +463,8 @@ def LoadServices(app, redissession, dbsession):
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
-
-
+            clientName=getClientName(requestdata)         
+            dbsession=client[clientName]
             cacheResult = list(dbsession.cachedb.find({}))
 
             if 'query' in requestdata:
@@ -464,6 +492,8 @@ def LoadServices(app, redissession, dbsession):
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
+            clientName=getClientName(requestdata)         
+            dbsession=client[clientName]
             listOfModules = list(dbsession.executionlist.find({'executionListId':requestdata['executionListId']}))
 
             agentModuleList = []

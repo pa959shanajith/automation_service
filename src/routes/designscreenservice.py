@@ -10,7 +10,7 @@ from pymongo import ReplaceOne
 from Crypto.Cipher import AES
 import codecs
 
-def LoadServices(app, redissession, dbsession):
+def LoadServices(app, redissession, client ,getClientName):
     setenv(app)
 
 ################################################################################
@@ -25,6 +25,8 @@ def LoadServices(app, redissession, dbsession):
             requestdata=json.loads(request.data)
             app.logger.debug("Inside getScrapeDataScreenLevel_ICE. Query: "+str(requestdata["query"]))
             if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)         
+                dbsession=client[clientName]
                 if ('testcaseid' in requestdata and requestdata['testcaseid']):
                     screen_id = dbsession.testcases.find_one({'_id':ObjectId(requestdata['testcaseid'])},{'screenid':1})['screenid'] ##add versionnumber in condition if needed
                 else:
@@ -62,6 +64,8 @@ def LoadServices(app, redissession, dbsession):
         try:
             data=json.loads(request.data)
             if not isemptyrequest(data):
+                clientName=getClientName(data)         
+                dbsession=client[clientName]
                 if data['param'] == 'DebugModeScrapeData':
                     screenId = dbsession.testcases.find_one({'_id':ObjectId(data['testCaseId']), 'versionnumber':data['versionnumber']},{'screenid':1})
                     data['screenId'] = str(screenId['screenid'])
@@ -278,7 +282,7 @@ def LoadServices(app, redissession, dbsession):
 
 
 
-    def getScreenID(screenname,projectid):
+    def getScreenID(dbsession,screenname,projectid):
         screenname=list(dbsession.screens.find({"projectid":ObjectId(projectid),"name":screenname,"deleted":False},{"_id":1}))
         if len(screenname)==1:
             return str(screenname[0]["_id"])
@@ -297,6 +301,8 @@ def LoadServices(app, redissession, dbsession):
             # app.logger.debug(request.data)
             dataobjectdetails = dataobjects["dataobjects"]
             if not isemptyrequest(dataobjects):
+                clientName=getClientName(dataobjects)         
+                dbsession=client[clientName]
                 for data in dataobjectdetails:
                     if data['param'] == 'DebugModeScrapeData':
                         screenId = dbsession.testcases.find_one({'_id':ObjectId(data['testCaseId']), 'versionnumber':data['versionnumber']},{'screenid':1})
@@ -309,7 +315,7 @@ def LoadServices(app, redissession, dbsession):
                         # screenId = ObjectId(data['screenId'])
                         screenname = data["screenname"]
                         projectid = data["projectid"]
-                        screenId = ObjectId(getScreenID(screenname,projectid))
+                        screenId = ObjectId(getScreenID(dbsession,screenname,projectid))
 
                         orderList = data['orderList']
                         temp_orderList = []
@@ -385,7 +391,7 @@ def LoadServices(app, redissession, dbsession):
                         # screenId = ObjectId(data["screenId"])
                         screenname = data["screenname"]
                         projectid = data["projectid"]
-                        screenId = ObjectId(getScreenID(screenname,projectid))
+                        screenId = ObjectId(getScreenID(dbsession,screenname,projectid))
 
 
                         modifiedbyrole= data["roleId"]
@@ -409,7 +415,7 @@ def LoadServices(app, redissession, dbsession):
                         # screenId = ObjectId(data["screenId"])
                         screenname = data["screenname"]
                         projectid = data["projectid"]
-                        screenId = ObjectId(getScreenID(screenname,projectid))
+                        screenId = ObjectId(getScreenID(dbsession,screenname,projectid))
 
 
                         modifiedbyrole= ObjectId(data["roleId"])
@@ -445,7 +451,7 @@ def LoadServices(app, redissession, dbsession):
                         # screenId = ObjectId(data["screenId"])
                         screenname = data["screenname"]
                         projectid = data["projectid"]
-                        screenId = ObjectId(getScreenID(screenname,projectid))
+                        screenId = ObjectId(getScreenID(dbsession,screenname,projectid))
 
 
                         scrapeinfo = json.loads(data["scrapedata"])
@@ -486,7 +492,7 @@ def LoadServices(app, redissession, dbsession):
                         # screenId = ObjectId(data["screenId"])
                         screenname = data["screenname"]
                         projectid = data["projectid"]
-                        screenId = ObjectId(getScreenID(screenname,projectid))
+                        screenId = ObjectId(getScreenID(dbsession,screenname,projectid))
 
                         
                         data_obj = data["objList"]
@@ -556,6 +562,8 @@ def LoadServices(app, redissession, dbsession):
         try:
             data=json.loads(request.data)
             if not isemptyrequest(data):
+                clientName=getClientName(data)         
+                dbsession=client[clientName]
                 screenid = ObjectId(data['screenId'])
                 queryresult = list(dbsession.testcases.find({"screenid":screenid, "deleted":False},{"steps":1}))
                 result={
@@ -601,6 +609,8 @@ def LoadServices(app, redissession, dbsession):
             app.logger.debug("Inside updateIrisObjectType")
             if "_id" in requestdata and requestdata["_id"] == "": del requestdata["_id"]
             if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)         
+                dbsession=client[clientName]
                 if "_id" not in requestdata:
                     res={'rows':'unsavedObject'}
                 else:
@@ -623,6 +633,8 @@ def LoadServices(app, redissession, dbsession):
             requestdata = json.loads(request.data)
             app.logger.debug("Inside updateIrisObjectType")
             if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)         
+                dbsession=client[clientName]
                 screenId = ObjectId(requestdata["screenid"])
                 import_objects = requestdata['data']
                 obj_types=['a','button','checkbox','elmnt','img','input','list','radiobutton','select','table']

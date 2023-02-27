@@ -6,7 +6,7 @@ from utils import *
 from Crypto.Cipher import AES
 import base64
 
-def LoadServices(app, redissession, dbsession):
+def LoadServices(app, redissession, client ,getClientName):
     setenv(app)
 
 ################################################################################
@@ -48,6 +48,8 @@ def LoadServices(app, redissession, dbsession):
         try:
             requestdata = json.loads(request.data)
             if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)       
+                dbsession=client[clientName]
                 if requestdata['query'] == 'testsuites':
                     count = requestdata['count']
                     userid = ObjectId(requestdata['userid']) if 'userid' in requestdata else ""
@@ -75,6 +77,8 @@ def LoadServices(app, redissession, dbsession):
             if type(emptyRequestCheck) != bool:
                 res['rows'] = 'off'
             elif not emptyRequestCheck:
+                clientName=getClientName(requestdata)        
+                dbsession=client[clientName]
                 servicename = requestdata.get('servicename', '')
                 roleid = requestdata.get('roleid', '')
                 if servicename in EXEMPTED_SERVICES:
@@ -99,6 +103,8 @@ def LoadServices(app, redissession, dbsession):
         try:
             requestdata = json.loads(request.data)    
             if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)        
+                dbsession=client[clientName]
                 name = requestdata["name"]
                 action=requestdata["action"]
                 dts = dbsession.datatables.find_one({"name": name})
@@ -147,6 +153,8 @@ def LoadServices(app, redissession, dbsession):
         try:
             requestdata = json.loads(request.data)    
             if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)        
+                dbsession=client[clientName]
                 action = requestdata["action"]
                 if action == "datatablenames":
                     dts = list(dbsession.datatables.find({},{"name":1}))
