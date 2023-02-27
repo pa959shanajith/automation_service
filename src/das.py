@@ -88,49 +88,28 @@ ice_das_key = "".join(['a','j','k','d','f','i','H','F','E','o','w','#','D','j',
     'g','L','I','q','o','c','n','^','8','s','j','p','2','h','f','Y','&','d'])
 db_keys = "".join(['N','i','n','E','t','e','E','n','6','8','d','A','t','a','B',
     'A','s','3','e','N','c','R','y','p','T','1','0','n','k','3','y','S'])
-mine = "".join(['\x4e','\x36','\x38','\x53','\x51','\x4c','\x69','\x74','\x65','\x44','\x61','\x74','\x61','\x53','\x65',
-    '\x63','\x72','\x65','\x74','\x4b','\x65','\x79','\x43','\x6f','\x6d','\x70','\x4f','\x4e','\x65','\x6e','\x74','\x73'])
-omgall = "".join(['\x4e','\x69','\x6e','\x65','\x74','\x65','\x65','\x6e','\x36','\x38','\x6e','\x64','\x61','\x74','\x63',
-    '\x6c','\x69','\x63','\x65','\x6e','\x73','\x69','\x6e','\x67'])
 ldap_key = "".join(['l','!','g','#','t','W','3','l','g','G','h','1','3','@','(',
     'c','E','s','$','T','p','R','0','T','c','O','I','-','k','3','y','S'])
 activeicesessions={}
 latest_access_time=datetime.now()
 ip_regex = r"^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$"
 
-lsip = "127.0.0.1"
+
 lsport = "5000"
 dasport = "1990"
 redis_dbup = False
 mongo_dbup = False
-onlineuser = False
-# gracePeriodTimer=None
-# twoDayTimer=None
+expiryTime=None
+licenseServer=None
 licensedata=None
-grace_period = 172800
 LS_CRITICAL_ERR_CODE=['199','120','121','123','124','125']
-lsRetryCount=0
-sysMAC=None
-chronographTimer=None
-dbsession=redissession=redissession_db2=None
+webPluginList = {
+				"MR":"reports","MD":"dashboard","ALMDMT":"integration","STAVO":"seleniumtoavo",
+				"DE":"utility","WEBT":"web","APIT":"webservice","MOBT":"mobileapp","ETOAP":"oebs",
+				"DAPP":"desktop","MF":"mainframe","ETSAP":"sap"
+			}
+dbsession=redissession=redissession_db2=client=None
 
-#Variables for ProfJ
-questions=[] # to store the questions
-pages=[] # to store the pages
-keywords=[] # to store the keywords
-weights=[] # to store the weights
-answers=[] # to store the answers
-pquestions=[] #preprocessed questions
-newQuesInfo=[] #list to store relevant info about new questions
-savedQueries = None #A variable to save every single relevant query asked by user
-updateW = [[]]
-weightUpdateTime = 60
-chatbot = None
-profj_db_path=assistpath+"/ProfJ.db"
-profj_log_conf_path = assistpath + "/logging_config.conf"
-profj_syn_path = assistpath + "/SYNONYMS.json"
-profj_keywords_path = assistpath+"/keywords_db.txt"
-profj_sqlitedb=None
 
 def _jsonencoder_default(self, obj):
     if isinstance(obj, ObjectId):
@@ -144,9 +123,7 @@ flask.json.JSONEncoder.default = _jsonencoder_default
 #server check
 @app.route('/')
 def server_ready():
-    msg = 'Data Server Stopped!!!'
-    if onlineuser:
-        msg = 'Data Server Ready!!!'
+    msg = 'Data Server Ready!!!'
     return msg
 
 @app.route('/version')
@@ -167,86 +144,51 @@ sys.path.append(currfiledir+os.sep+"utility")
 def addroutes():
     app.logger.debug("Loading services")
     import loginservice
-    loginservice.LoadServices(app, redissession, dbsession, licensedata,basecheckonls)
+    loginservice.LoadServices(app, redissession, client, licensedata,basecheckonls,getClientName)
 
     import adminservice
-    adminservice.LoadServices(app, redissession, dbsession, licensedata, ice_das_key, ldap_key)
+    adminservice.LoadServices(app, redissession, client, getClientName,licensedata, ice_das_key, ldap_key)
 
     import mindmapservice
-    mindmapservice.LoadServices(app, redissession, dbsession)
+    mindmapservice.LoadServices(app, redissession, client,getClientName)
 
     import devopsservice
-    devopsservice.LoadServices(app, redissession, dbsession)
+    devopsservice.LoadServices(app, redissession, client,getClientName)
     
     if os.path.exists(gitpath):
         os.environ["GIT_PYTHON_GIT_EXECUTABLE"] = gitpath
         import gitservice
-        gitservice.LoadServices(app, redissession, dbsession, ldap_key)
+        gitservice.LoadServices(app, redissession, client ,getClientName , ldap_key)
 
     import designscreenservice
-    designscreenservice.LoadServices(app, redissession, dbsession)
+    designscreenservice.LoadServices(app, redissession, client,getClientName)
 
     import designtestcaseservice
-    designtestcaseservice.LoadServices(app, redissession, dbsession)
+    designtestcaseservice.LoadServices(app, redissession, client,getClientName)
 
     import executionservice
-    executionservice.LoadServices(app, redissession, dbsession)
+    executionservice.LoadServices(app, redissession, client,getClientName)
 
     import thirdpartyservice
-    thirdpartyservice.LoadServices(app, redissession, dbsession, ldap_key)
+    thirdpartyservice.LoadServices(app, redissession, client ,getClientName, ldap_key)
 
     import reportsservice
-    reportsservice.LoadServices(app, redissession, dbsession)
+    reportsservice.LoadServices(app, redissession, client,getClientName)
 
     import utilitiesservice
-    utilitiesservice.LoadServices(app, redissession, dbsession)
+    utilitiesservice.LoadServices(app, redissession, client,getClientName)
 
     import neurongraphsservice
-    neurongraphsservice.LoadServices(app, redissession, dbsession)
+    neurongraphsservice.LoadServices(app, redissession, client,getClientName)
     
     import benchmarkservice
-    benchmarkservice.LoadServices(app,redissession,dbsession)
+    benchmarkservice.LoadServices(app,redissession,client,getClientName)
 
     import partitionservice
-    partitionservice.LoadServices(app,redissession,dbsession)
+    partitionservice.LoadServices(app,redissession,client,getClientName)
 
     import notificationservice
-    notificationservice.LoadServices(app,redissession,dbsession)
-
-    #Prof J First Service: Getting Best Matches
-    @app.route('/chatbot/getTopMatches_ProfJ',methods=['POST'])
-    def getTopMatches_ProfJ():
-        app.logger.debug("Inside getTopMatches_ProfJ")
-        global newQuesInfo, savedQueries
-        res={'rows':'fail'}
-        try:
-            if ( type(request.data) == bytes ): query = str(request.data.decode('utf-8'))
-            else: query = str(request.data)
-            profj = ProfJ(pages,questions,answers,keywords,weights,pquestions,newQuesInfo,savedQueries)
-            response,newQuesInfo,savedQueries = profj.start(query)
-            #if response[0][1] == "Please be relevant..I work soulfully for Avo Assure":
-                #response[0][1] = str(chatbot.get_response(query))
-            profj_sqlitedb.updateCaptureTable()
-            res={'rows':response}
-        except Exception as e:
-            servicesException("getTopMatches_ProfJ",e)
-        return jsonify(res)
-
-    #Prof J Second Service: Updating the Question's Frequency
-    @app.route('/chatbot/updateFrequency_ProfJ',methods=['POST'])
-    def updateFrequency_ProfJ():
-        app.logger.debug("Inside updateFrequency_ProfJ")
-        res={'rows':'fail'}
-        try:
-            qid = request.data
-            weights[int(qid)] += 1
-            temp = []
-            temp.append(qid)
-            temp.append(weights[int(qid)])
-            res={'rows': True}
-        except Exception as e:
-            servicesException("updateFrequency_ProfJ",e)
-        return jsonify(res)
+    notificationservice.LoadServices(app,redissession,client,getClientName)
 
 ################################################################################
 # END OF SERVICES IMPORT
@@ -258,9 +200,8 @@ def checkServer():
     response = "fail"
     status = 500
     try:
-        if (onlineuser == True):
-            response = json.dumps({"st":"pass", "isTrial":licensedata['isTrial']})
-            status = 200
+        response = json.dumps({"st":"pass"})
+        status = 200
     except Exception as exc:
         servicesException("checkServer",exc)
     return Response(response, status, mimetype='text/plain')
@@ -269,6 +210,7 @@ def checkServer():
 def updateActiveIceSessions():
     global activeicesessions
     global latest_access_time
+    global webPluginList
     res = {"id":"","res":"fail","ts_now":str(datetime.now()),"connect_time":str(datetime.now()),
         "plugins":"","data":random.random()*100000000000000}
     response = {"node_check":False,"ice_check":wrap(json.dumps(res),ice_das_key)}
@@ -278,6 +220,8 @@ def updateActiveIceSessions():
         requestdata = json.loads(request.data)
         app.logger.debug("Inside updateActiveIceSessions. Query: "+str(requestdata["query"]))
         if not isemptyrequest(requestdata):
+            clientName=getClientName(requestdata)      
+            dbsession=client[clientName]
             sess = redissession.get('icesessions')
             if sess == '' or sess is None:
                 redissession.set('icesessions',wrap('{}',db_keys))
@@ -333,6 +277,7 @@ def updateActiveIceSessions():
                         username = None
                         # To allow the connection, check for registered state of ICE
                         if ice_status == REGISTER_STATUS:
+                            lsData=dbsession.licenseManager.find_one({"client":clientName})['data']
                             #If icetype=="normal" , map username-->icename , else if icetype=="ci-cd" map icetoken-->icename
                             if ice_type == "normal": 
                                 username = dbsession.users.find_one({"_id":queryresult["provisionedto"]},{"name":1})
@@ -352,7 +297,7 @@ def updateActiveIceSessions():
                                     if ice_name in activeicesessions and activeicesessions[ice_name] != ice_uuid:
                                         res['err_msg'] = "Connection exists with same token"
                                     # To check if license is available
-                                    elif len(activeicesessions) >= int(licensedata['allowedIceSessions']):
+                                    elif len(activeicesessions) >= int(lsData['USER']):
                                         res['err_msg'] = "All ice sessions are in use"
                                     # To add in active ice sessions
                                     else:
@@ -364,9 +309,9 @@ def updateActiveIceSessions():
                                     response["node_check"] = "allow"
                                     response["username"] = username
                                     ice_plugins_list = []
-                                    for keys in licensedata['platforms']:
-                                        if(licensedata['platforms'][keys] == True):
-                                            ice_plugins_list.append(keys)
+                                    for key in lsData:
+                                        if key in webPluginList:
+                                            ice_plugins_list.append(webPluginList[key])
                                     res["plugins"] = ice_plugins_list
                             else:
                                 res['err_msg'] = ice_name+" is not Registered with a valid Avo Assure User"
@@ -550,315 +495,57 @@ def reportdataprocessor(resultset,fromdate,todate):
 ################################################################################
 # START OF LICENSING COMPONENTS
 ################################################################################
-def getMacAddress():
-    app.logger.debug("Inside getMacAddress")
-    mac=""
-    if sys.platform == 'win32':
-        for line in os.popen("ipconfig /all"):
-            if line.lstrip().startswith('Physical Address'):
-##                mac = line.split(':')[1].strip().replace('-',':')
-                mac = line.split(':')[1].strip()
-                mac = mac+'    '
-                break
-    else:
-        for line in os.popen("/sbin/ifconfig"):
-            if line.find('Ether') > -1:
-                mac = line.split()[4]
-                mac = mac+'    '
-                break
-    return mac
+
+def getClientName(requestdata):
+    clientName="avoassure"
+    try:
+        if "host" in requestdata:
+            if ['localhost','127.0.0.1'] not in requestdata["host"]:
+                clientName=requestdata["host"].split('.')[0] 
+    except Exception as e:
+        app.logger.error(e)
+        app.logger.error('Error while fetching client name')
+
+    return clientName
 
 
 def basecheckonls():
     app.logger.debug("Inside basecheckonls")
+    global licensedata,expiryTime,licenseServer
     basecheckstatus = False
     try:
-        dbdata = dataholder('select')
-        token=dbdata['tkn']
-        EXPECTING_RESPONSE=str(int(time.time()*24150))
-        baserequest= {
-            "action": "register",
-            "token": token,
-            "lCheck": str(latest_access_time),
-            "ts": EXPECTING_RESPONSE
-        }
-        baserequest=wrap(json.dumps(baserequest),omgall)
-        connectresponse = connectingls(baserequest)
-        if connectresponse != False:
-            actresp = unwrap(connectresponse,omgall)
-            actresp = json.loads(actresp)
-            if actresp['ots']==EXPECTING_RESPONSE:
-                EXPECTING_RESPONSE=''
-                if actresp['res'] == 'F':
-                    emsg="[ECODE: "+actresp['ecode']+"] "+actresp['message']
-                    if (actresp['ecode'] in LS_CRITICAL_ERR_CODE):
-                        app.logger.critical(emsg)
-                        stopserver()
-                    else:
-                        app.logger.error(emsg)
-                elif actresp['res'] == 'S':
-                    global onlineuser,licensedata
-                    licensedata=actresp['ldata']
-                    if token==actresp['token']:
-                        basecheckstatus = True
-                    else:
-                        dbdata['tkn']=actresp['token']
-                        basecheckstatus=dataholder('update',dbdata)
-                    onlineuser = True
-                    setenv(licactive=onlineuser)
-        else:
-            if lsRetryCount<3:
-                app.logger.info(printErrorCodes('215'))
-                time.sleep(10)
-                basecheckstatus=basecheckonls()
+        if not licenseServer["enable"] :
+            from licenseManager import getLSData
+            licensedata=getLSData(licenseServer["path"])
+            if licensedata != False:
+                basecheckstatus = True
             else:
-                app.logger.critical(printErrorCodes('216'))
+                basecheckstatus = False
+            expiryDate=licensedata["ExpiresOn"].split('/')
+            expiryDate=datetime(int(expiryDate[2]), int(expiryDate[0]), int(expiryDate[1]))
+            if expiryTime == None:
+                expiryTime=expiryDate
+                basecheckstatus = True
+            basecheckstatus = True    
+        else:
+            licensedata={"licenseServer":licenseServer["url"]}
+            basecheckstatus = True
     except Exception as e:
         app.logger.debug(e)
         app.logger.error(printErrorCodes('201'))
     return basecheckstatus
 
-def updateonls():
-    app.logger.debug("Inside updateonls")
-    try:
-        global licensedata
-        dbdata=dataholder('select')
-        EXPECTING_RESPONSE=str(int(time.time()*24150))
-        modelinfores = modelinfoprocessor()
-        if('mdlinfo' in dbdata):
-            modelinfores.extend(dbdata['mdlinfo'])
-            del dbdata['mdlinfo']
-            dataholder('update',dbdata)
-        datatols={
-            "token": dbdata['tkn'],
-            "action": "update",
-            "ts": EXPECTING_RESPONSE,
-            "lCheck": str(latest_access_time),
-            "modelinfo": modelinfores
-        }
-        datatols=wrap(json.dumps(datatols),omgall)
-        updateresponse = connectingls(datatols)
-        if updateresponse != False:
-            chronograph()
-            res = json.loads(unwrap(updateresponse,omgall))
-            if res['res'] == 'F':
-                emsg="[ECODE: "+res['ecode']+"] "+res['message']
-                if (res['ecode'] in LS_CRITICAL_ERR_CODE):
-                    app.logger.critical(emsg)
-                    dbdata['mdlinfo']=modelinfores
-                    dataholder('update',dbdata)
-                    stopserver()
-                else:
-                    app.logger.error(emsg)
-            elif res['res'] == 'S':
-                if('ldata' in res):
-                    licensedata = res['ldata']
-        else:
-            if lsRetryCount<3:
-                app.logger.info(printErrorCodes('215'))
-                time.sleep(10)
-                updateonls()
-            else:
-                dbdata['mdlinfo']=modelinfores
-                dataholder('update',dbdata)
-                app.logger.critical(printErrorCodes('216'))
-                # startTwoDaysTimer()
-    except Exception as e:
-        app.logger.debug(e)
-        app.logger.error(printErrorCodes('202'))
 
-def connectingls(data):
-    global lsRetryCount  #,twoDayTimer,grace_period
-    lsRetryCount+=1
-    connectionstatus=False
-    try:
-        lsresponse = requests.post('http://'+lsip+":"+lsport+"/dasrequest",data=data)
-        if lsresponse.status_code == 200:
-            dbdata=dataholder('select')
-            if('grace_period' in dbdata):
-                del dbdata['grace_period']
-                dataholder('update',dbdata)
-            lsRetryCount=0
-            # grace_period = 172800
-            connectionstatus = lsresponse.content
-            # if (twoDayTimer != None and twoDayTimer.isAlive()):
-            #     twoDayTimer.cancel()
-            #     twoDayTimer=None
-    except Exception as e:
-        app.logger.debug(e)
-        app.logger.error(printErrorCodes('208'))
-    return connectionstatus
-
-def chronograph():
-    app.logger.debug("Chronograph triggred")
-    try:
-        secs=None
-        if chronographTimer is not None:
-            secs=chronographTimer
-        else:
-            x = datetime.utcnow() + timedelta(seconds = 19800)
-            secs = (getupdatetime() - x).total_seconds()
-        t = Timer(secs, updateonls)
-        update_script_thread = Timer(secs,update_execution_times,[dbsession,app])
-        update_script_thread.start()
-        t.start()
-    except Exception as e:
-        app.logger.debug(e)
-        app.logger.critical(printErrorCodes('210'))
-
-def dataholder(ops,*args):
-    data = False
-    try:
-        if ops=='check':
-            if os.access(logspath+"/data.db",os.R_OK):
-                data = True
-        else:
-            # CREATE DATABASE CONNECTION
-            conn = sqlite3.connect(logspath+"/data.db")
-            if ops=='select':
-                #Retrieve the data from db and decrypt it
-                cursor = conn.cursor()
-                result = cursor.execute("SELECT intrtkndt FROM clndls WHERE sysid='daskey'")
-                data = list(result)
-                if len(data) == 0:
-                    # Backward compatibility
-                    old_key = "nd"+"ackey" # To hide n.d.a.c from search
-                    result = list(cursor.execute("SELECT intrtkndt FROM clndls WHERE sysid=(?)",(old_key,)))
-                    if len(result) == 0: data = ""
-                    else:
-                        data = result[0][0]
-                        cursor.execute("INSERT INTO clndls(sysid,intrtkndt) VALUES (?,?)",('daskey',data))
-                        cursor.execute("DELETE FROM clndls WHERE sysid=(?)",(old_key,))
-                else: data = data[0][0]
-                data=unwrap(data,mine)
-                data=json.loads(data)
-            elif ops=='update':
-                #Encrypt data and update in db
-                datatodb=json.dumps(args[0])
-                datatodb=wrap(datatodb,mine)
-                cursor1 = conn.execute("UPDATE clndls SET intrtkndt = ? WHERE sysid = 'daskey'",[datatodb])
-                data=True
-            conn.commit()
-            conn.close()
-    except Exception as e:
-        app.logger.debug(e)
-        app.logger.critical(printErrorCodes('213'))
-    return data
-
-def dataholder_profj(ops,*args):
-    data = False
-    try:
-        if ops=='check':
-            if os.access(profj_db_path,os.R_OK):
-                data = True
-        else:
-            # CREATE DATABASE CONNECTION
-            conn = sqlite3.connect(profj_db_path)
-            if ops=='getMainDB':
-                cursor1 = conn.execute("SELECT * FROM mainDB")
-                data = []
-                for row in cursor1:
-                    data.append(row)
-            elif ops=='getQues':
-                cursor1 = conn.execute("SELECT * FROM NewQuestions")
-                data = []
-                for row in cursor1:
-                    data.append(row)
-            elif ops=='insertCapQuery':
-                cursor1 = conn.executemany('INSERT INTO CapturedQueries VALUES (?,?)', [args[0]])
-                data=True
-            elif ops=='updateWeight':
-                for i in range(len(weights)):
-                    cursor1 = conn.execute('UPDATE mainDB SET Weightage= ? WHERE qid = ?',(weights[i],i))
-                data=True
-            conn.commit()
-            conn.close()
-    except Exception as e:
-        app.logger.debug(e)
-        app.logger.critical(printErrorCodes('223'))
-    return data
-
-def checkSetup():
-    app.logger.debug("Inside Setup Check")
-    # global grace_period
-    endas=False
-    errCode=0
-    #checks if the db is already existing,
-        #if exists, verifies the MAC address, if present allows further,
-        #else considers the Patch is replaced in another Machine
-    #else considers patch db is modified/deleted
-    dbexists=dataholder('check')
-    profj_dbexists=dataholder_profj('check')
-    if dbexists:
-        dbdata=dataholder('select')
-        if dbdata:
-            # if('grace_period' in dbdata):
-            #     grace_period = dbdata['grace_period']
-            dbmacid=dbdata['macid']
-            sysmacid=sysMAC
-            if len(dbmacid)==0:
-                endas=True
-                dbdata['macid']=sysmacid
-                dataholder('update',dbdata)
-            elif False and dbmacid!=sysmacid and dbmacid!="PoC".lower():
-                endas=False
-                errCode='211'
-            else:
-                endas=True
-        else:
-            endas=False
-            errCode='213'
-    else:
-        endas=False
-        errCode='212'
-
-    if not profj_dbexists:
-        endas=False
-        errCode='222'
-
-    if errCode!=0:
-        app.logger.error(printErrorCodes(errCode))
-    return endas
 
 def beginserver(host = '127.0.0.1', **kwargs):
-    global profj_sqlitedb
     if redis_dbup and mongo_dbup:
-        profj_sqlitedb = SQLite_DataSetup()
-        updateWeightages() # ProfJ component
         serve(app,host=host,port=int(dasport),**kwargs)
     else:
         app.logger.critical(printErrorCodes('207'))
 
 def stopserver():
-    global onlineuser #, gracePeriodTimer
-    # if(gracePeriodTimer != None and gracePeriodTimer.isAlive()):
-    #     gracePeriodTimer.cancel()
-    #     gracePeriodTimer = None
-    #     dbdata = dataholder('select')
-    #     dbdata['grace_period']=0
-    #     dataholder('update',dbdata)
-    onlineuser = False
     app.logger.error(printErrorCodes('205'))
 
-def startTwoDaysTimer():
-    global twoDayTimer,gracePeriodTimer
-    twoDayTimer = Timer(grace_period, stopserver)
-    twoDayTimer.start()
-    gracePeriodTimer = Timer(3600,saveGracePeriod)
-    gracePeriodTimer.start()
-    app.logger.critical("Two day timer begins...")
-
-def saveGracePeriod():
-    global gracePeriodTimer,twoDayTimer
-    if (twoDayTimer.isAlive()):
-        dbdata = dataholder('select')
-        if('grace_period' in dbdata):
-            dbdata['grace_period']=dbdata['grace_period'] - 3600
-        else:
-            dbdata['grace_period']=169200
-        dataholder('update',dbdata)
-        gracePeriodTimer = Timer(3600,saveGracePeriod)
-        gracePeriodTimer.start()
 
 ################################################################################
 # END OF LICENSING SERVER COMPONENTS
@@ -933,211 +620,18 @@ def wrap(data, key, iv=b'0'*16):
 ################################################################################
 
 ################################################################################
-# Begining of ProfJ assist Components
-################################################################################
-
-class SQLite_DataSetup():
-    def __init__(self):
-        global questions,pages,weights,answers,keywords,pquestions,newQuesInfo
-        app.logger.debug("Inside SQLite_DataSetup")
-        mainDB_data=dataholder_profj("getMainDB")
-        for row in mainDB_data:
-            weights.append(int(row[1]))
-            questions.append(row[2])
-            answers.append(row[3])
-            keywords.append(row[4])
-            pages.append(row[5])
-            pquestions.append(row[6])
-
-        ques_data=dataholder_profj("getQues")
-        for col in ques_data:
-            info =[col[1],col[2],col[3]]
-            newQuesInfo.append(info)
-
-    # Function to update the captured Queries.
-    def updateCaptureTable(self):
-        app.logger.debug("Inside updateCaptureTable")
-        status=False
-        try:
-            if savedQueries is not None:
-                data = tuple(savedQueries)
-                status=dataholder_profj("insertCapQuery",data)
-        except Exception as e:
-            app.logger.debug(e)
-            app.logger.error(printErrorCodes("221"))
-        return status
-
-
-###Training the Bot
-##def trainProfJ():
-##    global chatbot
-##    try:
-##        from chatterbot import ChatBot
-##        import threading
-##        app.logger.debug("Starting ProfJ training")
-##        chatbot = ChatBot(
-##            'Prof J',
-##            trainer='chatterbot.trainers.ChatterBotCorpusTrainer'
-##        )
-##        #Train based on the english corpus
-##        chatbot.train("chatterbot.corpus.english")
-##        app.logger.debug("ProfJ training successfully completed")
-##
-##        #Starting chatbot training Parallely
-##        threading.Thread(target = trainProfJ).start()
-##    except Exception as e:
-##        app.logger.debug(e)
-##        app.logger.critical('Chatterbot module missing portable python')
-
-
-#Updating the sqlite database
-def updateWeightages():
-    t=Timer(weightUpdateTime,updateWeightages)
-    status=[]
-    try:
-        status=dataholder_profj("updateWeight")
-    except Exception as e:
-        app.logger.debug(e)
-        app.logger.error(printErrorCodes('220'))
-    t.start()
-    return status
-
-
-class ProfJ():
-
-    def __init__(self,pages,questions,answers,keywords,weights,pquestions, newQuesInfo, savedQueries):
-        self.questions = questions
-        self.pages = pages
-        self.weights = weights
-        self.answers = answers
-        self.keywords = keywords
-        self.pquestions = pquestions
-        self.newQuesInfo = newQuesInfo
-        self.topX = 5
-        self.userQuery=""
-        # Captures all the "Relevant" queries asked by User
-        # It is list of list[[query1,page1],[query2,page2]]
-        self.savedQueries = savedQueries
-
-    def Preprocess(self,query_string):
-        logging.config.fileConfig(profj_log_conf_path,disable_existing_loggers=False)
-        logger = logging.getLogger("ProfJ")
-        logger.info("Question asked is "+query_string)
-
-        #Step 1: Punctuations Removal
-        query1_str = "".join(c for c in query_string if c not in ('@','!','.',':','>','<','"','\'','?','*','/','&','(',')','-'))
-
-        #Step 2: Converting string into lowercase
-        query2 = [w.lower() for w in query1_str.split()]
-        query2_str = " ".join(query2)
-
-        #Step 3: Correcting appostropes.. Need this dictionary to be quite large
-        APPOSTOPHES = {"s" : "is", "'re" : "are","m":"am"}
-        words = (' '.join(query2_str.split("'"))).split()
-        query5 = [ APPOSTOPHES[word] if word in APPOSTOPHES else word for word in words]
-
-        #Step 4: Normalizing words
-        data_file=open(profj_syn_path,"r")
-        SYNONYMS = json.loads(data_file.read())
-        data_file.close()
-        query6 = [ SYNONYMS[word] if word in SYNONYMS else word for word in query5]
-
-        #Step 5: Stemming
-        ps = PorterStemmer()
-        query_final=set([ps.stem(i) for i in query6])
-        return query_final
-
-    def matcher(self,query_final):
-        intersection = []
-        for q in self.pquestions:
-            q1 = set (q.split(" "))
-            intersection.append (len(query_final & q1))
-        return intersection
-
-    def getTopX(self,intersection):
-        relevance=[]
-        cnt = 0
-        for i in intersection:
-            relevance.append(10**(i+2) + self.weights[cnt])
-            cnt+=1
-
-        max_index = [i[0] for i in sorted(enumerate(relevance), key=lambda x:x[1],reverse=True)]
-        ans = []
-        for i in range(self.topX):
-            if(intersection[max_index[i]]==0):
-                break
-            ans.append(self.questions[max_index[i]])
-        return ans
-
-    def calculateRel(self,query_final):
-        f = open(profj_keywords_path ,"r")
-        key = f.read()
-        keywords = set(key.split())
-        f.close()
-
-        if (len(query_final)==0):
-            match=0
-        else:
-            match=len(query_final & keywords)/float(len(query_final))
-        return match
-
-    def setState(self,state):
-        self.state = state
-
-    def start(self,userQuery):
-        response = []
-        query_string = userQuery
-        self.userQuery = userQuery
-        if query_string is not None:
-            #when all the plugins will be activeted
-            currPage = "mindmaps"
-            query_final = self.Preprocess(query_string)
-            rel = self.calculateRel(query_final)
-            if (rel > 0):
-                self.savedQueries=[query_string,currPage]
-                intersection = self.matcher(query_final)
-                ques = self.getTopX(intersection)
-                if ques:
-                    for i in range(len(ques)):
-                        temp = []
-                        temp.append(self.questions.index(ques[i]))
-                        temp.append(self.questions[self.questions.index(ques[i])])
-                        temp.append(self.answers[self.questions.index(ques[i])])
-                        response.append(temp)
-                else:
-                    response = [[-1,"Sometimes, I may not have the information you need...We recorded your query..will get back to you soon",-1]]
-                    flag = True
-                    for nques in self.newQuesInfo:
-                        if(str(query_final) is nques[1]):
-                            nques[2] = nques[2] + 1
-                            flag = False
-                    if (flag):
-                        temp1 =[str(query_string),str(query_final),0]
-                        self.newQuesInfo.append(temp1)
-                    #self.newKeys.append(query_string)
-            else:
-                response = [[-1, "Please be relevant..I work soulfully for Avo Assure", -1]]
-        else:
-            response = [-1, "Invalid Input...Please try again", -1]
-        return response, self.newQuesInfo, self.savedQueries
-
-################################################################################
-# End of ProfJ assist components
-################################################################################
-
-################################################################################
 # END OF INTERNAL COMPONENTS
 ################################################################################
 
 def main():
-    global lsip,lsport,dasport,mongo_dbup,redis_dbup,chronographTimer
+    global lsport,dasport,mongo_dbup,redis_dbup,licenseServer,client
     global redissession,dbsession,redissession_db2
-    cleandas = checkSetup()
+    das_conf_obj = open(config_path, 'r')
+    das_conf = json.load(das_conf_obj)
+    das_conf_obj.close()
+    licenseServer=das_conf['licenseServer']
     creds = {}
     kwargs = {}
-    if not cleandas:
-        app.logger.critical(printErrorCodes('214'))
-        return False
 
     # Save default database credentials if not intitalized
     if not os.path.isfile(credspath):
@@ -1190,12 +684,6 @@ def main():
         return True
 
     try:
-        das_conf_obj = open(config_path, 'r')
-        das_conf = json.load(das_conf_obj)
-        das_conf_obj.close()
-        lsip = das_conf['licenseserverip']
-        if not re.match(ip_regex, lsip):
-            app.logger.warning("License server IP provided in configuration file is not an IP address. Treating the value provided as DNS name")
         if 'licenseserverport' in das_conf:
             lsport = das_conf['licenseserverport']
         if 'dasserverip' in das_conf:
@@ -1209,9 +697,6 @@ def main():
             kwargs['threads'] = int(das_conf['processthreads'])
         if 'connectionlimit' in das_conf:
             kwargs['backlog'] = int(das_conf['connectionlimit'])
-        if 'custChronographTimer' in das_conf:
-            chronographTimer = int(das_conf['custChronographTimer'])
-            app.logger.debug("'custChronographTimer' detected.")
     except Exception as e:
         app.logger.debug(e)
         app.logger.critical(printErrorCodes('218'))
@@ -1235,20 +720,13 @@ def main():
 
     try:
         mongodb_conf = das_conf['avoassuredb']
-        mongo_user=creds['avoassuredb']['username']
-        mongo_pass=creds['avoassuredb']['password']
+        mongo_user= unwrap(mongodb_conf['username'],db_keys)
+        mongo_pass= unwrap(mongodb_conf['password'],db_keys)
         hosts = [mongodb_conf["host"] + ':' + str(mongodb_conf["port"])]
-        if "replicanodes" in mongodb_conf and len(mongodb_conf["replicanodes"]) > 0:
-            rnodes = mongodb_conf["replicanodes"]
-            for rn in rnodes:
-                if "host" in rn and "port" in rn:
-                    hosts += [rn["host"] + ':' + str(rn["port"])]
-        client = MongoClient(hosts, username = mongo_user, password = mongo_pass,
-            authSource = 'avoassure', appname = 'AvoAssureDAS', authMechanism = 'SCRAM-SHA-1',
-            replicaSet = 'avoassuredbreplica', readPreference = 'primaryPreferred')
+        client = MongoClient(hosts, username = mongo_user, password = mongo_pass,authSource = 'admin', 
+            appname = 'AvoAssureDAS', authMechanism = 'SCRAM-SHA-1')
         if client.server_info():
             mongo_dbup = True
-        dbsession = client.avoassure
     except Exception as e:
         app.logger.debug(e)
         app.logger.critical(printErrorCodes('206'))
@@ -1266,12 +744,10 @@ def main():
         except:
             pass
         if err_msg is None:
-            chronograph()
             beginserver(**kwargs)
     else:
         app.logger.critical(printErrorCodes('218'))
 
 if __name__ == '__main__':
     initLoggers(parserArgs)
-    sysMAC = str(getMacAddress()).strip()
     main()
