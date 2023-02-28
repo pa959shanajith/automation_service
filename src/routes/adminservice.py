@@ -588,9 +588,9 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
             requestdata=json.loads(request.data)
             if not isemptyrequest(requestdata):
                 query_filter = {"type":"LDAP"}
+                clientName=getClientName(requestdata)           
+                dbsession=client[clientName]
                 if "name" in requestdata:
-                    clientName=getClientName(requestdata)           
-                    dbsession=client[clientName]
                     query_filter["name"] = requestdata["name"]
                     result = dbsession.thirdpartyintegration.find_one(query_filter)
                     if result is None: result = []
