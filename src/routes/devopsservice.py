@@ -1,10 +1,10 @@
-from tkinter import E
+# from tkinter import E
 from unicodedata import name
 from warnings import catch_warnings
 from utils import *
 import json
-def LoadServices(app, redissession, dbsession):
-    setenv(app)
+def LoadServices(app, redissession, client ,getClientName):
+    setenv(app) 
 
     @app.route('/devops/configurekey',methods=['POST'])
     def configureKey():
@@ -12,12 +12,64 @@ def LoadServices(app, redissession, dbsession):
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
+            clientName=getClientName(requestdata)       
+            dbsession=client[clientName]
 
             if(requestdata['query'] == 'fetchExecutionData'):
                 keyDetails = list(dbsession.configurekeys.find({'token': requestdata["key"]},{'executionData': 1,'session': 1}))
                 res['rows'] = keyDetails[0]
             else:
+                checkForName =  list(dbsession.configurekeys.find({'executionData.configurename': requestdata['executionData']['configurename'] , 'executionData.batchInfo.projectName':requestdata['executionData']['batchInfo'][0]['projectName'], 'executionData.configurekey': {'$ne':requestdata['executionData']['configurekey'] }},{'executionData': 1}))
+
+                # check if already configurename exists
+                if(len(checkForName) != 0):
+                    res['rows'] = {'error':{'CONTENT':'Execution Profile name already exists'}}
+                    return res['rows']
+
                 requestdata["token"] = requestdata["executionData"]['configurekey']
+
+                # GEtting data parameterization
+                for testsuite in requestdata['executionData']['batchInfo']:
+                    testsuiteData = list(dbsession.testsuites.find({'mindmapid':ObjectId(testsuite['testsuiteId'])}))
+                    # sorting the data
+                    requestdata['executionData']['donotexe']['current'][testsuite['testsuiteId']].sort()
+
+                    # To handle if document is not present in testsuite collection
+                    if not testsuiteData:
+                        continue
+
+                    del testsuite['suiteDetails']
+
+                    scenarioIndexFromBackEnd = -1
+                    scenarioIndexFromFrontEnd = 0
+                    testsuite['suiteDetails'] = []
+                    for scenarioids in testsuiteData[0]['testscenarioids']:
+                        scenarioIndexFromBackEnd+=1
+
+                        if scenarioIndexFromFrontEnd >= len(requestdata['executionData']['donotexe']['current'][testsuite['testsuiteId']]):
+                            break
+
+                        if requestdata['executionData']['donotexe']['current'][testsuite['testsuiteId']][scenarioIndexFromFrontEnd] == scenarioIndexFromBackEnd:
+                            scenarioIndexFromFrontEnd+=1
+                            scenarioName = list(dbsession.testscenarios.find({'_id':scenarioids},{'name': 1}))
+                            testsuite['suiteDetails'].append({
+                                "condition" : testsuiteData[0]['conditioncheck'][scenarioIndexFromBackEnd],
+                                "dataparam" : [testsuiteData[0]['getparampaths'][scenarioIndexFromBackEnd]],
+                                "scenarioName" : scenarioName[0]['name'],
+                                "scenarioId" : str(scenarioids),
+                                "accessibilityParameters" : testsuiteData[0]['accessibilityParameters'] if 'accessibilityParameters' in testsuiteData[0] else []
+                            })
+
+                    # updating the donotexecute array present in testsuite with the donotexe file coming from from-end
+                    testsuiteData[0]['donotexecute'] = [0]*len(testsuiteData[0]['donotexecute'])
+                    for index in requestdata['executionData']['donotexe']['current'][testsuite['testsuiteId']]:
+                        testsuiteData[0]['donotexecute'][index] = 1
+
+                    dbsession.testsuites.update({"mindmapid":ObjectId(testsuite['testsuiteId'])},{'$set':{"donotexecute":testsuiteData[0]['donotexecute']}})
+                    
+                    
+
+
                 # check whether key is already present
                 keyAlreadyExist = list(dbsession.configurekeys.find({'token': requestdata["token"]}))
 
@@ -33,7 +85,7 @@ def LoadServices(app, redissession, dbsession):
 
                 else: #key is present
                     dbsession.configurekeys.update({"_id":ObjectId(keyAlreadyExist[0]['_id'])},{'$set':{"executionData":requestdata["executionData"]}})
-                
+
                 res['rows'] = 'success'
 
 
@@ -48,6 +100,8 @@ def LoadServices(app, redissession, dbsession):
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
+            clientName=getClientName(requestdata)       
+            dbsession=client[clientName]
             requestdata['configkey'] = requestdata['executionData']['configurekey']
             requestdata['executionListId'] = requestdata['executionData']['executionListId']
             dbsession.executionlist.insert_one(requestdata)
@@ -64,6 +118,8 @@ def LoadServices(app, redissession, dbsession):
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
+            clientName=getClientName(requestdata)       
+            dbsession=client[clientName]
             queryresult = list(dbsession.executionlist.find({'executionListId':requestdata['executionListId'],"configkey": requestdata['key']}))
 
             res['rows'] = {
@@ -86,6 +142,8 @@ def LoadServices(app, redissession, dbsession):
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
+            clientName=getClientName(requestdata)        
+            dbsession=client[clientName]
             queryresult = list(dbsession.avogrids.find({"_id": ObjectId(requestdata["avogridid"])}))
             res['rows'] = queryresult[0]['avoagents']
 
@@ -100,13 +158,15 @@ def LoadServices(app, redissession, dbsession):
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
-
+            clientName=getClientName(requestdata)      
+            dbsession=client[clientName]
             agentPresent = list(dbsession.avoagents.find({"Hostname": requestdata["Hostname"]}))
             if(len(agentPresent) > 0): #agent already present then update the details
                 requestdata['status'] = agentPresent[0]['status']
                 requestdata['createdon'] = agentPresent[0]['createdon']
                 requestdata['icecount'] = agentPresent[0]['icecount']
-                dbsession.avoagents.update({"_id":ObjectId(agentPresent[0]['_id'])},{'$set':{"recentCall":requestdata['recentCall']}})
+                requestdata['currentIceCount'] = requestdata['currentIceCount'] if 'currentIceCount' in requestdata else 0
+                dbsession.avoagents.update({"_id":ObjectId(agentPresent[0]['_id'])},{'$set':{"recentCall":requestdata['recentCall'] , "currentIceCount" : requestdata['currentIceCount']}})
             else:
                 dbsession.avoagents.insert_one(requestdata)
 
@@ -123,6 +183,8 @@ def LoadServices(app, redissession, dbsession):
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
+            clientName=getClientName(requestdata)        
+            dbsession=client[clientName]
             data = list(dbsession.configurekeys.find({"executionRequest.avoagents" : {"$in": [requestdata['avoagents']]}},{'_id': 0,'token': 1}))
             keysList = []
             for dic in data:
@@ -153,17 +215,24 @@ def LoadServices(app, redissession, dbsession):
         try:
             requestdata=json.loads(request.data)
             testSuiteId = requestdata['testSuiteId']
+            clientName=getClientName(requestdata)        
+            dbsession=client[clientName]
+
+            # Fetching the data
             executionData = list(dbsession.executionlist.find({'executionListId':requestdata['executionListId'],"configkey": requestdata['key']}))
+            updatedData = executionData
             correctexecutionRequest = ''
             index = -1
             for info in executionData[0]['executionData']['batchInfo']:
                 index+=1
                 if info['testsuiteId'] == testSuiteId:
                     break
+            
+            # Updating the agent sent from Ice.
+            updatedData[0]['executionData']['batchInfo'][index]['agentName'] = requestdata['agentName']
+            updatedResponse = dbsession.executionlist.update_many({'executionListId':requestdata['executionListId'],"configkey": requestdata['key']},{'$set':{"executionData.batchInfo": updatedData[0]['executionData']['batchInfo']}})
+
             executionData[0]['executionData']['batchInfo'] = [executionData[0]['executionData']['batchInfo'][index]]
-
-
-
             res['rows'] = executionData
 
         except Exception as e:
@@ -176,8 +245,11 @@ def LoadServices(app, redissession, dbsession):
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
-            
-            
+            clientName="avoassure"
+            if "host" in requestdata[-1]:
+                clientName=requestdata[-1]["host"].split('.')[0]        
+            dbsession=client[clientName]
+            del(requestdata[-1])
             processedData = []
             processedDataIndex = 0
             for moduleDetail in requestdata:
@@ -213,9 +285,7 @@ def LoadServices(app, redissession, dbsession):
                     processedDataIndex+=1
 
             res['rows'] = processedData
-
         except Exception as e:
-            print(e)
             return e
         return jsonify(res)
 
@@ -226,10 +296,12 @@ def LoadServices(app, redissession, dbsession):
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
-            queryresult = list(dbsession.configurekeys.find({'session.userid': requestdata['userid']}))
+            clientName=getClientName(requestdata)        
+            dbsession=client[clientName]
+            queryresult = list(dbsession.configurekeys.find({'executionData.batchInfo.projectId': requestdata['projectid']}))
             responseData = []
             for elements in queryresult:
-                updatedExecutionReq = elements['executionData'] 
+                updatedExecutionReq = elements['executionData']
                 responseData.append({
                     'configurename': updatedExecutionReq['configurename'],
                     'configurekey': updatedExecutionReq['configurekey'],
@@ -252,6 +324,8 @@ def LoadServices(app, redissession, dbsession):
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
+            clientName=getClientName(requestdata)         
+            dbsession=client[clientName]
             queryresultavogrid = queryresultavoagent = ''
             if requestdata['query'] == 'all' or requestdata['query'] == 'avoAgentList':
                 queryresultavoagent = list(dbsession.avoagents.find({}))
@@ -274,7 +348,9 @@ def LoadServices(app, redissession, dbsession):
         app.logger.debug("Inside deleteConfigureKey")
         res={'rows':'fail'}
         try:
-            requestdata=json.loads(request.data)        
+            requestdata=json.loads(request.data)  
+            clientName=getClientName(requestdata)       
+            dbsession=client[clientName]      
             result=dbsession.configurekeys.delete_one({"token":requestdata['key']})
 
             res['rows'] = 'success'
@@ -292,6 +368,8 @@ def LoadServices(app, redissession, dbsession):
             requestdata=json.loads(request.data)
 
             for agentDetail in requestdata:
+                clientName=getClientName(requestdata)         
+                dbsession=client[clientName]
                 if(agentDetail['action'] == 'update'):
                     dbsession.avoagents.update({"_id":ObjectId(agentDetail['value']['_id'])},{'$set':{"icecount":agentDetail['value']["icecount"] , "status": agentDetail['value']['status']}})
                 else:
@@ -311,6 +389,8 @@ def LoadServices(app, redissession, dbsession):
         try:
 
             requestdata=json.loads(request.data)
+            clientName=getClientName(requestdata)         
+            dbsession=client[clientName]
             action = requestdata["action"]
             value = requestdata["value"]
             # check whether key is already present
@@ -340,7 +420,9 @@ def LoadServices(app, redissession, dbsession):
         app.logger.debug("Inside deleteAvoGrid")
         res={'rows':'fail'}
         try:
-            requestdata=json.loads(request.data)        
+            requestdata=json.loads(request.data) 
+            clientName=getClientName(requestdata)        
+            dbsession=client[clientName]       
             result=dbsession.avogrids.delete_one({"_id":ObjectId(requestdata['_id'])})
 
             res['rows'] = 'success'
@@ -356,6 +438,8 @@ def LoadServices(app, redissession, dbsession):
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
+            clientName=getClientName(requestdata)         
+            dbsession=client[clientName]
 
             queryresult=list(dbsession.executions.find({"executionListId":requestdata["executionListId"]}))
             testSuite = []
@@ -367,6 +451,63 @@ def LoadServices(app, redissession, dbsession):
                 for index in range(0,len(testSuite)):
                     testSuiteData[index]['execution_Id'] = queryresult[index]['_id']
                 res['rows'] = testSuiteData
+
+        except Exception as e:
+            print(e)
+            return e
+        return jsonify(res)
+
+    @app.route('/devops/cacheData',methods=['POST'])
+    def cacheData():
+        app.logger.debug("Inside cacheData")
+        res={'rows':'fail'}
+        try:
+            requestdata=json.loads(request.data)
+            clientName=getClientName(requestdata)         
+            dbsession=client[clientName]
+            cacheResult = list(dbsession.cachedb.find({}))
+
+            if 'query' in requestdata:
+                if(len(cacheResult) != 0):
+                    del cacheResult[0]['_id']
+
+                res['rows'] = cacheResult
+            else:
+                if(len(cacheResult) == 0):
+                    dbsession.cachedb.insert_one(requestdata)
+
+                else: #key is present
+                    dbsession.cachedb.replace_one({"_id":cacheResult[0]['_id']},requestdata)
+
+                res['rows'] = 'pass'
+
+        except Exception as e:
+            print(e)
+            return e
+        return jsonify(res)
+
+    @app.route('/devops/getAgentModuleList',methods=['POST'])
+    def getAgentModuleList():
+        app.logger.debug("Inside getAgentModuleList")
+        res={'rows':'fail'}
+        try:
+            requestdata=json.loads(request.data)
+            clientName=getClientName(requestdata)         
+            dbsession=client[clientName]
+            listOfModules = list(dbsession.executionlist.find({'executionListId':requestdata['executionListId']}))
+
+            agentModuleList = []
+            if 'executionData' in listOfModules[0]:
+                for testsuite in listOfModules[0]['executionData']['batchInfo']:
+                    agentModuleList.append({
+                        'testsuiteName':testsuite['testsuiteName'],
+                        'agentName': testsuite['agentName'] if 'agentName' in testsuite else ''
+                    })
+
+                res['rows'] = agentModuleList
+
+            else:
+                res['rows'] = 'fail'
 
         except Exception as e:
             print(e)
