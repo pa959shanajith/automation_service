@@ -497,11 +497,13 @@ def reportdataprocessor(resultset,fromdate,todate):
 ################################################################################
 
 def getClientName(requestdata):
+    global licenseServer
     clientName="avoassure"
     try:
-        if "host" in requestdata:
-            if 'localhost' not in requestdata["host"] and '127.0.0.1' not in requestdata["host"]:
-                clientName=requestdata["host"].split('.')[0] 
+        if licenseServer["enable"]:
+            if "host" in requestdata:
+                if 'localhost' not in requestdata["host"] and '127.0.0.1' not in requestdata["host"]:
+                    clientName=requestdata["host"].split('.')[0]
     except Exception as e:
         app.logger.error(e)
         app.logger.error('Error while fetching client name')
