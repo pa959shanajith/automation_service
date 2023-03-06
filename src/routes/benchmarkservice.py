@@ -11,7 +11,7 @@ import datetime
 import statistics
 
 
-def LoadServices(app, redissession, client,getClientName):
+def LoadServices(app, redissession, dbsession):
     setenv(app)
 
 ################################################################################
@@ -37,8 +37,6 @@ def LoadServices(app, redissession, client,getClientName):
         inputdata["percent_received"] = []
         inputdata["hostip"] = []
         try:
-            clientName=getClientName(requestdata)       
-            dbsession=client[clientName]
             x = DP.parse(requestdata["time"])
             dtm = datetime.datetime(x.year,x.month,x.day,x.hour,x.minute) 
             result_arr = dbsession.benchmark.find({"hostname":requestdata['hostname'],"time":{"$lt": dtm}})

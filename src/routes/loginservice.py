@@ -4,11 +4,8 @@
 #----------DEFAULT METHODS AND IMPORTS------------DO NOT EDIT-------------------
 from utils import *
 import json
-import redis
-import requests
 from datetime import datetime, timezone
-from licenseManager import *
-def LoadServices(app, redissession, client, licensedata,basecheckonls,getClientName):
+def LoadServices(app, redissession, dbsession, licensedata,basecheckonls):
     setenv(app)
 
 ################################################################################
@@ -19,19 +16,6 @@ def LoadServices(app, redissession, client, licensedata,basecheckonls,getClientN
 ################################################################################
 # ADD YOUR ROUTES BELOW
 ################################################################################
-    # Get count of users logged in 
-    def checkUserLoggedin(redisdb_conf,redisdb_pass,dbsession):
-        loggedInCount=0
-        usersList=list(dbsession.users.find({},{"email":1}))
-        usersList=[key['email'] for key in usersList]
-        redissession = redis.StrictRedis(host=redisdb_conf['host'], port=int(redisdb_conf['port']), password=redisdb_pass, db=0)
-        for key in redissession.keys():
-            sess=json.loads(redissession[key].decode('utf-8'))
-            if 'emailid' in sess:
-                if sess['activeRole'] != 'Admin':
-                    if sess['emailid'] in usersList:
-                        loggedInCount=loggedInCount+1
-        return loggedInCount
     #DAS service for loading users info
     @app.route('/login/loadUser',methods=['POST'])
     def loadUser():
@@ -42,43 +26,14 @@ def LoadServices(app, redissession, client, licensedata,basecheckonls,getClientN
             try:
                 if not isemptyrequest(requestdata):
                     user_data = None
-                    lsData=licensedata
-                    present = datetime.now()
-                    expiryDate=None
-                    clientName=getClientName(requestdata)
-                    dbsession=client[clientName]
-                    if "licenseServer" in licensedata:
-                        lsData=dbsession.licenseManager.find_one({"client":clientName})
-                        guid=lsData['guid']
-                        lsServer_Data=requests.get(licensedata["licenseServer"]+"/api/Customer/GetCustomerLicenseDetails?CustomerGUID="+str(guid),verify=False).json()
-                        if lsServer_Data["Status"] != "Active":
-                            res={'rows':'Licence Expired'}
-                            return jsonify(res)
-                        expiryDate=lsServer_Data["ExpiresOn"].split('/')
-                        if lsServer_Data != lsData:
-                            lsData=lsServer_Data
-                            dbsession.licenseManager.update_one({"client":clientName},{'$set': {"data":lsServer_Data}})
-                    
-                    expiryDate=lsData['ExpiresOn'].split('/')
-                    expiryDate=datetime(int(expiryDate[2]), int(expiryDate[0]), int(expiryDate[1]))
-                    if present <= expiryDate:
-                        if str(lsData['USER']) != "Unlimited":
-                            redisdb_pass='179c27cf2f3a4173b6521c9ddc2645d1e94ae7e5c385664282c2965aff7119aa'
-                            if checkUserLoggedin({'host':'127.0.0.1','port':'8001'},redisdb_pass,dbsession) >= int(lsData['USER']):
-                                return res
-                        if "fnName" in requestdata and requestdata["fnName"]=="forgotPasswordEmail":
-                            if ("username" in requestdata and requestdata["username"]): #handling duplicate email-id's
-                                user_data = [dbsession.users.find_one({"name":requestdata["username"]})]
-                            else:
-                                user_data = list(dbsession.users.find({"email":requestdata["email"]},{"_id":1,"name":1,"firstname":1,"lastname":1,"email":1,"auth":1,"invalidCredCount":1}))
-                            
-                        elif requestdata["username"] != "ci_cd":
-                            user_data = dbsession.users.find_one({"name":requestdata["username"]})
-                        res={'rows': user_data}
-                    else:
-                        res={'rows':'Licence Expired'}
-                    
-                    
+                    if "fnName" in requestdata and requestdata["fnName"]=="forgotPasswordEmail":
+                        if ("username" in requestdata and requestdata["username"]): #handling duplicate email-id's
+                            user_data = [dbsession.users.find_one({"name":requestdata["username"]})]
+                        else:
+                            user_data = list(dbsession.users.find({"email":requestdata["email"]},{"_id":1,"name":1,"firstname":1,"lastname":1,"email":1,"auth":1,"invalidCredCount":1}))
+                        
+                    elif requestdata["username"] != "ci_cd":
+                        user_data = dbsession.users.find_one({"name":requestdata["username"]})
                     res={'rows': user_data}
                 else:
                     app.logger.warn('Empty data received. authentication')
@@ -95,8 +50,6 @@ def LoadServices(app, redissession, client, licensedata,basecheckonls,getClientN
         try:
             requestdata=json.loads(request.data)
             if not isemptyrequest(requestdata):
-                clientName=getClientName(requestdata)      
-                dbsession=client[clientName]
                 user_data = None
                 user_data = dbsession.users.find_one({"auth.type" : { "$in": ["inhouse"] },"_id":ObjectId(requestdata["user_id"])})
                 res={'rows': user_data}
@@ -115,8 +68,6 @@ def LoadServices(app, redissession, client, licensedata,basecheckonls,getClientN
             requestdata=json.loads(request.data)
             action = requestdata["action"]
             if not isemptyrequest(requestdata):
-                clientName=getClientName(requestdata)       
-                dbsession=client[clientName]
                 if requestdata["username"] == "ci_cd":
                     return jsonify(res)
                 if action == "increment":
@@ -145,8 +96,6 @@ def LoadServices(app, redissession, client, licensedata,basecheckonls,getClientN
             requestdata=json.loads(request.data)
             action = requestdata["action"]
             if not isemptyrequest(requestdata):
-                clientName=getClientName(requestdata)       
-                dbsession=client[clientName]
                 if action == "checkForgotExpiry":
                     user_data = dbsession.users.find_one({"_id":ObjectId(requestdata["user_id"])})
                     if user_data["name"] == "ci_cd" or user_data["auth"]["type"] != "inhouse":
@@ -199,8 +148,6 @@ def LoadServices(app, redissession, client, licensedata,basecheckonls,getClientN
         try:
             requestdata=json.loads(request.data)
             if not isemptyrequest(requestdata):
-                clientName=getClientName(requestdata)     
-                dbsession=client[clientName]
                 up_data = {
                     # "auth.defaultpassword": requestdata["defaultpassword"],
                     "auth.defaultpasstime": datetime.now(timezone.utc)
@@ -221,8 +168,6 @@ def LoadServices(app, redissession, client, licensedata,basecheckonls,getClientN
         try:
             requestdata=json.loads(request.data)
             if not isemptyrequest(requestdata):
-                clientName=getClientName(requestdata)       
-                dbsession=client[clientName]
                 up_data = {
                     "auth.verificationpassword": requestdata["verificationpassword"],
                     "auth.verificationpasstime": datetime.now()
@@ -244,25 +189,16 @@ def LoadServices(app, redissession, client, licensedata,basecheckonls,getClientN
         try:
             requestdata=json.loads(request.data)
             if not isemptyrequest(requestdata):
-                clientName=getClientName(requestdata)        
-                dbsession=client[clientName]
                 if(requestdata["query"] == 'permissionInfoByRoleID'):
                     permissions_data = dbsession.permissions.find_one({"_id":ObjectId(requestdata["roleid"])})
                     dictdata['roleid'] = permissions_data['_id']
                     dictdata['rolename'] = permissions_data['name']
                     plugins = permissions_data['plugins']
-                    # lic_plugins = licensedata['plugins']
-                    lic_plugins=dbsession.licenseManager.find_one({"client":clientName})["data"]
+                    lic_plugins = licensedata['plugins']
                     allowed_plugins = []
-                    # dictdata['isTrial'] = licensedata['isTrial']
-                    if "Trial" in lic_plugins["LicenseTypes"]:
-                        dictdata['isTrial'] = True
-                    else:
-                        dictdata['isTrial'] = False
-                    for keys in lic_plugins:
-                        allowed_plugins.append({ "pluginName": keys,"pluginValue": True})
-                    # for keys in ui_plugins:
-                    #     allowed_plugins.append({ "pluginName": ui_plugins[keys],"pluginValue": False if lic_plugins[keys] == False else plugins[keys]})
+                    dictdata['isTrial'] = licensedata['isTrial']
+                    for keys in ui_plugins:
+                        allowed_plugins.append({ "pluginName": ui_plugins[keys],"pluginValue": False if lic_plugins[keys] == False else plugins[keys]})
                     dictdata['pluginresult']=allowed_plugins
                     res={'rows': dictdata}
                 elif(requestdata["query"] == 'nameidInfoByRoleIDList'):
@@ -284,8 +220,6 @@ def LoadServices(app, redissession, client, licensedata,basecheckonls,getClientN
         try:
             requestdata=json.loads(request.data)
             if not isemptyrequest(requestdata):
-                clientName=getClientName(requestdata)       
-                dbsession=client[clientName]
                 queryresult = dbsession.icetokens.find_one({"icename":requestdata["icename"]})
                 query = None
                 user_query = {"name":"ci_cd"}
@@ -320,8 +254,6 @@ def LoadServices(app, redissession, client, licensedata,basecheckonls,getClientN
         try:
             requestdata=json.loads(request.data)
             if not isemptyrequest(requestdata):
-                clientName=getClientName(requestdata)       
-                dbsession=client[clientName]
                 find_args = {}
                 if "icename" in requestdata:
                     find_args["icename"] = requestdata["icename"]
@@ -363,8 +295,6 @@ def LoadServices(app, redissession, client, licensedata,basecheckonls,getClientN
         try:
             requestdata=json.loads(request.data)
             if not isemptyrequest(requestdata):
-                clientName=getClientName(requestdata)       
-                dbsession=client[clientName]
                 if requestdata["query"]=='loadUserInfo':
                     username = ''
                     welcomeStepNo = None

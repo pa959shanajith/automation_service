@@ -7,7 +7,7 @@ from datetime import datetime
 from pymongo import InsertOne
 
 
-def LoadServices(app, redissession, client ,getClientName):
+def LoadServices(app, redissession, dbsession):
     setenv(app)
 
 ################################################################################
@@ -31,8 +31,6 @@ def LoadServices(app, redissession, client ,getClientName):
             requestdata=json.loads(request.data)
             app.logger.debug("Inside getAllSuites_ICE. Query: "+str(requestdata["query"]))
             if not isemptyrequest(requestdata):
-                clientName=getClientName(requestdata)        
-                dbsession=client[clientName]
                 if(requestdata["query"] == 'projects'):
                     queryresult1=dbsession.users.find_one({"_id": ObjectId(requestdata["userid"])},{"projects":1,"_id":0})
                     queryresult=list(dbsession.projects.find({"_id":{"$in":queryresult1["projects"]}},{"name":1,"releases":1,"type":1}))
@@ -58,30 +56,6 @@ def LoadServices(app, redissession, client ,getClientName):
                     ]))
                     batchresult=list(dbsession.executions.distinct('batchname',{'parent':{'$in':[i['_id'] for i in queryresult]}}))
                     res= {"rows":{"modules":queryresult,"batch":batchresult}}
-                elif(requestdata["query"] == 'getAlltestSuitesDevops'):
-                    queryresult = ''
-                    if('executionListId' in requestdata['data']):
-                        queryresult = list(dbsession.executions.find({
-                            'configurekey': requestdata['data']['configurekey'],
-                            'executionListId': requestdata['data']['executionListId']
-                            },{'parent':1,'_id': 1,'starttime':1,'endtime':1}))
-                    else:
-                        queryresult = list(dbsession.executions.find({'configurekey': requestdata['data']['configurekey']},{'parent':1}))
-
-                    testSuiteNames = []
-                    for ids in queryresult:
-                        testSuiteNames.append(ids['parent'][0])
-
-                    testSuiteNames = list(dbsession.testsuites.find({'_id': {'$in': testSuiteNames}},{'name': 1,'_id':1}))
-                    dictForTestSuiteIdAndName = {}
-                    for result in testSuiteNames:
-                        dictForTestSuiteIdAndName[result['_id']] = result['name']
-                    
-                    for ids in queryresult:
-                        ids['moduleName'] = dictForTestSuiteIdAndName[ids['parent'][0]]
-                    
-                    res = queryresult if 'executionListId' in requestdata['data'] else {"modules": testSuiteNames}
-
             else:
                 app.logger.warn('Empty data received. report suites details.')
         except Exception as getAllSuitesexc:
@@ -96,14 +70,10 @@ def LoadServices(app, redissession, client ,getClientName):
         try:
             requestdata=json.loads(request.data)
             if not isemptyrequest(requestdata):
-                clientName=getClientName(requestdata)        
-                dbsession=client[clientName]
                 if ("batchname" in requestdata):
                     queryresult=list(dbsession.executions.find({"batchname":requestdata["batchname"]},{"_id":1,"starttime":1,"endtime":1,"status":1,"smart":1,"batchid":1}))
-                elif ('configurekey' in requestdata and 'executionListId' in requestdata):
-                    queryresult=list(dbsession.executions.find({"executionListId":requestdata["executionListId"],"parent":ObjectId(requestdata["suiteid"])},{"_id":1,"starttime":1,"endtime":1,"status":1,"smart":1,"batchid":1})) 
-                elif ('configurekey' in requestdata):
-                    queryresult=list(dbsession.executions.find({"configurekey":requestdata["configurekey"],"parent":ObjectId(requestdata["suiteid"])},{"_id":1,"starttime":1,"endtime":1,"status":1,"smart":1,"batchid":1})) 
+                elif ('execution_id' in requestdata):
+                    queryresult=list(dbsession.executions.find({"_id":requestdata["execution_id"]},{"_id":1,"starttime":1,"endtime":1,"status":1,"smart":1,"batchid":1})) 
                 else:
                     queryresult=list(dbsession.executions.find({"parent":ObjectId(requestdata["suiteid"])},{"_id":1,"starttime":1,"endtime":1,"status":1,"smart":1,"batchid":1})) 
                 res= {"rows":queryresult}
@@ -122,8 +92,6 @@ def LoadServices(app, redissession, client ,getClientName):
             requestdata=json.loads(request.data)
             app.logger.debug("Inside reportStatusScenarios_ICE. Query: "+str(requestdata["query"]))
             if not isemptyrequest(requestdata):
-                clientName=getClientName(requestdata)         
-                dbsession=client[clientName]
                 if(requestdata["query"] == 'executiondetails'):
                     queryresult = list(dbsession.reports.aggregate([
                     {'$match':{"executionid":{'$in':[ObjectId(i)for i in requestdata["executionid"]]}}},
@@ -157,8 +125,6 @@ def LoadServices(app, redissession, client ,getClientName):
             requestdata=json.loads(request.data)
             app.logger.debug("Inside getReport")
             if not isemptyrequest(requestdata):
-                clientName=getClientName(requestdata)         
-                dbsession=client[clientName]
                 reports = list(dbsession.reports.find({"_id":ObjectId(requestdata["reportid"])}))
                 report_items= list(dbsession.reportitems.find({"_id":reports[0]["reportitems"][0]}))
                 scenarios = list(dbsession.testscenarios.find({"_id":reports[0]["testscenarioid"]}))
@@ -205,8 +171,6 @@ def LoadServices(app, redissession, client ,getClientName):
             requestdata=json.loads(request.data)
             app.logger.debug("Inside updateReportData.")
             if not isemptyrequest(requestdata):
-                clientName=getClientName(requestdata)        
-                dbsession=client[clientName]
                 queryresult = dbsession.reports.find({"_id":ObjectId(requestdata["reportid"])},{"reportitems":1})
                 report = queryresult[0]['reportitems']
                 limit = 15000
@@ -258,8 +222,6 @@ def LoadServices(app, redissession, client ,getClientName):
             requestdata=json.loads(request.data)
             app.logger.debug("Inside getReport_API")
             if not isemptyrequest(requestdata) and valid_objectid(requestdata['executionId']):
-                clientName=getClientName(requestdata)         
-                dbsession=client[clientName]
                 filter1 = {"executionid":ObjectId(requestdata["executionId"])}
                 if("scenarioIds" in requestdata):
                     scenarioIds = dbsession.reports.distinct("testscenarioid", filter1)
@@ -317,19 +279,19 @@ def LoadServices(app, redissession, client ,getClientName):
                             'as':'executions'
                         }         
                     },
-                    # { '$lookup': {
-                    #         'from': 'reportitems',
-                    #         'let': { 'pid': '$reportitems' },
-                    #         'pipeline': [
-                    #             { '$match': { '$expr': { '$in': ['$_id', '$$pid'] } } },
-                    #             {'$unwind': '$rows'},
-                    #             { '$replaceRoot': { 'newRoot': '$rows' } }
-                    #         ],
-                    #         'as':'rows'
-                    #     }
-                    # },
+                    { '$lookup': {
+                            'from': 'reportitems',
+                            'let': { 'pid': '$reportitems' },
+                            'pipeline': [
+                                { '$match': { '$expr': { '$in': ['$_id', '$$pid'] } } },
+                                {'$unwind': '$rows'},
+                                { '$replaceRoot': { 'newRoot': '$rows' } }
+                            ],
+                            'as':'rows'
+                        }
+                    },
                     {'$project':{
-                            # 'rows':1,
+                            'rows':1,
                             'executedtime':1,
                             'overallstatus':1,
                             'cycleid':{'$arrayElemAt':['$executions.cycleid',0]},
@@ -346,9 +308,7 @@ def LoadServices(app, redissession, client ,getClientName):
                 for reportobj in list(query):
                     prjobj = reportobj['projects']
                     data={
-                        'report': {
-                            # "rows":reportobj["rows"],
-                            "overallstatus":reportobj["overallstatus"]},
+                        'report': {"rows":reportobj["rows"],"overallstatus":reportobj["overallstatus"]},
                         'testscenarioid': reportobj["testscenarioid"],
                         'testscenarioname': reportobj["testscenarioname"],
                         'domainname': prjobj["domain"],
@@ -379,8 +339,6 @@ def LoadServices(app, redissession, client ,getClientName):
             requestdata=json.loads(request.data)
             param = str(requestdata["query"])
             app.logger.debug("Inside getAccessibilityTestingData_ICE. Query: " + param)
-            clientName=getClientName(requestdata)         
-            dbsession=client[clientName]
             if requestdata["query"] == 'screendata':
                 reports_data = dbsession.accessibilityreports.find({"cycleid": ObjectId(requestdata['cycleid'])},{"screenid":1,"screenname":1})
                 result = {}
@@ -438,8 +396,6 @@ def LoadServices(app, redissession, client ,getClientName):
         result = {}
         try:
             requestdata=json.loads(request.data)
-            clientName=getClientName(requestdata)        
-            dbsession=client[clientName]
             reports = dbsession.accessibilityreports.find({"executionid":ObjectId(requestdata["executionid"])})
             result = list(reports)
             res['rows'] = result
@@ -458,8 +414,6 @@ def LoadServices(app, redissession, client ,getClientName):
             app.logger.debug("Inside getExecution_metrics_API")
             arr = []
             if not isemptyrequest(requestdata):
-                clientName=getClientName(requestdata)        
-                dbsession=client[clientName]
                 status_dict={'pass':'Pass','fail':'Fail','skipped':'Skipped','incomplete':'Incomplete','terminate':'Terminate'}
                 if requestdata['fromdate'] and requestdata['todate']:
                     start=requestdata["fromdate"]
@@ -536,133 +490,4 @@ def LoadServices(app, redissession, client ,getClientName):
                 res['errMsg']='Invalid Request : Parameter missing'
             servicesException("getExecution_metrics_API", getmetricsexc, True)
         return jsonify(res)
-
-    #fetching the report by executionId - For synchronous Execution
-    @app.route('/reports/getDevopsReport_API',methods=['POST'])
-    def getDevopsReport_API():
-        res={'rows':'fail','errMsg':''}
-        errMsgVal=''
-        errMsg='Invalid '
-        errIds=[]
-        finalQuery=[]
-        correctScenarios=[]
-        try:
-            requestdata=json.loads(request.data)
-            app.logger.debug("Inside getDevopsReport_API")
-            if not isemptyrequest(requestdata) and valid_objectid(requestdata['executionId']):
-                clientName=getClientName(requestdata)        
-                dbsession=client[clientName]
-                filter1 = {"executionid":ObjectId(requestdata["executionId"])}
-                if("scenarioIds" in requestdata):
-                    scenarioIds = dbsession.reports.distinct("testscenarioid", filter1)
-                    for scenId in requestdata["scenarioIds"]:
-                        if len(scenId.strip())==0:
-                            continue
-                        try:
-                            if ObjectId(scenId) not in scenarioIds:
-                                errIds.append(str(scenId))
-                            else:
-                                correctScenarios.append(ObjectId(scenId))
-                        except:
-                            errIds.append(str(scenId))
-                    if len(correctScenarios) != 0 or len(errIds) != 0:
-                        filter1["testscenarioid"] = {"$in":correctScenarios}
-
-                query = dbsession.reports.aggregate([
-                    {'$match':{'testscenarioid':{"$in":correctScenarios},"executionid":ObjectId(requestdata["executionId"])}},
-                    { '$lookup':{
-                            'from':'testscenarios',
-                            'let':{'testscenarioid':'$testscenarioid'},
-                            'pipeline':[
-                                { '$match': { '$expr': { '$eq': ['$_id', '$$testscenarioid']}}}
-                            ],
-                            'as':'testscenarios'
-                        }
-                    },
-                    { '$lookup':{
-                            'from':'executions',
-                            'let':{'excid':'$executionid'},
-                            'pipeline':[
-                                { '$match': { '$expr': { '$eq': ['$_id', '$$excid']}}},
-                                { '$lookup': {
-                                    'from': 'testsuites',
-                                    'let': { 'tsid': {'$arrayElemAt':['$parent',0]}},
-                                    'pipeline': [
-                                        { '$match': { '$expr': { '$eq': ['$_id', '$$tsid'] }}},
-                                        { '$lookup': {
-                                            'from': 'projects',
-                                            'let': {'cycleid':'$cycleid'},
-                                            'pipeline':[
-                                                { "$unwind":"$releases"},
-                                                { "$unwind":"$releases.cycles"},
-                                                { "$match": { '$expr': { '$eq': ['$releases.cycles._id', '$$cycleid']}}},
-                                                { "$project":{'_id':1,'releases':1,'domain':1,'name':1}}
-                                            ],
-                                            'as' : 'proj' 
-                                            }
-                                        }
-                                    ],
-                                    'as': 'testsuites'
-                                }},
-                                {'$project': {'projects':{'$arrayElemAt':[{'$arrayElemAt':['$testsuites.proj',0]},0]},'mindmapid':{'$arrayElemAt':['$testsuites.mindmapid',0]},'cycleid':{'$arrayElemAt':['$testsuites.cycleid',0]},'name':{'$arrayElemAt':['$testsuites.name',0]},'_id':0}}
-                            ],
-                            'as':'executions'
-                        }         
-                    },
-                    # { '$lookup': {
-                    #         'from': 'reportitems',
-                    #         'let': { 'pid': '$reportitems' },
-                    #         'pipeline': [
-                    #             { '$match': { '$expr': { '$in': ['$_id', '$$pid'] } } },
-                    #             {'$unwind': '$rows'},
-                    #             { '$replaceRoot': { 'newRoot': '$rows' } }
-                    #         ],
-                    #         'as':'rows'
-                    #     }
-                    # },
-                    {'$project':{
-                            # 'rows':1,
-                            'executedtime':1,
-                            'overallstatus':1,
-                            'cycleid':{'$arrayElemAt':['$executions.cycleid',0]},
-                            'testsuitename':{'$arrayElemAt':['$executions.name',0]},
-                            'mindmapid':{'$arrayElemAt':['$executions.mindmapid',0]},
-                            'projects':{'$arrayElemAt':['$executions.projects',0]},
-                            'testscenarioname':{'$arrayElemAt':['$testscenarios.name',0]},
-                            'testscenarioid':{'$arrayElemAt':['$testscenarios._id',0]},
-                            'executionid':1
-                        }
-                    }
-                ])
-                finalQuery=[]
-                for reportobj in list(query):
-                    prjobj = reportobj['projects']
-                    data={
-                        'report': {
-                            # "rows":reportobj["rows"],
-                            "overallstatus":reportobj["overallstatus"]},
-                        'testscenarioid': reportobj["testscenarioid"],
-                        'testscenarioname': reportobj["testscenarioname"],
-                        'domainname': prjobj["domain"],
-                        'projectname': prjobj["name"],
-                        'reportid': reportobj["_id"],
-                        'releasename': prjobj["releases"]["name"],
-                        'cyclename': prjobj["releases"]["cycles"]["name"],
-                        'moduleid': reportobj["mindmapid"],
-                        'testsuitename': reportobj["testsuitename"]
-                    }
-                    finalQuery.append(data)
-                res["rows"] = finalQuery
-                if len(errIds) != 0:
-                    res["errMsg"] = errMsg+'Scenario Id(s): '+(','.join(errIds))
-            else:
-                app.logger.warn('Empty data received. report.')
-                res["errMsg"] = "Invalid Execution ID"
-        except Exception as getreportexc:
-            if errMsgVal:
-                res['errMsg']=errMsg+'Execution Id: '+errMsgVal
-            servicesException("getReport_API", getreportexc, True)
-        return flask.Response(flask.json.dumps(res), mimetype="application/json")
-
-
 # END OF REPORTS

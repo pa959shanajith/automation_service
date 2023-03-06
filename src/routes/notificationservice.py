@@ -7,7 +7,7 @@ from utils import *
 from Crypto.Cipher import AES
 import base64
 
-def LoadServices(app, redissession, client ,getClientName):
+def LoadServices(app, redissession, dbsession):
     setenv(app)
 
 ################################################################################
@@ -27,8 +27,6 @@ def LoadServices(app, redissession, client ,getClientName):
         try:
             requestdata = json.loads(request.data)
             if not isemptyrequest(requestdata):
-                clientName=getClientName(requestdata)         
-                dbsession=client[clientName]
                 result = []
                 groupids = [ObjectId(id) for id in requestdata['groupids']]
                 groupnames = requestdata['groupnames']
@@ -90,8 +88,6 @@ def LoadServices(app, redissession, client ,getClientName):
         try:
             requestdata = json.loads(request.data)
             if not isemptyrequest(requestdata):
-                clientName=getClientName(requestdata)        
-                dbsession=client[clientName]
                 groupdata = requestdata['groupdata']
                 if requestdata['action'].lower() == "create":
                     query = [InsertOne(
@@ -140,9 +136,6 @@ def LoadServices(app, redissession, client ,getClientName):
         app.logger.debug("Inside getNotificationRules")
         res={'rows':'fail','err':''}
         try:
-            requestdata = json.loads(request.data)
-            clientName=getClientName(requestdata)         
-            dbsession=client[clientName]
             result = list(dbsession.ruletypes.find({},{'description':1, "actionid":1, "_id":0, "action":1}))
             res['rows'] = result
             del res['err']
@@ -159,8 +152,6 @@ def LoadServices(app, redissession, client ,getClientName):
         try:
             requestdata = json.loads(request.data)
             if not isemptyrequest(requestdata):
-                clientName=getClientName(requestdata)        
-                dbsession=client[clientName]
                 newrules = requestdata['newrules']
                 updatedrules = requestdata['updatedrules']
                 deletedrules = requestdata['deletedrules']
@@ -234,8 +225,6 @@ def LoadServices(app, redissession, client ,getClientName):
         try:
             requestdata = json.loads(request.data)
             if not isemptyrequest(requestdata):
-                clientName=getClientName(requestdata)        
-                dbsession=client[clientName]
                 nodeid = requestdata['nodeid']
                 ruleids = [ObjectId(ruleid) for ruleid in requestdata['ruleids']]
                 dbsession.tasks.update_many({"nodeid":ObjectId(nodeid)},{'$set':{'rules':ruleids}})
@@ -255,9 +244,6 @@ def LoadServices(app, redissession, client ,getClientName):
         app.logger.debug("Inside getNotificationConfiguration")
         res={'rows':'fail','err':''}
         try:
-            requestdata = json.loads(request.data)
-            clientName=getClientName(requestdata)         
-            dbsession=client[clientName]
             email_projection = {'$project':{
                                     "actiontype":1, 
                                     "targetnode":1, 

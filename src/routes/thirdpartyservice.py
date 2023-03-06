@@ -15,7 +15,7 @@ def unwrap(hex_data, key, iv=b'0'*16):
     aes = AES.new(key.encode('utf-8'), AES.MODE_CBC, iv)
     return unpad(aes.decrypt(data).decode('utf-8'))
 
-def LoadServices(app, redissession, client ,getClientName, *args):
+def LoadServices(app, redissession, dbsession, *args):
     setenv(app)
     ldap_key = args[0]
 ################################################################################
@@ -34,8 +34,6 @@ def LoadServices(app, redissession, client ,getClientName, *args):
             requestdata=json.loads(request.data)
             app.logger.debug("Inside qcProjectDetails_ICE. Query: "+str(requestdata["query"]))
             if not isemptyrequest(requestdata):
-                clientName=getClientName(requestdata)       
-                dbsession=client[clientName]
                 if(requestdata["query"] == 'getprojectDetails'):
                     result=list(dbsession.users.find({"_id":ObjectId(requestdata["userid"])},{"projects":1}))
                     res= {"rows":result}
@@ -60,8 +58,6 @@ def LoadServices(app, redissession, client ,getClientName, *args):
             requestdata=json.loads(request.data)
             app.logger.debug("Inside saveIntegrationDetails_ICE. Query: "+str(requestdata["query"]))
             if not isemptyrequest(requestdata):
-                clientName=getClientName(requestdata)       
-                dbsession=client[clientName]
                 if(requestdata["query"] == 'saveQcDetails_ICE'):
                     requestdata["type"] = "ALM"
                     testcases = requestdata["qctestcase"]
@@ -231,13 +227,6 @@ def LoadServices(app, redissession, client ,getClientName, *args):
                     else:
                         dbsession.thirdpartyintegration.insert_one(requestdata)
                     res= {"rows":"success"}
-                elif(requestdata["query"] == 'saveJiraDetails_ICE'):
-                    requestdata["type"] = "Jira"
-                    dbsession.thirdpartyintegration.insert_one(requestdata)
-                    dbsession.thirdpartyintegration.delete_many({"type":"Jira","testscenarioid":requestdata["testscenarioid"]})
-                    dbsession.thirdpartyintegration.delete_many({"type":"Jira","testCode":requestdata["testCode"]})
-                    dbsession.thirdpartyintegration.insert_one(requestdata)
-                    res= {"rows":"success"}
             else:
                 app.logger.warn('Empty data received. getting saveIntegrationDetails_ICE.')
         except Exception as e:
@@ -251,8 +240,6 @@ def LoadServices(app, redissession, client ,getClientName, *args):
             requestdata=json.loads(request.data)
             app.logger.debug("Inside viewIntegrationMappedList_ICE. Query: "+str(requestdata["query"]))
             if not isemptyrequest(requestdata):
-                clientName=getClientName(requestdata)        
-                dbsession=client[clientName]
                 if(requestdata["query"] == 'qcdetails'):
                     if "testscenarioid" in requestdata:
                         result=list(dbsession.thirdpartyintegration.find({"type":"ALM","testscenarioid":requestdata["testscenarioid"]}))
@@ -285,30 +272,6 @@ def LoadServices(app, redissession, client ,getClientName, *args):
                                                 mapping['testscenarioid'].remove(scenarioId)
                                     result.extend(zephyrmaplist)
                         res= {"rows":result}
-                elif(requestdata["query"] == 'jiradetails'):
-                    result = []
-                    projectlist=list(dbsession.users.find({"_id":ObjectId(requestdata["userid"])},{"projects":1}))
-                    if len(projectlist) > 0:
-                        projects = projectlist[0]['projects']
-                        scenariolist=list(dbsession.testscenarios.find({"projectid":{'$in':projects},"deleted":False,"$where":"this.parent.length>0"},{"name":1,"_id":1}))
-                        if len(scenariolist) > 0:
-                            scenarios = {str(i['_id']):i['name'] for i in scenariolist}
-                            temp_result=list(dbsession.thirdpartyintegration.find({"type":"Jira","testscenarioid":{'$in':list(scenarios.keys())}}))
-                            if len(temp_result) > 0:
-                                for mapping in temp_result:
-                                    mapping['testscenarioname']=[]
-                                    scenarioId=mapping['testscenarioid']
-                                    if scenarioId in scenarios:
-                                        mapping['testscenarioname'].append(scenarios[scenarioId])
-                                result.extend(temp_result)
-                    if 'scenarioName' in requestdata:
-                        for i in result:
-                            if requestdata['scenarioName']==i['testscenarioname'][0]:
-                                result=i
-                                break
-                            else:
-                                result=[]
-                    res= {"rows":result}
             else:
                 app.logger.warn('Empty data received. getting QcMappedList.')
         except Exception as e:
@@ -322,8 +285,6 @@ def LoadServices(app, redissession, client ,getClientName, *args):
             requestdata=json.loads(request.data)
             app.logger.debug("Inside getMappedDetails. Query: "+str(requestdata["query"]))
             if not isemptyrequest(requestdata):
-                clientName=getClientName(requestdata)         
-                dbsession=client[clientName]
                 if("releaseId" in requestdata):
                     result=list(dbsession.thirdpartyintegration.find({"type":"Zephyr","releaseid":int(requestdata["releaseId"])}))
                     res= {"rows":result}
@@ -348,8 +309,6 @@ def LoadServices(app, redissession, client ,getClientName, *args):
             requestdata=json.loads(request.data)
             app.logger.debug("Inside updateMapDetails_ICE. Query: "+str(requestdata["query"]))
             if not isemptyrequest(requestdata):
-                clientName=getClientName(requestdata)         
-                dbsession=client[clientName]
                 if(requestdata["query"] == 'updateMapDetails_ICE'):
                     if requestdata['screenType']=='ALM':
                         for mapObj in requestdata["mapList"]:
@@ -411,37 +370,6 @@ def LoadServices(app, redissession, client ,getClientName, *args):
                         if len(req)!=0:
                             dbsession.thirdpartyintegration.bulk_write(req)
                         res= {"rows":"success"}
-                    elif requestdata['screenType']=='Jira':
-                        app.logger.debug("Inside updateMapDetails_ICE - Jira unsync")
-                        req=[]
-                        for mapObj in requestdata["mapList"]:
-                            result1 = list(dbsession.thirdpartyintegration.find({"_id":ObjectId(mapObj["mapid"]),"type":"Jira"}))
-                            if "testscenarioid" in mapObj:
-                                #updating scenarioid
-                                scenarioid = mapObj["testscenarioid"]
-                                # for i in scenarioid:
-                                if  scenarioid[0]==result1[0]['testscenarioid']:
-                                    result1[0]['testscenarioid']=''
-                                if result1[0]['testscenarioid'] == '' :
-                                    req.append(DeleteOne({"_id":ObjectId(mapObj["mapid"]),"type":"Jira"}))
-                                # else:
-                                #     req.append(UpdateOne({"_id":ObjectId(mapObj["mapid"])}, {'$set': {"testscenarioid":result1[0]['testscenarioid']}}))
-                            elif "testCaseNames" in mapObj:
-                                #updating testcase
-                                testname = mapObj["testCaseNames"]
-                                if testname[0] == result1[0]['testCode']:
-                                    result1[0]['projectid']=''
-                                    result1[0]['projectName']=''
-                                    result1[0]['projectCode']=''
-                                    result1[0]['testId']=''
-                                    result1[0]['testCode']=''
-                                if result1[0]['testCode'] == '' :
-                                    req.append(DeleteOne({"_id":ObjectId(mapObj["mapid"]),"type":"Jira"}))
-                                # else:
-                                #     req.append(UpdateOne({"_id":ObjectId(mapObj["mapid"])}, {'$set': {"testid":result1[0]['testid'], "testname":result1[0]['testname'],"treeid":result1[0]['treeid'],"parentid":result1[0]['parentid'],"reqdetails":result1[0]['reqdetails'],"projectid":result1[0]['projectid'],"releaseid":result1[0]['releaseid']}}))
-                        if len(req)!=0:
-                            dbsession.thirdpartyintegration.bulk_write(req)
-                            res= {"rows":"success"}
             else:
                 app.logger.warn('Empty data received. updating after unsyc.')
         except Exception as e:
@@ -458,8 +386,6 @@ def LoadServices(app, redissession, client ,getClientName, *args):
         try:
             requestdata=json.loads(request.data)
             if not isemptyrequest(requestdata):
-                clientName=getClientName(requestdata)         
-                dbsession=client[clientName]
                 userid = ObjectId(requestdata['userid'])
                 discoverDocument = dbsession.thirdpartyintegration.find_one({ "type": "AvoDiscover", "avodiscoverconfig.userid": userid})
                 if discoverDocument is not None:
