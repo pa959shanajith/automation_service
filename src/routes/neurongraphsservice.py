@@ -13,7 +13,7 @@ def generate_id():
     uniq += 1
     return uniq
 
-def LoadServices(app, redissession, dbsession):
+def LoadServices(app, redissession, client ,getClientName):
     setenv(app)
 
 ################################################################################
@@ -31,6 +31,8 @@ def LoadServices(app, redissession, dbsession):
         res={'rows':'fail'}
         try:
             requestdata = json.loads(request.data)
+            clientName=getClientName(requestdata)      
+            dbsession=client[clientName]
             domain_dict = {}
             ptype = {}
             nodes = []
@@ -134,6 +136,8 @@ def LoadServices(app, redissession, dbsession):
             requestdata=json.loads(request.data)
             app.logger.debug("Inside getReport. Query: "+str(requestdata["query"]))
             if not isemptyrequest(requestdata):
+                 clientName=getClientName(requestdata)         
+                 dbsession=client[clientName]
                  if(requestdata["query"] == 'getReportNG'):
                     queryresult1 = list(dbsession.executions.find({"parent":ObjectId(requestdata["suiteId"])},{"_id":1,"status":1}))
                     for execution in queryresult1:
@@ -155,6 +159,8 @@ def LoadServices(app, redissession, dbsession):
         try:
             requestdata=json.loads(request.data)
             if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)         
+                dbsession=client[clientName]
                 queryresult = list(dbsession.executions.find({"parent":ObjectId(requestdata["suiteID"])}))
                 res= {"rows":queryresult}
             else:
