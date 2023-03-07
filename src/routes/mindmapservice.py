@@ -1101,7 +1101,7 @@ def LoadServices(app, redissession, client ,getClientName):
                             else:
                                 testcasename=getTestcaseName(dbsession,testcasedata['testcaseid'])
                                 if testcasename!= testcasedata["testcaseName"]:
-                                    testcaseid=getTestcaseID(screendata["screenid"],testcasedata["testcaseName"])
+                                    testcaseid=getTestcaseID(dbsession,screendata["screenid"],testcasedata["testcaseName"])
                                     if testcaseid is not None:
                                         updateparent(dbsession,'testcases',testcasedata['testcaseid'],screendata["screenid"],'delete')
                                         testcasedata['testcaseid']=testcaseid
