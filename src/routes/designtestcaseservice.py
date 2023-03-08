@@ -94,7 +94,7 @@ def LoadServices(app, redissession, client ,getClientName):
             req.append(InsertOne(row))
         dbsession.dataobjects.bulk_write(req)
 
-    def createdataobjects(scrid, objs):
+    def createdataobjects(dbsession,scrid, objs):
         custnameToAdd = []
         for e in objs:
             so = objs[e]
@@ -303,7 +303,7 @@ def LoadServices(app, redissession, client ,getClientName):
                             "cord": so["cord"] if ("cord" in so) else ""
                         })
                     del requestdata['testcasesteps']
-                    createdataobjects(query_screen['screenid'], missingCustname)
+                    createdataobjects(dbsession,query_screen['screenid'], missingCustname)
 
                 #query to update tescase
                 if(requestdata['query'] == 'updatetestcasedata'):
@@ -492,7 +492,7 @@ def LoadServices(app, redissession, client ,getClientName):
                                 "cord": so["cord"] if ("cord" in so) else ""
                             })
                         del requestdata['testcasesteps']
-                        createdataobjects(query_screen['screenid'], missingCustname)
+                        createdataobjects(dbsession,query_screen['screenid'], missingCustname)
 
                     #query to update tescase
                     if(requestdata['query'] == 'updatetestcasedata'):
