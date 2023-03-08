@@ -629,8 +629,8 @@ def LoadServices(app, redissession, client ,getClientName):
                                     updateScreenName(dbsession,screendata['screenName'],projectid,screendata['screenid'],createdby,createdbyrole)
                                 currentscreenid=screendata["screenid"]
                                 if "reuse" in screendata and screendata["reuse"]:
-                                    updateScreenAndTestcase(dbsession,urrentscreenid,createdby,createdbyrole)
-                                    updateparent(dbsession,dbsession,"screens",currentscreenid,currentscenarioid,"add")
+                                    updateScreenAndTestcase(dbsession,currentscreenid,createdby,createdbyrole)
+                                    updateparent(dbsession,"screens",currentscreenid,currentscenarioid,"add")
                             iddata2={"_id":ObjectId(currentscreenid),"testcases":[]}
                             for testcasedata in screendata['testcaseDetails']:
                                 if testcasedata["testcaseid"] is None:

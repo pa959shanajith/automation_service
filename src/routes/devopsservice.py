@@ -245,10 +245,7 @@ def LoadServices(app, redissession, client ,getClientName):
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
-            clientName="avoassure"
-            if "host" in requestdata[-1]:
-                if 'localhost' not in requestdata[-1]['host'] and '127.0.0.1' not in requestdata[-1]['host']:
-                    clientName=requestdata[-1]["host"].split('.')[0]        
+            clientName=getClientName(requestdata)
             dbsession=client[clientName]
             del(requestdata[-1])
             processedData = []
