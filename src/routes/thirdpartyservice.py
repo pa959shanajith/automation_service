@@ -426,6 +426,7 @@ def LoadServices(app, redissession, dbsession, *args):
                                     result1[0]['itemId']=''
                                     result1[0]['itemCode']=''
                                     result1[0]['itemType']=''
+                                    result1[0]['itemSummary']=''
                                 if result1[0]['itemCode'] == '' :
                                     req.append(DeleteOne({"_id":ObjectId(mapObj["mapid"]),"type":"Jira"}))
                                 # else:
