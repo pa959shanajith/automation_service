@@ -505,7 +505,6 @@ def getClientName(requestdata):
                 if 'localhost' not in requestdata["host"] and '127.0.0.1' not in requestdata["host"]:
                     clientName=requestdata["host"].split('.')[0]
 
-        print(client.list_database_names())
         if clientName not in client.list_database_names():
             clientName = 'avoassure'
     except Exception as e:
