@@ -296,7 +296,8 @@ def LoadServices(app, redissession, client ,getClientName):
             requestdata=json.loads(request.data)
             clientName=getClientName(requestdata)        
             dbsession=client[clientName]
-            queryresult = list(dbsession.configurekeys.find({'executionData.batchInfo.projectId': requestdata['projectid']}))
+            queryresult = list(dbsession.configurekeys.find({'executionData.batchInfo.projectId': requestdata['projectid'] ,
+                                                             '$or': [{"executionData.isExecuteNow":False},{"executionData.isExecuteNow": {'$exists':False}}]}))
             responseData = []
             for elements in queryresult:
                 updatedExecutionReq = elements['executionData']
