@@ -106,7 +106,7 @@ LS_CRITICAL_ERR_CODE=['199','120','121','123','124','125']
 webPluginList = {
 				"MR":"reports","MD":"dashboard","ALMDMT":"integration","STAVO":"seleniumtoavo",
 				"DE":"utility","WEBT":"web","APIT":"webservice","MOBT":"mobileapp","ETOAP":"oebs",
-				"DAPP":"desktop","MF":"mainframe","ETSAP":"sap"
+				"DAPP":"desktop","MF":"mainframe","ETSAP":"sap","MOBWT":"mobileweb"
 			}
 dbsession=redissession=redissession_db2=client=None
 
