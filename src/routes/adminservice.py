@@ -148,7 +148,8 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
                     dbsession.users.update_one({"_id":ObjectId(requestdata["userid"])},{"$set":update_query})
                     res={"rows":"success"}
                 elif (action=="resetpassword"):
-                    result=dbsession.users.find_one({"_id":ObjectId(requestdata["user_id"])})
+                    user_id = requestdata['user_id']['user_id'] if 'user_id' in requestdata['user_id'] else requestdata['user_id']
+                    result=dbsession.users.find_one({"_id":ObjectId(user_id)})
                     modifiedby = ObjectId(requestdata.get("modifiedby", result["_id"]))
                     modifiedbyrole = ObjectId(requestdata.get("modifiedbyrole", result["defaultrole"]))
                     update_query = {
