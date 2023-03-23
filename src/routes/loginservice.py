@@ -62,6 +62,23 @@ def LoadServices(app, redissession, client, licensedata,basecheckonls,getClientN
                     expiryDate=lsData['ExpiresOn'].split('/')
                     expiryDate=datetime(int(expiryDate[2]), int(expiryDate[0]), int(expiryDate[1]))
                     if present <= expiryDate:
+                        try:
+                            # A sreenivasulu assign a sample project to new user account
+                            user_data = list(dbsession.eularecords.find({"username": requestdata["username"]}))
+                            if len(user_data) == 0 and requestdata["username"] != "admin":
+                                client_license_data = dbsession.licenseManager.find_one({"client":clientName}, {"data": 1, "_id": 0})
+                                keys_with_true = [key for key, value in client_license_data["data"].items() if value == "true"]
+                                projects_id_list =[]
+                                for project_type_name in keys_with_true:                                    
+                                    project_type_nameANDid = dbsession.projectfeaturecodes.find_one({"featureCode": project_type_name}, {"sampleProjectName": 1})
+                                    if project_type_nameANDid != None:
+                                        projects_id = dbsession.projects.find_one({"name":project_type_nameANDid["sampleProjectName"]}, {"_id": 1})
+                                        if projects_id != None:
+                                            projects_id_list.append(projects_id["_id"])
+                                if len(projects_id_list) != 0:
+                                    dbsession.users.update_one({"name":requestdata["username"]},{"$set":{"projects":projects_id_list}})
+                        except Exception as e:
+                            servicesException("Exception in login/loaduser while assigning a sample project to a trial user", e, True)
                         if str(lsData['USER']) != "Unlimited":
                             redisdb_pass='179c27cf2f3a4173b6521c9ddc2645d1e94ae7e5c385664282c2965aff7119aa'
                             if checkUserLoggedin({'host':'127.0.0.1','port':'8001'},redisdb_pass,dbsession) >= int(lsData['USER']):

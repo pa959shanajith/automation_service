@@ -500,13 +500,8 @@ def getClientName(requestdata):
     global licenseServer
     clientName="avoassure"
     try:
-        if licenseServer["enable"]:
-            if "host" in requestdata:
-                if 'localhost' not in requestdata["host"] and '127.0.0.1' not in requestdata["host"]:
-                    clientName=requestdata["host"].split('.')[0]
-
-        if clientName not in client.list_database_names():
-            clientName = 'avoassure'
+        if ('DB_Name' in os.environ):
+            clientName=os.environ['DB_Name']
     except Exception as e:
         app.logger.error(e)
         app.logger.error('Error while fetching client name')
