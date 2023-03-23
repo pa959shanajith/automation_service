@@ -226,7 +226,9 @@ ecodeServices = {
     "fetchModuleListDevopsReport": '466',
     "deleteAvoGrid": '467',
     "verifyUser":"468",
-    "deleteScenario": "469"
+    "deleteScenario": "469",
+    "getDetails_SAUCELABS":"470",
+    "manageSaucelabsDetails":"471"
 }
 
 
