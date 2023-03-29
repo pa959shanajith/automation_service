@@ -512,3 +512,131 @@ def LoadServices(app, redissession, client ,getClientName):
             print(e)
             return e
         return jsonify(res)
+    
+
+    @app.route('/devops/fetchHistory',methods=['POST'])
+    def fetchHistory():
+        app.logger.debug("Inside fetchHistory")
+        res={'rows':'fail'}
+        try:
+            requestdata=json.loads(request.data)
+            clientName=getClientName(requestdata)
+            dbsession=client[clientName]
+
+
+            # To do use ISODate function and then send the query
+
+            TF = '%Y-%m-%d %H:%M:%S'
+            sdate = datetime.strptime(requestdata['fromDate'], TF)
+            scolDate = requestdata['fromDate'].split()[0]
+            edate = datetime.strptime(requestdata['toDate'], TF)
+            ecolDate = requestdata['toDate'].split()[0]
+
+            dbsession.vidata.delete_many({})
+            dbsession.executions.aggregate([
+                { "$match": { "starttime": { "$gte":sdate,"$lte": edate }}},
+                { "$match": { "executionListId": { "$exists": "true" } }},
+                { "$unwind": {
+                    "path": "$parent",
+                    "preserveNullAndEmptyArrays": True
+                    }
+                },
+                { '$addFields': { 
+                    'elistsuiteID' : {"$concat" : ['$executionListId', '_',  { '$convert': {"input" : "$parent", "to" : "string" }} ]}
+                }},
+                {'$lookup': {
+                    "from":'reports',
+                    "localField":'_id',
+                    "foreignField":'executionid',
+                    "as":'scenarioReports'
+                }},
+                { '$unwind': "$scenarioReports"},
+                {
+                    "$group": {
+                    "_id":  {"f0": "$elistsuiteID"},
+                    "eid":  {"$first": "$scenarioReports.executionid" }, 
+                    "overallstatus":  {"$first": "$scenarioReports.status" }, 
+                    "starttimeConfig": { "$min" : "$starttime"} ,
+                    "starttime":  {"$first": "$starttime" }, 
+                    "endtime":  {"$first": "$endtime" }, 
+                    "batchname":  {"$first": "$batchname" }, 
+                    "elistsuiteID":  {"$first": "$elistsuiteID"},
+                    "Total":  { "$sum" : 1},   
+                    "passCount": { "$sum": { "$cond": [ { "$eq": [ "$scenarioReports.status", 'Pass' ] }, 1, 0 ] } },
+                    "failCount": { "$sum": { "$cond": [ { "$eq": [ "$scenarioReports.status", 'Fail' ] }, 1, 0 ] } },
+                    "TerminateCount": { "$sum": { "$cond": [ { "$eq": [ "$scenarioReports.status", 'Terminate' ] }, 1, 0 ] } },
+                    },
+                }, 
+                { "$project": { "_id":0   }  } ,
+                { "$out": "execStatus_"+ scolDate}
+            ])
+
+            dbsession.executionlist.aggregate ([  
+                { "$match":{ "executionListId": { "$exists": "true" } }},
+                { "$unwind": {
+                    "path": "$executionData",
+                    "preserveNullAndEmptyArrays": True
+                    }
+                },
+                { "$unwind": {
+                    "path": "$executionData.batchInfo",
+                    "preserveNullAndEmptyArrays": True
+                    }
+                },
+                { '$addFields': { 
+                        'elistsuiteID' : {"$concat" : ['$executionListId', '_',  { '$convert': {"input" : "$executionData.batchInfo.testsuiteId", "to" : "string" }} ]}
+                }},
+                { "$project": { "_id":0 } },
+                { "$out": "execModules_"+ scolDate}
+            ])
+
+            dbsession.get_collection("execModules_"+ scolDate).aggregate([{
+                "$lookup":{
+                        "from": "execStatus_"+ scolDate,
+                        "localField": "elistsuiteID",
+                        "foreignField": "elistsuiteID",
+                        "as": "Estatus"
+                    },
+                },
+                { 
+                    "$unwind": {
+                        "path": "$Estatus",
+                        "preserveNullAndEmptyArrays": True
+                    }
+                },
+                {
+                    "$group": {
+                        "_id":  {"f1": "$elistsuiteID" }, 
+                        "elistsuiteID":  {"$first": "$elistsuiteID" }, 
+                        "Module":  { "$first" : "$executionData.batchInfo.testsuiteName"}, 
+                        "Project": { "$first" : "$executionData.batchInfo.projectName"} ,
+                        "configurename": {"$first" : "$executionData.configurename"},
+                        "configurekey": {"$first" : "$executionData.configurekey"},
+                        "Agentname": {"$first" : "$executionData.batchInfo.agentName"},
+                        "StartTimeConfig": { "$min" : "$Estatus.starttime"} ,
+                        "Status": { "$first" : "$Estatus.overallstatus"} ,
+                        "passCount": { "$first" : "$Estatus.passCount"} ,
+                        "failCount": { "$first" : "$Estatus.failCount"} ,
+                        "terminateCount": { "$first" : "$Estatus.TerminateCount"} ,
+                        "scenarioCount": { "$first" : "$Estatus.Total"} ,
+                        "StartTime": { "$first" : "$Estatus.starttime"} ,
+                        "EndTime": { "$first" : "$Estatus.endtime"} ,
+                        "elistsuiteid":  {"$first": "$elistsuiteID"},
+                    },
+                },
+                {     
+                    "$project":{
+                        "_id": 0 
+                    },
+                },
+                { "$out": "vidata"},
+            ])
+
+            dbsession.get_collection("execStatus_"+ scolDate).drop()
+            dbsession.get_collection("execModules_"+ scolDate).drop()
+
+            res['rows'] = list(dbsession.vidata.find({'StartTime': {"$ne": None}}))
+        except Exception as e:
+            print(e)
+            return e
+        return jsonify(res)

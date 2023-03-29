@@ -254,6 +254,14 @@ def LoadServices(app, redissession, client ,getClientName):
                         counterupdator(dbsession, 'testscenarios', ObjectId(requestdata['userid']), 1)
 
                 elif param == 'insertintoexecution':
+                    maxPE=dbsession.licenseManager.find_one({"client": clientName})['data']['PE']
+                    executionsList=list(dbsession.executions.find({}))
+                    executionCount=0
+                    for exec in executionsList:
+                        if exec['status'] == "inprogress":
+                            executionCount = executionCount +1
+                    if int(maxPE) <= executionCount:
+                        return res
                     starttime = datetime.now()
                     batchid = ObjectId() if requestdata["batchid"] == "generate" else ObjectId(requestdata["batchid"])
                     tsuids = requestdata['testsuiteids']
