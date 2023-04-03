@@ -66,10 +66,6 @@ def LoadServices(app, redissession, client, licensedata,basecheckonls,getClientN
                                     dbsession.users.update_one({"name":requestdata["username"]},{"$set":{"projects":projects_id_list}})
                         except Exception as e:
                             servicesException("Exception in login/loaduser while assigning a sample project to a trial user", e, True)
-                        if str(lsData['USER']) != "Unlimited":
-                            redisdb_pass='179c27cf2f3a4173b6521c9ddc2645d1e94ae7e5c385664282c2965aff7119aa'
-                            if checkUserLoggedin({'host':'127.0.0.1','port':'8001'},redisdb_pass,dbsession) >= int(lsData['USER']):
-                                return res
                         if "fnName" in requestdata and requestdata["fnName"]=="forgotPasswordEmail":
                             if ("username" in requestdata and requestdata["username"]): #handling duplicate email-id's
                                 user_data = [dbsession.users.find_one({"name":requestdata["username"]})]
