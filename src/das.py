@@ -108,7 +108,7 @@ webPluginList = {
 				"DE":"utility","WEBT":"web","APIT":"webservice","MOBT":"mobileapp","ETOAP":"oebs",
 				"DAPP":"desktop","MF":"mainframe","ETSAP":"sap","MOBWT":"mobileweb"
 			}
-dbsession=redissession=redissession_db2=client=None
+dbsession=redissession=redissession_db2=redissession_db0=client=None
 
 
 def _jsonencoder_default(self, obj):
@@ -143,6 +143,10 @@ sys.path.append(currfiledir+os.sep+"utility")
 
 def addroutes():
     app.logger.debug("Loading services")
+
+    import licenseManager
+    licenseManager.LoadServices(app, redissession_db0, client,getClientName)
+
     import loginservice
     loginservice.LoadServices(app, redissession, client, licensedata,basecheckonls,getClientName)
 
@@ -625,7 +629,7 @@ def wrap(data, key, iv=b'0'*16):
 
 def main():
     global lsport,dasport,mongo_dbup,redis_dbup,licenseServer,client
-    global redissession,dbsession,redissession_db2
+    global redissession,dbsession,redissession_db2,redissession_db0
     das_conf_obj = open(config_path, 'r')
     das_conf = json.load(das_conf_obj)
     das_conf_obj.close()
@@ -707,6 +711,8 @@ def main():
         redisdb_pass = creds['cachedb']['password']
         redissession = redis.StrictRedis(host=redisdb_conf['host'], port=int(redisdb_conf['port']), password=redisdb_pass, db=3)
         redissession_db2 = redis.StrictRedis(host=redisdb_conf['host'], port=int(redisdb_conf['port']), password=redisdb_pass, db=2)
+        redissession_db0 = redis.StrictRedis(host=redisdb_conf['host'], port=int(redisdb_conf['port']), password=redisdb_pass, db=0)
+
         if redissession.get('icesessions') is None:
             redissession.set('icesessions',wrap('{}',db_keys))
         if redissession_db2.get("ICE_status") is None:
