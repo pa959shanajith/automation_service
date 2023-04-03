@@ -7,7 +7,6 @@ import json
 import redis
 import requests
 from datetime import datetime, timezone
-from licenseManager import *
 def LoadServices(app, redissession, client, licensedata,basecheckonls,getClientName):
     setenv(app)
 
@@ -19,19 +18,7 @@ def LoadServices(app, redissession, client, licensedata,basecheckonls,getClientN
 ################################################################################
 # ADD YOUR ROUTES BELOW
 ################################################################################
-    # Get count of users logged in 
-    def checkUserLoggedin(redisdb_conf,redisdb_pass,dbsession):
-        loggedInCount=0
-        usersList=list(dbsession.users.find({},{"email":1}))
-        usersList=[key['email'] for key in usersList]
-        redissession = redis.StrictRedis(host=redisdb_conf['host'], port=int(redisdb_conf['port']), password=redisdb_pass, db=0)
-        for key in redissession.keys():
-            sess=json.loads(redissession[key].decode('utf-8'))
-            if 'emailid' in sess:
-                if sess['activeRole'] != 'Admin':
-                    if sess['emailid'] in usersList:
-                        loggedInCount=loggedInCount+1
-        return loggedInCount
+
     #DAS service for loading users info
     @app.route('/login/loadUser',methods=['POST'])
     def loadUser():
