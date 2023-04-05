@@ -91,16 +91,19 @@ def LoadServices(app, redissession, client,getClientName):
     @app.route('/hooks/validateStatus',methods=['POST'])
     def validateStatus():
         app.logger.debug("Inside validateStatus.")
-        res={'status':'Fail'}
+        res={'status':'fail','message':'','data':None}
         requestdata=json.loads(request.data)
         try:
             if not isemptyrequest(requestdata):
                 clientName=getClientName(requestdata)
                 dbsession=client[clientName]
                 lsData=dbsession.licenseManager.find_one({"client":clientName})['data']
-                res = {'status':lsData['Status']}
+                if lsData['Status'] != 'Active':
+                    res = {'status':'fail','message':'License is not active '}
+                else:
+                    res = {'status':'pass','data':lsData['Status']}
         except Exception as e:
-            res = {'fail':'Failed to fetch License Details'}
+            res = {'status':'fail','message':'License is not active '}
             return jsonify(res)
         return jsonify(res)
     
@@ -139,7 +142,7 @@ def LoadServices(app, redissession, client,getClientName):
     @app.route('/hooks/validateUser',methods=['POST'])
     def validateUser():
         app.logger.debug("Inside validateUser.")
-        res={'status':'sucess'}
+        res={'status':'pass','message':'','data':None}
         requestdata=json.loads(request.data)
         try:
             if not isemptyrequest(requestdata):
@@ -157,18 +160,18 @@ def LoadServices(app, redissession, client,getClientName):
                                 loggedInCount=loggedInCount+1
                 if str(lsData['data']['USER']) != "Unlimited":
                     if loggedInCount >= int(lsData['data']['USER']):
-                        res = {'fail':"Max Users Already loggedin"}
+                        res = {'status':"fail",'message':"Max Users Already loggedin"}
                         app.logger.error(res)
                         return res
         except Exception as e:
-            res = {'fail':"Max Users Already loggedin"}
+            res = {'message':"Max Users Already loggedin",'status':"fail"}
             return jsonify(res)
         return jsonify(res)
 
     @app.route('/hooks/validateProject',methods=['POST'])
     def validateProject():
         app.logger.debug("Inside validateProject.")
-        res={'status':'sucess'}
+        res={'status':'pass','message':'','data':None}
         requestdata=json.loads(request.data)
         try:
             if not isemptyrequest(requestdata):
@@ -178,7 +181,7 @@ def LoadServices(app, redissession, client,getClientName):
                 if licensedata['PA'] != "Unlimited":
                     projectsCount=len(list(dbsession.projects.find({})))
                     if projectsCount >= int(licensedata['PA']):
-                        res = {'fail':'Max Allowed Projects Created'}
+                        res = {'status':'fail','message':'Max Allowed Projects Created'}
                 return res
         except Exception as e:
             return jsonify(res)
@@ -206,7 +209,7 @@ def LoadServices(app, redissession, client,getClientName):
     @app.route('/hooks/validateExecutionSteps',methods=['POST'])
     def validateExecutionSteps():
         app.logger.debug("Inside validateExecutionSteps.")
-        res={'fail':'Execution Not allowed due to max setps count exceed'}
+        res={'status':'fail','message':'Execution Not allowed due to max setps count exceed','data':0}
         requestdata=json.loads(request.data)
         try:
             if not isemptyrequest(requestdata):
@@ -230,10 +233,12 @@ def LoadServices(app, redissession, client,getClientName):
                                 totalSteps = totalSteps + len(testData["steps"])
 
                 if int(maxExec) > totalSteps:
-                    res={'status':'sucess'}
+                    res={'status':'pass','data':totalSteps}
+                elif totalSteps>0:
+                    res['data']=totalSteps
+                
         except Exception as e:
             return jsonify(res)
-        
         return jsonify(res)
 
 
