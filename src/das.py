@@ -504,8 +504,8 @@ def getClientName(requestdata):
     global licenseServer
     clientName="avoassure"
     try:
-        if ('DB_Name' in os.environ):
-            clientName=os.environ['DB_Name']
+        if ('DB_NAME' in os.environ):
+            clientName=os.environ['DB_NAME']
     except Exception as e:
         app.logger.error(e)
         app.logger.error('Error while fetching client name')
@@ -728,7 +728,10 @@ def main():
         mongodb_conf = das_conf['avoassuredb']
         mongo_user= unwrap(mongodb_conf['username'],db_keys)
         mongo_pass= unwrap(mongodb_conf['password'],db_keys)
-        hosts = [mongodb_conf["host"] + ':' + str(mongodb_conf["port"])]
+        if ('DB_IP' in os.environ and 'DB_PORT' in os.environ):
+            hosts = [str(os.environ['DB_IP']) + ':' + str(os.environ['DB_PORT'])]
+        else:
+            hosts = [mongodb_conf["host"] + ':' + str(mongodb_conf["port"])]
         client = MongoClient(hosts, username = mongo_user, password = mongo_pass,authSource = 'admin', 
             appname = 'AvoAssureDAS', authMechanism = 'SCRAM-SHA-1')
         if client.server_info():
