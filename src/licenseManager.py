@@ -217,20 +217,27 @@ def LoadServices(app, redissession, client,getClientName):
                 dbsession=client[clientName]
                 totalSteps=0
                 maxExec=dbsession.licenseManager.find_one({"client": clientName})['data']['TE']
-                executionsList=list(dbsession.executions.find({"starttime" :{'$gte' : datetime(datetime.now().year, datetime.now().month, 1, 00, 00, 00)}}))
-                for exec in executionsList:
-                    for ts in exec["parent"]:
-                        tsc=list(dbsession.testsuites.find({"_id" :ts}))
-                        for tscenerio in tsc:
-                            tsids=list()
-                            for i in tscenerio["testscenarioids"]:
-                                temp=list(map(lambda x: x["testcaseids"], list(dbsession.testscenarios.find({"_id" :i}))))
-                                for y in temp:
-                                    for z in y:
-                                        tsids.append(z)
-                            for testCase in tsids:
-                                testData=dbsession.testcases.find_one({"_id" :testCase})
-                                totalSteps = totalSteps + len(testData["steps"])
+                executionsList=list(client.avoassure.executions.aggregate([{"$match":{"starttime" :{'$gte' : datetime(datetime.now().year, datetime.now().month, 1, 00, 00, 00)}}},{"$unwind":"$parent"},{"$lookup":{
+                    "from":"testsuites",
+                    "localField":"parent",
+                    "foreignField":"_id",
+                    "as":"testsuites"}},
+                {"$lookup":{
+                    "from":"testscenarios",
+                    "localField":"testsuites.testscenarioids",
+                    "foreignField":"_id",
+                    "as":"testscenarios"}
+                    },
+                    {"$lookup":{
+                    "from":"testcases",
+                    "localField":"testscenarios.testcaseids",
+                    "foreignField":"_id",
+                    "as":"testcases"}
+                    }
+                    ]))
+                for i in executionsList:
+                    for j in i['testcases']:
+                        totalSteps= totalSteps + len(j['steps'])
 
                 if int(maxExec) > totalSteps:
                     res={'status':'pass','data':totalSteps}
@@ -251,30 +258,13 @@ def LoadServices(app, redissession, client,getClientName):
             if not isemptyrequest(requestdata):
                 clientName=getClientName(requestdata)
                 dbsession=client[clientName]
-                totalSteps=0
-                maxExec=dbsession.licenseManager.find_one({"client": clientName})['data']['TE']
-                executionsList=list(dbsession.executions.find({"starttime" :{'$gte' : datetime(datetime.now().year, datetime.now().month, 1, 00, 00, 00)}}))
-                for exec in executionsList:
-                    for ts in exec["parent"]:
-                        tsc=list(dbsession.testsuites.find({"_id" :ts}))
-                        for tscenerio in tsc:
-                            tsids=list()
-                            for i in tscenerio["testscenarioids"]:
-                                temp=list(map(lambda x: x["testcaseids"], list(dbsession.testscenarios.find({"_id" :i}))))
-                                for y in temp:
-                                    for z in y:
-                                        tsids.append(z)
-                            for testCase in tsids:
-                                testData=dbsession.testcases.find_one({"_id" :testCase})
-                                totalSteps = totalSteps + len(testData["steps"])
-
                 maxPE=dbsession.licenseManager.find_one({"client": clientName})['data']['PE']
                 executionsList=list(dbsession.executions.find({}))
                 executionCount=0
                 for exec in executionsList:
                     if exec['status'] == "inprogress":
                         executionCount = executionCount +1
-                if (int(maxPE) > executionCount) and (int(maxExec) > totalSteps):
+                if int(maxPE) > executionCount:
                     res={'status':'sucess'}
         except Exception as e:
             return jsonify(res)
