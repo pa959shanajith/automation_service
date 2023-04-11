@@ -217,6 +217,9 @@ def LoadServices(app, redissession, client,getClientName):
                 dbsession=client[clientName]
                 totalSteps=0
                 maxExec=dbsession.licenseManager.find_one({"client": clientName})['data']['TE']
+                if maxExec == "Unlimited":
+                    res={'status':'sucess'}
+                    return res
                 executionsList=list(client.avoassure.executions.aggregate([{"$match":{"starttime" :{'$gte' : datetime(datetime.now().year, datetime.now().month, 1, 00, 00, 00)}}},{"$unwind":"$parent"},{"$lookup":{
                     "from":"testsuites",
                     "localField":"parent",
@@ -233,11 +236,11 @@ def LoadServices(app, redissession, client,getClientName):
                     "localField":"testscenarios.testcaseids",
                     "foreignField":"_id",
                     "as":"testcases"}
-                    }
+                    },{"$unwind":"$testcases"},
+                    {"$group":{"_id":"null","stepcount":{"$sum":{"$size":"$testcases.steps"}}}}
                     ]))
-                for i in executionsList:
-                    for j in i['testcases']:
-                        totalSteps= totalSteps + len(j['steps'])
+
+                totalSteps= executionsList[0]["stepcount"]
 
                 if int(maxExec) > totalSteps:
                     res={'status':'pass','data':totalSteps}
@@ -259,6 +262,9 @@ def LoadServices(app, redissession, client,getClientName):
                 clientName=getClientName(requestdata)
                 dbsession=client[clientName]
                 maxPE=dbsession.licenseManager.find_one({"client": clientName})['data']['PE']
+                if maxPE == "Unlimited":
+                    res={'status':'sucess'}
+                    return res
                 executionsList=list(dbsession.executions.find({}))
                 executionCount=0
                 for exec in executionsList:
