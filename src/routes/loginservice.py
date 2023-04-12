@@ -67,10 +67,6 @@ def LoadServices(app, redissession, client, licensedata,basecheckonls,getClientN
                             user_data = dbsession.users.find_one({"name":requestdata["username"]})
 
                         try:
-                            # A sreenivasulu assign a sample project to new user account
-                            # user_data = list(dbsession.eularecords.find({"username": requestdata["username"]}))
-                            # print(user_data)
-                            # if len(user_data) == 0 and 
                             if requestdata["username"] != "admin":
                                 client_license_data = dbsession.licenseManager.find_one({"client":clientName}, {"data": 1, "_id": 0})
                                 keys_with_true = [key for key, value in client_license_data["data"].items() if value == "true"]
@@ -81,7 +77,6 @@ def LoadServices(app, redissession, client, licensedata,basecheckonls,getClientN
                                         projects_id = dbsession.projects.find_one({"name":project_type_nameANDid["sampleProjectName"]}, {"_id": 1})
                                         if projects_id != None:
                                             projects_id_list.append(projects_id["_id"])
-                                # print(list(map(lambda x:x if x not in user_data['projects'],projects_id_list)))
                                 projects_id_list=list(set(projects_id_list)-set(user_data['projects']))+user_data['projects']
                                 if len(projects_id_list) != 0:
                                     dbsession.users.update_one({"name":requestdata["username"]},{"$set":{"projects":projects_id_list}})
