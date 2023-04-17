@@ -110,7 +110,7 @@ def LoadServices(app, redissession, client,getClientName):
     @app.route('/hooks/validateLicenceType',methods=['POST'])
     def validateLicenceType():
         app.logger.debug("Inside validateLicenceType.")
-        res={'status':'Fail'}
+        res={'status':'fail'}
         requestdata=json.loads(request.data)
         try:
             if not isemptyrequest(requestdata):
@@ -200,7 +200,7 @@ def LoadServices(app, redissession, client,getClientName):
                 dbsession=client[clientName]
                 lsData=dbsession.licenseManager.find_one({"client":clientName})['data']
                 if 'ETT' in lsData:
-                    res = {'status':'sucess'}
+                    res = {'status':'pass'}
         except Exception as e:
             res = {'fail':'Failed to fetch License Details'}
             return jsonify(res)
@@ -209,7 +209,7 @@ def LoadServices(app, redissession, client,getClientName):
     @app.route('/hooks/validateExecutionSteps',methods=['POST'])
     def validateExecutionSteps():
         app.logger.debug("Inside validateExecutionSteps.")
-        res={'status':'fail','message':'Execution Not allowed due to max setps count exceed','data':0}
+        res={'status':'fail','message':'Execution Not allowed due to max steps count exceed','data':0}
         requestdata=json.loads(request.data)
         try:
             if not isemptyrequest(requestdata):
@@ -218,9 +218,9 @@ def LoadServices(app, redissession, client,getClientName):
                 totalSteps=0
                 maxExec=dbsession.licenseManager.find_one({"client": clientName})['data']['TE']
                 if maxExec == "Unlimited":
-                    res={'status':'sucess'}
+                    res={'status':'pass','data':totalSteps}
                     return res
-                executionsList=list(client.avoassure.executions.aggregate([{"$match":{"starttime" :{'$gte' : datetime(datetime.now().year, datetime.now().month, 1, 00, 00, 00)}}},{"$unwind":"$parent"},{"$lookup":{
+                executionsList=list(dbsession.executions.aggregate([{"$match":{"starttime" :{'$gte' : datetime(datetime.now().year, datetime.now().month, 1, 00, 00, 00)}}},{"$unwind":"$parent"},{"$lookup":{
                     "from":"testsuites",
                     "localField":"parent",
                     "foreignField":"_id",
@@ -263,7 +263,7 @@ def LoadServices(app, redissession, client,getClientName):
                 dbsession=client[clientName]
                 maxPE=dbsession.licenseManager.find_one({"client": clientName})['data']['PE']
                 if maxPE == "Unlimited":
-                    res={'status':'sucess'}
+                    res={'status':'pass'}
                     return res
                 executionsList=list(dbsession.executions.find({}))
                 executionCount=0
@@ -271,7 +271,7 @@ def LoadServices(app, redissession, client,getClientName):
                     if exec['status'] == "inprogress":
                         executionCount = executionCount +1
                 if int(maxPE) > executionCount:
-                    res={'status':'sucess'}
+                    res={'status':'pass'}
         except Exception as e:
             return jsonify(res)
         
