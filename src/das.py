@@ -317,6 +317,7 @@ def updateActiveIceSessions():
                                         if key in webPluginList:
                                             ice_plugins_list.append(webPluginList[key])
                                     res["plugins"] = ice_plugins_list
+                                    res["license_data"] = lsData
                             else:
                                 res['err_msg'] = ice_name+" is not Registered with a valid Avo Assure User"
                                 response["node_check"] = res['status'] = "InvalidICE"
