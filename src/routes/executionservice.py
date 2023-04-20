@@ -184,27 +184,6 @@ def LoadServices(app, redissession, client ,getClientName):
         except Exception as updatetestsuiteexc:
             servicesException("updateTestSuite_ICE", updatetestsuiteexc, True)
         return jsonify(res)
-    def getExecutionsCount(dbsession):
-        totalSteps=0
-        try:
-            executionsList=list(dbsession.executions.find({"starttime" :{'$gte' : datetime(datetime.now().year, datetime.now().month, 1, 00, 00, 00)}}))
-            for exec in executionsList:
-                for ts in exec["parent"]:
-                    tsc=list(dbsession.testsuites.find({"_id" :ts}))
-                    for tscenerio in tsc:
-                        tsids=list()
-                        for i in tscenerio["testscenarioids"]:
-                            temp=list(map(lambda x: x["testcaseids"], list(dbsession.testscenarios.find({"_id" :i}))))
-                            for y in temp:
-                                for z in y:
-                                    tsids.append(z)
-                        for testCase in tsids:
-                            testData=dbsession.testcases.find_one({"_id" :testCase})
-                            totalSteps = totalSteps + len(testData["steps"])
-
-        except Exception as execuitetestsuiteexc:
-            servicesException("ExecuteTestSuite_ICE", execuitetestsuiteexc, True)
-        return totalSteps
     @app.route('/suite/ExecuteTestSuite_ICE',methods=['POST'])
     def ExecuteTestSuite_ICE() :
         res={'rows':'fail'}
@@ -215,11 +194,6 @@ def LoadServices(app, redissession, client ,getClientName):
             if not isemptyrequest(requestdata):
                 clientName=getClientName(requestdata)        
                 dbsession=client[clientName]
-                maxExec=dbsession.licenseManager.find_one({"client": clientName})['data']['TE']
-                totalExec=getExecutionsCount(dbsession)
-                if 'Unlimited' != maxExec:
-                    if int(maxExec) < totalExec:
-                        return res
                 if param == 'testcasedetails' and valid_objectid(requestdata['id']):
                     tsc = dbsession.testscenarios.find_one({"_id": ObjectId(requestdata['id']),"deleted":query['delete_flag']},{"testcaseids":1})
                     if tsc is not None:
@@ -254,14 +228,6 @@ def LoadServices(app, redissession, client ,getClientName):
                         counterupdator(dbsession, 'testscenarios', ObjectId(requestdata['userid']), 1)
 
                 elif param == 'insertintoexecution':
-                    maxPE=dbsession.licenseManager.find_one({"client": clientName})['data']['PE']
-                    executionsList=list(dbsession.executions.find({}))
-                    executionCount=0
-                    for exec in executionsList:
-                        if exec['status'] == "inprogress":
-                            executionCount = executionCount +1
-                    if int(maxPE) <= executionCount:
-                        return res
                     starttime = datetime.now()
                     batchid = ObjectId() if requestdata["batchid"] == "generate" else ObjectId(requestdata["batchid"])
                     tsuids = requestdata['testsuiteids']
