@@ -1483,18 +1483,18 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
                     else:
                         if result==None:
                             data['user'] = ObjectId(requestdata["userId"])
-                            data['Azure'] = { 'Password': requestdata["AzurePassword"], 'username': requestdata["AzureUsername"] , 'url': requestdata["AzureUrl"]}
+                            data['Azure'] = { 'PAT': requestdata["AzurePAT"], 'username': requestdata["AzureUsername"] , 'url': requestdata["AzureUrl"]}
                             dbsession.userpreference.insert_one(data)
                             res1 = "success"
                         else:
-                            data['Azure'] = { 'Password': requestdata["AzurePassword"], 'username': requestdata["AzureUsername"] , 'url': requestdata["AzureUrl"]}
+                            data['Azure'] = { 'PAT': requestdata["AzurePAT"], 'username': requestdata["AzureUsername"] , 'url': requestdata["AzureUrl"]}
                             dbsession.userpreference.update_one({"_id":ObjectId(result["_id"])},{"$set":data})
                             res1 = "success"
                 elif requestdata["action"]=='update':
                     if result==None:
                         res1 = "fail"
                     else:
-                        data['Azure'] = { 'Password': requestdata["Azurepassword"], 'username': requestdata["AzureUsername"] ,'url': requestdata["AzureUrl"] }
+                        data['Azure'] = { 'PAT': requestdata["AzurePAT"], 'username': requestdata["AzureUsername"] ,'url': requestdata["AzureUrl"] }
                         dbsession.userpreference.update_one({"_id":ObjectId(result["_id"])},{"$set":data})
                         res1 = "success"
             res['rows'] = res1
