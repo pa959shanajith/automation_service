@@ -240,7 +240,8 @@ def LoadServices(app, redissession, client,getClientName):
                     {"$group":{"_id":"null","stepcount":{"$sum":{"$size":"$testcases.steps"}}}}
                     ]))
 
-                totalSteps= executionsList[0]["stepcount"]
+                if len(executionsList) > 0:
+                    totalSteps= executionsList[0]["stepcount"]
 
                 if int(maxExec) > totalSteps:
                     res={'status':'pass','data':totalSteps}
