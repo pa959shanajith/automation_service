@@ -290,9 +290,7 @@ def LoadServices(app, redissession, client,getClientName,licensedata):
                 dbsession=client[clientName]
                 lsData=dbsession.licenseManager.find_one({"client": clientName})
                 CustomerGUID=lsData['guid']
-                print(licensedata["licenseServer"]+f"api/UpgradeLicense?CustomerGUID={CustomerGUID}&CurrentLicenseType&NewLicenseType")
                 resp = requests.get(licensedata["licenseServer"]+f"api/UpgradeLicense?CustomerGUID={CustomerGUID}&CurrentLicenseType&NewLicenseType")
-                print(res)
         except Exception as e:
             return jsonify(res)
         
