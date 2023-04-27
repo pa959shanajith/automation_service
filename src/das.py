@@ -145,7 +145,7 @@ def addroutes():
     app.logger.debug("Loading services")
 
     import licenseManager
-    licenseManager.LoadServices(app, redissession_db0, client,getClientName)
+    licenseManager.LoadServices(app, redissession_db0, client,getClientName,licensedata)
 
     import loginservice
     loginservice.LoadServices(app, redissession, client, licensedata,basecheckonls,getClientName)

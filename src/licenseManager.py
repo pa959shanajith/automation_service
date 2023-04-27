@@ -5,6 +5,7 @@ from Crypto.Cipher import AES
 import codecs
 from datetime import datetime, timedelta
 from utils import *
+import requests
 
 db_keys = "".join(['N','i','n','E','t','e','E','n','6','8','d','A','t','a','B',
     'A','s','3','e','N','c','R','y','p','T','1','0','n','k','3','y','S'])
@@ -84,7 +85,7 @@ def getLSData(LS_Path):
     except Exception as e:
         return False
     
-def LoadServices(app, redissession, client,getClientName):
+def LoadServices(app, redissession, client,getClientName,licensedata):
     setenv(app)        
         # Get count of users logged in
 
@@ -273,6 +274,25 @@ def LoadServices(app, redissession, client,getClientName):
                         executionCount = executionCount +1
                 if int(maxPE) > executionCount:
                     res={'status':'pass'}
+        except Exception as e:
+            return jsonify(res)
+        
+        return jsonify(res)
+    
+    @app.route('/hooks/upgradeLicense',methods=['POST'])
+    def upgradeLicense():
+        app.logger.debug("Inside validateParallelExecutions.")
+        res={'True':'License Upgraded'}
+        requestdata=json.loads(request.data)
+        try:
+            if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)
+                dbsession=client[clientName]
+                lsData=dbsession.licenseManager.find_one({"client": clientName})
+                CustomerGUID=lsData['guid']
+                print(licensedata["licenseServer"]+f"api/UpgradeLicense?CustomerGUID={CustomerGUID}&CurrentLicenseType&NewLicenseType")
+                resp = requests.get(licensedata["licenseServer"]+f"api/UpgradeLicense?CustomerGUID={CustomerGUID}&CurrentLicenseType&NewLicenseType")
+                print(res)
         except Exception as e:
             return jsonify(res)
         
