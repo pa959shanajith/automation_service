@@ -238,6 +238,13 @@ def LoadServices(app, redissession, client ,getClientName, *args):
                     dbsession.thirdpartyintegration.delete_many({"type":"Jira","itemCode":requestdata["itemCode"]})
                     dbsession.thirdpartyintegration.insert_one(requestdata)
                     res= {"rows":"success"}
+                elif(requestdata["query"] == 'saveAzureDetails_ICE'):
+                    requestdata["type"] = "Azure"
+                    dbsession.thirdpartyintegration.insert_one(requestdata)
+                    dbsession.thirdpartyintegration.delete_many({"type":"Azure","testscenarioid":requestdata["testscenarioid"]})
+                    dbsession.thirdpartyintegration.delete_many({"type":"Azure","itemCode":requestdata["itemCode"]})
+                    dbsession.thirdpartyintegration.insert_one(requestdata)
+                    res= {"rows":"success"}
             else:
                 app.logger.warn('Empty data received. getting saveIntegrationDetails_ICE.')
         except Exception as e:
@@ -294,6 +301,30 @@ def LoadServices(app, redissession, client ,getClientName, *args):
                         if len(scenariolist) > 0:
                             scenarios = {str(i['_id']):i['name'] for i in scenariolist}
                             temp_result=list(dbsession.thirdpartyintegration.find({"type":"Jira","testscenarioid":{'$in':list(scenarios.keys())}}))
+                            if len(temp_result) > 0:
+                                for mapping in temp_result:
+                                    mapping['testscenarioname']=[]
+                                    scenarioId=mapping['testscenarioid']
+                                    if scenarioId in scenarios:
+                                        mapping['testscenarioname'].append(scenarios[scenarioId])
+                                result.extend(temp_result)
+                    if 'scenarioName' in requestdata:
+                        for i in result:
+                            if requestdata['scenarioName']==i['testscenarioname'][0]:
+                                result=i
+                                break
+                            else:
+                                result=[]
+                    res= {"rows":result}
+                elif(requestdata["query"] == 'azuredetails'):
+                    result = []
+                    projectlist=list(dbsession.users.find({"_id":ObjectId(requestdata["userid"])},{"projects":1}))
+                    if len(projectlist) > 0:
+                        projects = projectlist[0]['projects']
+                        scenariolist=list(dbsession.testscenarios.find({"projectid":{'$in':projects},"deleted":False,"$where":"this.parent.length>0"},{"name":1,"_id":1}))
+                        if len(scenariolist) > 0:
+                            scenarios = {str(i['_id']):i['name'] for i in scenariolist}
+                            temp_result=list(dbsession.thirdpartyintegration.find({"type":"Azure","testscenarioid":{'$in':list(scenarios.keys())}}))
                             if len(temp_result) > 0:
                                 for mapping in temp_result:
                                     mapping['testscenarioname']=[]
