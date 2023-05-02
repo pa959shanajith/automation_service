@@ -240,9 +240,16 @@ def LoadServices(app, redissession, client ,getClientName, *args):
                     res= {"rows":"success"}
                 elif(requestdata["query"] == 'saveAzureDetails_ICE'):
                     requestdata["type"] = "Azure"
+                    
+
                     dbsession.thirdpartyintegration.insert_one(requestdata)
                     dbsession.thirdpartyintegration.delete_many({"type":"Azure","testscenarioid":requestdata["testscenarioid"]})
-                    dbsession.thirdpartyintegration.delete_many({"type":"Azure","itemCode":requestdata["itemCode"]})
+
+                    if requestdata["itemType"] == 'UserStory':
+                        dbsession.thirdpartyintegration.delete_many({"type":"Azure","userStoryId":requestdata["userStoryId"]})
+                    else:
+                        dbsession.thirdpartyintegration.delete_many({"type":"Azure","TestSuiteId":requestdata["TestSuiteId"]})
+
                     dbsession.thirdpartyintegration.insert_one(requestdata)
                     res= {"rows":"success"}
             else:
