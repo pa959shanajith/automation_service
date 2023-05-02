@@ -282,7 +282,7 @@ def LoadServices(app, redissession, client,getClientName,licensedata):
     @app.route('/hooks/upgradeLicense',methods=['POST'])
     def upgradeLicense():
         app.logger.debug("Inside validateParallelExecutions.")
-        res={'True':'License Upgraded'}
+        res={'False':'Unable to reach License Manager'}
         requestdata=json.loads(request.data)
         try:
             if not isemptyrequest(requestdata):
@@ -291,7 +291,9 @@ def LoadServices(app, redissession, client,getClientName,licensedata):
                 lsData=dbsession.licenseManager.find_one({"client": clientName})
                 CustomerGUID=lsData['guid']
                 resp = requests.get(licensedata["licenseServer"]+f"/api/UpgradeLicense?CustomerGUID={CustomerGUID}&CurrentLicenseType&NewLicenseType")
+                if resp.status_code == 200:
+                    res={'True':'License Upgraded'}
         except Exception as e:
             return jsonify(res)
-        
+        app.logger.debug(res)
         return jsonify(res)
