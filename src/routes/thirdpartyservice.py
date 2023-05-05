@@ -482,6 +482,36 @@ def LoadServices(app, redissession, client ,getClientName, *args):
                         if len(req)!=0:
                             dbsession.thirdpartyintegration.bulk_write(req)
                             res= {"rows":"success"}
+                    elif requestdata['screenType']=='Azure':
+                        app.logger.debug("Inside updateMapDetails_ICE - Azure unsync")
+                        req=[]
+                        for mapObj in requestdata["mapList"]:
+                            result1 = list(dbsession.thirdpartyintegration.find({"_id":ObjectId(mapObj["mapid"]),"type":"Azure"}))
+                            if "testscenarioid" in mapObj:
+                                #updating scenarioid
+                                scenarioid = mapObj["testscenarioid"]
+                                # for i in scenarioid:
+                                if  scenarioid[0]==result1[0]['testscenarioid']:
+                                    result1[0]['testscenarioid']=''
+                                if result1[0]['testscenarioid'] == '' :
+                                    req.append(DeleteOne({"_id":ObjectId(mapObj["mapid"]),"type":"Azure"}))
+                                # else:
+                                #     req.append(UpdateOne({"_id":ObjectId(mapObj["mapid"])}, {'$set': {"testscenarioid":result1[0]['testscenarioid']}}))
+                            elif "testCaseNames" in mapObj:
+                                #updating testcase
+                                testname = mapObj["testCaseNames"]
+                                if testname[0] == result1[0]['userStoryId'] or testname[0] == result1[0]['TestSuiteId']:
+                                    result1[0]['projectid']=''
+                                    result1[0]['projectName']=''
+                                    result1[0]['projectCode']=''
+                                    result1[0]['itemType']=''
+                                if result1[0]['itemType'] == '' :
+                                    req.append(DeleteOne({"_id":ObjectId(mapObj["mapid"]),"type":"Azure"}))
+                                # else:
+                                #     req.append(UpdateOne({"_id":ObjectId(mapObj["mapid"])}, {'$set': {"testid":result1[0]['testid'], "testname":result1[0]['testname'],"treeid":result1[0]['treeid'],"parentid":result1[0]['parentid'],"reqdetails":result1[0]['reqdetails'],"projectid":result1[0]['projectid'],"releaseid":result1[0]['releaseid']}}))
+                        if len(req)!=0:
+                            dbsession.thirdpartyintegration.bulk_write(req)
+                            res= {"rows":"success"}
             else:
                 app.logger.warn('Empty data received. updating after unsyc.')
         except Exception as e:
