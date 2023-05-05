@@ -500,7 +500,7 @@ def LoadServices(app, redissession, client ,getClientName, *args):
                             elif "testCaseNames" in mapObj:
                                 #updating testcase
                                 testname = mapObj["testCaseNames"]
-                                if testname[0] == result1[0]['userStoryId'] or testname[0] == result1[0]['TestSuiteId']:
+                                if ('userStoryId' in result1[0] and testname[0] == result1[0]['userStoryId']) or ('TestSuiteId' in result1[0] and testname[0] == result1[0]['TestSuiteId']):
                                     result1[0]['projectid']=''
                                     result1[0]['projectName']=''
                                     result1[0]['projectCode']=''
