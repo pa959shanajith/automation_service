@@ -15,6 +15,25 @@ from bson.json_util import loads
 import subprocess
 import shutil
 import os
+import sys
+
+currexc = sys.executable
+try: currfiledir = os.path.dirname(os.path.abspath(__file__))
+except: currfiledir = os.path.dirname(currexc)
+currdir = os.getcwd()
+if os.path.basename(currexc).startswith("AvoAssureDAS"):
+    currdir = os.path.dirname(currexc)
+elif os.path.basename(currexc).startswith("python"):
+    currdir = currfiledir
+    needdir = "das_internals"
+    parent_currdir = os.path.abspath(os.path.join(currdir,".."))
+    if os.path.isdir(os.path.abspath(os.path.join(parent_currdir,"..",needdir))):
+        currdir = os.path.dirname(parent_currdir)
+    elif os.path.isdir(parent_currdir + os.sep + needdir):
+        currdir = parent_currdir
+internalspath = currdir + os.sep + "das_internals"
+credspath = internalspath + os.sep + ".tokens"
+
 
 
 def LoadServices(app, redissession, client ,getClientName):
@@ -1590,6 +1609,14 @@ def LoadServices(app, redissession, client ,getClientName):
             return str(screenname[0]["_id"])
         else:   
             return None
+    
+    def unpad(data):
+        return data[0:-ord(data[-1])]
+
+    def unwrap(hex_data, key, iv=b'0'*16):
+        data = codecs.decode(hex_data, 'hex')
+        aes = AES.new(key.encode('utf-8'), AES.MODE_CBC, iv)
+        return unpad(aes.decrypt(data).decode('utf-8'))
     @app.route('/mindmap/exportMindmap', methods=['POST'])
     def exportMindmap():
         res = {'rows': 'fail'}
@@ -1634,17 +1661,20 @@ def LoadServices(app, redissession, client ,getClientName):
                         mongopath=requestdata["mongopath"]                    
                         projectName=requestdata["projectName"]
                         mongodumpbat=requestdata["mongodumpbat"]
-                        ip=requestdata["ip"]
-                        password=requestdata["password"]
+                        ip=requestdata["ip"]                        
                         projectName=projectName.replace(" ","")
-                        
-                        command = "%s %s %s %s %s %s" % (exportbatfile,mongopath,ip,password, mId, exportquery)
+                        db_keys = "".join(['N','i','n','E','t','e','E','n','6','8','d','A','t','a','B',
+                            'A','s','3','e','N','c','R','y','p','T','1','0','n','k','3','y','S'])
+                        with open(credspath) as creds_file:
+                            creds = json.loads(unwrap(creds_file.read(),db_keys))
+                        _ = creds['cachedb']['password'] + creds['avoassuredb']['username'] + creds['avoassuredb']['password']
+                        command = "%s %s %s %s %s %s" % (exportbatfile,mongopath,ip,creds['avoassuredb']['password'], mId, exportquery)
                         
                         p = subprocess.Popen(command.split(), stdout=subprocess.PIPE)
                         tdout, stderr = p.communicate()
                         print (p.returncode)
                         print("exportedfile got created")
-                        command = "%s %s %s %s %s" % (mongodumpbat,mongoexportpath,password,exportedfilepath,username)                    
+                        command = "%s %s %s %s %s" % (mongodumpbat,mongoexportpath,creds['avoassuredb']['password'],exportedfilepath,username)                    
                         
                         p = subprocess.Popen(command.split(), stdout=subprocess.PIPE)
                         tdout, stderr = p.communicate()
@@ -2152,8 +2182,7 @@ def LoadServices(app, redissession, client ,getClientName):
                 username=username.replace('.','')
                 mongoimportpath=requestdata["mongoimportpath"]
                 importproj=ObjectId(requestdata["importproj"])
-                ip=requestdata["ip"]
-                password=requestdata["password"]
+                ip=requestdata["ip"]            
                 userid=ObjectId(requestdata["userid"])
                 role=ObjectId(requestdata["role"])
                 imptype=requestdata["importtype"]
@@ -2172,7 +2201,12 @@ def LoadServices(app, redissession, client ,getClientName):
                     dbsession.scenariotestcasemapping.drop()
                     dbsession.scr_parent.drop()
                     dbsession.jsontomindmap.drop()
-                    command = "%s %s %s %s %s %s" % (importJsonQuery,mongoimportpath,password,"jsontomindmap",importpath,username)
+                    db_keys = "".join(['N','i','n','E','t','e','E','n','6','8','d','A','t','a','B',
+                            'A','s','3','e','N','c','R','y','p','T','1','0','n','k','3','y','S'])
+                    with open(credspath) as creds_file:
+                        creds = json.loads(unwrap(creds_file.read(),db_keys))
+                    _ = creds['cachedb']['password'] + creds['avoassuredb']['username'] + creds['avoassuredb']['password']
+                    command = "%s %s %s %s %s %s" % (importJsonQuery,mongoimportpath,creds['avoassuredb']['password'],"jsontomindmap",importpath,username)
                     
                     p = subprocess.Popen(command.split(), stdout=subprocess.PIPE)
                     tdout, stderr = p.communicate()
@@ -2319,6 +2353,39 @@ def LoadServices(app, redissession, client ,getClientName):
                     for i in mindmapId:
                         queryresult.append(i["_id"])
                     
+                    dbsession.testscenariosnames.aggregate([                                          
+                                                
+                                                {'$lookup': {
+                                                    'from': "scenario_testcase_json_Import",
+                                                    'localField': "_id",
+                                                    'foreignField': "_id",
+                                                    'as': "scentestcasedata"
+                                                }
+                                                }, {'$lookup': {
+                                                    'from': "mindmapnames",
+                                                    'localField': "parentname",
+                                                    'foreignField': "name",
+                                                    'as': "moduledata"
+                                                }
+                                                },  {"$set":{"id": {"$toString": "$_id"},'versionnumber': 0,"deleted":False,"parent" : "$moduledata._id","testcaseids":{ "$cond": [{"$eq": [{"$size": '$scentestcasedata'}, 0] }, [[]], '$scentestcasedata.testcaseids'] }}},
+                                                {"$unwind":"$testcaseids"} ,                             
+                                                
+                                                {"$project":{"_id":1,
+                                                            "name": { "$concat": [ "$name", "_", "$id" ] },
+                                                            "projectid":importproj,
+                                                            "parent":1,
+                                                            "versionnumber":1 ,
+                                                            "createdby":userid,
+                                                            "createdbyrole":role,
+                                                            "createdon":createdon,
+                                                            "deleted":1,
+                                                            "modifiedby":userid,
+                                                            "modifiedbyrole":role,
+                                                            "modifiedon":createdon,
+                                                            "testcaseids":1}},                                                                    
+                                                            {'$out':"testscenariosnames"}
+                                                            ])
+                    
                     dbsession.mindmapnames.aggregate([
                             {"$match":{"testscenarionames":{"$exists":"true"}}},
                             {'$lookup': {
@@ -2432,38 +2499,6 @@ def LoadServices(app, redissession, client ,getClientName):
                                                 "orderlist":[]}},
                                             {"$out":"screennames"}
                     ])
-                    dbsession.testscenariosnames.aggregate([                                          
-                                                
-                                                {'$lookup': {
-                                                    'from': "scenario_testcase_json_Import",
-                                                    'localField': "_id",
-                                                    'foreignField': "_id",
-                                                    'as': "scentestcasedata"
-                                                }
-                                                }, {'$lookup': {
-                                                    'from': "mindmapnames",
-                                                    'localField': "parentname",
-                                                    'foreignField': "name",
-                                                    'as': "moduledata"
-                                                }
-                                                },  {"$set":{"id": {"$toString": "$_id"},'versionnumber': 0,"deleted":False,"parent" : "$moduledata._id","testcaseids":{ "$cond": [{"$eq": [{"$size": '$scentestcasedata'}, 0] }, [[]], '$scentestcasedata.testcaseids'] }}},
-                                                {"$unwind":"$testcaseids"} ,                             
-                                                
-                                                {"$project":{"_id":1,
-                                                            "name": { "$concat": [ "$name", "_", "$id" ] },
-                                                            "projectid":importproj,
-                                                            "parent":1,
-                                                            "versionnumber":1 ,
-                                                            "createdby":userid,
-                                                            "createdbyrole":role,
-                                                            "createdon":createdon,
-                                                            "deleted":1,
-                                                            "modifiedby":userid,
-                                                            "modifiedbyrole":role,
-                                                            "modifiedon":createdon,
-                                                            "testcaseids":1}},                                                                    
-                                                            {'$out':"testscenariosnames"}
-                                                            ])
                     
                     dbsession.mindmapnames.aggregate([                                            
                     {'$match': {"projectid":importproj}},
@@ -2551,11 +2586,15 @@ def LoadServices(app, redissession, client ,getClientName):
                     userid=ObjectId(requestdata["userid"])
                     role=ObjectId(requestdata["role"])
                     projectid=ObjectId(requestdata["projectid"])
-                    apptype=requestdata["apptype"]
-                    password=requestdata["password"]
+                    apptype=requestdata["apptype"]                    
                     createdon = datetime.now()
                     dbsession.importFile.drop()
-                    command = "%s %s %s %s %s %s %s %s %s" % (importquerypath,mongoimportpath,password,importpath,"Dataobjects.json","Modules.json","Testscenarios.json","screens.json","Testcases.json")
+                    db_keys = "".join(['N','i','n','E','t','e','E','n','6','8','d','A','t','a','B',
+                            'A','s','3','e','N','c','R','y','p','T','1','0','n','k','3','y','S'])
+                    with open(credspath) as creds_file:
+                        creds = json.loads(unwrap(creds_file.read(),db_keys))
+                    _ = creds['cachedb']['password'] + creds['avoassuredb']['username'] + creds['avoassuredb']['password']
+                    command = "%s %s %s %s %s %s %s %s %s" % (importquerypath,mongoimportpath,creds['avoassuredb']['password'],importpath,"Dataobjects.json","Modules.json","Testscenarios.json","screens.json","Testcases.json")
                     p = subprocess.Popen(command.split(), stdout=subprocess.PIPE)
                     tdout, stderr = p.communicate()
                     print (p.returncode)                
