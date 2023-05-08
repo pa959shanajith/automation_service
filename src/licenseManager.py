@@ -180,7 +180,11 @@ def LoadServices(app, redissession, client,getClientName,licensedata):
                 dbsession=client[clientName]
                 licensedata = dbsession.licenseManager.find_one({"client":clientName})["data"]
                 if licensedata['PA'] != "Unlimited":
-                    projectsCount=len(list(dbsession.projects.find({})))
+                    projectsCount=0 
+                    projects_list=list(dbsession.projects.find({}))
+                    for project in projects_list:
+                        if not(project['name'].startswith('Sample_')):
+                            projectsCount=projectsCount+1
                     if projectsCount >= int(licensedata['PA']):
                         res = {'status':'fail','message':'Max Allowed Projects Created'}
                 return res
@@ -294,7 +298,7 @@ def LoadServices(app, redissession, client,getClientName,licensedata):
                 user=dbsession.users.find_one({"name":requestdata["username"]})
                 user_project=list(user['projects'])
                 for project in projects_list:
-                    if "Sample_" in project['name']:
+                    if project['name'].startswith('Sample_'):
                         user_project.append(project["_id"])
                 dbsession.users.update_one({"name":requestdata["username"]},{"$set":{"projects":user_project}})
                 lsData=dbsession.licenseManager.find_one({"client": clientName})
