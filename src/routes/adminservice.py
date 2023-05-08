@@ -377,11 +377,6 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
             if not isemptyrequest(requestdata):
                 clientName=getClientName(requestdata)           
                 dbsession=client[clientName]
-                licensedata = dbsession.licenseManager.find_one({"client":clientName})["data"]
-                if licensedata['PA'] != "Unlimited":
-                    projectsCount=len(list(dbsession.projects.find({})))
-                    if projectsCount >= int(licensedata['PA']):
-                        return res
                 requestdata["createdon"]=requestdata["modifiedon"]=datetime.now()
                 requestdata["type"]=dbsession.projecttypekeywords.find_one({"name":requestdata["type"]},{"_id":1})["_id"]
                 requestdata["createdon"]=requestdata["modifiedon"]=datetime.now()

@@ -180,7 +180,11 @@ def LoadServices(app, redissession, client,getClientName,licensedata):
                 dbsession=client[clientName]
                 licensedata = dbsession.licenseManager.find_one({"client":clientName})["data"]
                 if licensedata['PA'] != "Unlimited":
-                    projectsCount=len(list(dbsession.projects.find({})))
+                    projectsCount=0 
+                    projects_list=list(dbsession.projects.find({}))
+                    for project in projects_list:
+                        if not(project['name'].startswith('Sample_')):
+                            projectsCount=projectsCount+1
                     if projectsCount >= int(licensedata['PA']):
                         res = {'status':'fail','message':'Max Allowed Projects Created'}
                 return res
@@ -285,18 +289,29 @@ def LoadServices(app, redissession, client,getClientName,licensedata):
     
     @app.route('/hooks/upgradeLicense',methods=['POST'])
     def upgradeLicense():
-        app.logger.debug("Inside validateParallelExecutions.")
+        app.logger.debug("Inside upgradeLicense.")
         res={'False':'Unable to reach License Manager'}
         requestdata=json.loads(request.data)
         try:
             if not isemptyrequest(requestdata):
                 clientName=getClientName(requestdata)
                 dbsession=client[clientName]
+                testManagerID=dbsession.permissions.find_one({"name" : "Test Manager"})
+                dbsession.users.update_one({ "name" : requestdata["username"]},{"$set":{"defaultrole" :  testManagerID['_id']}})
+                projects_list=list(dbsession.projects.find())
+                user=dbsession.users.find_one({"name":requestdata["username"]})
+                user_project=list(user['projects'])
+                for project in projects_list:
+                    if project['name'].startswith('Sample_'):
+                        user_project.append(project["_id"])
+                dbsession.users.update_one({"name":requestdata["username"]},{"$set":{"projects":user_project}})
                 lsData=dbsession.licenseManager.find_one({"client": clientName})
                 CustomerGUID=lsData['guid']
-                resp = requests.get(licensedata["licenseServer"]+f"/api/UpgradeLicense?CustomerGUID={CustomerGUID}&CurrentLicenseType&NewLicenseType")
-                if resp.status_code == 200:
-                    res={'True':'License Upgraded'}
+                res={'True':'updated users & projects'}
+                if "licenseServer" in licensedata:
+                    resp = requests.get(licensedata["licenseServer"]+f"/api/UpgradeLicense?CustomerGUID={CustomerGUID}&CurrentLicenseType&NewLicenseType")
+                    if resp.status_code == 200:
+                        res={'True':'License Upgraded'}
         except Exception as e:
             return jsonify(res)
         app.logger.debug(res)

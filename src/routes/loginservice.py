@@ -256,7 +256,8 @@ def LoadServices(app, redissession, client, licensedata,basecheckonls,getClientN
                     else:
                         dictdata['isTrial'] = False
                     for keys in lic_plugins:
-                        allowed_plugins.append({ "pluginName": keys,"pluginValue": True})
+                        # allowed_plugins.append({ "pluginName": keys,"pluginValue": True})
+                        allowed_plugins.append({ "pluginName": keys,"pluginValue": lic_plugins[keys]})
                     # for keys in ui_plugins:
                     #     allowed_plugins.append({ "pluginName": ui_plugins[keys],"pluginValue": False if lic_plugins[keys] == False else plugins[keys]})
                     dictdata['pluginresult']=allowed_plugins
