@@ -225,30 +225,34 @@ def LoadServices(app, redissession, client,getClientName,licensedata):
                 if maxExec == "Unlimited":
                     res={'status':'pass','data':totalSteps}
                     return res
-                executionsList=list(dbsession.executions.aggregate([{"$match":{"starttime" :{'$gte' : datetime(datetime.now().year, datetime.now().month, 1, 00, 00, 00)}}},{"$unwind":"$parent"},{"$lookup":{
-                    "from":"testsuites",
-                    "localField":"parent",
-                    "foreignField":"_id",
-                    "as":"testsuites"}},
-                {"$lookup":{
-                    "from":"testscenarios",
-                    "localField":"testsuites.testscenarioids",
-                    "foreignField":"_id",
-                    "as":"testscenarios"}
-                    },
-                    {"$lookup":{
-                    "from":"testcases",
-                    "localField":"testscenarios.testcaseids",
-                    "foreignField":"_id",
-                    "as":"testcases"}
-                    },{"$unwind":"$testcases"},
-                    {"$group":{"_id":"null","stepcount":{"$sum":{"$size":"$testcases.steps"}}}}
+                if len(list(dbsession.reports.find({}))) > 0:
+                    reportitems=list(dbsession.reports.aggregate([{"$match":{"executedtime" :{'$gte' : datetime(datetime.now().year, datetime.now().month, 1, 00, 00, 00)}}},{"$lookup":{
+                        "from":"reportitems",
+                        "localField":"reportitems",
+                        "foreignField":"_id",
+                        "as":"reportitem"}},{"$unwind":"$reportitem"}
+                        ]))
+                    
+                    for reportitem in reportitems:
+                        for step in reportitem["reportitem"]["rows"]:
+                            if "Step" in step:
+                                totalSteps= totalSteps + 1   
+                for exec in requestdata["executionData"]["batchInfo"]:
+                    suites=exec["suiteDetails"]
+                    scenarioIds=list(map(lambda suite:suite["scenarioId"],suites))
+                    currentExecSteps = list(dbsession.testscenarios.aggregate([
+                        {"$match":{"_id" :{"$in":list(map(lambda x:ObjectId(x),scenarioIds))}}},
+                        {"$lookup":{
+                        "from":"testcases",
+                        "localField":"testcaseids",
+                        "foreignField":"_id",
+                        "as":"testcases"}
+                        },{"$unwind":"$testcases"},
+                        {"$group":{"_id":"null","stepcount":{"$sum":{"$size":"$testcases.steps"}}}}
                     ]))
-
-                if len(executionsList) > 0:
-                    totalSteps= executionsList[0]["stepcount"]
-
-                if int(maxExec) > totalSteps:
+                    if len(currentExecSteps)>0:
+                        totalSteps= totalSteps + currentExecSteps[0]["stepcount"]  
+                if int(maxExec) >= totalSteps:
                     res={'status':'pass','data':totalSteps}
                 elif totalSteps>0:
                     res['data']=totalSteps
