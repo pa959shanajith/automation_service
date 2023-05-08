@@ -2662,7 +2662,8 @@ def LoadServices(app, redissession, client ,getClientName):
                                                 "parent":1,
                                                 "modifiedon":createdon,
                                                 "steps":1,
-                                                "projectid":projectid
+                                                "projectid":projectid,
+                                                "datatables":1
                                                 }},{"$out":"Testcase_Import"}])
                         
                 
@@ -2909,7 +2910,7 @@ def LoadServices(app, redissession, client ,getClientName):
                         dbsession.Module_Import.aggregate([{"$unset":["tsIds","old_id"]},{"$out":"Module_Import"}])
                         dbsession.Scenario_Import.aggregate([{"$unset":["old_id","old_parent","screens"]},{"$out":"Scenario_Import"}])
                         dbsession.Screen_Import.aggregate([{"$unset":["old_id","old_parent","testcases"]},{"$out":"Screen_Import"}])
-                        dbsession.Testcase_Import.aggregate([{"$unset":["old_id","old_screenid"]},{"$out":"Testcase_Import"}])
+                        dbsession.Testcase_Import.aggregate([{"$unset":["old_id","old_screenid","projectid"]},{"$out":"Testcase_Import"}])
                         dbsession.Dataobjects_Import.aggregate([{"$unset":["old_id","old_parent"]},{"$out":"Dataobjects_Import"}])
 
                         dbsession.Module_Import.aggregate([                                            
