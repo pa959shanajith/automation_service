@@ -1617,6 +1617,15 @@ def LoadServices(app, redissession, client ,getClientName):
         data = codecs.decode(hex_data, 'hex')
         aes = AES.new(key.encode('utf-8'), AES.MODE_CBC, iv)
         return unpad(aes.decrypt(data).decode('utf-8'))
+    
+    def db_password():
+        db_keys = "".join(['N','i','n','E','t','e','E','n','6','8','d','A','t','a','B',
+                            'A','s','3','e','N','c','R','y','p','T','1','0','n','k','3','y','S'])
+        with open(credspath) as creds_file:
+            creds = json.loads(unwrap(creds_file.read(),db_keys))
+        _ = creds['cachedb']['password'] + creds['avoassuredb']['username'] + creds['avoassuredb']['password']
+        return creds['avoassuredb']['password']
+
     @app.route('/mindmap/exportMindmap', methods=['POST'])
     def exportMindmap():
         res = {'rows': 'fail'}
@@ -1650,8 +1659,7 @@ def LoadServices(app, redissession, client ,getClientName):
                         scenarioIds=dbsession.Export_testscenarios.aggregate( [
                             {"$group":{"_id":'null',"scenarioids":{"$push":"$_id"}}}, 
                             {"$project":{"_id":0,"scenarioids":1}}
-                            ] )
-                        print(scenarioIds)                 
+                            ] )                                        
                         mindmapiddata=list(dbsession.mindmapIdslist.find({},{"_id":1}))
 
                         mId=mindmapiddata[0]["_id"]                    
@@ -1663,22 +1671,17 @@ def LoadServices(app, redissession, client ,getClientName):
                         mongodumpbat=requestdata["mongodumpbat"]
                         ip=requestdata["ip"]                        
                         projectName=projectName.replace(" ","")
-                        db_keys = "".join(['N','i','n','E','t','e','E','n','6','8','d','A','t','a','B',
-                            'A','s','3','e','N','c','R','y','p','T','1','0','n','k','3','y','S'])
-                        with open(credspath) as creds_file:
-                            creds = json.loads(unwrap(creds_file.read(),db_keys))
-                        _ = creds['cachedb']['password'] + creds['avoassuredb']['username'] + creds['avoassuredb']['password']
-                        command = "%s %s %s %s %s %s" % (exportbatfile,mongopath,ip,creds['avoassuredb']['password'], mId, exportquery)
+                        password = db_password()
+                        command = "%s %s %s %s %s %s" % (exportbatfile,mongopath,ip,password, mId, exportquery)
+                        
+                        p = subprocess.Popen(command.split(), stdout=subprocess.PIPE)
+                        tdout, stderr = p.communicate()                       
+                        
+                        command = "%s %s %s %s %s" % (mongodumpbat,mongoexportpath,password,exportedfilepath,username)                    
                         
                         p = subprocess.Popen(command.split(), stdout=subprocess.PIPE)
                         tdout, stderr = p.communicate()
-                        print (p.returncode)
-                        print("exportedfile got created")
-                        command = "%s %s %s %s %s" % (mongodumpbat,mongoexportpath,creds['avoassuredb']['password'],exportedfilepath,username)                    
                         
-                        p = subprocess.Popen(command.split(), stdout=subprocess.PIPE)
-                        tdout, stderr = p.communicate()
-                        print (p.returncode)
                         queryresult=mindmapid[0]
                         dbsession.mindmapIdslist.drop()
                         dbsession.Export_mindmap.drop()
@@ -2200,17 +2203,12 @@ def LoadServices(app, redissession, client ,getClientName):
                     dbsession.screen_parent_json_Import.drop()
                     dbsession.scenariotestcasemapping.drop()
                     dbsession.scr_parent.drop()
-                    dbsession.jsontomindmap.drop()
-                    db_keys = "".join(['N','i','n','E','t','e','E','n','6','8','d','A','t','a','B',
-                            'A','s','3','e','N','c','R','y','p','T','1','0','n','k','3','y','S'])
-                    with open(credspath) as creds_file:
-                        creds = json.loads(unwrap(creds_file.read(),db_keys))
-                    _ = creds['cachedb']['password'] + creds['avoassuredb']['username'] + creds['avoassuredb']['password']
-                    command = "%s %s %s %s %s %s" % (importJsonQuery,mongoimportpath,creds['avoassuredb']['password'],"jsontomindmap",importpath,username)
+                    password = db_password()
+                    command = "%s %s %s %s %s %s" % (importJsonQuery,mongoimportpath,password,"jsontomindmap",importpath,username)
                     
                     p = subprocess.Popen(command.split(), stdout=subprocess.PIPE)
                     tdout, stderr = p.communicate()
-                    print (p.returncode)
+                    
                     if importpath:
                         delimportpath=importpath+"\\"+username+".json"
                         if os.path.isfile(delimportpath):
@@ -2589,15 +2587,10 @@ def LoadServices(app, redissession, client ,getClientName):
                     apptype=requestdata["apptype"]                    
                     createdon = datetime.now()
                     dbsession.importFile.drop()
-                    db_keys = "".join(['N','i','n','E','t','e','E','n','6','8','d','A','t','a','B',
-                            'A','s','3','e','N','c','R','y','p','T','1','0','n','k','3','y','S'])
-                    with open(credspath) as creds_file:
-                        creds = json.loads(unwrap(creds_file.read(),db_keys))
-                    _ = creds['cachedb']['password'] + creds['avoassuredb']['username'] + creds['avoassuredb']['password']
-                    command = "%s %s %s %s %s %s %s %s %s" % (importquerypath,mongoimportpath,creds['avoassuredb']['password'],importpath,"Dataobjects.json","Modules.json","Testscenarios.json","screens.json","Testcases.json")
+                    password = db_password()
+                    command = "%s %s %s %s %s %s %s %s %s" % (importquerypath,mongoimportpath,password,importpath,"Dataobjects.json","Modules.json","Testscenarios.json","screens.json","Testcases.json")
                     p = subprocess.Popen(command.split(), stdout=subprocess.PIPE)
-                    tdout, stderr = p.communicate()
-                    print (p.returncode)                
+                    tdout, stderr = p.communicate()                                   
                     if importpath:
                         delimportpath=importpath
                         if os.path.isdir(delimportpath):
