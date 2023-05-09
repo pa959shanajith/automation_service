@@ -67,8 +67,6 @@ def LoadServices(app, redissession, client ,getClientName):
                 clientName=getClientName(data)         
                 dbsession=client[clientName]
                 if (data['param']=="updatedIdentifier"):
-                    print(data['param'])
-                    print(data)
                     dataObjectIds=[ObjectId(i) for i in data['objectIds']]
                     doiden=data["identifiers"]
                     dbsession.dataobjects.update_many({"_id":{"$in":dataObjectIds}},{"$set":{"identifier":doiden}})
