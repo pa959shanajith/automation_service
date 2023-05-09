@@ -17,26 +17,6 @@ import shutil
 import os
 import sys
 
-def get_creds_path():
-    currexc = sys.executable
-    try: currfiledir = os.path.dirname(os.path.abspath(__file__))
-    except: currfiledir = os.path.dirname(currexc)
-    currdir = os.getcwd()
-    if os.path.basename(currexc).startswith("AvoAssureDAS"):
-        currdir = os.path.dirname(currexc)
-    elif os.path.basename(currexc).startswith("python"):
-        currdir = currfiledir
-        needdir = "das_internals"
-        parent_currdir = os.path.abspath(os.path.join(currdir,".."))
-        if os.path.isdir(os.path.abspath(os.path.join(parent_currdir,"..",needdir))):
-            currdir = os.path.dirname(parent_currdir)
-        elif os.path.isdir(parent_currdir + os.sep + needdir):
-            currdir = parent_currdir
-    internalspath = currdir + os.sep + "das_internals"
-    credspath = internalspath + os.sep + ".tokens"
-    return credspath
-
-
 
 def LoadServices(app, redissession, client ,getClientName):
     setenv(app)
@@ -1611,6 +1591,25 @@ def LoadServices(app, redissession, client ,getClientName):
             return str(screenname[0]["_id"])
         else:   
             return None
+        
+    def get_creds_path():
+        currexc = sys.executable
+        try: currfiledir = os.path.dirname(os.path.abspath(__file__))
+        except: currfiledir = os.path.dirname(currexc)
+        currdir = os.getcwd()
+        if os.path.basename(currexc).startswith("AvoAssureDAS"):
+            currdir = os.path.dirname(currexc)
+        elif os.path.basename(currexc).startswith("python"):
+            currdir = currfiledir
+            needdir = "das_internals"
+            parent_currdir = os.path.abspath(os.path.join(currdir,".."))
+            if os.path.isdir(os.path.abspath(os.path.join(parent_currdir,"..",needdir))):
+                currdir = os.path.dirname(parent_currdir)
+            elif os.path.isdir(parent_currdir + os.sep + needdir):
+                currdir = parent_currdir
+        internalspath = currdir + os.sep + "das_internals"
+        credspath = internalspath + os.sep + ".tokens"
+        return credspath
     
     def unpad(data):
         return data[0:-ord(data[-1])]
