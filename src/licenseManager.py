@@ -312,7 +312,8 @@ def LoadServices(app, redissession, client,getClientName,licensedata):
                 user_project=list(user['projects'])
                 for project in projects_list:
                     if project['name'].startswith('Sample_'):
-                        user_project.append(project["_id"])
+                        if project['_id'] not in user_project:
+                            user_project.append(project["_id"])
                 dbsession.users.update_one({"name":requestdata["username"]},{"$set":{"projects":user_project}})
                 lsData=dbsession.licenseManager.find_one({"client": clientName})
                 CustomerGUID=lsData['guid']
