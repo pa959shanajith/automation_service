@@ -102,6 +102,8 @@ def LoadServices(app, redissession, client ,getClientName):
                             
                         if (data_push != []):
                             insertedObjIds = dbsession.dataobjects.insert(data_push)
+                            dbsession.dataobjects.update_many({"_id":{"$in":insertedObjIds}},
+                            {"$set":{"identifier":[{"id":1,"identifier":'xpath'},{"id":2,"identifier":'id' },{"id":3, "identifier":'rxpath' },{ "id":4,"identifier":'name' },{"id":5,"identifier":'classname'}]}})
 
                             for index in range(len(orderList)):
                                 if (orderList[index] in tempOrderId_index_dict):
@@ -352,6 +354,8 @@ def LoadServices(app, redissession, client ,getClientName):
                             if (data_push != []):
                                 # app.logger.debug(data_push)
                                 insertedObjIds = dbsession.dataobjects.insert(data_push)
+                                dbsession.dataobjects.update_many({"_id":{"$in":insertedObjIds}},
+                                {"$set":{"identifier":[{"id":1,"identifier":'xpath'},{"id":2,"identifier":'id' },{"id":3, "identifier":'rxpath' },{ "id":4,"identifier":'name' },{"id":5,"identifier":'classname'}]}})
 
                                 for index in range(len(orderList)):
                                     if (orderList[temp_index_objects] in tempOrderId_index_dict):

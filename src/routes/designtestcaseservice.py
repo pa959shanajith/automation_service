@@ -516,7 +516,7 @@ def LoadServices(app, redissession, client ,getClientName):
         del_flag = False
         try:
             for j in steps:
-                j['objectName'], j['url'], j['addTestCaseDetailsInfo'], j['addTestCaseDetails'] = '', '', '', ''
+                j['objectName'], j['url'], j['addTestCaseDetailsInfo'], j['addTestCaseDetails'], j['identifier']= '', '', '', '', ''
                 if 'addDetails' in j:
                     j['addTestCaseDetailsInfo'] = j['addDetails']
                     del j['addDetails']
@@ -526,6 +526,7 @@ def LoadServices(app, redissession, client ,getClientName):
                 if 'custname' in j.keys():
                     if j['custname'] in dataObjects.keys():
                         j['objectName'] = dataObjects[j['custname']]['xpath']
+                        j['identifier']=dataObjects[j['custname']]['identifier']
                         j['url'] = dataObjects[j['custname']]['url'] if 'url' in dataObjects[j['custname']] else ""
                         j['cord'] = dataObjects[j['custname']]['cord'] if 'cord' in dataObjects[j['custname']] else ""
                         if 'original_device_width' in dataObjects[j['custname']].keys():

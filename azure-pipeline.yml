@@ -12,6 +12,9 @@ variables:
   value: $(Build.SourceBranchName)
 - group: default_set
 - group: DAS
+- group: WebServer
+- name: NAS_WEB
+  value: \\$(NAS_IP_WEB)\$(NAS_SUBPATH_WEB)
 
 name: $(repo_name)_$(Build.SourceBranchName)_$(Date:yyyyMMdd)$(Rev:.r)
 
@@ -50,7 +53,12 @@ stages:
     
     - script: |
         cd ..
-        xcopy /I /Q /Y /E /S Z:\Build\windows\portable_python_ndac portable_python
+        # commenting the copying the portable python das from the NAS Drive - changes by Ajay on 05/05/2023
+        # xcopy /I /Q /Y /E /S Z:\Build\windows\portable_python_ndac portable_python
+        # xcopy /I /Q /Y /E /S %NAS_WEB%\Build\windows\portable_python_ndac portable_python
+
+        # copying the portable python das from the local machine - changes by Ajay on 05/05/2023
+        xcopy /I /Q /Y /E /S C:\portable_pythons\portable_python_das portable_python
         cd portable_python
       name: Get_Python
       displayName: Get Portable Python
@@ -142,9 +150,14 @@ stages:
         7z.exe a -mx7 -xr!build\ ..\%tagno%.zip ..\versionnoDAS.txt ..\releasenotesDAS.log  ..\DAS\
         cd ..
         echo "BUILD NUMBER=%buildno%"
-        copy %tagno%.zip Z:\stage\windows_archive\NDAC
 
-        call Z:\stage\windows_archive\NDAC\updateportablepython.bat
+        # commenting the upload package to NAS drive - changes by Ajay on 05/05/2023
+        # copy %tagno%.zip Z:\stage\windows_archive\NDAC
+        # copy %tagno%.zip %NAS_WEB%\stage\windows_archive\NDAC
+
+        # commenting the updating of updateportablepython which is in NAS Drive - changes by Ajay on 05/05/2023
+        # call Z:\stage\windows_archive\NDAC\updateportablepython.bat
+        # call %NAS_WEB%\stage\windows_archive\NDAC\updateportablepython.bat
       name: PushToNAS
       displayName: Pushing to stage server
     
@@ -181,4 +194,3 @@ stages:
         dir
       name: PostBuildCleanup
       displayName: Cleaning up directory!
-        

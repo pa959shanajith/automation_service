@@ -47,18 +47,28 @@ def LoadServices(app, redissession, client, licensedata,basecheckonls,getClientN
                     expiryDate=None
                     clientName=getClientName(requestdata)
                     dbsession=client[clientName]
+                    licenseMangerDetails = dbsession.licenseManager.find_one({"client":clientName})
                     if "licenseServer" in licensedata:
-                        lsData=dbsession.licenseManager.find_one({"client":clientName})
-                        guid=lsData['guid']
+                        lsData = licenseMangerDetails['data']
+                        guid=licenseMangerDetails['guid']
                         lsServer_Data=requests.get(licensedata["licenseServer"]+"/api/Customer/GetCustomerLicenseDetails?CustomerGUID="+str(guid),verify=False).json()
                         if lsServer_Data["Status"] != "Active":
                             res={'rows':'Licence Expired'}
                             return jsonify(res)
                         expiryDate=lsServer_Data["ExpiresOn"].split('/')
-                        if lsServer_Data != lsData:
-                            lsData=lsServer_Data
+                        if lsServer_Data != licenseMangerDetails['data']:
+                            lsData = lsServer_Data
                             dbsession.licenseManager.update_one({"client":clientName},{'$set': {"data":lsServer_Data}})
-                    
+                    else:
+                        if licenseMangerDetails == None:
+                            dbsession.licenseManager.insert_one({
+                                "client" : clientName,
+                                "guid" : "",
+                                "data" :lsData
+                            })
+                        else:
+                            if licenseMangerDetails['data'] != lsData:
+                                dbsession.licenseManager.update_one({"client":clientName},{'$set': {"data":lsData}})
                     expiryDate=lsData['ExpiresOn'].split('/')
                     expiryDate=datetime(int(expiryDate[2]), int(expiryDate[0]), int(expiryDate[1]))
                     if present <= expiryDate:
