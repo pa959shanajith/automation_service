@@ -17,22 +17,24 @@ import shutil
 import os
 import sys
 
-currexc = sys.executable
-try: currfiledir = os.path.dirname(os.path.abspath(__file__))
-except: currfiledir = os.path.dirname(currexc)
-currdir = os.getcwd()
-if os.path.basename(currexc).startswith("AvoAssureDAS"):
-    currdir = os.path.dirname(currexc)
-elif os.path.basename(currexc).startswith("python"):
-    currdir = currfiledir
-    needdir = "das_internals"
-    parent_currdir = os.path.abspath(os.path.join(currdir,".."))
-    if os.path.isdir(os.path.abspath(os.path.join(parent_currdir,"..",needdir))):
-        currdir = os.path.dirname(parent_currdir)
-    elif os.path.isdir(parent_currdir + os.sep + needdir):
-        currdir = parent_currdir
-internalspath = currdir + os.sep + "das_internals"
-credspath = internalspath + os.sep + ".tokens"
+def creds_path():
+    currexc = sys.executable
+    try: currfiledir = os.path.dirname(os.path.abspath(__file__))
+    except: currfiledir = os.path.dirname(currexc)
+    currdir = os.getcwd()
+    if os.path.basename(currexc).startswith("AvoAssureDAS"):
+        currdir = os.path.dirname(currexc)
+    elif os.path.basename(currexc).startswith("python"):
+        currdir = currfiledir
+        needdir = "das_internals"
+        parent_currdir = os.path.abspath(os.path.join(currdir,".."))
+        if os.path.isdir(os.path.abspath(os.path.join(parent_currdir,"..",needdir))):
+            currdir = os.path.dirname(parent_currdir)
+        elif os.path.isdir(parent_currdir + os.sep + needdir):
+            currdir = parent_currdir
+    internalspath = currdir + os.sep + "das_internals"
+    credspath = internalspath + os.sep + ".tokens"
+    return credspath
 
 
 
@@ -1621,6 +1623,7 @@ def LoadServices(app, redissession, client ,getClientName):
     def db_password():
         db_keys = "".join(['N','i','n','E','t','e','E','n','6','8','d','A','t','a','B',
                             'A','s','3','e','N','c','R','y','p','T','1','0','n','k','3','y','S'])
+        credspath=creds_path()
         with open(credspath) as creds_file:
             creds = json.loads(unwrap(creds_file.read(),db_keys))
         _ = creds['cachedb']['password'] + creds['avoassuredb']['username'] + creds['avoassuredb']['password']
