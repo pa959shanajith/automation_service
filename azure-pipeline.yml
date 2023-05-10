@@ -174,8 +174,8 @@ stages:
   - Build
   displayName: Place the package in staging 99 server
   variables:
-    tagno: $[stageDependencies.Build.BuildJob.outputs['Version.tagno']]
-    buildno: $[stageDependencies.Build.BuildJob.outputs['Version.buildno']]
+    tagno: $[stageDependencies.Build.BuildJob.outputs['Configuration.tagno']]
+    buildno: $[stageDependencies.Build.BuildJob.outputs['Configuration.buildno']]
   jobs:
   - job: StageJob
     displayName: Place the package in staging 99 server
