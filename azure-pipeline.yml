@@ -167,12 +167,31 @@ stages:
         artifact: 'package'
       name: Publish
       displayName: Publishing package for Azure Pipelines
+      
+    - task: DownloadPipelineArtifact@2
+      inputs:
+        buildType: 'current'
+        artifactName: 'package'
+        targetPath: '$(Build.ArtifactStagingDirectory)'
+      name: Fetch
+      displayName: Fetch package from Azure Pipelines
 
     - script: |
         echo BUILD NUMBER=%Configuration_buildno% TAG NUMBER=%Configuration_tagno%
         dir $(Build.ArtifactStagingDirectory)
       name: EchoArtifacts
       displayName: Display available Artifacts
+      
+    - task: WindowsMachineFileCopy@2
+      inputs:
+        SourcePath: '$(Build.ArtifactStagingDirectory)/$(tagno).zip'
+        MachineNames: '$(BUILD_SERVER)'
+        AdminUserName: '$(SVC_USER)'
+        AdminPassword: '$(SVC_PWD)'
+        TargetPath: '$(BUILD_PACKAGE_PATH)'
+        AdditionalArguments: '/COPY:DT /DCOPY:T /IS /IT'
+      name: PushTo99
+      displayName: Pushing to 99 packages folder
     
     - script: |
         cd $(Build.SourcesDirectory)\..
