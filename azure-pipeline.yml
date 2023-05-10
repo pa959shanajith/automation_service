@@ -168,6 +168,24 @@ stages:
       name: Publish
       displayName: Publishing package for Azure Pipelines
       
+      
+- stage: Stage
+  dependsOn:
+  - Build
+  displayName: Place the package in staging 99 server
+  variables:
+    tagno: $[stageDependencies.Build.BuildJob.outputs['Version.tagno']]
+    buildno: $[stageDependencies.Build.BuildJob.outputs['Version.buildno']]
+  jobs:
+  - job: StageJob
+    displayName: Place the package in staging 99 server
+    pool:
+      name: Nineteen68 Pool
+      demands:
+        - PLATFORM -equals windows
+    steps:
+    - checkout: none
+      
     - task: DownloadPipelineArtifact@2
       inputs:
         buildType: 'current'
