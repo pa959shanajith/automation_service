@@ -195,7 +195,7 @@ stages:
       displayName: Fetch package from Azure Pipelines
 
     - script: |
-        echo BUILD NUMBER=%Configuration_buildno% TAG NUMBER=%Configuration_tagno%
+        echo BUILD NUMBER=%buildno% TAG NUMBER=%tagno%
         dir $(Build.ArtifactStagingDirectory)
       name: EchoArtifacts
       displayName: Display available Artifacts
