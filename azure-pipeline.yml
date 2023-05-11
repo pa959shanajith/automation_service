@@ -196,6 +196,7 @@ stages:
 
     - script: |
         echo BUILD NUMBER=%buildno% TAG NUMBER=%tagno%
+        echo BUILD NUMBER=%Configuration_buildno% TAG NUMBER=%Configuration_tagno%
         dir $(Build.ArtifactStagingDirectory)
       name: EchoArtifacts
       displayName: Display available Artifacts
