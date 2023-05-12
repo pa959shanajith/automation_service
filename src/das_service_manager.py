@@ -30,7 +30,6 @@ def getcwd_exe():
     return currdir
 
 class DAS_Service_Manager(win32serviceutil.ServiceFramework):
-    _svc_deps_ = ["AvoAssureLS"]
     _svc_name_ = "AvoAssureDAS"
     _svc_display_name_ = "Avo Assure DAS Service"
     _svc_description_ = "Avo Assure Data Access Server Service"
