@@ -167,12 +167,49 @@ stages:
         artifact: 'package'
       name: Publish
       displayName: Publishing package for Azure Pipelines
+      
+      
+- stage: Stage
+  dependsOn:
+  - Build
+  displayName: Place the package in staging 99 server
+  variables:
+    tagno: $[stageDependencies.Build.BuildJob.outputs['Configuration.tagno']]
+    buildno: $[stageDependencies.Build.BuildJob.outputs['Configuration.buildno']]
+  jobs:
+  - job: StageJob
+    displayName: Place the package in staging 99 server
+    pool:
+      name: Nineteen68 Pool
+      demands:
+        - PLATFORM -equals windows
+    steps:
+    - checkout: none
+      
+    - task: DownloadPipelineArtifact@2
+      inputs:
+        buildType: 'current'
+        artifactName: 'package'
+        targetPath: '$(Build.ArtifactStagingDirectory)'
+      name: Fetch
+      displayName: Fetch package from Azure Pipelines
 
     - script: |
-        echo BUILD NUMBER=%Configuration_buildno% TAG NUMBER=%Configuration_tagno%
+        echo BUILD NUMBER=%buildno% TAG NUMBER=%tagno%
         dir $(Build.ArtifactStagingDirectory)
       name: EchoArtifacts
       displayName: Display available Artifacts
+      
+    - task: WindowsMachineFileCopy@2
+      inputs:
+        SourcePath: '$(Build.ArtifactStagingDirectory)/$(tagno).zip'
+        MachineNames: '$(BUILD_SERVER)'
+        AdminUserName: '$(SVC_USER)'
+        AdminPassword: '$(SVC_PWD)'
+        TargetPath: '$(BUILD_PACKAGE_PATH)'
+        AdditionalArguments: '/COPY:DT /DCOPY:T /IS /IT'
+      name: PushTo99
+      displayName: Pushing to 99 packages folder
     
     - script: |
         cd $(Build.SourcesDirectory)\..

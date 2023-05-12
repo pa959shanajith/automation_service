@@ -66,6 +66,11 @@ def LoadServices(app, redissession, client ,getClientName):
             if not isemptyrequest(data):
                 clientName=getClientName(data)         
                 dbsession=client[clientName]
+                if (data['param']=="updatedIdentifier"):
+                    dataObjectIds=[ObjectId(i) for i in data['objectIds']]
+                    doiden=data["identifiers"]
+                    dbsession.dataobjects.update_many({"_id":{"$in":dataObjectIds}},{"$set":{"identifier":doiden}})
+                    res={"rows":"Success"}
                 if data['param'] == 'DebugModeScrapeData':
                     screenId = dbsession.testcases.find_one({'_id':ObjectId(data['testCaseId']), 'versionnumber':data['versionnumber']},{'screenid':1})
                     data['screenId'] = str(screenId['screenid'])
