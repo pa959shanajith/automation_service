@@ -301,8 +301,9 @@ def updateActiveIceSessions():
                                     if ice_name in activeicesessions and activeicesessions[ice_name] != ice_uuid:
                                         res['err_msg'] = "Connection exists with same token"
                                     # To check if license is available
-                                    elif len(activeicesessions) >= int(lsData['USER']):
-                                        res['err_msg'] = "All ice sessions are in use"
+                                    elif str(lsData['USER']) != "Unlimited":
+                                        if len(activeicesessions) >= int(lsData['USER']):
+                                            res['err_msg'] = "All ice sessions are in use"
                                     # To add in active ice sessions
                                     else:
                                         activeicesessions[ice_name] = ice_uuid
