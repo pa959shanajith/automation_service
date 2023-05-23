@@ -184,7 +184,6 @@ def LoadServices(app, redissession, client ,getClientName):
         except Exception as updatetestsuiteexc:
             servicesException("updateTestSuite_ICE", updatetestsuiteexc, True)
         return jsonify(res)
-
     @app.route('/suite/ExecuteTestSuite_ICE',methods=['POST'])
     def ExecuteTestSuite_ICE() :
         res={'rows':'fail'}

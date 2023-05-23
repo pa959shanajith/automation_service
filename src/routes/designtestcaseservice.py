@@ -117,6 +117,7 @@ def LoadServices(app, redissession, client ,getClientName):
                 dodata["width"] = dodata["left"] - dodata["width"]
                 dodata["url"] = so["url"] if "url" in so else ""
                 dodata["cord"] = so["cord"] if "cord" in so else ""
+                dodata["identifier"] = so["identifier"] if "identifier" in so else [{"id":1,"identifier":'xpath'},{"id":2,"identifier":'id' },{"id":3, "identifier":'rxpath' },{ "id":4,"identifier":'name' },{"id":5,"identifier":'classname'}]
             elif so["appType"] in ["Web", "MobileWeb"]:
                 ob=[]
                 legend = ['id', 'name', 'tag', 'class', 'left', 'top', 'height', 'width', 'text']
@@ -140,6 +141,7 @@ def LoadServices(app, redissession, client ,getClientName):
                 if "class" in dodata: dodata["class"] = dodata["class"].split("[")[0]
                 dodata["url"] = so["url"] if 'url' in so else ""
                 dodata["cord"] = so["cord"] if "cord" in so else ""
+                dodata["identifier"] = so["identifier"] if "identifier" in so else [{"id":1,"identifier":'xpath'},{"id":2,"identifier":'id' },{"id":3, "identifier":'rxpath' },{ "id":4,"identifier":'name' },{"id":5,"identifier":'classname'}]
             elif so["appType"] == "MobileApp":
                 ob = obn.split(';')
                 if len(ob) >= 2 and ob[0].strip() != "": dodata["id"] = ob[0]
@@ -516,7 +518,7 @@ def LoadServices(app, redissession, client ,getClientName):
         del_flag = False
         try:
             for j in steps:
-                j['objectName'], j['url'], j['addTestCaseDetailsInfo'], j['addTestCaseDetails'] = '', '', '', ''
+                j['objectName'], j['url'], j['addTestCaseDetailsInfo'], j['addTestCaseDetails'], j['identifier']= '', '', '', '', ''
                 if 'addDetails' in j:
                     j['addTestCaseDetailsInfo'] = j['addDetails']
                     del j['addDetails']
@@ -526,6 +528,8 @@ def LoadServices(app, redissession, client ,getClientName):
                 if 'custname' in j.keys():
                     if j['custname'] in dataObjects.keys():
                         j['objectName'] = dataObjects[j['custname']]['xpath']
+                        if j['appType'] in ['Web','MobileWeb']:
+                            j['identifier']=dataObjects[j['custname']]['identifier']
                         j['url'] = dataObjects[j['custname']]['url'] if 'url' in dataObjects[j['custname']] else ""
                         j['cord'] = dataObjects[j['custname']]['cord'] if 'cord' in dataObjects[j['custname']] else ""
                         if 'original_device_width' in dataObjects[j['custname']].keys():

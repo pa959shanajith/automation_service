@@ -227,9 +227,8 @@ def LoadServices(app, redissession, client ,getClientName):
                 if "'" in obj['StepDescription']:
                     obj['StepDescription'] = obj['StepDescription'].replace("'",'"')
                 if(row!=None):
-                    row.update({'jira_defect_id':str(requestdata['defectid'])})
-                    queryresult = dbsession.reportitems.update({"_id":reportitemsid,"rows.id":slno},{"$set":{"rows.$":row}})
-                    dbsession.thirdpartyintegration.insert_one({
+                    defect = 'jira_defect_id'
+                    mongo_query = {
                         "type":"JIRA",
                         "reportid":requestdata["reportid"],
                         "defectid":requestdata['defectid'],
@@ -238,7 +237,13 @@ def LoadServices(app, redissession, client ,getClientName):
                                 "stepdescription": row["StepDescription"].replace('""',"'"),
                                 "Keyword": row["Keyword"]
                             }
-                        })
+                        }
+                    if 'query' in requestdata and requestdata['query'] == 'defectThroughAzure':
+                        defect = 'azure_defect_id'
+                        mongo_query['type'] = "AZURE"
+                    row.update({defect:str(requestdata['defectid'])})
+                    queryresult = dbsession.reportitems.update({"_id":reportitemsid,"rows.id":slno},{"$set":{"rows.$":row}})
+                    dbsession.thirdpartyintegration.insert_one(mongo_query)
                     res={'rows':'Success'}
         except Exception as updatereportdataexc:
             app.logger.debug(updatereportdataexc)
