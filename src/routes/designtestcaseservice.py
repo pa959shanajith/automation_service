@@ -22,7 +22,7 @@ def LoadServices(app, redissession, client ,getClientName):
         app.logger.debug('Inside getKeywordDetails')
         res={'rows':'fail'}
         try:
-            clientName="avoassure"      
+            clientName=getClientName({})       
             dbsession=client[clientName]
             projecttypename = str(request.data,'utf-8')
             if not (projecttypename == '' or projecttypename == 'undefined'

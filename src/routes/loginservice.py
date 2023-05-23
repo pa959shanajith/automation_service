@@ -7,7 +7,6 @@ import json
 import redis
 import requests
 from datetime import datetime, timezone
-from licenseManager import *
 def LoadServices(app, redissession, client, licensedata,basecheckonls,getClientName):
     setenv(app)
 
@@ -19,19 +18,7 @@ def LoadServices(app, redissession, client, licensedata,basecheckonls,getClientN
 ################################################################################
 # ADD YOUR ROUTES BELOW
 ################################################################################
-    # Get count of users logged in 
-    def checkUserLoggedin(redisdb_conf,redisdb_pass,dbsession):
-        loggedInCount=0
-        usersList=list(dbsession.users.find({},{"email":1}))
-        usersList=[key['email'] for key in usersList]
-        redissession = redis.StrictRedis(host=redisdb_conf['host'], port=int(redisdb_conf['port']), password=redisdb_pass, db=0)
-        for key in redissession.keys():
-            sess=json.loads(redissession[key].decode('utf-8'))
-            if 'emailid' in sess:
-                if sess['activeRole'] != 'Admin':
-                    if sess['emailid'] in usersList:
-                        loggedInCount=loggedInCount+1
-        return loggedInCount
+
     #DAS service for loading users info
     @app.route('/login/loadUser',methods=['POST'])
     def loadUser():
@@ -43,21 +30,13 @@ def LoadServices(app, redissession, client, licensedata,basecheckonls,getClientN
                 if not isemptyrequest(requestdata):
                     user_data = None
                     lsData=licensedata
-                    present = datetime.now()
-                    expiryDate=None
                     clientName=getClientName(requestdata)
                     dbsession=client[clientName]
                     licenseMangerDetails = dbsession.licenseManager.find_one({"client":clientName})
                     if "licenseServer" in licensedata:
-                        lsData = licenseMangerDetails['data']
                         guid=licenseMangerDetails['guid']
                         lsServer_Data=requests.get(licensedata["licenseServer"]+"/api/Customer/GetCustomerLicenseDetails?CustomerGUID="+str(guid),verify=False).json()
-                        if lsServer_Data["Status"] != "Active":
-                            res={'rows':'Licence Expired'}
-                            return jsonify(res)
-                        expiryDate=lsServer_Data["ExpiresOn"].split('/')
                         if lsServer_Data != licenseMangerDetails['data']:
-                            lsData = lsServer_Data
                             dbsession.licenseManager.update_one({"client":clientName},{'$set': {"data":lsServer_Data}})
                     else:
                         if licenseMangerDetails == None:
@@ -69,50 +48,49 @@ def LoadServices(app, redissession, client, licensedata,basecheckonls,getClientN
                         else:
                             if licenseMangerDetails['data'] != lsData:
                                 dbsession.licenseManager.update_one({"client":clientName},{'$set': {"data":lsData}})
-                    expiryDate=lsData['ExpiresOn'].split('/')
-                    expiryDate=datetime(int(expiryDate[2]), int(expiryDate[0]), int(expiryDate[1]))
-                    if present <= expiryDate:
-                        try:
-                            # A sreenivasulu assign a sample project to new user account
-                            user_data = list(dbsession.eularecords.find({"username": requestdata["username"]}))
-                            if len(user_data) == 0 and requestdata["username"] != "admin":
+                    if "fnName" in requestdata and requestdata["fnName"]=="forgotPasswordEmail":
+                        if ("email" in requestdata and requestdata["email"]): #handling duplicate email-id's
+                            user_data = list(dbsession.users.find({"email":requestdata["email"]},{"_id":1,"name":1,"firstname":1,"lastname":1,"email":1,"auth":1,"invalidCredCount":1}))
+                        else:
+                            user_data = [dbsession.users.find_one({"name":requestdata["username"]})]
+                        
+                    elif requestdata["username"] != "ci_cd":
+                        user_data = dbsession.users.find_one({"name":requestdata["username"]})
+                    try:
+                        # A sreenivasulu assign a sample project to new user account
+                        if "fnName" in requestdata and requestdata["fnName"]!="forgotPasswordEmail":
+                            # user_data = list(dbsession.eularecords.find({"username": requestdata["username"]}))
+                            if requestdata["username"] != "admin":
                                 client_license_data = dbsession.licenseManager.find_one({"client":clientName}, {"data": 1, "_id": 0})
                                 keys_with_true = [key for key, value in client_license_data["data"].items() if value == "true"]
-                                projects_id_list =[]
+                                keys_with_false = [key for key, value in client_license_data["data"].items() if value == "false"]
+                                user_project_list = list(map(lambda project: ObjectId(project),user_data["projects"]))
+                                projects_id_list =user_project_list
                                 for project_type_name in keys_with_true:                                    
                                     project_type_nameANDid = dbsession.projectfeaturecodes.find_one({"featureCode": project_type_name}, {"sampleProjectName": 1})
                                     if project_type_nameANDid != None:
                                         projects_id = dbsession.projects.find_one({"name":project_type_nameANDid["sampleProjectName"]}, {"_id": 1})
                                         if projects_id != None:
-                                            projects_id_list.append(projects_id["_id"])
+                                            if projects_id["_id"] not in user_project_list:
+                                                projects_id_list.append(projects_id["_id"])
+                                for project_type_name in keys_with_false:                                    
+                                    project_type_nameANDid = dbsession.projectfeaturecodes.find_one({"featureCode": project_type_name}, {"sampleProjectName": 1})
+                                    if project_type_nameANDid != None:
+                                        projects_id = dbsession.projects.find_one({"name":project_type_nameANDid["sampleProjectName"]}, {"_id": 1})
+                                        if projects_id != None:
+                                            if projects_id["_id"] in user_project_list:
+                                                del(projects_id_list[projects_id_list.index(projects_id["_id"])])
                                 if len(projects_id_list) != 0:
                                     dbsession.users.update_one({"name":requestdata["username"]},{"$set":{"projects":projects_id_list}})
-                        except Exception as e:
-                            servicesException("Exception in login/loaduser while assigning a sample project to a trial user", e, True)
-                        if str(lsData['USER']) != "Unlimited":
-                            redisdb_pass='179c27cf2f3a4173b6521c9ddc2645d1e94ae7e5c385664282c2965aff7119aa'
-                            if checkUserLoggedin({'host':'127.0.0.1','port':'8001'},redisdb_pass,dbsession) >= int(lsData['USER']):
-                                return res
-                        if "fnName" in requestdata and requestdata["fnName"]=="forgotPasswordEmail":
-                            if ("username" in requestdata and requestdata["username"]): #handling duplicate email-id's
-                                user_data = [dbsession.users.find_one({"name":requestdata["username"]})]
-                            else:
-                                user_data = list(dbsession.users.find({"email":requestdata["email"]},{"_id":1,"name":1,"firstname":1,"lastname":1,"email":1,"auth":1,"invalidCredCount":1}))
-                            
-                        elif requestdata["username"] != "ci_cd":
-                            user_data = dbsession.users.find_one({"name":requestdata["username"]})
-                        res={'rows': user_data}
-                    else:
-                        res={'rows':'Licence Expired'}
-                    
+                    except Exception as e:
+                        servicesException("Exception in login/loaduser while assigning a sample project to a trial user", e, True)
                     
                     res={'rows': user_data}
                 else:
                     app.logger.warn('Empty data received. authentication')
             except Exception as loaduser_exc:
                 servicesException('loadUser', loaduser_exc, True)
-        else:
-            res={'rows':'Licence Expired'}       
+    
         return jsonify(res)
 
     @app.route('/login/verifyUser',methods=['POST'])
@@ -287,7 +265,8 @@ def LoadServices(app, redissession, client, licensedata,basecheckonls,getClientN
                     else:
                         dictdata['isTrial'] = False
                     for keys in lic_plugins:
-                        allowed_plugins.append({ "pluginName": keys,"pluginValue": True})
+                        # allowed_plugins.append({ "pluginName": keys,"pluginValue": True})
+                        allowed_plugins.append({ "pluginName": keys,"pluginValue": lic_plugins[keys]})
                     # for keys in ui_plugins:
                     #     allowed_plugins.append({ "pluginName": ui_plugins[keys],"pluginValue": False if lic_plugins[keys] == False else plugins[keys]})
                     dictdata['pluginresult']=allowed_plugins
