@@ -165,6 +165,7 @@ def LoadServices(app, redissession, client ,getClientName):
                     old_id=ObjectId(objList['oldObjId'])
                     new_obj=objList['newObjectData']
                     new_obj["parent"]=[screenId]
+                    new_obj["identifier"] = [{"id":1,"identifier":'xpath'},{"id":2,"identifier":'id' },{"id":3, "identifier":'rxpath' },{ "id":4,"identifier":'name' },{"id":5,"identifier":'classname'}]
                     newObj_id = None
                     query = list(dbsession.dataobjects.find({'_id':old_id}))
                     if len(query[0]['parent'])>=2:
@@ -433,6 +434,7 @@ def LoadServices(app, redissession, client ,getClientName):
                         old_id=ObjectId(objList['oldObjId'])
                         new_obj=objList['newObjectData']
                         new_obj["parent"]=[screenId]
+                        new_obj["identifier"] = [{"id":1,"identifier":'xpath'},{"id":2,"identifier":'id' },{"id":3, "identifier":'rxpath' },{ "id":4,"identifier":'name' },{"id":5,"identifier":'classname'}]
                         newObj_id = None
                         query = list(dbsession.dataobjects.find({'_id':old_id}))
                         if len(query[0]['parent'])>=2:
