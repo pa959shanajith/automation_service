@@ -238,6 +238,20 @@ def LoadServices(app, redissession, client ,getClientName, *args):
                     dbsession.thirdpartyintegration.delete_many({"type":"Jira","itemCode":requestdata["itemCode"]})
                     dbsession.thirdpartyintegration.insert_one(requestdata)
                     res= {"rows":"success"}
+                elif(requestdata["query"] == 'saveAzureDetails_ICE'):
+                    requestdata["type"] = "Azure"
+                    
+
+                    dbsession.thirdpartyintegration.insert_one(requestdata)
+                    dbsession.thirdpartyintegration.delete_many({"type":"Azure","testscenarioid":requestdata["testscenarioid"]})
+
+                    if requestdata["itemType"] == 'UserStory':
+                        dbsession.thirdpartyintegration.delete_many({"type":"Azure","userStoryId":requestdata["userStoryId"]})
+                    else:
+                        dbsession.thirdpartyintegration.delete_many({"type":"Azure","TestSuiteId":requestdata["TestSuiteId"]})
+
+                    dbsession.thirdpartyintegration.insert_one(requestdata)
+                    res= {"rows":"success"}
             else:
                 app.logger.warn('Empty data received. getting saveIntegrationDetails_ICE.')
         except Exception as e:
@@ -294,6 +308,30 @@ def LoadServices(app, redissession, client ,getClientName, *args):
                         if len(scenariolist) > 0:
                             scenarios = {str(i['_id']):i['name'] for i in scenariolist}
                             temp_result=list(dbsession.thirdpartyintegration.find({"type":"Jira","testscenarioid":{'$in':list(scenarios.keys())}}))
+                            if len(temp_result) > 0:
+                                for mapping in temp_result:
+                                    mapping['testscenarioname']=[]
+                                    scenarioId=mapping['testscenarioid']
+                                    if scenarioId in scenarios:
+                                        mapping['testscenarioname'].append(scenarios[scenarioId])
+                                result.extend(temp_result)
+                    if 'scenarioName' in requestdata:
+                        for i in result:
+                            if requestdata['scenarioName']==i['testscenarioname'][0]:
+                                result=i
+                                break
+                            else:
+                                result=[]
+                    res= {"rows":result}
+                elif(requestdata["query"] == 'azuredetails'):
+                    result = []
+                    projectlist=list(dbsession.users.find({"_id":ObjectId(requestdata["userid"])},{"projects":1}))
+                    if len(projectlist) > 0:
+                        projects = projectlist[0]['projects']
+                        scenariolist=list(dbsession.testscenarios.find({"projectid":{'$in':projects},"deleted":False,"$where":"this.parent.length>0"},{"name":1,"_id":1}))
+                        if len(scenariolist) > 0:
+                            scenarios = {str(i['_id']):i['name'] for i in scenariolist}
+                            temp_result=list(dbsession.thirdpartyintegration.find({"type":"Azure","testscenarioid":{'$in':list(scenarios.keys())}}))
                             if len(temp_result) > 0:
                                 for mapping in temp_result:
                                     mapping['testscenarioname']=[]
@@ -439,6 +477,36 @@ def LoadServices(app, redissession, client ,getClientName, *args):
                                     result1[0]['itemSummary']=''
                                 if result1[0]['itemCode'] == '' :
                                     req.append(DeleteOne({"_id":ObjectId(mapObj["mapid"]),"type":"Jira"}))
+                                # else:
+                                #     req.append(UpdateOne({"_id":ObjectId(mapObj["mapid"])}, {'$set': {"testid":result1[0]['testid'], "testname":result1[0]['testname'],"treeid":result1[0]['treeid'],"parentid":result1[0]['parentid'],"reqdetails":result1[0]['reqdetails'],"projectid":result1[0]['projectid'],"releaseid":result1[0]['releaseid']}}))
+                        if len(req)!=0:
+                            dbsession.thirdpartyintegration.bulk_write(req)
+                            res= {"rows":"success"}
+                    elif requestdata['screenType']=='Azure':
+                        app.logger.debug("Inside updateMapDetails_ICE - Azure unsync")
+                        req=[]
+                        for mapObj in requestdata["mapList"]:
+                            result1 = list(dbsession.thirdpartyintegration.find({"_id":ObjectId(mapObj["mapid"]),"type":"Azure"}))
+                            if "testscenarioid" in mapObj:
+                                #updating scenarioid
+                                scenarioid = mapObj["testscenarioid"]
+                                # for i in scenarioid:
+                                if  scenarioid[0]==result1[0]['testscenarioid']:
+                                    result1[0]['testscenarioid']=''
+                                if result1[0]['testscenarioid'] == '' :
+                                    req.append(DeleteOne({"_id":ObjectId(mapObj["mapid"]),"type":"Azure"}))
+                                # else:
+                                #     req.append(UpdateOne({"_id":ObjectId(mapObj["mapid"])}, {'$set': {"testscenarioid":result1[0]['testscenarioid']}}))
+                            elif "testCaseNames" in mapObj:
+                                #updating testcase
+                                testname = mapObj["testCaseNames"]
+                                if ('userStoryId' in result1[0] and testname[0] == result1[0]['userStoryId']) or ('TestSuiteId' in result1[0] and testname[0] == result1[0]['TestSuiteId']):
+                                    result1[0]['projectid']=''
+                                    result1[0]['projectName']=''
+                                    result1[0]['projectCode']=''
+                                    result1[0]['itemType']=''
+                                if result1[0]['itemType'] == '' :
+                                    req.append(DeleteOne({"_id":ObjectId(mapObj["mapid"]),"type":"Azure"}))
                                 # else:
                                 #     req.append(UpdateOne({"_id":ObjectId(mapObj["mapid"])}, {'$set': {"testid":result1[0]['testid'], "testname":result1[0]['testname'],"treeid":result1[0]['treeid'],"parentid":result1[0]['parentid'],"reqdetails":result1[0]['reqdetails'],"projectid":result1[0]['projectid'],"releaseid":result1[0]['releaseid']}}))
                         if len(req)!=0:

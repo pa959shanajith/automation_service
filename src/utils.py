@@ -228,7 +228,9 @@ ecodeServices = {
     "verifyUser":"468",
     "deleteScenario": "469",
     "getDetails_SAUCELABS":"470",
-    "manageSaucelabsDetails":"471"
+    "manageSaucelabsDetails":"471",
+    "getDetails_Azure":"472",
+    "manageAzureDetails":"473"
 }
 
 

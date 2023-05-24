@@ -108,7 +108,7 @@ webPluginList = {
 				"DE":"utility","WEBT":"web","APIT":"webservice","MOBT":"mobileapp","ETOAP":"oebs",
 				"DAPP":"desktop","MF":"mainframe","ETSAP":"sap","MOBWT":"mobileweb"
 			}
-dbsession=redissession=redissession_db2=client=None
+dbsession=redissession=redissession_db2=redissession_db0=client=None
 
 
 def _jsonencoder_default(self, obj):
@@ -143,6 +143,10 @@ sys.path.append(currfiledir+os.sep+"utility")
 
 def addroutes():
     app.logger.debug("Loading services")
+
+    import licenseManager
+    licenseManager.LoadServices(app, redissession_db0, client,getClientName,licensedata)
+
     import loginservice
     loginservice.LoadServices(app, redissession, client, licensedata,basecheckonls,getClientName)
 
@@ -297,8 +301,9 @@ def updateActiveIceSessions():
                                     if ice_name in activeicesessions and activeicesessions[ice_name] != ice_uuid:
                                         res['err_msg'] = "Connection exists with same token"
                                     # To check if license is available
-                                    elif len(activeicesessions) >= int(lsData['USER']):
-                                        res['err_msg'] = "All ice sessions are in use"
+                                    elif str(lsData['USER']) != "Unlimited":
+                                        if len(activeicesessions) >= int(lsData['USER']):
+                                            res['err_msg'] = "All ice sessions are in use"
                                     # To add in active ice sessions
                                     else:
                                         activeicesessions[ice_name] = ice_uuid
@@ -313,6 +318,7 @@ def updateActiveIceSessions():
                                         if key in webPluginList:
                                             ice_plugins_list.append(webPluginList[key])
                                     res["plugins"] = ice_plugins_list
+                                    res["license_data"] = lsData
                             else:
                                 res['err_msg'] = ice_name+" is not Registered with a valid Avo Assure User"
                                 response["node_check"] = res['status'] = "InvalidICE"
@@ -500,13 +506,8 @@ def getClientName(requestdata):
     global licenseServer
     clientName="avoassure"
     try:
-        if licenseServer["enable"]:
-            if "host" in requestdata:
-                if 'localhost' not in requestdata["host"] and '127.0.0.1' not in requestdata["host"]:
-                    clientName=requestdata["host"].split('.')[0]
-
-        if clientName not in client.list_database_names():
-            clientName = 'avoassure'
+        if ('DB_NAME' in os.environ):
+            clientName=os.environ['DB_NAME']
     except Exception as e:
         app.logger.error(e)
         app.logger.error('Error while fetching client name')
@@ -630,7 +631,7 @@ def wrap(data, key, iv=b'0'*16):
 
 def main():
     global lsport,dasport,mongo_dbup,redis_dbup,licenseServer,client
-    global redissession,dbsession,redissession_db2
+    global redissession,dbsession,redissession_db2,redissession_db0
     das_conf_obj = open(config_path, 'r')
     das_conf = json.load(das_conf_obj)
     das_conf_obj.close()
@@ -712,6 +713,8 @@ def main():
         redisdb_pass = creds['cachedb']['password']
         redissession = redis.StrictRedis(host=redisdb_conf['host'], port=int(redisdb_conf['port']), password=redisdb_pass, db=3)
         redissession_db2 = redis.StrictRedis(host=redisdb_conf['host'], port=int(redisdb_conf['port']), password=redisdb_pass, db=2)
+        redissession_db0 = redis.StrictRedis(host=redisdb_conf['host'], port=int(redisdb_conf['port']), password=redisdb_pass, db=0)
+
         if redissession.get('icesessions') is None:
             redissession.set('icesessions',wrap('{}',db_keys))
         if redissession_db2.get("ICE_status") is None:
@@ -727,7 +730,10 @@ def main():
         mongodb_conf = das_conf['avoassuredb']
         mongo_user= unwrap(mongodb_conf['username'],db_keys)
         mongo_pass= unwrap(mongodb_conf['password'],db_keys)
-        hosts = [mongodb_conf["host"] + ':' + str(mongodb_conf["port"])]
+        if ('DB_IP' in os.environ and 'DB_PORT' in os.environ):
+            hosts = [str(os.environ['DB_IP']) + ':' + str(os.environ['DB_PORT'])]
+        else:
+            hosts = [mongodb_conf["host"] + ':' + str(mongodb_conf["port"])]
         client = MongoClient(hosts, username = mongo_user, password = mongo_pass,authSource = 'admin', 
             appname = 'AvoAssureDAS', authMechanism = 'SCRAM-SHA-1')
         if client.server_info():

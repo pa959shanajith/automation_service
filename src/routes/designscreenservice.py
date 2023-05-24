@@ -66,6 +66,11 @@ def LoadServices(app, redissession, client ,getClientName):
             if not isemptyrequest(data):
                 clientName=getClientName(data)         
                 dbsession=client[clientName]
+                if (data['param']=="updatedIdentifier"):
+                    dataObjectIds=[ObjectId(i) for i in data['objectIds']]
+                    doiden=data["identifiers"]
+                    dbsession.dataobjects.update_many({"_id":{"$in":dataObjectIds}},{"$set":{"identifier":doiden}})
+                    res={"rows":"Success"}
                 if data['param'] == 'DebugModeScrapeData':
                     screenId = dbsession.testcases.find_one({'_id':ObjectId(data['testCaseId']), 'versionnumber':data['versionnumber']},{'screenid':1})
                     data['screenId'] = str(screenId['screenid'])
@@ -102,6 +107,8 @@ def LoadServices(app, redissession, client ,getClientName):
                             
                         if (data_push != []):
                             insertedObjIds = dbsession.dataobjects.insert(data_push)
+                            dbsession.dataobjects.update_many({"_id":{"$in":insertedObjIds}},
+                            {"$set":{"identifier":[{"id":1,"identifier":'xpath'},{"id":2,"identifier":'id' },{"id":3, "identifier":'rxpath' },{ "id":4,"identifier":'name' },{"id":5,"identifier":'classname'}]}})
 
                             for index in range(len(orderList)):
                                 if (orderList[index] in tempOrderId_index_dict):
@@ -158,6 +165,7 @@ def LoadServices(app, redissession, client ,getClientName):
                     old_id=ObjectId(objList['oldObjId'])
                     new_obj=objList['newObjectData']
                     new_obj["parent"]=[screenId]
+                    new_obj["identifier"] = [{"id":1,"identifier":'xpath'},{"id":2,"identifier":'id' },{"id":3, "identifier":'rxpath' },{ "id":4,"identifier":'name' },{"id":5,"identifier":'classname'}]
                     newObj_id = None
                     query = list(dbsession.dataobjects.find({'_id':old_id}))
                     if len(query[0]['parent'])>=2:
@@ -352,6 +360,8 @@ def LoadServices(app, redissession, client ,getClientName):
                             if (data_push != []):
                                 # app.logger.debug(data_push)
                                 insertedObjIds = dbsession.dataobjects.insert(data_push)
+                                dbsession.dataobjects.update_many({"_id":{"$in":insertedObjIds}},
+                                {"$set":{"identifier":[{"id":1,"identifier":'xpath'},{"id":2,"identifier":'id' },{"id":3, "identifier":'rxpath' },{ "id":4,"identifier":'name' },{"id":5,"identifier":'classname'}]}})
 
                                 for index in range(len(orderList)):
                                     if (orderList[temp_index_objects] in tempOrderId_index_dict):
@@ -424,6 +434,7 @@ def LoadServices(app, redissession, client ,getClientName):
                         old_id=ObjectId(objList['oldObjId'])
                         new_obj=objList['newObjectData']
                         new_obj["parent"]=[screenId]
+                        new_obj["identifier"] = [{"id":1,"identifier":'xpath'},{"id":2,"identifier":'id' },{"id":3, "identifier":'rxpath' },{ "id":4,"identifier":'name' },{"id":5,"identifier":'classname'}]
                         newObj_id = None
                         query = list(dbsession.dataobjects.find({'_id':old_id}))
                         if len(query[0]['parent'])>=2:
