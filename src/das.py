@@ -301,15 +301,14 @@ def updateActiveIceSessions():
                                     if ice_name in activeicesessions and activeicesessions[ice_name] != ice_uuid:
                                         res['err_msg'] = "Connection exists with same token"
                                     # To check if license is available
-                                    elif str(lsData['USER']) != "Unlimited":
-                                        if len(activeicesessions) >= int(lsData['USER']):
-                                            res['err_msg'] = "All ice sessions are in use"
+                                    elif str(lsData['USER']) != "Unlimited" and len(activeicesessions) >= int(lsData['USER']):
+                                        res['err_msg'] = "All ice sessions are in use"
                                     # To add in active ice sessions
                                     else:
                                         activeicesessions[ice_name] = ice_uuid
                                         redissession.set('icesessions', wrap(json.dumps(activeicesessions),db_keys))
                                         f_allow = True
-                                if f_allow:
+                                if f_allow: 
                                     res['res'] = "success"
                                     response["node_check"] = "allow"
                                     response["username"] = username
