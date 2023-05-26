@@ -257,6 +257,8 @@ def LoadServices(app, redissession, client ,getClientName):
                             else:
                                 data_obj["view"][i]["parent"] = temp
                                 data_up.append(data_obj["view"][i])
+                        if "identifier" not in data_obj["view"][i]:
+                            data_obj["view"][i]["identifier"] = [{"id":1,"identifier":'xpath'},{"id":2,"identifier":'id' },{"id":3, "identifier":'rxpath' },{ "id":4,"identifier":'name' },{"id":5,"identifier":'classname'}]
                     if len(data_push)>0 or len(data_up)>0:
                         dbsession.dataobjects.update_many({"$and":[{"parent.1":{"$exists":True}},{"parent":screenId}]},{"$pull":{"parent":screenId}})
                         dbsession.dataobjects.delete_many({"$and":[{"parent":{"$size": 1}},{"parent":screenId}]})
@@ -536,6 +538,8 @@ def LoadServices(app, redissession, client ,getClientName):
                                 else:
                                     data_obj["view"][i]["parent"] = temp
                                     data_up.append(data_obj["view"][i])
+                            if "identifier" not in data_obj["view"][i]:
+                                data_obj["view"][i]["identifier"] = [{"id":1,"identifier":'xpath'},{"id":2,"identifier":'id' },{"id":3, "identifier":'rxpath' },{ "id":4,"identifier":'name' },{"id":5,"identifier":'classname'}]
                         if len(data_push)>0 or len(data_up)>0:
                             dbsession.dataobjects.update_many({"$and":[{"parent.1":{"$exists":True}},{"parent":screenId}]},{"$pull":{"parent":screenId}})
                             dbsession.dataobjects.delete_many({"$and":[{"parent":{"$size": 1}},{"parent":screenId}]})
