@@ -1609,7 +1609,15 @@ def LoadServices(app, redissession, client ,getClientName):
                 currdir = parent_currdir
         internalspath = currdir + os.sep + "das_internals"
         credspath = internalspath + os.sep + ".tokens"
-        return credspath
+        config_path = parent_currdir + os.sep + "server_config.json"
+        config = open(config_path, 'r')
+        conf = json.load(config)
+        config.close()
+        mongo_client_path=conf['avoassuredb']["MongoClientPath"]
+        DB_IP=conf['avoassuredb']["host"]
+        DB_PORT=conf['avoassuredb']["port"]
+        exportImportpath=conf['exportImportpath']
+        return credspath,mongo_client_path,DB_IP, DB_PORT,exportImportpath
     
     def unpad(data):
         return data[0:-ord(data[-1])]
@@ -1623,10 +1631,10 @@ def LoadServices(app, redissession, client ,getClientName):
         db_keys = "".join(['N','i','n','E','t','e','E','n','6','8','d','A','t','a','B',
                             'A','s','3','e','N','c','R','y','p','T','1','0','n','k','3','y','S'])
         creds_path=get_creds_path()
-        with open(creds_path) as creds_file:
+        with open(creds_path[0]) as creds_file:
             creds = json.loads(unwrap(creds_file.read(),db_keys))
         _ = creds['cachedb']['password'] + creds['avoassuredb']['username'] + creds['avoassuredb']['password']
-        return creds['avoassuredb']['password']
+        return creds['avoassuredb']['username'],creds['avoassuredb']['password'] 
 
     @app.route('/mindmap/exportMindmap', methods=['POST'])
     def exportMindmap():
@@ -1636,70 +1644,69 @@ def LoadServices(app, redissession, client ,getClientName):
             app.logger.debug("Inside exportMindmap.")
             if not isemptyrequest(requestdata):
                 clientName=getClientName(requestdata)             
-                dbsession=client[clientName]    
+                dbsession=client[clientName]
+                db_username, password=db_password()
+                username=requestdata["username"]
+                username=username.replace('.','')
+                x,exportPath,DB_IP,DB_PORT,expPath=get_creds_path()
+                exportPath =exportPath + "\\"+"mongoexport"
+                expPath=expPath+"\\"+"ExportMindmap"+"\\"+ username    
                 if (requestdata['query'] == 'exportMindmap'):
-                    exportcheck=dbsession.mindmapIdslist.find().count()
+                    exportcheck=dbsession.Export_mindmap.find().count()
                     if exportcheck==0:
-                        exportedfilepath= requestdata["exportedfilepath"]
-                        username=requestdata["username"]
-                        username=username.replace('.','')
-                        path=exportedfilepath+"\\"+username
-                        exportProjId=ObjectId(requestdata["exportProjId"])
-                        exportProjAppType=requestdata["exportProjAppType"]
-                        if(os.path.exists(path)): shutil.rmtree(path)
-                        if type(requestdata['mindmapId']) == str:
-                            mindmapid=[]
-                            mindmapid.append(ObjectId(requestdata["mindmapId"]))
-                        else:
-                            mindmapid = [ObjectId(i) for i in requestdata['mindmapId']]
-                        dbsession.mindmapIdslist.drop()                    
-                        mycoll=dbsession["mindmapIdslist"]
+                        if(os.path.exists(expPath)): shutil.rmtree(expPath)
+                        mindmapid = [ObjectId(i) for i in requestdata['mindmapId']]
                         if len(mindmapid)>0:
-                            dbsession.mindmapIdslist.insert_one({"mindmapids":mindmapid})
-                            dbsession.mindmapIdslist.insert_one({"apptypeName":exportProjAppType})
-                            dbsession.mindmapIdslist.insert_one({"exportProjId":exportProjId})
-                        scenarioIds=dbsession.Export_testscenarios.aggregate( [
-                            {"$group":{"_id":'null',"scenarioids":{"$push":"$_id"}}}, 
-                            {"$project":{"_id":0,"scenarioids":1}}
-                            ] )                                        
-                        mindmapiddata=list(dbsession.mindmapIdslist.find({},{"_id":1}))
-
-                        mId=mindmapiddata[0]["_id"]                    
-                        exportquery=requestdata["exportquery"]
-                        exportbatfile=requestdata["exportbatfile"]
-                        mongoexportpath=requestdata["mongoexportpath"]
-                        mongopath=requestdata["mongopath"]                    
-                        projectName=requestdata["projectName"]
-                        mongodumpbat=requestdata["mongodumpbat"]
-                        ip=requestdata["ip"]                        
-                        projectName=projectName.replace(" ","")
-                        password = db_password()
-                        command = "%s %s %s %s %s %s" % (exportbatfile,mongopath,ip,password, mId, exportquery)
+                            dbsession.Export_screens.drop()
+                            dbsession.Export_testcases.drop()
+                            dbsession.Export_dataobjects.drop()
+                            dbsession.Export_testscenarios.drop()
+                            dbsession.mindmaps.aggregate([{'$match': {"_id": {'$in':mindmapid}}},{"$out":"Export_mindmap"}])
+                            dbsession.Export_mindmap.update_many({},{"$set":{"appType":requestdata["exportProjAppType"]}})
+                            dbsession.testscenarios.aggregate([{'$match': {"parent": {'$in':mindmapid}}},
+                            {"$out":"Export_testscenarios"}])
+                            scenarioIds=list(dbsession.Export_testscenarios.aggregate( [
+                                {"$group":{"_id":"null","scenarioids":{"$push":"$_id"}}}, 
+                                {"$project":{"_id":0,"scenarioids":1}}
+                                ] ))
+                            if len(scenarioIds)>0:    
+                                scenarios=scenarioIds[0]["scenarioids"]
+                                dbsession.screens.aggregate([{'$match': {"parent": {'$in':scenarios}}},{"$out":"Export_screens"}])
+                                screenIds=list(dbsession.Export_screens.aggregate( [
+                                    {"$group":{"_id":"null","screenids":{"$push":"$_id"}}}, 
+                                    {"$project":{"_id":0,"screenids":1}}
+                                    ] ))
+                                if len(screenIds)>0:  
+                                    screens=screenIds[0]["screenids"]  
+                                    dbsession.testcases.aggregate([{'$match': {"screenid": {'$in':screens}}},
+                                        {"$out":"Export_testcases"}])
+                                    dbsession.dataobjects.aggregate([{'$match': {"parent": {'$in':screens}}}
+                                        ,{"$out":"Export_dataobjects"}])
+    
+                            p=subprocess.call(f"{exportPath} --host {DB_IP} --port {DB_PORT} --db {clientName} --username {db_username} --password {password} --collection Export_mindmap -o {expPath}\\Modules.json  --jsonArray")
+                            q=subprocess.call(f"{exportPath} --host {DB_IP} --port {DB_PORT} --db {clientName} --username {db_username} --password {password} --collection Export_testscenarios -o {expPath}\\Testscenarios.json  --jsonArray")
+                            r=subprocess.call(f"{exportPath} --host {DB_IP} --port {DB_PORT} --db {clientName} --username {db_username} --password {password} --collection Export_screens -o {expPath}\\screens.json  --jsonArray")
+                            s=subprocess.call(f"{exportPath} --host {DB_IP} --port {DB_PORT} --db {clientName} --username {db_username} --password {password} --collection Export_testcases -o {expPath}\\Testcases.json  --jsonArray")
+                            t=subprocess.call(f"{exportPath} --host {DB_IP} --port {DB_PORT} --db {clientName} --username {db_username} --password {password} --collection Export_dataobjects -o {expPath}\\Dataobjects.json  --jsonArray")
+                            if p ==q ==r==s==t==0:
+                                queryresult="success"
+                            else:
+                                queryresult="fail"
+                            dbsession.Export_mindmap.drop()
+                            dbsession.Export_screens.drop()
+                            dbsession.Export_testcases.drop()
+                            dbsession.Export_dataobjects.drop()
+                            dbsession.Export_testscenarios.drop()
                         
-                        p = subprocess.Popen(command.split(), stdout=subprocess.PIPE)
-                        tdout, stderr = p.communicate()                       
-                        
-                        command = "%s %s %s %s %s" % (mongodumpbat,mongoexportpath,password,exportedfilepath,username)                    
-                        
-                        p = subprocess.Popen(command.split(), stdout=subprocess.PIPE)
-                        tdout, stderr = p.communicate()
-                        
-                        queryresult=mindmapid[0]
-                        dbsession.mindmapIdslist.drop()
-                        dbsession.Export_mindmap.drop()
-                        dbsession.Export_screens.drop()
-                        dbsession.Export_testcases.drop()
-                        dbsession.Export_dataobjects.drop()
-                        dbsession.Export_testscenarios.drop()
-                        
-                        if queryresult:
-                            res = {'rows': queryresult}
+                            if queryresult:
+                                res ={"rows":queryresult}
+                        else:
+                            app.logger.warn('Empty data received while exporting mindmap')
                     else:
                         res ={"rows":"InProgress"}
             else:
                 app.logger.warn('Empty data received while exporting mindmap')
         except Exception as exportmindmapexc:
-            dbsession.mindmapIdslist.drop()
             dbsession.Export_mindmap.drop()
             dbsession.Export_screens.drop()
             dbsession.Export_testcases.drop()
@@ -1708,7 +1715,7 @@ def LoadServices(app, redissession, client ,getClientName):
             servicesException("exportMindmap", exportmindmapexc, True)
         return jsonify(json.loads(json_util.dumps(res)))
     def copyToProject(dbsession,mindmapid,userid,role,createdon,projectid):
-        dbsession.Import_mindmaps.drop()
+
         dbsession.Import_scenarios.drop()
         dbsession.Import_screens.drop()
         dbsession.Import_testcases.drop()
@@ -1743,113 +1750,74 @@ def LoadServices(app, redissession, client ,getClientName):
                         "modifiedon":createdon,
                         "tsIds":"$testscenarios"
                         }},{"$out":"Import_mindmaps"}])
-        dbsession.mindmaps.aggregate([
-                {'$match': {"_id": {'$in':mindmapid},"type":"basic"}},
-            {"$lookup":{
-                    'from': "testscenarios",
-                    'localField': "testscenarios._id",
-                    'foreignField': "_id",
-                    'as': "testscenarios_a"}},{"$unwind":"$testscenarios_a"},{"$project":{"_id":0,
-                        "old_id":"$testscenarios_a._id",
-                        "name":"$testscenarios_a.name",
+        dbsession.testscenarios.aggregate([
+                {'$match': {"parent": {'$in':mindmapid}}},
+            {"$project":{"_id":0,
+                        "old_id":"$_id",
+                        "name":1,
                         "projectid":projectid,
-                        "old_parent":"$testscenarios_a.parent" ,
-                        "versionnumber":"$testscenarios_a.versionnumber" ,
+                        "old_parent":"$parent" ,
+                        "versionnumber":1 ,
                         "createdby":userid,
                         "createdbyrole":role,
                         "createdon":createdon,
-                        "deleted":"$testscenarios_a.deleted" ,
+                        "deleted":1 ,
                         "modifiedby":userid,
                         "modifiedbyrole":role,
                         "modifiedon":createdon,
-                        "testcaseids":"$testscenarios_a.testcaseids"}},{"$out":"Import_scenarios"}])
-        dbsession.mindmaps.aggregate([
-                {'$match': {"_id": {'$in':mindmapid},"type":"basic"}},
-                {"$lookup":{
-                        'from': "screens",
-                        'localField': "testscenarios.screens._id",
-                        'foreignField': "_id",
-                        'as': "screens_a"}},{"$unwind":"$screens_a"},{"$project":{
+                        "testcaseids":1}},{"$out":"Import_scenarios"}])
+        scenarioIds=list(dbsession.Import_scenarios.aggregate( [
+                                {"$group":{"_id":"null","scenarioids":{"$push":"$old_id"}}}, 
+                                {"$project":{"_id":0,"scenarioids":1}}
+                                ] ))
+        if len(scenarioIds)>0:    
+            scenarios=scenarioIds[0]["scenarioids"]
+            dbsession.screens.aggregate([{'$match': {"parent": {'$in':scenarios}}},
+            {"$project":{
                         "_id":0,
-                        "old_id":"$screens_a._id",
-                        "name":"$screens_a.name",
+                        "old_id":"$_id",
+                        "name":1,
                         "projectid":projectid,
-                        "old_parent":"$screens_a.parent" ,
-                        "versionnumber":"$screens_a.versionnumber" ,
+                        "old_parent":"$parent" ,
+                        "versionnumber":1 ,
                         "createdby":userid,
                         "createdbyrole":role,
                         "createdon":createdon,
-                        "deleted":"$screens_a.deleted",
+                        "deleted":1,
                         "modifiedby":userid,
                         "modifiedbyrole":role,
                         "modifiedon":createdon,
-                        "screenshot":"$screens_a.screenshot",
-                        "scrapedurl":"$screens_a.scrapedurl",
-                        "orderlist":"$screens_a.orderlist"}},{"$out":"Import_screens"}])
-
-        dbsession.Import_screens.aggregate(
-            [
-                        { "$group": {
-                            "_id": '$name',
-                            "doc": { "$first": '$$ROOT' }
-                        } },
-                        { "$replaceRoot": {
-                            "newRoot": '$doc'
+                        "screenshot":1,
+                        "scrapedurl":1,
+                        "orderlist":1}},{"$out":"Import_screens"}])
+            screenIds=list(dbsession.Import_screens.aggregate( [
+                {"$group":{"_id":"null","screenids":{"$push":"$old_id"}}}, 
+                {"$project":{"_id":0,"screenids":1}}
+                ] ))
+            if len(screenIds)>0:  
+                screens=screenIds[0]["screenids"]  
+                dbsession.testcases.aggregate([{'$match': {"screenid": {'$in':screens}}},
+                {"$project":{
+                        "_id":0,
+                            "old_id":"$_id",
+                        "name":1,
+                        "old_screenid":"$screenid" ,
+                        "versionnumber":1 ,
+                        "createdby":userid,
+                        "createdbyrole":role,
+                        "createdon":createdon,
+                        "deleted":1,
+                        "modifiedby":userid,
+                        "modifiedbyrole":role,
+                        "parent":1,
+                        "modifiedon":createdon,
+                        "steps":1,
+                        "projectid":projectid
                         }},
-                        
-                        {"$out":"Import_screens"}], allowDiskUse= True)
-        dbsession.mindmaps.aggregate([
-                    {'$match': {"_id": {'$in':mindmapid},"type":"basic"}},
-                    {"$lookup":{
-                        'from': "testcases",
-                        'localField': "testscenarios.screens.testcases",
-                        'foreignField': "_id",
-                        'as': "testcases_a"}},{"$unwind":"$testcases_a"},{"$project":{
-                        "_id":0,
-                            "old_id":"$testcases_a._id",
-                        "name":"$testcases_a.name",
-                        "old_screenid":"$testcases_a.screenid" ,
-                        "versionnumber":"$testcases_a.versionnumber" ,
-                        "createdby":userid,
-                        "createdbyrole":role,
-                        "createdon":createdon,
-                        "deleted":"$testcases_a.deleted",
-                        "modifiedby":userid,
-                        "modifiedbyrole":role,
-                        "parent":"$testcases_a.parent",
-                        "modifiedon":createdon,
-                        "steps":"$testcases_a.steps",
-                            "projectid":projectid
-                        }},{"$out":"Import_testcases"}])
-                        
-        dbsession.Import_testcases.aggregate([
-            
-                        { "$group": {
-                            "_id": '$old_id',
-                            "doc": { "$first": '$$ROOT' }
-                        } },
-                        { "$replaceRoot": {
-                            "newRoot": '$doc'
-                        } },
-                        { "$out": 'Import_testcases' }
-                        ], allowDiskUse= True)
-        dbsession.dataobjects.aggregate([
-                    {"$lookup":{
-                    "from":"Import_screens",
-                    "localField":"parent",
-                    "foreignField":"old_id",
-                    "as": "screens"}}, {"$unwind":"$screens"},
-                    { "$group": {
-                                "_id": '$_id',
-                                "doc": { "$first": '$$ROOT' }
-                                } },
-                                { "$replaceRoot": {
-                                    "newRoot": '$doc'
-                                } },
-                    {"$project":{"screens":0 }
-                            },
-                            {"$out":"dtobs"}
-                    ], allowDiskUse= True)
+                    {"$out":"Import_testcases"}])
+                dbsession.dataobjects.aggregate([{'$match': {"parent": {'$in':screens}}}
+                    ,{"$out":"dtobs"}])
+       
         mindmapdata=dbsession.Import_mindmaps.aggregate([{"$project":{"_id":1,"tsIds":1}},{"$out":"Import_module_ids"}])
         mindmapIds=list(dbsession.Import_module_ids.find({}))
         scenariodata=dbsession.Import_scenarios.aggregate([{"$project":{"_id":1,"old_id":1,"testcaseids":1}},{"$out":"Import_scenario_ids"}])
@@ -1870,6 +1838,7 @@ def LoadServices(app, redissession, client ,getClientName):
                 for k in screenIds:
                     if j==k["old_id"]:
                         parentlist.append(k["_id"])
+                        break
             dobarray["parent"].append(parentlist)
             dobarray["parent"]=dobarray["parent"][0]
             dobjectsparent.append(dobarray)
@@ -1890,6 +1859,7 @@ def LoadServices(app, redissession, client ,getClientName):
                     for j in ScenarioIds:
                         if tsId["_id"]==j["old_id"]:
                             currentscenarioid=j["_id"]
+                            break
                     iddata1={"_id":currentscenarioid,"screens":[]}
                     if "screens" in tsId:
                         for screens in tsId["screens"]:
@@ -1897,13 +1867,15 @@ def LoadServices(app, redissession, client ,getClientName):
                                 if "_id" in screens:
                                     if screens["_id"]==k["old_id"]:
                                         currentscreenid=k["_id"]
+                                        break
                             iddata2={"_id":currentscreenid,"testcases":[]}
                             if "testcases" in screens:
                                 for testcase in screens["testcases"]:
                                     for l in testcaseIds:
                                         if testcase:
                                             if testcase == l["old_id"]: 
-                                                currenttestcaseid=l["_id"]                                                           
+                                                currenttestcaseid=l["_id"]
+                                                break                                                           
                                     iddata2["testcases"].append(currenttestcaseid)
                             iddata1["screens"].append(iddata2)
                     idsforModule.append(iddata1)
@@ -1922,6 +1894,7 @@ def LoadServices(app, redissession, client ,getClientName):
                 for tcid in testcaseIds:
                     if j==tcid["old_id"]:
                             array1["testcaseids"].append(tcid["_id"])
+                            break
             scentestcase.append(array1)
         
         mycoll=dbsession["scenario_testcase"]
@@ -1937,6 +1910,7 @@ def LoadServices(app, redissession, client ,getClientName):
                 for ts in ScenarioIds:
                     if j==ts["old_id"]:
                         nestarray["parent"].append(ts["_id"])
+                        break
             screenParent.append(nestarray)
         
         mycoll=dbsession["screen_parent"]
@@ -2028,36 +2002,35 @@ def LoadServices(app, redissession, client ,getClientName):
         
         ImportedData=dbsession.Import_mindmaps.aggregate([{"$project":{"_id":1,"testscenarios":1}},{"$out":"Import_module_ids"}])
         moduleids=list(dbsession.Import_module_ids.find({}))
-        mindmapId=list(dbsession.Import_module_ids.find({},{"_id":1}))
         queryresult=[]
-        for i in mindmapId:
+        for i in moduleids:
             queryresult.append(i["_id"])
-                          
-        dbsession.Import_mindmaps.aggregate([{
-                                "$unwind": {
-                                "path": "$testscenarios"
-                                }
-                            },
-                            {
-                                "$unwind": {
-                                "path": "$testscenarios.screens"
-                                }
-                            },
-                            {
-                                "$unwind": {
-                                "path": "$testscenarios.screens.testcases"
-                                }
-                            },{
-                                "$group": {
-                                "_id": "$testscenarios.screens.testcases",
-                                "parent": {
-                                    "$sum": 1 
-                                }
-                                }
-                            },{"$out":"testcase_parent"}])
+        testcaseparent=[]                    
+        testcaseids=[]                  
+        for i in moduleids:
+            for j in i["testscenarios"]:
+                for k in j["screens"]:                                
+                    for testcase in k["testcases"]:
+                            array3={"_id":"","parent":[]}                                    
+                            if testcase in testcaseids:                                            
+                                for q in testcaseparent:
+                                    if q["_id"] == testcase:                                                    
+                                        parentinc=q["parent"]
+                                        parentinc=parentinc+1
+                                        q["parent"] = parentinc                                                                                            
+                                    else:
+                                        continue                         
+                            else:                                            
+                                testcaseids.append(testcase)
+                                array3["_id"]=testcase								
+                                array3["parent"]=1
+                                testcaseparent.append(array3)
 
-        
-        
+        mycoll=dbsession["testcase_parent"]
+        dbsession.testcase_parent.delete_many({})
+        if len(testcaseparent)>0:
+            dbsession.testcase_parent.insert_many(testcaseparent)
+            
         dbsession.Import_testcases.aggregate([
                                 {"$match":{"old_screenid":{"$exists":"true"},"projectid":projectid}},
     
@@ -2181,22 +2154,19 @@ def LoadServices(app, redissession, client ,getClientName):
             if not isemptyrequest(requestdata):
                 clientName=getClientName(requestdata)             
                 dbsession=client[clientName]
-                importpath=requestdata["importpath"]
-                importJsonQuery=requestdata["importJsonQuery"]
+                importtype=requestdata["importtype"]                
                 username=requestdata["username"]
-                username=username.replace('.','')
-                mongoimportpath=requestdata["mongoimportpath"]
-                importproj=ObjectId(requestdata["importproj"])
-                ip=requestdata["ip"]            
+                username=username.replace('.','')                
+                importproj=ObjectId(requestdata["importproj"])                           
                 userid=ObjectId(requestdata["userid"])
-                role=ObjectId(requestdata["role"])
-                imptype=requestdata["importtype"]
+                role=ObjectId(requestdata["role"])                
                 createdon = datetime.now()
                 jsonToMindmap=dbsession.mindmapnames.find({}).count()
                 if jsonToMindmap==0:
-                    dbsession.mindmapnames.drop()
+                    dbsession.jsontomindmap.drop()
                     dbsession.screennames.drop()
                     dbsession.testscenariosnames.drop()
+                    dbsession.testscenario_testcase.drop()
                     dbsession.testcasenames.drop()
                     dbsession.testcase_parent_json_Import.drop()
                     dbsession.Module_Import_json_ids.drop()
@@ -2205,16 +2175,19 @@ def LoadServices(app, redissession, client ,getClientName):
                     dbsession.screen_parent_json_Import.drop()
                     dbsession.scenariotestcasemapping.drop()
                     dbsession.scr_parent.drop()
-                    password = db_password()
-                    command = "%s %s %s %s %s %s" % (importJsonQuery,mongoimportpath,password,"jsontomindmap",importpath,username)
                     
-                    p = subprocess.Popen(command.split(), stdout=subprocess.PIPE)
-                    tdout, stderr = p.communicate()
+                    db_username, password=db_password()
+                    x,importPath,DB_IP,DB_PORT,impJsonPath=get_creds_path()
+                    importPath = importPath + "\\"+"mongoimport"
+                    impJsonPath=impJsonPath+"\\"+"ImportMindmap"+"\\"+ importtype
+                   
+                    js=subprocess.call(f"{importPath} --host {DB_IP} --port {DB_PORT} --db {clientName} --username {db_username} --password {password} --collection jsontomindmap --file {impJsonPath}\\{username}.json  --jsonArray")
                     
-                    if importpath:
-                        delimportpath=importpath+"\\"+username+".json"
-                        if os.path.isfile(delimportpath):
-                            os.remove(delimportpath)
+                    
+                    delimportpath=impJsonPath+"\\"+username+".json"
+                    if os.path.isfile(delimportpath):
+                        os.remove(delimportpath)
+
                     dbsession.jsontomindmap.aggregate([
                     {"$project":{"name":1,"testscenarionames":"$testscenarios","_id":0}},{"$out":"mindmapnames"}])
                     dbsession.mindmapnames.aggregate([
@@ -2232,7 +2205,15 @@ def LoadServices(app, redissession, client ,getClientName):
                         
                     dbsession.jsontomindmap.aggregate([{"$unwind":"$testscenarios"},
                     {"$set":{"parentname":"$name","name":"$testscenarios.name"}},
-                    {"$project":{"parentname":1,"testcasenames":"$testscenarios.screens.testcases","name":1,"_id":0}},{"$out":"testscenariosnames"}])
+                    {"$project":{"parentname":1,"name":1,"_id":0}},{ "$group": {
+                                "_id": '$name','parentname':{ "$first": '$parentname' }}},{"$project":{"_id":0,"name":"$_id","parentname":1,"testcases":[]}},{"$out":"testscenariosnames"}])
+
+                    dbsession.jsontomindmap.aggregate([{"$match":{"testscenarios.screens.0": {"$exists": "true"},"testscenarios.screens.testcases.0": {"$exists": "true"}}},{"$unwind":"$testscenarios"},
+                    {"$unwind":"$testscenarios.screens"},{"$unwind":"$testscenarios.screens.testcases"},
+                    {"$set":{"parentname":"$name","name":"$testscenarios.name"}},
+                    {"$project":{"parentname":1,"name":1,"_id":0,"testcases": { "$concat": [ "$testscenarios.screens.name", "_", "$testscenarios.screens.testcases" ] }}},{ "$group": {
+                                "_id": '$name','testcases':{ "$push": '$testcases' }}},{"$project":{"_id":0,"name":"$_id","parentname":1,"testcases":1}},{"$out":"testscenario_testcase"}])
+
                     dbsession.testscenariosnames.aggregate([
                 
                             { "$group": {
@@ -2244,13 +2225,39 @@ def LoadServices(app, redissession, client ,getClientName):
                             } },
                             { "$out": 'testscenariosnames' }
                             ], allowDiskUse= True)
+                    
+                    dbsession.testscenario_testcase.aggregate([
+                
+                            { "$group": {
+                                "_id": '$name',
+                                "doc": { "$first": '$$ROOT' }
+                            } },
+                            { "$replaceRoot": {
+                                "newRoot": '$doc'
+                            } },
+                            { "$out": 'testscenario_testcase' }
+                            ], allowDiskUse= True)
+                    
+                    dbsession.testscenario_testcase.aggregate([{'$lookup': {
+                                                'from': "testscenariosnames",
+                                                'localField': "name",
+                                                'foreignField': "name",
+                                                'as': "scentestcasedata"
+                                            }},{"$unwind":"$scentestcasedata"},{"$set":{"_id":"$scentestcasedata._id"}},{"$out":"testscenario_testcase"}
+                        ])
+                    dbsession.testscenario_testcase.aggregate([
+                        {"$merge":{"into":"testscenariosnames","on":"_id","whenMatched": [{
+                            "$set": {"testcases": '$$new.testcases'}}]}}])     
+
                     dbsession.jsontomindmap.aggregate([{"$unwind":"$testscenarios"},{"$unwind":"$testscenarios.screens"},
                     {"$set":{"parentname":"$testscenarios.name","name":"$testscenarios.screens.name"}},
                     {"$project":{"parentname":1,"name":1,"_id":0}},{"$out":"screennames"}])
                     
                     dbsession.jsontomindmap.aggregate([{"$unwind":"$testscenarios"},{"$unwind":"$testscenarios.screens"},{"$unwind":"$testscenarios.screens.testcases"},
-                    {"$set":{"parentname":"$testscenarios.screens.name","name":"$testscenarios.screens.testcases"}},
+                    {"$set":{"scenarioname":"$testscenarios.name","parentname":"$testscenarios.screens.name","name":"$testscenarios.screens.testcases"}},
                     {"$project":{"parentname":1,"name":1,"_id":0, "duplicatecheck": { "$concat": [ "$testscenarios.screens.name", "_", "$testscenarios.screens.testcases" ] }}},{"$out":"testcasenames"}])
+                    
+                    
                     dbsession.testcasenames.aggregate([
                 
                             { "$group": {
@@ -2263,7 +2270,9 @@ def LoadServices(app, redissession, client ,getClientName):
                             { "$out": 'testcasenames' }
                             ], allowDiskUse= True)
                     
-                    dbsession.testscenariosnames.aggregate([{"$unwind":"$testcasenames"},{"$unwind":"$testcasenames"},{"$group":{"_id":"$_id","testcases":{"$push" :"$testcasenames"}}},{"$out":"scenariotestcasemapping"}])
+                    
+                    
+                    # dbsession.testscenariosnames.aggregate([{"$unwind":"$testcasenames"},{"$unwind":"$testcasenames"},{"$group":{"_id":"$_id","testcases":{"$push" :"$testcasenames"}}},{"$out":"scenariotestcasemapping"}])
                     
                     dbsession.screennames.aggregate([{"$group":{"_id":"$name","parentnames":{"$push":"$parentname"}}},{"$out":"scr_parent"}])
 
@@ -2293,24 +2302,27 @@ def LoadServices(app, redissession, client ,getClientName):
                             data["_id"]=mm["_id"]
                             if mm["testscenarionames"]:
                                 for tsname in mm["testscenarionames"]:
-                                    for ts in tsIds:
-                                        data1={"_id":"","screens":[]}
+                                    data1={"_id":"","screens":[]}
+                                    for ts in tsIds:                                        
                                         if tsname["name"]==ts["name"]:
                                             data1["_id"]=ts["_id"]
-                                            if tsname["screens"]: 
-                                                for scrname in tsname["screens"]:
-                                                    for scr in scrIds:
-                                                        data2={"_id":"","testcases":[]}
-                                                        if scrname["name"]==scr["name"]:
-                                                            data2["_id"]=scr["_id"]
-                                                            if scrname["testcases"]:
-                                                                for tcname in scrname["testcases"]:
-                                                                    for tc in tcIds:
-                                                                        if tcname==tc["name"]:
-                                                                            if scrname["name"] == tc["parentname"]:
-                                                                                data2["testcases"].append(tc["_id"])
-                                                            data1["screens"].append(data2)
-                                            data["testscenarios"].append(data1)
+                                            break
+                                    if tsname["screens"]: 
+                                        for scrname in tsname["screens"]:
+                                            data2={"_id":"","testcases":[]}
+                                            for scr in scrIds:                                                
+                                                if scrname["name"]==scr["name"]:
+                                                    data2["_id"]=scr["_id"]
+                                                    break
+                                            if scrname["testcases"]:
+                                                for tcname in scrname["testcases"]:
+                                                    for tc in tcIds:
+                                                        if tcname==tc["name"]:
+                                                            if scrname["name"] == tc["parentname"]:
+                                                                data2["testcases"].append(tc["_id"])
+                                                                break
+                                            data1["screens"].append(data2)
+                                    data["testscenarios"].append(data1)
                             mmmappings.append(data)
                     
                     mycoll=dbsession["mindmap_mapping"]
@@ -2319,12 +2331,12 @@ def LoadServices(app, redissession, client ,getClientName):
                         dbsession.mindmap_mapping.insert_many(mmmappings) 
 
                     scentestcase=[]
-                    for i in scen_tc:
+                    for i in tsIds:
                         array1={"_id":"","testcaseids":[]}
                         array1["_id"]=i["_id"]
                         for j in i["testcases"]:
                             for tcid in tcIds:
-                                if j==tcid["name"]:
+                                if j==tcid["duplicatecheck"]:
                                         array1["testcaseids"].append(tcid["_id"])
                         scentestcase.append(array1)
                     
@@ -2412,34 +2424,36 @@ def LoadServices(app, redissession, client ,getClientName):
                                 {"$out":"mindmapnames"}
                                         ])
                     ImportedData=dbsession.mindmapnames.aggregate([{"$project":{"_id":1,"testscenarios":1}},{"$out":"Module_Import_json_ids"}])
-                    mindmapId=list(dbsession.Module_Import_json_ids.find({},{"_id":1}))
+                    mindmapId=list(dbsession.Module_Import_json_ids.find({}))
                     queryresult=[]
                     for i in mindmapId:
                         queryresult.append(i["_id"])
-                    dbsession.mindmapnames.aggregate([{
-                                "$unwind": {
-                                "path": "$testscenarios"
-                                }
-                            },
-                            {
-                                "$unwind": {
-                                "path": "$testscenarios.screens"
-                                }
-                            },
-                            {
-                                "$unwind": {
-                                "path": "$testscenarios.screens.testcases"
-                                }
-                            },{
-                                "$group": {
-                                "_id": "$testscenarios.screens.testcases",
-                                "parent": {
-                                    "$sum": 1 
-                                }
-                                }
-                            },{"$out":"testcase_parent_json_Import"}])
+                    testcaseparent=[]                    
+                    testcaseids=[]                  
+                    for i in mindmapId:
+                        for j in i["testscenarios"]:
+                            for k in j["screens"]:                                
+                                for testcase in k["testcases"]:
+                                        array3={"_id":"","parent":[]}                                    
+                                        if testcase in testcaseids:                                            
+                                            for q in testcaseparent:
+                                                if q["_id"] == testcase:                                                    
+                                                    parentinc=q["parent"]
+                                                    parentinc=parentinc+1
+                                                    q["parent"] = parentinc                                                                                            
+                                                else:
+                                                    continue                         
+                                        else:                                            
+                                            testcaseids.append(testcase)
+                                            array3["_id"]=testcase								
+                                            array3["parent"]=1
+                                            testcaseparent.append(array3)
 
-                    
+                    mycoll=dbsession["testcase_parent_json_Import"]
+                    dbsession.testcase_parent_json_Import.delete_many({})
+                    if len(testcaseparent)>0:
+                        dbsession.testcase_parent_json_Import.insert_many(testcaseparent)
+                     
                     dbsession.testcasenames.aggregate([            
                                             {'$lookup': {
                                                 'from': "testcase_parent_json_Import",
@@ -2515,6 +2529,7 @@ def LoadServices(app, redissession, client ,getClientName):
                     dbsession.mindmapnames.drop()
                     dbsession.screennames.drop()
                     dbsession.testscenariosnames.drop()
+                    dbsession.testscenario_testcase.drop()
                     dbsession.testcasenames.drop()
                     dbsession.testcase_parent_json_Import.drop()
                     dbsession.Module_Import_json_ids.drop()
@@ -2536,6 +2551,7 @@ def LoadServices(app, redissession, client ,getClientName):
             dbsession.mindmapnames.drop()
             dbsession.screennames.drop()
             dbsession.testscenariosnames.drop()
+            dbsession.testscenario_testcase.drop()
             dbsession.testcasenames.drop()
             dbsession.testcase_parent_json_Import.drop()
             dbsession.Module_Import_json_ids.drop()
@@ -2552,16 +2568,13 @@ def LoadServices(app, redissession, client ,getClientName):
     def importMindmap():
         res = {'rows': 'fail'}
         try:
-            # app.logger.debug("Inside importMindmap.Request: "+str(request))
-            # requestdata = json.loads(request.data)
             requestdata = loads(request.data)
-            # app.logger.debug("Inside importMindmap."+str(requestdata))
+            app.logger.debug("Inside importMindmap.")
             if not isemptyrequest(requestdata):
                 clientName=getClientName(requestdata)             
                 dbsession=client[clientName]
                 importMindmapcheck= dbsession.Module_Import.find({}).count()
-                if importMindmapcheck==0:
-                    dbsession.Module_Import.drop()
+                if importMindmapcheck==0:                    
                     dbsession.Screen_Import.drop()
                     dbsession.Scenario_Import.drop()
                     dbsession.Testcase_Import.drop()
@@ -2573,408 +2586,417 @@ def LoadServices(app, redissession, client ,getClientName):
                     dbsession.dobjects_parent_Import.drop()
                     dbsession.Module_Import_ids.drop()
                     dbsession.Scenario_Import_ids.drop()
+                    dbsession.Scenario_Import_tc.drop()
                     dbsession.Screen_Import_ids.drop()
-                    dbsession.Testcase_Import_ids.drop()
-                    dbsession.importFile.drop()
+                    dbsession.Testcase_Import_ids.drop()                    
                     dbsession.testcase_steps.drop()
-                    username=requestdata["user"]
-                    importpath=requestdata["importpath"]
-                    importquerypath=requestdata["importquerypath"]
-                    username=username.replace('.','')
-                    importpath=importpath+"\\"+username
-                    mongoimportpath=requestdata["mongoimportpath"]
+                    username=requestdata["user"]                    
+                    username=username.replace('.','')                    
                     userid=ObjectId(requestdata["userid"])
                     role=ObjectId(requestdata["role"])
-                    projectid=ObjectId(requestdata["projectid"])
-                    apptype=requestdata["apptype"]                    
-                    createdon = datetime.now()
-                    dbsession.importFile.drop()
-                    password = db_password()
-                    command = "%s %s %s %s %s %s %s %s %s" % (importquerypath,mongoimportpath,password,importpath,"Dataobjects.json","Modules.json","Testscenarios.json","screens.json","Testcases.json")
-                    p = subprocess.Popen(command.split(), stdout=subprocess.PIPE)
-                    tdout, stderr = p.communicate()                                   
-                    if importpath:
-                        delimportpath=importpath
-                        if os.path.isdir(delimportpath):
-                                shutil.rmtree(delimportpath)
-                        dbsession.importFile.delete_one({"apptype" : apptype})
+                    projectid=ObjectId(requestdata["projectid"])                                        
+                    createdon = datetime.now()                   
+                    db_username, password=db_password()
+                    x,importPath,DB_IP,DB_PORT,impPath=get_creds_path()
+                    importPath = importPath + "\\"+"mongoimport"
+                    impPath=impPath+"\\"+"ImportMindmap"+"\\"+ username
+                    do=subprocess.call(f"{importPath} --host {DB_IP} --port {DB_PORT} --db {clientName} --username {db_username} --password {password} --collection Dataobjects_Import --file {impPath}\\Dataobjects.json  --jsonArray")
+                    mm=subprocess.call(f"{importPath} --host {DB_IP} --port {DB_PORT} --db {clientName} --username {db_username} --password {password} --collection Module_Import --file {impPath}\\Modules.json  --jsonArray")
+                    ts=subprocess.call(f"{importPath} --host {DB_IP} --port {DB_PORT} --db {clientName} --username {db_username} --password {password} --collection Scenario_Import --file {impPath}\\Testscenarios.json  --jsonArray")
+                    sr=subprocess.call(f"{importPath} --host {DB_IP} --port {DB_PORT} --db {clientName} --username {db_username} --password {password} --collection Screen_Import --file {impPath}\\screens.json  --jsonArray")
+                    tc=subprocess.call(f"{importPath} --host {DB_IP} --port {DB_PORT} --db {clientName} --username {db_username} --password {password} --collection Testcase_Import --file {impPath}\\Testcases.json  --jsonArray")
+                            
+                                                     
+            
+                    if os.path.isdir(impPath):
+                            shutil.rmtree(impPath)
 
-                        dbsession.Module_Import.aggregate([
-                        {"$project":{"_id":0,"old_id":"$_id",
-                                "name":1,
-                                "projectid":projectid,
-                                "versionnumber":1 ,
-                                "createdby":userid,
-                                "createdbyrole":role,
-                                "createdthrough":1,
-                                "type":"basic",
-                                "createdon":createdon,
-                                "deleted":1,
-                                "modifiedby":userid,
-                                "modifiedbyrole":role,
-                                "modifiedon":createdon,
-                                "tsIds":"$testscenarios"}},{"$out":"Module_Import"}
-                        ])
-                        
-                        dupliactemod=list(dbsession.Module_Import.aggregate([
+                    dbsession.Module_Import.aggregate([
+                    {"$project":{"_id":0,"old_id":"$_id",
+                            "name":1,
+                            "projectid":projectid,
+                            "versionnumber":1 ,
+                            "createdby":userid,
+                            "createdbyrole":role,
+                            "createdthrough":1,
+                            "type":"basic",
+                            "createdon":createdon,
+                            "deleted":1,
+                            "modifiedby":userid,
+                            "modifiedbyrole":role,
+                            "modifiedon":createdon,
+                            "tsIds":"$testscenarios"}},{"$out":"Module_Import"}
+                    ])
+                    
+                    duplicatemod=list(dbsession.Module_Import.aggregate([
+                                {"$group" : { "_id": "$name", "count": { "$sum": 1 } } },
+                                {"$match": {"_id" :{ "$ne" : "null" } , "count" : {"$gt": 1} } }, 
+                                {"$project": {"name" : "$_id", "_id" : 0} }
+                            ]))
+                    if len(duplicatemod)>0:
+                        dbsession.Module_Import.drop()
+                        dbsession.Screen_Import.drop()
+                        dbsession.Scenario_Import.drop()
+                        dbsession.Testcase_Import.drop()
+                        dbsession.Dataobjects_Import.drop()
+                        res={'rows': "dupMod"}
+                    else:
+                        dbsession.Scenario_Import.aggregate([{"$project":{"_id":0,
+                                            "old_id":"$_id",
+                                            "name":1,
+                                            "projectid":projectid,
+                                            "old_parent":"$parent" ,
+                                            "versionnumber":1 ,
+                                            "createdby":userid,
+                                            "createdbyrole":role,
+                                            "createdon":createdon,
+                                            "deleted":1,
+                                            "modifiedby":userid,
+                                            "modifiedbyrole":role,
+                                            "modifiedon":createdon,
+                                            "testcaseids":1}},{"$out":"Scenario_Import"}])
+                        duplicatesce=list(dbsession.Scenario_Import.aggregate([
                                     {"$group" : { "_id": "$name", "count": { "$sum": 1 } } },
                                     {"$match": {"_id" :{ "$ne" : "null" } , "count" : {"$gt": 1} } }, 
                                     {"$project": {"name" : "$_id", "_id" : 0} }
                                 ]))
-                        if len(dupliactemod)>0:
+                        if len(duplicatesce)>0:
                             dbsession.Module_Import.drop()
                             dbsession.Screen_Import.drop()
                             dbsession.Scenario_Import.drop()
                             dbsession.Testcase_Import.drop()
                             dbsession.Dataobjects_Import.drop()
-                            res={'rows': "dupMod"}
+                            res={'rows': "dupSce"}
                         else:
-                            dbsession.Scenario_Import.aggregate([{"$project":{"_id":0,
-                                                "old_id":"$_id",
-                                                "name":1,
-                                                "projectid":projectid,
-                                                "old_parent":"$parent" ,
-                                                "versionnumber":1 ,
-                                                "createdby":userid,
-                                                "createdbyrole":role,
-                                                "createdon":createdon,
-                                                "deleted":1,
-                                                "modifiedby":userid,
-                                                "modifiedbyrole":role,
-                                                "modifiedon":createdon,
-                                                "testcaseids":1}},{"$out":"Scenario_Import"}])
-                            dupliactesce=list(dbsession.Scenario_Import.aggregate([
-                                        {"$group" : { "_id": "$name", "count": { "$sum": 1 } } },
-                                        {"$match": {"_id" :{ "$ne" : "null" } , "count" : {"$gt": 1} } }, 
-                                        {"$project": {"name" : "$_id", "_id" : 0} }
-                                    ]))
-                            if len(dupliactesce)>0:
-                                dbsession.Module_Import.drop()
-                                dbsession.Screen_Import.drop()
-                                dbsession.Scenario_Import.drop()
-                                dbsession.Testcase_Import.drop()
-                                dbsession.Dataobjects_Import.drop()
-                                res={'rows': "dupSce"}
-                            else:
-                                dbsession.Screen_Import.aggregate([{"$project":{
-                                                        "_id":0,
+                            dbsession.Screen_Import.aggregate([{"$project":{
+                                                    "_id":0,
+                                                    "old_id":"$_id",
+                                                    "name":1,
+                                                    "projectid":projectid,
+                                                    "old_parent":"$parent",
+                                                    "versionnumber":1 ,
+                                                    "createdby":userid,
+                                                    "createdbyrole":role,
+                                                    "createdon":createdon,
+                                                    "deleted":1,
+                                                    "modifiedby":userid,
+                                                    "modifiedbyrole":role,
+                                                    "modifiedon":createdon,
+                                                    "screenshot":1,
+                                                    "scrapedurl":1,
+                                                    "orderlist":1}},{"$out":"Screen_Import"}])
+                            
+                            dbsession.Testcase_Import.aggregate([{"$project":{
+                                                    "_id":0,
                                                         "old_id":"$_id",
-                                                        "name":1,
-                                                        "projectid":projectid,
-                                                        "old_parent":"$parent" ,
-                                                        "versionnumber":1 ,
-                                                        "createdby":userid,
-                                                        "createdbyrole":role,
-                                                        "createdon":createdon,
-                                                        "deleted":1,
-                                                        "modifiedby":userid,
-                                                        "modifiedbyrole":role,
-                                                        "modifiedon":createdon,
-                                                        "screenshot":1,
-                                                        "scrapedurl":1,
-                                                        "orderlist":1}},{"$out":"Screen_Import"}])
-                                
-                                dbsession.Testcase_Import.aggregate([{"$project":{
-                                                        "_id":0,
-                                                            "old_id":"$_id",
-                                                        "name":1,
-                                                        "old_screenid":"$screenid" ,
-                                                        "versionnumber":1 ,
-                                                        "createdby":userid,
-                                                        "createdbyrole":role,
-                                                        "createdon":createdon,
-                                                        "deleted":1,
-                                                        "modifiedby":userid,
-                                                        "modifiedbyrole":role,
-                                                        "parent":1,
-                                                        "modifiedon":createdon,
-                                                        "steps":1,
-                                                        "projectid":projectid,
-                                                        "datatables":1
-                                                        }},{"$out":"Testcase_Import"}])
-                                
+                                                    "name":1,
+                                                    "old_screenid":"$screenid" ,
+                                                    "versionnumber":1 ,
+                                                    "createdby":userid,
+                                                    "createdbyrole":role,
+                                                    "createdon":createdon,
+                                                    "deleted":1,
+                                                    "modifiedby":userid,
+                                                    "modifiedbyrole":role,
+                                                    "parent":1,
+                                                    "modifiedon":createdon,
+                                                    "steps":1,
+                                                    "projectid":projectid,
+                                                    "datatables":1
+                                                    }},{"$out":"Testcase_Import"}])
+                            
+                    
+                            dbsession.Dataobjects_Import.aggregate( [
+                            
                         
-                                dbsession.Dataobjects_Import.aggregate( [
-                                
+                            {"$set":{"old_id":"$_id","old_parent" :"$parent"}},
                             
-                                {"$set":{"old_id":"$_id","old_parent" :"$parent"}},
-                                
-                                { "$project": {"_id":0,"parent":0
-                                        } },
-                                {"$out":"Dataobjects_Import"}])
-                            
-                            
-                                mindmapdata=dbsession.Module_Import.aggregate([{"$project":{"_id":1,"tsIds":1}},{"$out":"Module_Import_ids"}])
-                                mindmapIds=list(dbsession.Module_Import_ids.find({}))
-                                scenariodata=dbsession.Scenario_Import.aggregate([{"$project":{"_id":1,"old_id":1,"testcaseids":1}},{"$out":"Scenario_Import_ids"}])
-                                ScenarioIds=list(dbsession.Scenario_Import_ids.find({}))
-                                screendata=dbsession.Screen_Import.aggregate([{"$project":{"_id":1,"old_id":1,"old_parent":1}},{"$out":"Screen_Import_ids"}])
-                                screenIds=list(dbsession.Screen_Import_ids.find({}))
-                                testcasedata=dbsession.Testcase_Import.aggregate([{"$project":{"_id":1,"old_id":1,"name":1,"old_screenid":1}},{"$out":"Testcase_Import_ids"}])
-                                testcaseIds=list(dbsession.Testcase_Import_ids.find({}))
-                                dataobjectsdata=dbsession.Dataobjects_Import.aggregate([{"$project":{"_id":1,"old_parent":1}},{"$out":"Dataobjects_Import_ids"}])
-                                dataobjectids=list(dbsession.Dataobjects_Import_ids.find({}))
-
-                                mindmapId=list(dbsession.Module_Import_ids.find({},{"_id":1}))
-                                queryresult=[]
-                                for i in mindmapId:
-                                    queryresult.append(i["_id"])
-
-                                dbsession.Dataobjects_Import.aggregate([{"$lookup":{"from":"Screen_Import",
-                                    "localField":"old_parent",
-                                    "foreignField":"old_id",
-                                    "as":"screens"}},{"$group":{"_id":"$_id","parent":{"$push":"$screens._id"}}},{"$unwind":"$parent"},{"$out":"dobjects_parent_Import"}])
+                            { "$project": {"_id":0,"parent":0
+                                    } },
+                            {"$out":"Dataobjects_Import"}])
+                        
+                        
+                            dbsession.Module_Import.aggregate([{"$project":{"_id":1,"tsIds":1}},{"$out":"Module_Import_ids"}])
+                            mindmapIds=list(dbsession.Module_Import_ids.find({}))
+                            dbsession.Scenario_Import.aggregate([{"$project":{"_id":1,"old_id":1,"testcaseids":1}},{"$out":"Scenario_Import_ids"}])
+                            ScenarioIds=list(dbsession.Scenario_Import_ids.find({}))
+                            dbsession.Screen_Import.aggregate([{"$project":{"_id":1,"old_id":1,"old_parent":1}},{"$out":"Screen_Import_ids"}])
+                            screenIds=list(dbsession.Screen_Import_ids.find({}))
+                            dbsession.Testcase_Import.aggregate([{"$project":{"_id":1,"old_id":1,"name":1,"old_screenid":1}},{"$out":"Testcase_Import_ids"}])
+                            testcaseIds=list(dbsession.Testcase_Import_ids.find({}))
                             
 
-                                for i in mindmapIds:
-                                    if "tsIds" in i:
-                                        for tsId in i["tsIds"]:
-                                            for j in ScenarioIds:
-                                                if tsId["_id"]==j["old_id"]:
-                                                    tsId["_id"]=j["_id"]
-                                                    break
-                                
-                                for i in mindmapIds:
-                                    if "tsIds" in i:
-                                        for tsId in i["tsIds"]:
-                                            if "screens" in tsId:
-                                                for screens in tsId["screens"]:
-                                                    for k in screenIds:
-                                                        if "_id" in screens:
-                                                            if screens["_id"]==k["old_id"]:
-                                                                screens["_id"]=k["_id"]
-                                                                break
-                                
-                                mdmaptscen=[]
-                                for i in mindmapIds:                                               
-                                    if "tsIds" in i:
-                                        for tsId in i["tsIds"]:                           
-                                            if "screens" in tsId:
-                                                for screens in tsId["screens"]:
-                                                    testcases=[]
-                                                    if "testcases" in screens:
-                                                        for testcase in screens["testcases"]:
-                                                            if testcase:
-                                                                for l in testcaseIds:
-                                                                    if testcase == l["old_id"]:                                                             
-                                                                        testcases.append(l["_id"])
-                                                                        break
-                                                                del testcase
-                                                        screens["testcases"]=[]
-                                                        screens["testcases"].append(testcases)
-                                                        screens["testcases"]=screens["testcases"][0]
-                                                                
+                            mindmapId=list(dbsession.Module_Import_ids.find({},{"_id":1}))
+                            queryresult=[]
+                            for i in mindmapId:
+                                queryresult.append(i["_id"])
 
+                            dbsession.Dataobjects_Import.aggregate([{"$lookup":{"from":"Screen_Import",
+                                "localField":"old_parent",
+                                "foreignField":"old_id",
+                                "as":"screens"}},{"$group":{"_id":"$_id","parent":{"$push":"$screens._id"}}},{"$unwind":"$parent"},{"$out":"dobjects_parent_Import"}])
+                        
 
-                                mycoll=dbsession["mindmap_testscenarios_Import"]
-                                dbsession.mindmap_testscenarios_Import.delete_many({})
-                                if len(mindmapIds)>0:
-                                    dbsession.mindmap_testscenarios_Import.insert_many(mindmapIds)
-                                dbsession.Scenario_Import_ids.aggregate([{'$lookup': {
-                                                            'from': "Testcase_Import_ids",
-                                                            'localField': "testcaseids",
-                                                            'foreignField': "old_id",
-                                                            'as': "testcases"
-                                    }},
-                                    {"$unwind":"$testcaseids"},{"$set": { "testcases":{ "$cond": [{"$eq": [{"$size": '$testcases'}, 0] }, [[]], '$testcases'] }}},{"$unwind":"$testcases"}, 
-                                    {"$set":{"testcaseids":{ "$cond": { "if": { "$ne": ["$testcaseids" , "$testcases.old_id" ] }, "then":"na", "else": "$testcases._id"} }}},
-                                    {"$group":{"_id":"$_id","testcaseids":{"$push":"$testcaseids"}}}, {"$out":"scenario_testcase_Import"}
-                                    ])
-                                dbsession.scenario_testcase_Import.update_many({},{"$pull": {"testcaseids":"na"}})
-                                
-                                
-                                screenParent=[]
-                                for i in screenIds:
-                                    nestarray={"_id":"","parent":[]}
-                                    nestarray["_id"]=i["_id"]
-                                    currentscreenidparent=i["_id"]                      
-                                    for j in i["old_parent"]:
-                                        for ts in ScenarioIds:
-                                            if j==ts["old_id"]:
-                                                nestarray["parent"].append(ts["_id"])
+                            for i in mindmapIds:
+                                if "tsIds" in i:
+                                    for tsId in i["tsIds"]:
+                                        for j in ScenarioIds:
+                                            if tsId["_id"]==j["old_id"]:
+                                                tsId["_id"]=j["_id"]
                                                 break
-                                    screenParent.append(nestarray)
-                                
-                                mycoll=dbsession["screen_parent_Import"]
-                                dbsession.screen_parent_Import.delete_many({})
-                                if len(screenParent)>0:
-                                    dbsession.screen_parent_Import.insert_many(screenParent)
-                                
-                                dbsession.Dataobjects_Import.aggregate([
-                                    {'$lookup': {
-                                                'from': "dobjects_parent_Import",
-                                                'localField': "_id",
-                                                'foreignField': "_id",
-                                                'as': "parentdobs"
-                                                }
-                                                        },{"$set":{"parent":"$parentdobs.parent"}},{"$unwind":"$parent"},
-                                    { "$project" : {"parentdobs":0}},{"$out":"Dataobjects_Import"}
-                                                ])
+                            
+                            for i in mindmapIds:
+                                if "tsIds" in i:
+                                    for tsId in i["tsIds"]:
+                                        if "screens" in tsId:
+                                            for screens in tsId["screens"]:
+                                                for k in screenIds:
+                                                    if "_id" in screens:
+                                                        if screens["_id"]==k["old_id"]:
+                                                            screens["_id"]=k["_id"]
+                                                            break
+                            
+                            mdmaptscen=[]
+                            for i in mindmapIds:                                               
+                                if "tsIds" in i:
+                                    for tsId in i["tsIds"]:                           
+                                        if "screens" in tsId:
+                                            for screens in tsId["screens"]:
+                                                testcases=[]
+                                                if "testcases" in screens:
+                                                    for testcase in screens["testcases"]:
+                                                        if testcase:
+                                                            for l in testcaseIds:
+                                                                if testcase == l["old_id"]:                                                             
+                                                                    testcases.append(l["_id"])
+                                                                    break
+                                                            del testcase
+                                                    screens["testcases"]=[]
+                                                    screens["testcases"].append(testcases)
+                                                    screens["testcases"]=screens["testcases"][0]
+                                                            
 
-                                dbsession.Module_Import.aggregate([
-                                    {"$match":{"tsIds":{"$exists":"true"},"projectid":projectid}},
-                                    {'$lookup': {
-                                                            'from': "mindmap_testscenarios_Import",
-                                                            'localField': "_id",
-                                                            'foreignField': "_id",
-                                                            'as': "mindmapscenariodata"
-                                                        }
-                                                        },{"$set":{"testscenarios":"$mindmapscenariodata.tsIds"}},{"$unwind":"$testscenarios"},
-                                    { "$project" : {"mindmapscenariodata":0,"tsIds":0}},{"$out":"Module_Import"}
-                                                ])
-                                                    
-                                dbsession.Scenario_Import.aggregate([
-                                                        {'$match': {"projectid":projectid}},
-                                                        
-                                                        {'$lookup': {
-                                                            'from': "scenario_testcase_Import",
-                                                            'localField': "_id",
-                                                            'foreignField': "_id",
-                                                            'as': "scentestcasedata"
-                                                        }
-                                                        }, {'$lookup': {
-                                                            'from': "Module_Import",
-                                                            'localField': "old_parent",
-                                                            'foreignField': "old_id",
-                                                            'as': "moduledata"
-                                                        }
-                                                        },  {"$set":{"parent" : "$moduledata._id","testcaseids" :"$scentestcasedata.testcaseids"}},
-                                                        {"$unwind":"$testcaseids"},                            
-                                                        { "$project" : {  "scentestcasedata":0,  "moduledata":0                                                        
-                                                                        
+
+                            mycoll=dbsession["mindmap_testscenarios_Import"]
+                            dbsession.mindmap_testscenarios_Import.delete_many({})
+                            if len(mindmapIds)>0:
+                                dbsession.mindmap_testscenarios_Import.insert_many(mindmapIds)
+                            dbsession.Scenario_Import_ids.aggregate([{'$lookup': {
+                                                        'from': "Testcase_Import_ids",
+                                                        'localField': "testcaseids",
+                                                        'foreignField': "old_id",
+                                                        'as': "testcases"
                                 }},
-                                                        
-                                                        {'$out':"Scenario_Import"}
-                                                        ])
-
-                                dbsession.Screen_Import.aggregate([
-                                    {'$lookup': {
-                                                            'from': "screen_parent_Import",
-                                                            'localField': "_id",
-                                                            'foreignField': "_id",
-                                                            'as': "scrparent"
-                                                        }},
-                                                        {'$lookup': {
-                                                            'from': "Dataobjects_Import",
-                                                            'localField': "old_id",
-                                                            'foreignField': "old_parent",
-                                                            'as': "dataobjects"
-                                                        }
-                                                        },
-                                                        {"$set":{"parent" : "$scrparent.parent",
-                                                        "orderlist":{"$map": {
-                                                                            "input": "$dataobjects._id",
-                                                                            "as": "r",
-                                                                            "in": { "$toString": "$$r" }
-                                                                            }}
-                                                                            }},{"$unwind":"$parent"},
-                                                        { "$project" : { "scrparent":0,
-                                                        "dataobjects":0
-                                                                        }},{"$out":"Screen_Import"}
-
+                                {"$unwind":"$testcaseids"},{"$set": { "testcases":{ "$cond": [{"$eq": [{"$size": '$testcases'}, 0] }, [[]], '$testcases'] }}},{"$unwind":"$testcases"}, 
+                                {"$set":{"testcaseids":{ "$cond": { "if": { "$ne": ["$testcaseids" , "$testcases.old_id" ] }, "then":"na", "else": "$testcases._id"} }}},
+                                {"$group":{"_id":"$_id","testcaseids":{"$push":"$testcaseids"}}}, {"$out":"scenario_testcase_Import"}
                                 ])
-                                dbsession.Module_Import.aggregate([{
-                                        "$unwind": {
-                                        "path": "$testscenarios"
-                                        }
-                                    },
-                                    {
-                                        "$unwind": {
-                                        "path": "$testscenarios.screens"
-                                        }
-                                    },
-                                    {
-                                        "$unwind": {
-                                        "path": "$testscenarios.screens.testcases"
-                                        }
-                                    },{
-                                        "$group": {
-                                        "_id": "$testscenarios.screens.testcases",
-                                        "parent": {
-                                            "$sum": 1 
-                                        }
-                                        }
-                                    },{"$out":"testcase_parent_Import"}])
-                                dbsession.Testcase_Import.aggregate([
-                                                        {"$match":{"old_screenid":{"$exists":"true"},"projectid":projectid}},
-                                                        {'$lookup': {
-                                                            'from': "Screen_Import",
-                                                            'localField': "old_screenid",
-                                                            'foreignField': "old_id",
-                                                            'as': "screendata"
-                                                        }},{'$lookup': {
-                                                            'from': "testcase_parent_Import",
-                                                            'localField': "_id",
-                                                            'foreignField': "_id",
-                                                            'as': "tcparent"
-                                                        }},{"$unwind":"$tcparent"},
-                                                        {"$unwind":"$screendata"},{'$set': {'parent': { "$convert": { "input": "$tcparent.parent", "to": "int" } }
-                                                        ,"screenid":"$screendata._id"}},
-                                                        { "$project" : {"screendata":0,"tcparent":0}},
-                                                            {"$out":"Testcase_Import"}
-                                                            ])
-                                
-                                    
+                            dbsession.scenario_testcase_Import.update_many({},{"$pull": {"testcaseids":"na"}})
+                            
+                            
+                            screenParent=[]
+                            for i in screenIds:
+                                nestarray={"_id":"","parent":[]}
+                                nestarray["_id"]=i["_id"]
+                                currentscreenidparent=i["_id"]                      
+                                for j in i["old_parent"]:
+                                    for ts in ScenarioIds:
+                                        if j==ts["old_id"]:
+                                            nestarray["parent"].append(ts["_id"])
+                                            break
+                                screenParent.append(nestarray)
+                            
+                            mycoll=dbsession["screen_parent_Import"]
+                            dbsession.screen_parent_Import.delete_many({})
+                            if len(screenParent)>0:
+                                dbsession.screen_parent_Import.insert_many(screenParent)
+                            
+                            dbsession.Dataobjects_Import.aggregate([
+                                {'$lookup': {
+                                            'from': "dobjects_parent_Import",
+                                            'localField': "_id",
+                                            'foreignField': "_id",
+                                            'as': "parentdobs"
+                                            }
+                                                    },{"$set":{"parent":"$parentdobs.parent"}},{"$unwind":"$parent"},
+                                { "$project" : {"parentdobs":0}},{"$out":"Dataobjects_Import"}
+                                            ])
+
+                            dbsession.Module_Import.aggregate([
+                                {"$match":{"tsIds":{"$exists":"true"},"projectid":projectid}},
+                                {'$lookup': {
+                                                        'from': "mindmap_testscenarios_Import",
+                                                        'localField': "_id",
+                                                        'foreignField': "_id",
+                                                        'as': "mindmapscenariodata"
+                                                    }
+                                                    },{"$set":{"testscenarios":"$mindmapscenariodata.tsIds"}},{"$unwind":"$testscenarios"},
+                                { "$project" : {"mindmapscenariodata":0,"tsIds":0}},{"$out":"Module_Import"}
+                                            ])
+                                                
+                            dbsession.Scenario_Import.aggregate([
+                                                    {'$match': {"projectid":projectid,"testcaseids.0": {"$exists": "true"}}},
+                                                    
+                                                    {'$lookup': {
+                                                        'from': "scenario_testcase_Import",
+                                                        'localField': "_id",
+                                                        'foreignField': "_id",
+                                                        'as': "scentestcasedata"
+                                                    }
+                                                    },{"$set":{"testcaseids" :"$scentestcasedata.testcaseids"}},                                                                                    
+                                                    {"$unwind":"$testcaseids"},
+                                                    { "$project" : {  "scentestcasedata":0,}},                                                        
+                                                    {'$out':"Scenario_Import_tc"}
+                                                    ])
+                            dbsession.Scenario_Import.aggregate([{'$lookup': {
+                                                        'from': "Module_Import",
+                                                        'localField': "old_parent",
+                                                        'foreignField': "old_id",
+                                                        'as': "moduledata"
+                                                    }
+                                                    },{"$set":{"parent" : "$moduledata._id"}},{ "$project" : { "moduledata":0}},
+                                                    {'$out':"Scenario_Import"} ])
+                            dbsession.Scenario_Import_tc.aggregate([
+                            {"$merge":{"into":"Scenario_Import","on":"_id","whenMatched": [{
+                                "$set": {"testcaseids": '$$new.testcaseids'}}]}}]) 
+
+                            dbsession.Screen_Import.aggregate([
+                                {'$lookup': {
+                                                        'from': "screen_parent_Import",
+                                                        'localField': "_id",
+                                                        'foreignField': "_id",
+                                                        'as': "scrparent"
+                                                    }},
+                                                    {'$lookup': {
+                                                        'from': "Dataobjects_Import",
+                                                        'localField': "old_id",
+                                                        'foreignField': "old_parent",
+                                                        'as': "dataobjects"
+                                                    }
+                                                    },
+                                                    {"$set":{"parent" : "$scrparent.parent",
+                                                    "orderlist":{"$map": {
+                                                                        "input": "$dataobjects._id",
+                                                                        "as": "r",
+                                                                        "in": { "$toString": "$$r" }
+                                                                        }}
+                                                                        }},{"$unwind":"$parent"},
+                                                    { "$project" : { "scrparent":0,
+                                                    "dataobjects":0
+                                                                    }},{"$out":"Screen_Import"}
+
+                            ])
+                            ImportedData=dbsession.Module_Import.aggregate([{"$project":{"_id":1,"testscenarios":1}},{"$out":"Module_Import_ids"}])
+                            mindmapId=list(dbsession.Module_Import_ids.find({},{"_id":1}))
+                            queryresult=[]
+                            for i in mindmapId:
+                                queryresult.append(i["_id"])
+                            moduleids=list(dbsession.Module_Import_ids.find({}))
+                            testcaseparent=[]                    
+                            testcaseids=[]                   
+                            for i in moduleids:
+                                if i["testscenarios"] and len(i["testscenarios"])>0:
+                                    for j in i["testscenarios"]:
+                                        if j["screens"] and len(j["screens"])>0:
+                                            for k in j["screens"]:
+                                                if k["testcases"] and len(k["testcases"])>0:                                
+                                                    for testcase in k["testcases"]:
+                                                            array3={"_id":"","parent":[]}                                    
+                                                            if testcase in testcaseids:                                            
+                                                                for q in testcaseparent:
+                                                                    if q["_id"] == testcase:                                                    
+                                                                        parentinc=q["parent"]
+                                                                        parentinc=parentinc+1
+                                                                        q["parent"] = parentinc                                                                                            
+                                                                    else:
+                                                                        continue                         
+                                                            else:                                            
+                                                                testcaseids.append(testcase)
+                                                                array3["_id"]=testcase								
+                                                                array3["parent"]=1
+                                                                testcaseparent.append(array3)
+
+                            mycoll=dbsession["testcase_parent_Import"]
+                            dbsession.testcase_parent_Import.delete_many({})
+                            if len(testcaseparent)>0:
+                                dbsession.testcase_parent_Import.insert_many(testcaseparent)
+                            dbsession.Testcase_Import.aggregate([
+                                                    {"$match":{"old_screenid":{"$exists":"true"},"projectid":projectid}},
+                                                    {'$lookup': {
+                                                        'from': "Screen_Import",
+                                                        'localField': "old_screenid",
+                                                        'foreignField': "old_id",
+                                                        'as': "screendata"
+                                                    }},{'$lookup': {
+                                                        'from': "testcase_parent_Import",
+                                                        'localField': "_id",
+                                                        'foreignField': "_id",
+                                                        'as': "tcparent"
+                                                    }},{"$unwind":"$tcparent"},
+                                                    {"$unwind":"$screendata"},{'$set': {'parent': { "$convert": { "input": "$tcparent.parent", "to": "int" } }
+                                                    ,"screenid":"$screendata._id"}},
+                                                    { "$project" : {"screendata":0,"tcparent":0}},
+                                                        {"$out":"Testcase_Import"}
+                                                        ])
+                        
+                            dbsession.Testcase_Import.aggregate([{"$match":{"steps.0": {"$exists": "true"}}},{"$unwind":"$steps"},
+                                                    {'$lookup': {
+                                                        'from': "Dataobjects_Import",
+                                                        'localField': "steps.custname",
+                                                        'foreignField': "old_id",
+                                                        'as': "dbobjects"
+                                                    }},
+                                                    {"$set": { "dbobjects":{ "$cond": [{"$eq": [{"$size": '$dbobjects'}, 0] }, [[]], '$dbobjects'] }}},{"$unwind":"$dbobjects"}, 
+                                                    {"$set":{"steps.custname":{ "$cond": { "if": { "$ne": ["$steps.custname" , "$dbobjects.old_id" ] }, "then":"$steps.custname", "else": "$dbobjects._id"} }}},
+                                                    {"$group":{"_id":"$_id","steps":{"$push":"$steps"}}},{"$out":"testcase_steps"}
+                                                    ], allowDiskUse= True) 
+
+                            dbsession.testcase_steps.aggregate([
+                            {"$merge":{"into":"Testcase_Import","on":"_id","whenMatched": [{
+                                "$set": {"steps": '$$new.steps'}}]}}])                   
+                                        
+                            
+                            dbsession.Module_Import.aggregate([{"$unset":["tsIds","old_id"]},{"$out":"Module_Import"}])
+                            dbsession.Scenario_Import.aggregate([{"$unset":["old_id","old_parent","screens"]},{"$out":"Scenario_Import"}])
+                            dbsession.Screen_Import.aggregate([{"$unset":["old_id","old_parent","testcases"]},{"$out":"Screen_Import"}])
+                            dbsession.Testcase_Import.aggregate([{"$unset":["old_id","old_screenid","projectid"]},{"$out":"Testcase_Import"}])
+                            dbsession.Dataobjects_Import.aggregate([{"$unset":["old_id","old_parent"]},{"$out":"Dataobjects_Import"}])
+
+                            dbsession.Module_Import.aggregate([                                            
+                            {'$match': {"projectid":projectid}},
+                            {"$merge":{"into":"mindmaps","on":"_id","whenNotMatched":"insert"}}])                                            
+                            dbsession.Screen_Import.aggregate([
+                            {'$match': {"projectid":projectid}},
+                            {"$merge":{"into":"screens","on":"_id","whenNotMatched":"insert"}}])
+                            dbsession.Scenario_Import.aggregate([
+                            {'$match': {"projectid":projectid}},
+                            {"$merge":{"into":"testscenarios","on":"_id","whenNotMatched":"insert"}}])
+                            dbsession.Testcase_Import.aggregate([
+                            {"$merge":{"into":"testcases","on":"_id","whenNotMatched":"insert"}}])
+                            dbsession.Dataobjects_Import.aggregate([
+                            {"$merge":{"into":"dataobjects","on":"_id","whenNotMatched":"insert"}}])
+
+                            dbsession.Module_Import.drop()
+                            dbsession.Screen_Import.drop()
+                            dbsession.Scenario_Import.drop()
+                            dbsession.Testcase_Import.drop()
+                            dbsession.Dataobjects_Import.drop()
+                            dbsession.mindmap_testscenarios_Import.drop()
+                            dbsession.scenario_testcase_Import.drop()
+                            dbsession.screen_parent_Import.drop()
+                            dbsession.testcase_parent_Import.drop()
+                            dbsession.dobjects_parent_Import.drop()
+                            dbsession.Module_Import_ids.drop()
+                            dbsession.Scenario_Import_ids.drop()
+                            dbsession.Scenario_Import_tc.drop()
+                            dbsession.Screen_Import_ids.drop()
+                            dbsession.Testcase_Import_ids.drop()                    
+                            dbsession.testcase_steps.drop()
                                 
                             
-                                dbsession.Testcase_Import.aggregate([{"$match":{"steps.0": {"$exists": "true"}}},{"$unwind":"$steps"},
-                                                        {'$lookup': {
-                                                            'from': "Dataobjects_Import",
-                                                            'localField': "steps.custname",
-                                                            'foreignField': "old_id",
-                                                            'as': "dbobjects"
-                                                        }},
-                                                        {"$set": { "dbobjects":{ "$cond": [{"$eq": [{"$size": '$dbobjects'}, 0] }, [[]], '$dbobjects'] }}},{"$unwind":"$dbobjects"}, 
-                                                        {"$set":{"steps.custname":{ "$cond": { "if": { "$ne": ["$steps.custname" , "$dbobjects.old_id" ] }, "then":"$steps.custname", "else": "$dbobjects._id"} }}},
-                                                        {"$group":{"_id":"$_id","steps":{"$push":"$steps"}}},{"$out":"testcase_steps"}
-                                                        ], allowDiskUse= True) 
-
-                                dbsession.testcase_steps.aggregate([
-                                {"$merge":{"into":"Testcase_Import","on":"_id","whenMatched": [{
-                                    "$set": {"steps": '$$new.steps'}}]}}])                   
-                                            
-                                
-                                dbsession.Module_Import.aggregate([{"$unset":["tsIds","old_id"]},{"$out":"Module_Import"}])
-                                dbsession.Scenario_Import.aggregate([{"$unset":["old_id","old_parent","screens"]},{"$out":"Scenario_Import"}])
-                                dbsession.Screen_Import.aggregate([{"$unset":["old_id","old_parent","testcases"]},{"$out":"Screen_Import"}])
-                                dbsession.Testcase_Import.aggregate([{"$unset":["old_id","old_screenid","projectid"]},{"$out":"Testcase_Import"}])
-                                dbsession.Dataobjects_Import.aggregate([{"$unset":["old_id","old_parent"]},{"$out":"Dataobjects_Import"}])
-
-                                dbsession.Module_Import.aggregate([                                            
-                                {'$match': {"projectid":projectid}},
-                                {"$merge":{"into":"mindmaps","on":"_id","whenNotMatched":"insert"}}])                                            
-                                dbsession.Screen_Import.aggregate([
-                                {'$match': {"projectid":projectid}},
-                                {"$merge":{"into":"screens","on":"_id","whenNotMatched":"insert"}}])
-                                dbsession.Scenario_Import.aggregate([
-                                {'$match': {"projectid":projectid}},
-                                {"$merge":{"into":"testscenarios","on":"_id","whenNotMatched":"insert"}}])
-                                dbsession.Testcase_Import.aggregate([
-                                {"$merge":{"into":"testcases","on":"_id","whenNotMatched":"insert"}}])
-                                dbsession.Dataobjects_Import.aggregate([
-                                {"$merge":{"into":"dataobjects","on":"_id","whenNotMatched":"insert"}}])
-
-                                dbsession.Module_Import.drop()
-                                dbsession.Screen_Import.drop()
-                                dbsession.Scenario_Import.drop()
-                                dbsession.Testcase_Import.drop()
-                                dbsession.Dataobjects_Import.drop()
-                                dbsession.mindmap_testscenarios_Import.drop()
-                                dbsession.scenario_testcase_Import.drop()
-                                dbsession.screen_parent_Import.drop()
-                                dbsession.testcase_parent_Import.drop()
-                                dbsession.dobjects_parent_Import.drop()
-                                dbsession.Module_Import_ids.drop()
-                                dbsession.Scenario_Import_ids.drop()
-                                dbsession.Screen_Import_ids.drop()
-                                dbsession.Testcase_Import_ids.drop()
-                                dbsession.importFile.drop()
-                                dbsession.testcase_steps.drop()
-                                    
-                                
-                                if queryresult:
-                                        res={'rows':queryresult}                
-                
+                            if queryresult:
+                                    res={'rows':queryresult}                
+            
                 else:
                     res={'rows': "InProgress"}
             else:
@@ -2993,14 +3015,15 @@ def LoadServices(app, redissession, client ,getClientName):
             dbsession.dobjects_parent_Import.drop()
             dbsession.Module_Import_ids.drop()
             dbsession.Scenario_Import_ids.drop()
+            dbsession.Scenario_Import_tc.drop()
             dbsession.Screen_Import_ids.drop()
-            dbsession.Testcase_Import_ids.drop()
+            dbsession.Testcase_Import_ids.drop()                    
             dbsession.testcase_steps.drop()
            
                 
             servicesException("importMindmap", importmindmapexc, True)
         return jsonify(res)
-
+    
     @app.route('/mindmap/gitToMindmap',methods=['POST'])
     def gitToMindmap():
         res={'rows':'fail'}
@@ -3030,3 +3053,23 @@ def LoadServices(app, redissession, client ,getClientName):
             servicesException("gitToMindmap",gitToMindmapexc, True)
         return jsonify(res)
    
+    @app.route('/mindmap/dropTempExpImpColl',methods=['POST'])
+    def dropTempExpImpColl():
+        res={'rows':'fail'}
+        try:
+            requestdata=json.loads(request.data)
+            app.logger.debug("Inside dropTempExpImpColl.")
+            if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)             
+                dbsession=client[clientName]
+                if (requestdata['query'] == 'dropTempExpImpColl'):
+                    dbsession.Import_mindmaps.drop()
+                    dbsession.Export_mindmap.drop()
+                    dbsession.Module_Import.drop()
+                    dbsession.mindmapnames.drop()
+                    res={'rows':'pass'}
+            else:
+                app.logger.warn('Empty data received while importing mindmap')
+        except Exception as dropTempExpImpCollexc:
+            servicesException("dropTempExpImpColl",dropTempExpImpCollexc, True)
+        return jsonify(res)
