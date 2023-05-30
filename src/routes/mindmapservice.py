@@ -1609,7 +1609,7 @@ def LoadServices(app, redissession, client ,getClientName):
                 currdir = parent_currdir
         internalspath = currdir + os.sep + "das_internals"
         credspath = internalspath + os.sep + ".tokens"
-        config_path = parent_currdir + os.sep + "server_config.json"
+        config_path = currdir + os.sep + "server_config.json"
         config = open(config_path, 'r')
         conf = json.load(config)
         config.close()
