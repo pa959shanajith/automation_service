@@ -1717,6 +1717,7 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
             requestdata=json.loads(request.data)
             clientName=getClientName(requestdata)             
             dbsession=client[clientName]
+            role=requestdata["assignedUsers"][0]["role"]
 
             app.logger.debug("Inside userCreateProject_ICE. Query: create Project")
 
@@ -1769,15 +1770,16 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
                 assignedUsers=requestdata["assignedUsers"]
                 del requestdata["assignedUsers"]
                 project_id=dbsession.projects.insert_one(requestdata)
+                id=assignedUsers[0]["id"]
 
-                for user_id in assignedUsers:
+                for id in assignedUsers:
 
                     # for user_id in each_dict:
 
-                    if assignedUsers[user_id]==True:
-
-                        dbsession.users.update_one({"_id":ObjectId(user_id)},{"$push":{"projects":project_id.inserted_id}})
-
+                    if 'id' in id:
+                        default_role_id = list(dbsession.permissions.find({ "name": role }, {"_id": 1}))
+                        dbsession.users.update_one({"_id":ObjectId(id["id"])},{"$push":{"projects":project_id.inserted_id},"$push":{ "assignedrole": default_role_id[0]["_id"] }})
+                    
                 res={"rows":"success"}
 
             else:
