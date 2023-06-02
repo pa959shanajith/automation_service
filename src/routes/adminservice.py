@@ -1770,15 +1770,14 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
                 assignedUsers=requestdata["assignedUsers"]
                 del requestdata["assignedUsers"]
                 project_id=dbsession.projects.insert_one(requestdata)
-                id=assignedUsers[0]["id"]
 
-                for id in assignedUsers:
+                for user_id in assignedUsers:
 
                     # for user_id in each_dict:
 
-                    if 'id' in id:
+                    if 'id' in user_id:
                         default_role_id = list(dbsession.permissions.find({ "name": role }, {"_id": 1}))
-                        dbsession.users.update_one({"_id":ObjectId(id["id"])},{"$push":{"projects":project_id.inserted_id},"$push":{ "assignedrole": default_role_id[0]["_id"] }})
+                        dbsession.users.update_one({"_id":ObjectId(user_id["id"])},{"$push":{"projects":project_id.inserted_id},"$push":{ "assignedrole": default_role_id[0]["_id"] }})
                     
                 res={"rows":"success"}
 
