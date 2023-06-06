@@ -10,6 +10,7 @@ import time
 import uuid
 import string
 import random
+import os
 
 NORMAL="normal"
 CICD="ci-cd"
@@ -21,7 +22,10 @@ REGISTER_STATUS="registered"
 PROVISION_STATUS="provisioned"
 DEREGISTER_STATUS="deregistered"
 
-dasport = "1990"
+if 'DAS_PORT' in os.environ:
+    dasport=str(os.environ['DAS_PORT'])
+else:
+    dasport = "1990"
 
 ui_plugins = {"alm":"Integration","apg":"APG","dashboard":"Dashboard",
     "mindmap":"Mindmap","neurongraphs":"Neuron Graphs","performancetesting":"Performance Testing",

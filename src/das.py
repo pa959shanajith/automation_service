@@ -96,7 +96,10 @@ ip_regex = r"^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9
 
 
 lsport = "5000"
-dasport = "1990"
+if 'DAS_PORT' in os.environ:
+    dasport=str(os.environ['DAS_PORT'])
+else:
+    dasport = "1990"
 redis_dbup = False
 mongo_dbup = False
 expiryTime=None
@@ -533,7 +536,10 @@ def basecheckonls():
                 basecheckstatus = True
             basecheckstatus = True    
         else:
-            licensedata={"licenseServer":licenseServer["url"]}
+            if 'LM_API' in os.environ:
+                licensedata={"licenseServer":str(os.environ['LM_API'])}
+            else:
+                licensedata={"licenseServer":licenseServer["url"]}
             basecheckstatus = True
     except Exception as e:
         app.logger.debug(e)
