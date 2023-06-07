@@ -50,7 +50,8 @@ def LoadServices(app, redissession, client, licensedata,basecheckonls,getClientN
                                 dbsession.licenseManager.update_one({"client":clientName},{'$set': {"data":lsData}})
                     if "fnName" in requestdata and requestdata["fnName"]=="forgotPasswordEmail":
                         if ("email" in requestdata and requestdata["email"]): #handling duplicate email-id's
-                            user_data = list(dbsession.users.find({"email":requestdata["email"]},{"_id":1,"name":1,"firstname":1,"lastname":1,"email":1,"auth":1,"invalidCredCount":1}))
+                            # dbsession.users.update_one({"profileImage":requestdata["userimage"]})
+                            user_data = list(dbsession.users.find({"email":requestdata["email"]},{"profileimage":1,"_id":1,"name":1,"firstname":1,"lastname":1,"email":1,"auth":1,"invalidCredCount":1}))
                         else:
                             user_data = [dbsession.users.find_one({"name":requestdata["username"]})]
                         

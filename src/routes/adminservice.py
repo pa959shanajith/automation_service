@@ -127,6 +127,7 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
                 elif (action=="update"):
                     if(requestdata["auth"]["password"] == "" and requestdata["auth"]["type"] == "inhouse" ):
                         result=dbsession.users.find_one({"_id":ObjectId(requestdata["userid"])})["auth"]["password"]
+                        dbsession.users.update_one({"_id":ObjectId(requestdata["userid"])}, {"$set": {"profileimage":requestdata["userimage"]}})
                         requestdata["auth"]["password"] = result
                     update_query = {
                         "firstname":requestdata["firstname"],
