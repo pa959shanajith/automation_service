@@ -1777,7 +1777,7 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
 
                     if 'id' in user_id:
                         default_role_id = list(dbsession.permissions.find({ "name": role }, {"_id": 1}))
-                        dbsession.users.update_one({"_id":ObjectId(user_id["id"])},{"$push":{"projects":project_id.inserted_id},"$push":{ "assignedrole": default_role_id[0]["_id"] }})
+                        dbsession.users.update_one({"_id":ObjectId(user_id["id"])}, {"$push": {"projects":project_id.inserted_id, "assignedrole": default_role_id[0]["_id"]}})
                     
                 res={"rows":"success"}
 
