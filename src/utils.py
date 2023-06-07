@@ -231,8 +231,10 @@ ecodeServices = {
     "deleteAvoGrid": '467',
     "verifyUser":"468",
     "deleteScenario": "469",
-    "getDetails_Azure":"470",
-    "manageAzureDetails":"471"
+    "getDetails_SAUCELABS":"470",
+    "manageSaucelabsDetails":"471",
+    "getDetails_Azure":"472",
+    "manageAzureDetails":"473"
 }
 
 
