@@ -16,6 +16,7 @@ import subprocess
 import shutil
 import os
 import sys
+import platform
 
 
 def LoadServices(app, redissession, client ,getClientName):
@@ -1614,8 +1615,12 @@ def LoadServices(app, redissession, client ,getClientName):
         conf = json.load(config)
         config.close()
         mongo_client_path=conf['avoassuredb']["MongoClientPath"]
-        DB_IP=conf['avoassuredb']["host"]
-        DB_PORT=conf['avoassuredb']["port"]
+        if ('DB_IP' in os.environ and 'DB_PORT' in os.environ):
+            DB_IP = str(os.environ['DB_IP']) 
+            DB_PORT=str(os.environ['DB_PORT'])
+        else:
+            DB_IP=conf['avoassuredb']["host"]
+            DB_PORT=conf['avoassuredb']["port"]
         exportImportpath=conf['exportImportpath']
         return credspath,mongo_client_path,DB_IP, DB_PORT,exportImportpath
     
@@ -1646,15 +1651,17 @@ def LoadServices(app, redissession, client ,getClientName):
                 clientName=getClientName(requestdata)             
                 dbsession=client[clientName]
                 db_username, password=db_password()
-                username=requestdata["username"]
-                username=username.replace('.','')
+                userid=requestdata["userid"]
                 x,exportPath,DB_IP,DB_PORT,expPath=get_creds_path()
-                exportPath =exportPath + "\\"+"mongoexport"
-                expPath=expPath+"\\"+"ExportMindmap"+"\\"+ username    
+                if platform.system() == "Windows":
+                    exportPath =exportPath + "\\"+"mongoexport"
+                    expPath=expPath+"\\"+"ExportMindmap"+"\\"+ userid    
+                else:
+                    exportPath =exportPath + "/"+"mongoexport"
+                    expPath=expPath+"/"+"ExportMindmap"+"/"+ userid
                 if (requestdata['query'] == 'exportMindmap'):
                     exportcheck=dbsession.Export_mindmap.find().count()
                     if exportcheck==0:
-                        if(os.path.exists(expPath)): shutil.rmtree(expPath)
                         mindmapid = [ObjectId(i) for i in requestdata['mindmapId']]
                         if len(mindmapid)>0:
                             dbsession.Export_screens.drop()
@@ -2154,9 +2161,7 @@ def LoadServices(app, redissession, client ,getClientName):
             if not isemptyrequest(requestdata):
                 clientName=getClientName(requestdata)             
                 dbsession=client[clientName]
-                importtype=requestdata["importtype"]                
-                username=requestdata["username"]
-                username=username.replace('.','')                
+                importtype=requestdata["importtype"]                       
                 importproj=ObjectId(requestdata["importproj"])                           
                 userid=ObjectId(requestdata["userid"])
                 role=ObjectId(requestdata["role"])                
@@ -2178,15 +2183,16 @@ def LoadServices(app, redissession, client ,getClientName):
                     
                     db_username, password=db_password()
                     x,importPath,DB_IP,DB_PORT,impJsonPath=get_creds_path()
-                    importPath = importPath + "\\"+"mongoimport"
-                    impJsonPath=impJsonPath+"\\"+"ImportMindmap"+"\\"+ importtype
-                   
-                    js=subprocess.call(f"{importPath} --host {DB_IP} --port {DB_PORT} --db {clientName} --username {db_username} --password {password} --collection jsontomindmap --file {impJsonPath}\\{username}.json  --jsonArray")
+                    if platform.system() == "Windows":
+                        importPath = importPath + "\\"+"mongoimport"
+                        impJsonPath=impJsonPath+"\\"+"ImportMindmap"+"\\"+ importtype
+                    else:
+                        importPath = importPath + "/"+"mongoimport"
+                        impJsonPath=impJsonPath+"/"+"ImportMindmap"+"/"+ importtype
+
+                    js=subprocess.call(f"{importPath} --host {DB_IP} --port {DB_PORT} --db {clientName} --username {db_username} --password {password} --collection jsontomindmap --file {impJsonPath}\\{userid}.json  --jsonArray")                    
                     
-                    
-                    delimportpath=impJsonPath+"\\"+username+".json"
-                    if os.path.isfile(delimportpath):
-                        os.remove(delimportpath)
+                                        
 
                     dbsession.jsontomindmap.aggregate([
                     {"$project":{"name":1,"testscenarionames":"$testscenarios","_id":0}},{"$out":"mindmapnames"}])
@@ -2589,28 +2595,25 @@ def LoadServices(app, redissession, client ,getClientName):
                     dbsession.Scenario_Import_tc.drop()
                     dbsession.Screen_Import_ids.drop()
                     dbsession.Testcase_Import_ids.drop()                    
-                    dbsession.testcase_steps.drop()
-                    username=requestdata["user"]                    
-                    username=username.replace('.','')                    
+                    dbsession.testcase_steps.drop()                                                          
                     userid=ObjectId(requestdata["userid"])
                     role=ObjectId(requestdata["role"])
                     projectid=ObjectId(requestdata["projectid"])                                        
                     createdon = datetime.now()                   
                     db_username, password=db_password()
-                    x,importPath,DB_IP,DB_PORT,impPath=get_creds_path()
-                    importPath = importPath + "\\"+"mongoimport"
-                    impPath=impPath+"\\"+"ImportMindmap"+"\\"+ username
+                    x,importPath,DB_IP,DB_PORT,impPath=get_creds_path()                                    
+                    if platform.system() == "Windows":
+                        importPath = importPath + "\\"+"mongoimport"
+                        impPath=impPath+"\\"+"ImportMindmap"+"\\"+ str(userid)
+                    else:
+                        importPath = importPath + "/"+"mongoimport"
+                        impPath=impPath+"/"+"ImportMindmap"+"/"+ str(userid)
                     do=subprocess.call(f"{importPath} --host {DB_IP} --port {DB_PORT} --db {clientName} --username {db_username} --password {password} --collection Dataobjects_Import --file {impPath}\\Dataobjects.json  --jsonArray")
                     mm=subprocess.call(f"{importPath} --host {DB_IP} --port {DB_PORT} --db {clientName} --username {db_username} --password {password} --collection Module_Import --file {impPath}\\Modules.json  --jsonArray")
                     ts=subprocess.call(f"{importPath} --host {DB_IP} --port {DB_PORT} --db {clientName} --username {db_username} --password {password} --collection Scenario_Import --file {impPath}\\Testscenarios.json  --jsonArray")
                     sr=subprocess.call(f"{importPath} --host {DB_IP} --port {DB_PORT} --db {clientName} --username {db_username} --password {password} --collection Screen_Import --file {impPath}\\screens.json  --jsonArray")
                     tc=subprocess.call(f"{importPath} --host {DB_IP} --port {DB_PORT} --db {clientName} --username {db_username} --password {password} --collection Testcase_Import --file {impPath}\\Testcases.json  --jsonArray")
-                            
-                                                     
-            
-                    if os.path.isdir(impPath):
-                            shutil.rmtree(impPath)
-
+                     
                     dbsession.Module_Import.aggregate([
                     {"$project":{"_id":0,"old_id":"$_id",
                             "name":1,
