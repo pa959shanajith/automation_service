@@ -35,7 +35,19 @@ def LoadServices(app, redissession, client ,getClientName):
                 dbsession=client[clientName]
                 if(requestdata["query"] == 'projects'):
                     queryresult1=dbsession.users.find_one({"_id": ObjectId(requestdata["userid"])},{"projects":1,"_id":0})
-                    queryresult=list(dbsession.projects.find({"_id":{"$in":queryresult1["projects"]}},{"name":1,"releases":1,"type":1}))
+                    queryresult=list(dbsession.projects.find({"_id":{"$in":queryresult1["projects"]}},{"name":1,"releases":1,"type":1,"modifiedby":1}))
+                    modifiedby_ids=[]
+                    for modifiedId in queryresult:
+                        modifiedby_ids.append(ObjectId(modifiedId["modifiedby"]))
+                    modifiedby_ids=list(set(modifiedby_ids))                  
+                    queryresult2=list(dbsession.users.find({"_id":{"$in":modifiedby_ids}},{"firstname":1,"lastname":1,"_id":1}))                    
+                    for username in queryresult:
+                        for modifiedname in queryresult2:
+                            if modifiedname["_id"] == username["modifiedby"]:
+                                username["firstname"]=modifiedname["firstname"]
+                                username["lastname"]=modifiedname["lastname"]
+                                break
+                            
                     res= {"rows":queryresult}
                 elif(requestdata["query"] == 'getAlltestSuites'):
                     queryresult=list(dbsession.testsuites.aggregate([
