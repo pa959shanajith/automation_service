@@ -117,7 +117,7 @@ def LoadServices(app, redissession, client ,getClientName):
                 dodata["width"] = dodata["left"] - dodata["width"]
                 dodata["url"] = so["url"] if "url" in so else ""
                 dodata["cord"] = so["cord"] if "cord" in so else ""
-                dodata["identifier"] = so["identifier"] if "identifier" in so else [{"id":1,"identifier":'xpath'},{"id":2,"identifier":'id' },{"id":3, "identifier":'rxpath' },{ "id":4,"identifier":'name' },{"id":5,"identifier":'classname'}]
+                dodata["identifier"] = so["identifier"] if "identifier" in so else [{"id":1,"identifier":'xpath'},{"id":2,"identifier":'id' },{"id":3, "identifier":'rxpath' },{ "id":4,"identifier":'name' },{"id":5,"identifier":'classname'},{"id":6,"identifier":'cssselector'},{"id":7,"identifier":'href'},{"id":8,"identifier":'label'}]
             elif so["appType"] in ["Web", "MobileWeb"]:
                 ob=[]
                 legend = ['id', 'name', 'tag', 'class', 'left', 'top', 'height', 'width', 'text']
@@ -141,7 +141,7 @@ def LoadServices(app, redissession, client ,getClientName):
                 if "class" in dodata: dodata["class"] = dodata["class"].split("[")[0]
                 dodata["url"] = so["url"] if 'url' in so else ""
                 dodata["cord"] = so["cord"] if "cord" in so else ""
-                dodata["identifier"] = so["identifier"] if "identifier" in so else [{"id":1,"identifier":'xpath'},{"id":2,"identifier":'id' },{"id":3, "identifier":'rxpath' },{ "id":4,"identifier":'name' },{"id":5,"identifier":'classname'}]
+                dodata["identifier"] = so["identifier"] if "identifier" in so else [{"id":1,"identifier":'xpath'},{"id":2,"identifier":'id' },{"id":3, "identifier":'rxpath' },{ "id":4,"identifier":'name' },{"id":5,"identifier":'classname'},{"id":6,"identifier":'cssselector'},{"id":7,"identifier":'href'},{"id":8,"identifier":'label'}]
             elif so["appType"] == "MobileApp":
                 ob = obn.split(';')
                 if len(ob) >= 2 and ob[0].strip() != "": dodata["id"] = ob[0]
