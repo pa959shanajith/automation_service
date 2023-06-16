@@ -1614,7 +1614,7 @@ def LoadServices(app, redissession, client ,getClientName):
         config = open(config_path, 'r')
         conf = json.load(config)
         config.close()
-        mongo_client_path=conf['avoassuredb']["MongoClientPath"]
+        mongo_client_path=currdir+os.sep+"mongoClient"
         if ('DB_IP' in os.environ and 'DB_PORT' in os.environ):
             DB_IP = str(os.environ['DB_IP']) 
             DB_PORT=str(os.environ['DB_PORT'])
@@ -1623,7 +1623,7 @@ def LoadServices(app, redissession, client ,getClientName):
             DB_PORT=conf['avoassuredb']["port"]
         exportImportpath=conf['exportImportpath']
         return credspath,mongo_client_path,DB_IP, DB_PORT,exportImportpath
-    
+
     def unpad(data):
         return data[0:-ord(data[-1])]
 
@@ -1654,10 +1654,10 @@ def LoadServices(app, redissession, client ,getClientName):
                 userid=requestdata["userid"]
                 x,exportPath,DB_IP,DB_PORT,expPath=get_creds_path()
                 if platform.system() == "Windows":
-                    exportPath =exportPath + "\\"+"mongoexport"
+                    exportPath =exportPath + "\\"+"windows"+"\\"+"mongoexport"
                     expPath=expPath+"\\"+"ExportMindmap"+"\\"+ userid    
                 else:
-                    exportPath =exportPath + "/"+"mongoexport"
+                    exportPath =exportPath + "/"+"linux"+"/"+"mongoexport"
                     expPath=expPath+"/"+"ExportMindmap"+"/"+ userid
                 if (requestdata['query'] == 'exportMindmap'):
                     exportcheck=dbsession.Export_mindmap.find().count()
@@ -2184,10 +2184,10 @@ def LoadServices(app, redissession, client ,getClientName):
                     db_username, password=db_password()
                     x,importPath,DB_IP,DB_PORT,impJsonPath=get_creds_path()
                     if platform.system() == "Windows":
-                        importPath = importPath + "\\"+"mongoimport"
+                        importPath = importPath + "\\"+"windows"+"\\"+"mongoimport"
                         impJsonPath=impJsonPath+"\\"+"ImportMindmap"+"\\"+ importtype
                     else:
-                        importPath = importPath + "/"+"mongoimport"
+                        importPath = importPath + "/"+"linux"+"/"+"mongoimport"
                         impJsonPath=impJsonPath+"/"+"ImportMindmap"+"/"+ importtype
 
                     js=subprocess.call(f"{importPath} --host {DB_IP} --port {DB_PORT} --db {clientName} --username {db_username} --password {password} --collection jsontomindmap --file {impJsonPath}\\{userid}.json  --jsonArray")                    
@@ -2603,10 +2603,10 @@ def LoadServices(app, redissession, client ,getClientName):
                     db_username, password=db_password()
                     x,importPath,DB_IP,DB_PORT,impPath=get_creds_path()                                    
                     if platform.system() == "Windows":
-                        importPath = importPath + "\\"+"mongoimport"
+                        importPath = importPath + "\\"+"windows"+"\\"+"mongoimport"
                         impPath=impPath+"\\"+"ImportMindmap"+"\\"+ str(userid)
                     else:
-                        importPath = importPath + "/"+"mongoimport"
+                        importPath = importPath + "/"+"linux"+"/"+"mongoimport"
                         impPath=impPath+"/"+"ImportMindmap"+"/"+ str(userid)
                     do=subprocess.call(f"{importPath} --host {DB_IP} --port {DB_PORT} --db {clientName} --username {db_username} --password {password} --collection Dataobjects_Import --file {impPath}\\Dataobjects.json  --jsonArray")
                     mm=subprocess.call(f"{importPath} --host {DB_IP} --port {DB_PORT} --db {clientName} --username {db_username} --password {password} --collection Module_Import --file {impPath}\\Modules.json  --jsonArray")
