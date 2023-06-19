@@ -3047,3 +3047,44 @@ def LoadServices(app, redissession, client ,getClientName):
             servicesException("gitToMindmap",gitToMindmapexc, True)
         return jsonify(res)
    
+
+    
+    @app.route('/mindmap/getProjectsMMTS',methods=['POST'])
+    def getProjectsMMTS():
+        res={'rows':'fail'}
+        try:
+            requestdata=json.loads(request.data)
+            app.logger.debug("Inside getProjectsMMTS.")
+            if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)             
+                dbsession=client[clientName]
+                if (requestdata['query'] == 'getProjectsMMTS'):
+                    userid=ObjectId(requestdata["userid"])
+                    Proj_det=list(dbsession.projects.find({"createdby":userid},{"name":1}))
+                    proj_ids=[]
+                    for x in Proj_det:
+                        proj_ids.append(x["_id"])
+                    mm_det=list(dbsession.mindmaps.aggregate([{"$match":{"projectid":{"$in":proj_ids},"type":"basic"}},
+                                                        {"$lookup":{
+                                                            "from":"testscenarios",
+                                                            "localField":"_id",
+                                                            "foreignField":"parent",
+                                                            "as":"scenarioList"}},
+                                                        {"$project":{"name":1,"scenarioList.name":1,"scenarioList._id":1,"projectid":1}}]))
+                    for x in Proj_det:
+                        x["mindmapList"]=[]
+                        for y in mm_det:
+                            if "projectid" in y:
+                                if x["_id"]==y["projectid"]:
+                                    del y["projectid"]
+                                    x["mindmapList"].append(y)
+                                                
+
+                    if Proj_det:
+                        res={'rows':Proj_det}
+            else:
+                app.logger.warn('Empty data received while importing mindmap')
+        except Exception as getProjectsMMTSexc:
+            servicesException("getProjectsMMTS",getProjectsMMTSexc, True)
+        return jsonify(res)
+
