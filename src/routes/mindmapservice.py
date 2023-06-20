@@ -1595,6 +1595,8 @@ def LoadServices(app, redissession, client ,getClientName):
         
     def get_creds_path():
         currexc = sys.executable
+        db_keys = "".join(['N','i','n','E','t','e','E','n','6','8','d','A','t','a','B',
+                            'A','s','3','e','N','c','R','y','p','T','1','0','n','k','3','y','S'])    
         try: currfiledir = os.path.dirname(os.path.abspath(__file__))
         except: currfiledir = os.path.dirname(currexc)
         currdir = os.getcwd()
@@ -1619,6 +1621,8 @@ def LoadServices(app, redissession, client ,getClientName):
             mongo_client_path =mongo_client_path + os.sep+"windows"
         else:
             mongo_client_path =mongo_client_path + os.sep+"linux"
+        mongo_user= unwrap(conf['avoassuredb']['username'],db_keys)
+        mongo_pass= unwrap(conf['avoassuredb']['password'],db_keys)
         if ('DB_IP' in os.environ and 'DB_PORT' in os.environ):
             DB_IP = str(os.environ['DB_IP']) 
             DB_PORT=str(os.environ['DB_PORT'])
@@ -1626,7 +1630,7 @@ def LoadServices(app, redissession, client ,getClientName):
             DB_IP=conf['avoassuredb']["host"]
             DB_PORT=conf['avoassuredb']["port"]
         exportImportpath=conf['exportImportpath']
-        return credspath,mongo_client_path,DB_IP, DB_PORT,exportImportpath
+        return credspath,mongo_client_path,DB_IP, DB_PORT,exportImportpath,mongo_user,mongo_pass
 
     def unpad(data):
         return data[0:-ord(data[-1])]
@@ -1635,15 +1639,7 @@ def LoadServices(app, redissession, client ,getClientName):
         data = codecs.decode(hex_data, 'hex')
         aes = AES.new(key.encode('utf-8'), AES.MODE_CBC, iv)
         return unpad(aes.decrypt(data).decode('utf-8'))
-    
-    def db_password():
-        db_keys = "".join(['N','i','n','E','t','e','E','n','6','8','d','A','t','a','B',
-                            'A','s','3','e','N','c','R','y','p','T','1','0','n','k','3','y','S'])
-        creds_path=get_creds_path()
-        with open(creds_path[0]) as creds_file:
-            creds = json.loads(unwrap(creds_file.read(),db_keys))
-        _ = creds['cachedb']['password'] + creds['avoassuredb']['username'] + creds['avoassuredb']['password']
-        return creds['avoassuredb']['username'],creds['avoassuredb']['password'] 
+ 
 
     @app.route('/mindmap/exportMindmap', methods=['POST'])
     def exportMindmap():
@@ -1653,10 +1649,9 @@ def LoadServices(app, redissession, client ,getClientName):
             app.logger.debug("Inside exportMindmap.")
             if not isemptyrequest(requestdata):
                 clientName=getClientName(requestdata)             
-                dbsession=client[clientName]
-                db_username, password=db_password()
+                dbsession=client[clientName]                
                 userid=requestdata["userid"]
-                x,mongoFile,DB_IP,DB_PORT,expPath=get_creds_path()                              
+                x,mongoFile,DB_IP,DB_PORT,expPath,mongo_user,mongo_pass=get_creds_path()                              
                 mongoFile =mongoFile+ os.sep+"mongoexport"                
                 expPath=expPath+os.sep+"ExportMindmap"+os.sep+ userid
                 if (requestdata['query'] == 'exportMindmap'):
@@ -1690,11 +1685,11 @@ def LoadServices(app, redissession, client ,getClientName):
                                     dbsession.dataobjects.aggregate([{'$match': {"parent": {'$in':screens}}}
                                         ,{"$out":"Export_dataobjects"}])
     
-                            p=subprocess.call(f"{mongoFile} --host {DB_IP} --port {DB_PORT} --db {clientName} --username {db_username} --password {password} --collection Export_mindmap -o {expPath}{os.sep}Modules.json  --jsonArray")
-                            q=subprocess.call(f"{mongoFile} --host {DB_IP} --port {DB_PORT} --db {clientName} --username {db_username} --password {password} --collection Export_testscenarios -o {expPath}{os.sep}Testscenarios.json  --jsonArray")
-                            r=subprocess.call(f"{mongoFile} --host {DB_IP} --port {DB_PORT} --db {clientName} --username {db_username} --password {password} --collection Export_screens -o {expPath}{os.sep}screens.json  --jsonArray")
-                            s=subprocess.call(f"{mongoFile} --host {DB_IP} --port {DB_PORT} --db {clientName} --username {db_username} --password {password} --collection Export_testcases -o {expPath}{os.sep}Testcases.json  --jsonArray")
-                            t=subprocess.call(f"{mongoFile} --host {DB_IP} --port {DB_PORT} --db {clientName} --username {db_username} --password {password} --collection Export_dataobjects -o {expPath}{os.sep}Dataobjects.json  --jsonArray")
+                            p=subprocess.call(f"{mongoFile} --host {DB_IP} --port {DB_PORT} --db {clientName} --username {mongo_user} --password {mongo_pass} --authenticationDatabase admin --collection Export_mindmap -o {expPath}{os.sep}Modules.json  --jsonArray")
+                            q=subprocess.call(f"{mongoFile} --host {DB_IP} --port {DB_PORT} --db {clientName} --username {mongo_user} --password {mongo_pass} --authenticationDatabase admin --collection Export_testscenarios -o {expPath}{os.sep}Testscenarios.json  --jsonArray")
+                            r=subprocess.call(f"{mongoFile} --host {DB_IP} --port {DB_PORT} --db {clientName} --username {mongo_user} --password {mongo_pass} --authenticationDatabase admin --collection Export_screens -o {expPath}{os.sep}screens.json  --jsonArray")
+                            s=subprocess.call(f"{mongoFile} --host {DB_IP} --port {DB_PORT} --db {clientName} --username {mongo_user} --password {mongo_pass} --authenticationDatabase admin --collection Export_testcases -o {expPath}{os.sep}Testcases.json  --jsonArray")
+                            t=subprocess.call(f"{mongoFile} --host {DB_IP} --port {DB_PORT} --db {clientName} --username {mongo_user} --password {mongo_pass} --authenticationDatabase admin --collection Export_dataobjects -o {expPath}{os.sep}Dataobjects.json  --jsonArray")
                             if p ==q ==r==s==t==0:
                                 queryresult="success"
                             else:
@@ -2181,12 +2176,11 @@ def LoadServices(app, redissession, client ,getClientName):
                     dbsession.scenariotestcasemapping.drop()
                     dbsession.scr_parent.drop()
                     
-                    db_username, password=db_password()
-                    x,mongoFile,DB_IP,DB_PORT,impJsonPath=get_creds_path()                    
+                    x,mongoFile,DB_IP,DB_PORT,impJsonPath,mongo_user,mongo_pass=get_creds_path()                    
                     mongoFile = mongoFile +os.sep+"mongoimport"
                     impJsonPath=impJsonPath+os.sep+"ImportMindmap"+os.sep+ importtype                    
 
-                    js=subprocess.call(f"{mongoFile} --host {DB_IP} --port {DB_PORT} --db {clientName} --username {db_username} --password {password} --collection jsontomindmap --file {impJsonPath}{os.sep}{userid}.json  --jsonArray")                    
+                    js=subprocess.call(f"{mongoFile} --host {DB_IP} --port {DB_PORT} --db {clientName} --username {mongo_user} --password {mongo_pass} --authenticationDatabase admin --collection jsontomindmap --file {impJsonPath}{os.sep}{userid}.json  --jsonArray")                    
                     
                                         
 
@@ -2595,18 +2589,18 @@ def LoadServices(app, redissession, client ,getClientName):
                     userid=ObjectId(requestdata["userid"])
                     role=ObjectId(requestdata["role"])
                     projectid=ObjectId(requestdata["projectid"])                                        
-                    createdon = datetime.now()                   
-                    db_username, password=db_password()
-                    x,mongoFile,DB_IP,DB_PORT,impPath=get_creds_path()                                   
+                    createdon = datetime.now()                
+                    
+                    x,mongoFile,DB_IP,DB_PORT,impPath,mongo_user,mongo_pass=get_creds_path()                                   
                     
                     mongoFile = mongoFile +os.sep+"mongoimport"                    
                     impPath=impPath+os.sep+"ImportMindmap"+os.sep+ str(userid)
                 
-                    do=subprocess.call(f"{mongoFile} --host {DB_IP} --port {DB_PORT} --db {clientName} --username {db_username} --password {password} --collection Dataobjects_Import --file {impPath}{os.sep}Dataobjects.json  --jsonArray")
-                    mm=subprocess.call(f"{mongoFile} --host {DB_IP} --port {DB_PORT} --db {clientName} --username {db_username} --password {password} --collection Module_Import --file {impPath}{os.sep}Modules.json  --jsonArray")
-                    ts=subprocess.call(f"{mongoFile} --host {DB_IP} --port {DB_PORT} --db {clientName} --username {db_username} --password {password} --collection Scenario_Import --file {impPath}{os.sep}Testscenarios.json  --jsonArray")
-                    sr=subprocess.call(f"{mongoFile} --host {DB_IP} --port {DB_PORT} --db {clientName} --username {db_username} --password {password} --collection Screen_Import --file {impPath}{os.sep}screens.json  --jsonArray")
-                    tc=subprocess.call(f"{mongoFile} --host {DB_IP} --port {DB_PORT} --db {clientName} --username {db_username} --password {password} --collection Testcase_Import --file {impPath}{os.sep}Testcases.json  --jsonArray")
+                    do=subprocess.call(f"{mongoFile} --host {DB_IP} --port {DB_PORT} --db {clientName} --username {mongo_user} --password {mongo_pass} --authenticationDatabase admin --collection Dataobjects_Import --file {impPath}{os.sep}Dataobjects.json  --jsonArray")
+                    mm=subprocess.call(f"{mongoFile} --host {DB_IP} --port {DB_PORT} --db {clientName} --username {mongo_user} --password {mongo_pass} --authenticationDatabase admin --collection Module_Import --file {impPath}{os.sep}Modules.json  --jsonArray")
+                    ts=subprocess.call(f"{mongoFile} --host {DB_IP} --port {DB_PORT} --db {clientName} --username {mongo_user} --password {mongo_pass} --authenticationDatabase admin --collection Scenario_Import --file {impPath}{os.sep}Testscenarios.json  --jsonArray")
+                    sr=subprocess.call(f"{mongoFile} --host {DB_IP} --port {DB_PORT} --db {clientName} --username {mongo_user} --password {mongo_pass} --authenticationDatabase admin --collection Screen_Import --file {impPath}{os.sep}screens.json  --jsonArray")
+                    tc=subprocess.call(f"{mongoFile} --host {DB_IP} --port {DB_PORT} --db {clientName} --username {mongo_user} --password {mongo_pass} --authenticationDatabase admin --collection Testcase_Import --file {impPath}{os.sep}Testcases.json  --jsonArray")
                      
                     dbsession.Module_Import.aggregate([
                     {"$project":{"_id":0,"old_id":"$_id",
