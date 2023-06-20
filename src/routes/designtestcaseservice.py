@@ -536,6 +536,22 @@ def LoadServices(app, redissession, client ,getClientName):
                             j['original_device_width'] = dataObjects[j['custname']]['original_device_width']
                             j['original_device_height'] = dataObjects[j['custname']]['original_device_height']
                         j['objectid'] = j['custname']
+                        if 'top' in dataObjects[j['custname']]:
+                            j['top'] = dataObjects[j['custname']]['top']
+                        else:
+                            j['top'] = ""
+                        if 'left' in dataObjects[j['custname']]:
+                            j['left'] = dataObjects[j['custname']]['left']
+                        else:
+                            j['left'] = ""
+                        if 'width' in dataObjects[j['custname']]:
+                            j['width'] = dataObjects[j['custname']]['width']
+                        else:
+                            j['width'] = ""
+                        if 'height' in dataObjects[j['custname']]:
+                            j['height'] = dataObjects[j['custname']]['height']
+                        else:
+                            j['height'] = ""
                         j['custname'] = dataObjects[j['custname']]['custname']
                     elif (j['custname'] not in defcn or j['custname']=='OBJECT_DELETED'):
                         j['custname'] = 'OBJECT_DELETED'
