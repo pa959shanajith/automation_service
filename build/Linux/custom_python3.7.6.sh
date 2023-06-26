@@ -9,7 +9,7 @@ if [ -d "$DIR" ]; then
 else
     echo "Python3.7.6 NOT found."
     #mkdir -p ~/Build/Python3.7.6 
-    cd ~/Build/Python-3.7.6
+    cd Python-3.7.6
     export pypath=~/Build/Python3.7.6 
     echo $pypath
     ./configure --enable-optimizations --prefix=$pypath --enable-shared LDFLAGS="-Wl,-rpath,'\$\$ORIGIN/../lib'"
