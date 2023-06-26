@@ -94,6 +94,17 @@ def LoadServices(app, redissession, client ,getClientName):
             req.append(InsertOne(row))
         dbsession.dataobjects.bulk_write(req)
 
+    def update_identifier(object_identifier):
+        all_identifier_list = ["xpath","id","rxpath","name","classname","cssselector","href","label"]
+        current_identifier_list = []
+        for current_identifier_value in object_identifier:
+            current_identifier_list.append(current_identifier_value["identifier"])
+        if len(all_identifier_list) != len(current_identifier_list):
+            for all_identifier_list_index, all_identifier_list_value in enumerate(all_identifier_list):
+                if all_identifier_list_value not in current_identifier_list:
+                    object_identifier.append({"id":all_identifier_list_index+1,"identifier":all_identifier_list_value})
+        return object_identifier
+
     def createdataobjects(dbsession,scrid, objs):
         custnameToAdd = []
         for e in objs:
@@ -142,6 +153,8 @@ def LoadServices(app, redissession, client ,getClientName):
                 dodata["url"] = so["url"] if 'url' in so else ""
                 dodata["cord"] = so["cord"] if "cord" in so else ""
                 dodata["identifier"] = so["identifier"] if "identifier" in so else [{"id":1,"identifier":'xpath'},{"id":2,"identifier":'id' },{"id":3, "identifier":'rxpath' },{ "id":4,"identifier":'name' },{"id":5,"identifier":'classname'},{"id":6,"identifier":'cssselector'},{"id":7,"identifier":'href'},{"id":8,"identifier":'label'}]
+                if "identifier" in dodata:
+                    dodata["identifier"] = update_identifier(dodata["identifier"])
             elif so["appType"] == "MobileApp":
                 ob = obn.split(';')
                 if len(ob) >= 2 and ob[0].strip() != "": dodata["id"] = ob[0]

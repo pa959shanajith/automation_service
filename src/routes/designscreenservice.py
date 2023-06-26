@@ -83,6 +83,17 @@ def LoadServices(app, redissession, client ,getClientName):
             servicesException("getScrapeDataScreenLevel_ICE",getscrapedataexc, True)
         return jsonify(res)
 
+    def update_identifier(object_identifier):
+        all_identifier_list = ["xpath","id","rxpath","name","classname","cssselector","href","label"]
+        current_identifier_list = []
+        for current_identifier_value in object_identifier:
+            current_identifier_list.append(current_identifier_value["identifier"])
+        if len(all_identifier_list) != len(current_identifier_list):
+            for all_identifier_list_index, all_identifier_list_value in enumerate(all_identifier_list):
+                if all_identifier_list_value not in current_identifier_list:
+                    object_identifier.append({"id":all_identifier_list_index+1,"identifier":all_identifier_list_value})
+        return object_identifier
+
     # update/delete/insert opertaions on the screen data
     @app.route('/design/updateScreen_ICE',methods=['POST'])
     def updateScreen_ICE():
@@ -292,6 +303,8 @@ def LoadServices(app, redissession, client ,getClientName):
                                 data_up.append(data_obj["view"][i])
                         if "identifier" not in data_obj["view"][i]:
                             data_obj["view"][i]["identifier"] = [{"id":1,"identifier":'xpath'},{"id":2,"identifier":'id' },{"id":3, "identifier":'rxpath' },{ "id":4,"identifier":'name' },{"id":5,"identifier":'classname'},{"id":6,"identifier":'cssselector'},{"id":7,"identifier":'href'},{"id":8,"identifier":'label'}]
+                        else:
+                            data_obj["view"][i]["identifier"] = update_identifier(data_obj["view"][i]["identifier"])
                     if len(data_push)>0 or len(data_up)>0:
                         dbsession.dataobjects.update_many({"$and":[{"parent.1":{"$exists":True}},{"parent":screenId}]},{"$pull":{"parent":screenId}})
                         dbsession.dataobjects.delete_many({"$and":[{"parent":{"$size": 1}},{"parent":screenId}]})
