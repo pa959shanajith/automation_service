@@ -15,6 +15,6 @@
         "enable":true,
         "url":"https://avolicapi.avoautomation.com/",
         "path":"LS.db"
-    }
-    
+    },
+    "exportImportpath":"D:\\source_code\\WebServer\\assets"   
 }

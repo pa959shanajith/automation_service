@@ -22,7 +22,7 @@ def LoadServices(app, redissession, client ,getClientName):
         app.logger.debug('Inside getKeywordDetails')
         res={'rows':'fail'}
         try:
-            clientName="avoassure"      
+            clientName=getClientName({})       
             dbsession=client[clientName]
             projecttypename = str(request.data,'utf-8')
             if not (projecttypename == '' or projecttypename == 'undefined'
@@ -94,7 +94,18 @@ def LoadServices(app, redissession, client ,getClientName):
             req.append(InsertOne(row))
         dbsession.dataobjects.bulk_write(req)
 
-    def createdataobjects(scrid, objs):
+    def update_identifier(object_identifier):
+        all_identifier_list = ["xpath","id","rxpath","name","classname","cssselector","href","label"]
+        current_identifier_list = []
+        for current_identifier_value in object_identifier:
+            current_identifier_list.append(current_identifier_value["identifier"])
+        if len(all_identifier_list) != len(current_identifier_list):
+            for all_identifier_list_index, all_identifier_list_value in enumerate(all_identifier_list):
+                if all_identifier_list_value not in current_identifier_list:
+                    object_identifier.append({"id":all_identifier_list_index+1,"identifier":all_identifier_list_value})
+        return object_identifier
+
+    def createdataobjects(dbsession,scrid, objs):
         custnameToAdd = []
         for e in objs:
             so = objs[e]
@@ -117,6 +128,7 @@ def LoadServices(app, redissession, client ,getClientName):
                 dodata["width"] = dodata["left"] - dodata["width"]
                 dodata["url"] = so["url"] if "url" in so else ""
                 dodata["cord"] = so["cord"] if "cord" in so else ""
+                dodata["identifier"] = so["identifier"] if "identifier" in so else [{"id":1,"identifier":'xpath'},{"id":2,"identifier":'id' },{"id":3, "identifier":'rxpath' },{ "id":4,"identifier":'name' },{"id":5,"identifier":'classname'},{"id":6,"identifier":'cssselector'},{"id":7,"identifier":'href'},{"id":8,"identifier":'label'}]
             elif so["appType"] in ["Web", "MobileWeb"]:
                 ob=[]
                 legend = ['id', 'name', 'tag', 'class', 'left', 'top', 'height', 'width', 'text']
@@ -140,6 +152,9 @@ def LoadServices(app, redissession, client ,getClientName):
                 if "class" in dodata: dodata["class"] = dodata["class"].split("[")[0]
                 dodata["url"] = so["url"] if 'url' in so else ""
                 dodata["cord"] = so["cord"] if "cord" in so else ""
+                dodata["identifier"] = so["identifier"] if "identifier" in so else [{"id":1,"identifier":'xpath'},{"id":2,"identifier":'id' },{"id":3, "identifier":'rxpath' },{ "id":4,"identifier":'name' },{"id":5,"identifier":'classname'},{"id":6,"identifier":'cssselector'},{"id":7,"identifier":'href'},{"id":8,"identifier":'label'}]
+                if "identifier" in dodata:
+                    dodata["identifier"] = update_identifier(dodata["identifier"])
             elif so["appType"] == "MobileApp":
                 ob = obn.split(';')
                 if len(ob) >= 2 and ob[0].strip() != "": dodata["id"] = ob[0]
@@ -303,7 +318,7 @@ def LoadServices(app, redissession, client ,getClientName):
                             "cord": so["cord"] if ("cord" in so) else ""
                         })
                     del requestdata['testcasesteps']
-                    createdataobjects(query_screen['screenid'], missingCustname)
+                    createdataobjects(dbsession,query_screen['screenid'], missingCustname)
 
                 #query to update tescase
                 if(requestdata['query'] == 'updatetestcasedata'):
@@ -492,7 +507,7 @@ def LoadServices(app, redissession, client ,getClientName):
                                 "cord": so["cord"] if ("cord" in so) else ""
                             })
                         del requestdata['testcasesteps']
-                        createdataobjects(query_screen['screenid'], missingCustname)
+                        createdataobjects(dbsession,query_screen['screenid'], missingCustname)
 
                     #query to update tescase
                     if(requestdata['query'] == 'updatetestcasedata'):
@@ -516,7 +531,7 @@ def LoadServices(app, redissession, client ,getClientName):
         del_flag = False
         try:
             for j in steps:
-                j['objectName'], j['url'], j['addTestCaseDetailsInfo'], j['addTestCaseDetails'] = '', '', '', ''
+                j['objectName'], j['url'], j['addTestCaseDetailsInfo'], j['addTestCaseDetails'], j['identifier']= '', '', '', '', ''
                 if 'addDetails' in j:
                     j['addTestCaseDetailsInfo'] = j['addDetails']
                     del j['addDetails']
@@ -526,12 +541,30 @@ def LoadServices(app, redissession, client ,getClientName):
                 if 'custname' in j.keys():
                     if j['custname'] in dataObjects.keys():
                         j['objectName'] = dataObjects[j['custname']]['xpath']
+                        if j['appType'] in ['Web','MobileWeb']:
+                            j['identifier']=dataObjects[j['custname']]['identifier']
                         j['url'] = dataObjects[j['custname']]['url'] if 'url' in dataObjects[j['custname']] else ""
                         j['cord'] = dataObjects[j['custname']]['cord'] if 'cord' in dataObjects[j['custname']] else ""
                         if 'original_device_width' in dataObjects[j['custname']].keys():
                             j['original_device_width'] = dataObjects[j['custname']]['original_device_width']
                             j['original_device_height'] = dataObjects[j['custname']]['original_device_height']
                         j['objectid'] = j['custname']
+                        if 'top' in dataObjects[j['custname']]:
+                            j['top'] = dataObjects[j['custname']]['top']
+                        else:
+                            j['top'] = ""
+                        if 'left' in dataObjects[j['custname']]:
+                            j['left'] = dataObjects[j['custname']]['left']
+                        else:
+                            j['left'] = ""
+                        if 'width' in dataObjects[j['custname']]:
+                            j['width'] = dataObjects[j['custname']]['width']
+                        else:
+                            j['width'] = ""
+                        if 'height' in dataObjects[j['custname']]:
+                            j['height'] = dataObjects[j['custname']]['height']
+                        else:
+                            j['height'] = ""
                         j['custname'] = dataObjects[j['custname']]['custname']
                     elif (j['custname'] not in defcn or j['custname']=='OBJECT_DELETED'):
                         j['custname'] = 'OBJECT_DELETED'
