@@ -187,7 +187,8 @@ def LoadServices(app, redissession, client ,getClientName):
                     'releases':[],
                     'cycles':{},
                     'projecttypes':projecttype_names,
-                    'domains':[]
+                    'domains':[],
+                    'progressStep':[]
                 }
                 if 'userrole' in requestdata and requestdata['userrole'] == "Test Manager":
                     dbconn=dbsession["projects"]
@@ -196,6 +197,7 @@ def LoadServices(app, redissession, client ,getClientName):
                     userid=requestdata['userid']
                     dbconn=dbsession["users"]
                     projectIDResult=list(dbconn.find({"_id":ObjectId(userid)},{"projects":1}))
+
                 if(len(projectIDResult)!=0):
                     dbconn=dbsession["mindmaps"]
                     prjids=[]
@@ -226,6 +228,21 @@ def LoadServices(app, redissession, client ,getClientName):
                             prjDetails['appTypeName'].append(projecttype_names[str(prjDetail[0]['type'])])
                             prjDetails['releases'].append(prjDetail[0]["releases"])
                             prjDetails['domains'].append(prjDetail[0]["domain"])
+                            list_of_modules = list(dbsession.mindmaps.find({"projectid":ObjectId(pid)},{"_id":1}))
+                            listofmodules=[]
+                            for prj_ids in list_of_modules:
+                                listofmodules.append(prj_ids["_id"])
+                            if len(list_of_modules) == 0 :
+                                progressStep = 0
+                            keyDetails =dbsession.configurekeys.find({"executionData.batchInfo.projectId":ObjectId(pid)}).count()
+                            if len(list_of_modules) > 0 and keyDetails == 0 :
+                                progressStep = 1
+                            executionList=list(dbsession.testsuites.find({"mindmapid":{"$in":listofmodules}},{"_id":1}))
+                            if len(list_of_modules) > 0 and keyDetails > 0 and len(executionList) == 0 :
+                                    progressStep = 2
+                            elif len(executionList) > 0:
+                                    progressStep = 3
+                            prjDetails['progressStep'].append(progressStep)                            
                             for rel in prjDetail[0]["releases"]:
                                 for cyc in rel['cycles']:
                                     prjDetails['cycles'][str(cyc['_id'])]=[str(cyc['_id']),rel['name'],cyc['name'],]
@@ -3071,3 +3088,44 @@ def LoadServices(app, redissession, client ,getClientName):
         except Exception as dropTempExpImpCollexc:
             servicesException("dropTempExpImpColl",dropTempExpImpCollexc, True)
         return jsonify(res)
+
+    
+    @app.route('/mindmap/getProjectsMMTS',methods=['POST'])
+    def getProjectsMMTS():
+        res={'rows':'fail'}
+        try:
+            requestdata=json.loads(request.data)
+            app.logger.debug("Inside getProjectsMMTS.")
+            if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)             
+                dbsession=client[clientName]
+                if (requestdata['query'] == 'getProjectsMMTS'):
+                    userid=ObjectId(requestdata["userid"])
+                    Proj_det=list(dbsession.projects.find({"createdby":userid},{"name":1}))
+                    proj_ids=[]
+                    for x in Proj_det:
+                        proj_ids.append(x["_id"])
+                    mm_det=list(dbsession.mindmaps.aggregate([{"$match":{"projectid":{"$in":proj_ids},"type":"basic"}},
+                                                        {"$lookup":{
+                                                            "from":"testscenarios",
+                                                            "localField":"_id",
+                                                            "foreignField":"parent",
+                                                            "as":"scenarioList"}},
+                                                        {"$project":{"name":1,"scenarioList.name":1,"scenarioList._id":1,"projectid":1}}]))
+                    for x in Proj_det:
+                        x["mindmapList"]=[]
+                        for y in mm_det:
+                            if "projectid" in y:
+                                if x["_id"]==y["projectid"]:
+                                    del y["projectid"]
+                                    x["mindmapList"].append(y)
+                                                
+
+                    if Proj_det:
+                        res={'rows':Proj_det}
+            else:
+                app.logger.warn('Empty data received while importing mindmap')
+        except Exception as getProjectsMMTSexc:
+            servicesException("getProjectsMMTS",getProjectsMMTSexc, True)
+        return jsonify(res)
+

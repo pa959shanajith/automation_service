@@ -127,6 +127,7 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
                 elif (action=="update"):
                     if(requestdata["auth"]["password"] == "" and requestdata["auth"]["type"] == "inhouse" ):
                         result=dbsession.users.find_one({"_id":ObjectId(requestdata["userid"])})["auth"]["password"]
+                        dbsession.users.update_one({"_id":ObjectId(requestdata["userid"])}, {"$set": {"profileimage":requestdata["userimage"]}})
                         requestdata["auth"]["password"] = result
                     update_query = {
                         "firstname":requestdata["firstname"],
@@ -1783,6 +1784,7 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
             requestdata=json.loads(request.data)
             clientName=getClientName(requestdata)             
             dbsession=client[clientName]
+            role=requestdata["assignedUsers"][0]["role"]
 
             app.logger.debug("Inside userCreateProject_ICE. Query: create Project")
 
@@ -1840,10 +1842,10 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
 
                     # for user_id in each_dict:
 
-                    if assignedUsers[user_id]==True:
-
-                        dbsession.users.update_one({"_id":ObjectId(user_id)},{"$push":{"projects":project_id.inserted_id}})
-
+                    if 'id' in user_id:
+                        default_role_id = list(dbsession.permissions.find({ "name": role }, {"_id": 1}))
+                        dbsession.users.update_one({"_id":ObjectId(user_id["id"])}, {"$push": {"projects":project_id.inserted_id, "assignedrole": default_role_id[0]["_id"]}})
+                    
                 res={"rows":"success"}
 
             else:
