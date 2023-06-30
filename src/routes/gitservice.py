@@ -406,13 +406,15 @@ def LoadServices(app, redissession, client ,getClientName, *args):
                 origin = repo.create_remote('origin',url)
                 try:
                     origin.fetch()
-                except:
+                except Exception as e:
+                    app.logger.error(e)
                     res ={"rows":"unable to connect GIT"}
                     return res
                 repo.git.checkout(branch_name)
                 try:
                     repo.git.pull(ff=True)
-                except:
+                except Exception as e:
+                    app.logger.error(e)
                     res ={"rows":"unable to connect GIT"}
                     return res
 
@@ -493,7 +495,7 @@ def LoadServices(app, redissession, client ,getClientName, *args):
             dbsession.Export_dataobjects_git.drop()
             dbsession.Export_testscenarios_git.drop()
             servicesException("exportToGit", ex, True)
-        # remove_dir(git_path)
+        remove_dir(git_path)
         return res
 
     def update_steps(steps,dataObjects):
@@ -549,7 +551,8 @@ def LoadServices(app, redissession, client ,getClientName, *args):
                 repo.index.commit(module_data["gitVersion"])
                 try:
                     repo.git.push()
-                except:
+                except Exception as e:
+                    app.logger.error(e)
                     res ={"rows":"unable to connect GIT"}
                     return res
                 # get the commit id and save it in gitexportdetails
@@ -1065,7 +1068,7 @@ def LoadServices(app, redissession, client ,getClientName, *args):
             dbsession.git_Testcase_Import_ids.drop()                    
             dbsession.git_testcase_steps.drop()
             servicesException("importGitMindmap", ex, True)
-        # remove_dir(git_path)
+        remove_dir(git_path)
         return res
 
     def adddataobjects(dbsession,pid, d):
@@ -1151,12 +1154,12 @@ def LoadServices(app, redissession, client ,getClientName, *args):
         except:
             return hex_data
     
-    @app.route('/git/checkExportName',methods=['POST'])
-    def checkExportName():
+    @app.route('/git/checkExportVer',methods=['POST'])
+    def checkExportVer():
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
-            app.logger.debug("Inside checkExportName.")
+            app.logger.debug("Inside checkExportVer.")
             if not isemptyrequest(requestdata):
                 clientName=getClientName(requestdata)             
                 dbsession=client[clientName]                
@@ -1170,8 +1173,8 @@ def LoadServices(app, redissession, client ,getClientName, *args):
                     res={"rows": expName}
             else:
                 app.logger.warn('Empty data received while importing mindmap')
-        except Exception as checkExportNameexc:
-            servicesException("checkExportName",checkExportNameexc, True)
+        except Exception as checkExportVerexc:
+            servicesException("checkExportVer",checkExportVerexc, True)
         return jsonify(res)
     
     
