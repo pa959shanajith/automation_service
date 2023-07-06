@@ -332,6 +332,10 @@ def LoadServices(app, redissession, client ,getClientName):
                         parentid = ObjectId(requestdata['parentId'])	
                     else:	
                         parentid = ObjectId()
+                    if "scheduleThrough" in requestdata:
+                        schedulethrough = requestdata["scheduleThrough"]
+                    else:
+                        schedulethrough = "client"
                     dataquery = {
                         "scheduledon": datetime.fromtimestamp(int(requestdata['timestamp'])/1000,pytz.UTC),
                         "executeon": requestdata["executeon"],
@@ -351,7 +355,8 @@ def LoadServices(app, redissession, client ,getClientName):
                         "startdate": datetime.fromtimestamp(int(requestdata['startDate'])/1000,pytz.UTC),
                         "configurekey": requestdata["configureKey"],
                         "configurename": requestdata["configureName"],
-                        "endafter": requestdata["endAfter"]
+                        "endafter": requestdata["endAfter"],
+                        "schedulethrough": schedulethrough
                     }
                     if "smartid" in requestdata: dataquery["smartid"] = uuid.UUID(requestdata["smartid"])
                     scheduleid = dbsession.scheduledexecutions.insert(dataquery)
