@@ -3065,6 +3065,8 @@ def LoadServices(app, redissession, client ,getClientName):
                     dbsession.Export_mindmap.drop()
                     dbsession.Module_Import.drop()
                     dbsession.mindmapnames.drop()
+                    dbsession.Export_mindmap_git.drop()
+                    dbsession.git_Module_Import.drop()
                     res={'rows':'pass'}
             else:
                 app.logger.warn('Empty data received while importing mindmap')
