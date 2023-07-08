@@ -35,7 +35,7 @@ def LoadServices(app, redissession, client ,getClientName):
                 dbsession=client[clientName]
                 if(requestdata["query"] == 'projects'):
                     queryresult1=dbsession.users.find_one({"_id": ObjectId(requestdata["userid"])},{"projects":1,"_id":0})
-                    queryresult=list(dbsession.projects.find({"_id":{"$in":queryresult1["projects"]}},{"name":1,"releases":1,"type":1,"modifiedby":1}))
+                    queryresult=list(dbsession.projects.find({"_id":{"$in":queryresult1["projects"]}},{"name":1,"releases":1,"type":1,"modifiedby":1,"progressStep":1}))
                     modifiedby_ids=[]
                     for modifiedId in queryresult:
                         modifiedby_ids.append(ObjectId(modifiedId["modifiedby"]))
@@ -47,7 +47,29 @@ def LoadServices(app, redissession, client ,getClientName):
                                 username["firstname"]=modifiedname["firstname"]
                                 username["lastname"]=modifiedname["lastname"]
                                 break
-                            
+                    project_id = queryresult1["projects"]
+                    progressSteps=[]
+                    for ids in project_id:
+                        list_of_modules = list(dbsession.mindmaps.find({"projectid":ids}))
+                        listofmodules=[]
+                        for prj_ids in list_of_modules:
+                            listofmodules.append(prj_ids["_id"])
+                        if len(list_of_modules) == 0 :
+                            progressStep = 0
+                        keyDetails =dbsession.configurekeys.find({"executionData.batchInfo.projectId":ids}).count()
+                        if len(list_of_modules) > 0 and keyDetails == 0 :
+                            progressStep = 1
+                        executionList=list(dbsession.testsuites.find({"mindmapid":{"$in":listofmodules}},{"_id":1}))
+                        if len(list_of_modules) > 0 and keyDetails > 0 and len(executionList) == 0 :
+                                progressStep = 2
+                        elif len(executionList) > 0:
+                                progressStep = 3
+
+                        progressSteps.append(progressStep)
+
+                    for index in range(len(queryresult)):
+                        queryresult[index]['progressStep'] = progressSteps[index]
+                
                     res= {"rows":queryresult}
                 elif(requestdata["query"] == 'getAlltestSuites'):
                     queryresult=list(dbsession.testsuites.aggregate([
@@ -771,6 +793,5 @@ def LoadServices(app, redissession, client ,getClientName):
             dbsession.mod_exe.drop()
             servicesException("fetchExecutionDetail",fetchExecutionDetailexc, True)
         return jsonify(res)
-
 
 # END OF REPORTS
