@@ -793,5 +793,35 @@ def LoadServices(app, redissession, client ,getClientName):
             dbsession.mod_exe.drop()
             servicesException("fetchExecutionDetail",fetchExecutionDetailexc, True)
         return jsonify(res)
+    
+    @app.route('/reports/fetchExecProfileStatus',methods=['POST'])
+    def fetchExecProfileStatus():
+        res={'rows':'fail'}
+        result = {}
+        try:
+            requestdata=json.loads(request.data)
+            clientName=getClientName(requestdata)        
+            dbsession=client[clientName]
+            configurekey= requestdata['configurekey']
+            reports = dbsession.executions.aggregate([{"$match":{"configurekey":configurekey}},{"$group":{"_id":"$executionListId",
+                                                                    "modStatus":{"$push":{"_id":"$_id","status":"$status"}},"startDate":{"$first":"$starttime"}}},
+                                                                    {'$lookup':{
+                                                                                        'from':"reports",
+                                                                                        'localField':"modStatus._id",
+                                                                                        'foreignField':"executionid",
+                                                                                        'as':"reportdata"
+                                                                                        }
+                                                                                    },
+                                                                                    {"$project":{"_id":1,"modSattus":"$modStatus.status","scestatus":"$reportdata.status","startDate":1}},{"$sort":{"startDate":-1}}
+                                                                                    ])
+            result = list(reports)
+            res['rows'] = result
+            return jsonify(res)
+        except Exception as e:
+            servicesException("getAccessibilityReports_API",e)
+            res={'rows':'fail'}
+        return jsonify(res)    
+
+
 
 # END OF REPORTS
