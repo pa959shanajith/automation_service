@@ -308,10 +308,14 @@ def LoadServices(app, redissession, client ,getClientName):
                     'release': updatedExecutionReq['batchInfo'][0]['releaseId'],
                     'executionRequest': updatedExecutionReq
                 })
-
+            if "param" in requestdata and requestdata["param"] =="reportData":
+                date_info=list(dbsession.executions.aggregate([{"$match":{"projectId":requestdata['projectid']}},{"$group":{"_id":"$configurekey","execDate":{"$last":"$starttime"}}}]))
+                for data in responseData:
+                    for dateinfo in date_info:
+                        if data["configurekey"] == dateinfo["_id"]:
+                            data["execDate"] = dateinfo["execDate"]
+                            break
             res['rows'] = responseData
-
-
         except Exception as e:
             print(e)
             return e
