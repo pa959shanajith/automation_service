@@ -818,10 +818,10 @@ def LoadServices(app, redissession, client ,getClientName):
             res['rows'] = result
             return jsonify(res)
         except Exception as e:
-            servicesException("getAccessibilityReports_API",e)
+            servicesException("fetchExecProfileStatus",e)
             res={'rows':'fail'}
         return jsonify(res)    
-
+    
 
 
 # END OF REPORTS
