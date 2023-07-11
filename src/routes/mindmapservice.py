@@ -187,8 +187,7 @@ def LoadServices(app, redissession, client ,getClientName):
                     'releases':[],
                     'cycles':{},
                     'projecttypes':projecttype_names,
-                    'domains':[],
-                    'progressStep':[]
+                    'domains':[]
                 }
                 if 'userrole' in requestdata and requestdata['userrole'] == "Test Manager":
                     dbconn=dbsession["projects"]
@@ -227,22 +226,7 @@ def LoadServices(app, redissession, client ,getClientName):
                             prjDetails['appType'].append(str(prjDetail[0]['type']))
                             prjDetails['appTypeName'].append(projecttype_names[str(prjDetail[0]['type'])])
                             prjDetails['releases'].append(prjDetail[0]["releases"])
-                            prjDetails['domains'].append(prjDetail[0]["domain"])
-                            list_of_modules = list(dbsession.mindmaps.find({"projectid":ObjectId(pid)},{"_id":1}))
-                            listofmodules=[]
-                            for prj_ids in list_of_modules:
-                                listofmodules.append(prj_ids["_id"])
-                            if len(list_of_modules) == 0 :
-                                progressStep = 0
-                            keyDetails =dbsession.configurekeys.find({"executionData.batchInfo.projectId":ObjectId(pid)}).count()
-                            if len(list_of_modules) > 0 and keyDetails == 0 :
-                                progressStep = 1
-                            executionList=list(dbsession.testsuites.find({"mindmapid":{"$in":listofmodules}},{"_id":1}))
-                            if len(list_of_modules) > 0 and keyDetails > 0 and len(executionList) == 0 :
-                                    progressStep = 2
-                            elif len(executionList) > 0:
-                                    progressStep = 3
-                            prjDetails['progressStep'].append(progressStep)                            
+                            prjDetails['domains'].append(prjDetail[0]["domain"])                       
                             for rel in prjDetail[0]["releases"]:
                                 for cyc in rel['cycles']:
                                     prjDetails['cycles'][str(cyc['_id'])]=[str(cyc['_id']),rel['name'],cyc['name'],]
@@ -3101,7 +3085,7 @@ def LoadServices(app, redissession, client ,getClientName):
                 dbsession=client[clientName]
                 if (requestdata['query'] == 'getProjectsMMTS'):
                     projectid=ObjectId(requestdata["projectid"])
-                    mm_det=list(dbsession.mindmaps.aggregate([{"$match":{"projectid":projectid}},{'$lookup': {
+                    mm_det=list(dbsession.mindmaps.aggregate([{"$match":{"projectid":projectid, "type":"basic"}},{'$lookup': {
                                                 'from': "testscenarios",
                                                 'localField': "_id",
                                                 'foreignField': "parent",
@@ -3117,5 +3101,28 @@ def LoadServices(app, redissession, client ,getClientName):
                 app.logger.warn('Empty data received while importing mindmap')
         except Exception as getProjectsMMTSexc:
             servicesException("getProjectsMMTS",getProjectsMMTSexc, True)
+        return jsonify(res)
+    
+
+    @app.route('/mindmap/updateE2E',methods=['POST'])
+    def updateE2E():
+        res={'rows':'fail'}
+        try:
+            requestdata=json.loads(request.data)
+            app.logger.debug("Inside getProjectsMMTS.")
+            if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)             
+                dbsession=client[clientName]
+                sceid=ObjectId(requestdata["scenarioID"])
+                projectid=ObjectId(requestdata["projectID"])
+                mm_det=dbsession.testscenarios.find_one({"_id":sceid,"projectid":projectid},{"parent":1})
+                mm_name=dbsession.mindmaps.find_one({"_id":{"$in":mm_det["parent"]},"type":"basic"},{"name":1})
+                proj_name=dbsession.projects.find_one({"_id":projectid},{"name":1})
+                queryresult={"module_name":mm_name["name"],"proj_name":proj_name["name"]}
+                res={"rows":queryresult}
+            else:
+                app.logger.warn('Empty data received while importing mindmap')
+        except Exception as updateE2Eexc:
+            servicesException("getProjectsMMTS",updateE2Eexc, True)
         return jsonify(res)
 

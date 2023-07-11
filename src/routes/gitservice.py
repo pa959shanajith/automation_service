@@ -682,3 +682,26 @@ def LoadServices(app, redissession, client ,getClientName, *args):
             return data[0:-ord(data[-1])]
         except:
             return hex_data
+        
+    @app.route('/git/checkExportVer',methods=['POST'])
+    def checkExportVer():
+            res={'rows':'fail'}
+            try:
+                requestdata=json.loads(request.data)
+                app.logger.debug("Inside checkExportVer.")
+                if not isemptyrequest(requestdata):
+                    clientName=getClientName(requestdata)         
+                    dbsession=client[clientName]                
+                    expName=list(dbsession.gitexportdetails.find({"projectid":ObjectId(requestdata["projectId"])},{"commitmessage":1,"version":1,"_id":0}))
+                    if requestdata["query"] =="exportgit":
+                        ver=[]
+                        for version in expName:
+                            ver.append(version["version"])                
+                        res={"rows":ver}
+                    else:
+                        res={"rows": expName}
+                else:
+                    app.logger.warn('Empty data received while importing mindmap')
+            except Exception as checkExportVerexc:
+                servicesException("checkExportVer",checkExportVerexc, True)
+            return jsonify(res)
