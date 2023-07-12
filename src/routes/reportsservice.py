@@ -812,7 +812,7 @@ def LoadServices(app, redissession, client ,getClientName):
                                                                                         'as':"reportdata"
                                                                                         }
                                                                                     },
-                                                                                    {"$project":{"_id":1,"modSattus":"$modStatus.status","scestatus":"$reportdata.status","startDate":1}},{"$sort":{"startDate":-1}}
+                                                                                    {"$project":{"_id":1,"modStatus":"$modStatus.status","scestatus":"$reportdata.status","startDate":1}},{"$sort":{"startDate":-1}}
                                                                                     ])
             result = list(reports)
             res['rows'] = result
@@ -822,6 +822,51 @@ def LoadServices(app, redissession, client ,getClientName):
             res={'rows':'fail'}
         return jsonify(res)    
     
+
+    @app.route('/reports/fetchModSceDetails',methods=['POST'])
+    def fetchModSceDetails():
+        res={'rows':'fail'}
+        result = {}
+        try:
+            requestdata=json.loads(request.data)
+            clientName=getClientName(requestdata)        
+            dbsession=client[clientName]
+            # configurekey= requestdata['configurekey']
+            if (requestdata["param"] == "modulestatus"):
+                executionListId = requestdata['executionListId']
+                reports = dbsession.executions.aggregate([{"$match":{"executionListId":executionListId}},
+                                                                        {"$project":{"parent":1,"status":1}},{'$lookup':{
+                                                                        'from':"testsuites",
+                                                                        'localField':"parent",
+                                                                        'foreignField':"_id",
+                                                                        'as':"testsuites"
+                                                                            }
+                                                                        },{'$lookup':{
+                                                                        'from':"reports",
+                                                                        'localField':"_id",
+                                                                        'foreignField':"executionid",
+                                                                        'as':"reports"
+                                                                        } },
+                                                                        {"$project":{'modulename':{"$arrayElemAt":["$testsuites.name",0]},"status":1,"scenarioStatus":"$reports.status"}}
+                                                                        ])
+            elif (requestdata["param"] == "scenarioStatus"): 
+                executionid = requestdata['executionId']
+                reports=dbsession.reports.aggregate([{"$match":{"executionid":ObjectId(executionid)}},
+                                                            {"$project":{"testscenarioid":1,"status":1}},
+                                                            {'$lookup':{'from':"testscenarios",
+                                                                        'localField':"testscenarioid",
+                                                                        'foreignField':"_id",
+                                                                        'as':"testscenarios"
+                                                                         }
+                                                                                    },{"$project":{'scenarioname':{"$arrayElemAt":["$testscenarios.name",0]},"status":1}}])
+
+            result = list(reports)  
+            res['rows'] = result    
+            return jsonify(res) 
+        except Exception as e:
+            servicesException("fetchModSceDetails",e)
+            res={'rows':'fail'}
+        return jsonify(res)
 
 
 # END OF REPORTS
