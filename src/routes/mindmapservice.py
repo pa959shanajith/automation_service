@@ -3114,15 +3114,14 @@ def LoadServices(app, redissession, client ,getClientName):
                 clientName=getClientName(requestdata)             
                 dbsession=client[clientName]
                 sceid=ObjectId(requestdata["scenarioID"])
-                projectid=ObjectId(requestdata["projectID"])
-                mm_det=dbsession.testscenarios.find_one({"_id":sceid,"projectid":projectid},{"parent":1})
-                mm_name=dbsession.mindmaps.find_one({"_id":{"$in":mm_det["parent"]},"type":"basic"},{"name":1})
-                proj_name=dbsession.projects.find_one({"_id":projectid},{"name":1})
+                mm_det=dbsession.testscenarios.find_one({"_id":sceid },{"parent":1})
+                mm_name=dbsession.mindmaps.find_one({"_id":{"$in":mm_det["parent"]},"type":"basic"},{"projectid":1, "name":1})
+                proj_name=dbsession.projects.find_one({"_id":mm_name["projectid"]},{"name":1})
                 queryresult={"module_name":mm_name["name"],"proj_name":proj_name["name"]}
                 res={"rows":queryresult}
             else:
                 app.logger.warn('Empty data received while importing mindmap')
         except Exception as updateE2Eexc:
-            servicesException("getProjectsMMTS",updateE2Eexc, True)
+            servicesException("updateE2E",updateE2Eexc, True)
         return jsonify(res)
 
