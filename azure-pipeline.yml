@@ -79,6 +79,7 @@ stages:
         move /Y ../portable_python/libs ./
         python .\build\db_utility.py
         move /Y .\src\server_config.json ./
+        move /Y ../mongoClient ./
         python .\build\build.py
         rmdir src /q /s
         rmdir include /q /s
