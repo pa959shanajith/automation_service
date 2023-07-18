@@ -105,7 +105,7 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
                             requestdata["projects"]=[result[0]["_id"]]
                         else:
                             requestdata["projects"]=[]
-                        requestdata["welcomeStepNo"] = 0
+                        requestdata["welcomeStepNo"] = 4
                         if "Trial" in lsData["LicenseTypes"]:
                             requestdata["firstTimeLogin"] = True
                         if requestdata["auth"]["type"] in ["inhouse", "ldap"]:

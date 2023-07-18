@@ -3120,7 +3120,7 @@ def LoadServices(app, redissession, client ,getClientName):
                     mm_name=dbsession.mindmaps.find_one({"_id":{"$in":mm_det["parent"]},"type":"basic"},{"projectid":1, "name":1})
                     proj_name=dbsession.projects.find_one({"_id":mm_name["projectid"]},{"name":1})
                     queryresult.append({"module_name":mm_name["name"],"proj_name":proj_name["name"], "scenarioID":scenarioid})      
-                    res={"rows":queryresult}
+                res={"rows":queryresult}
             else:
                 app.logger.warn('Empty data received while importing mindmap')
         except Exception as updateE2Eexc:
