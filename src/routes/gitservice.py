@@ -787,23 +787,33 @@ def LoadServices(app, redissession, client ,getClientName, *args):
                                     
 
                                         for i in mindmapIds:
-                                            if "tsIds" in i:
+                                            testscen=[]
+                                            if "tsIds" in i:                                    
                                                 for tsId in i["tsIds"]:
-                                                    for j in ScenarioIds:
-                                                        if tsId["_id"]==j["old_id"]:
-                                                            tsId["_id"]=j["_id"]
-                                                            break
+                                                    if tsId:
+                                                        if "_id" in tsId:
+                                                            for j in ScenarioIds:
+                                                                if tsId["_id"]==j["old_id"]:
+                                                                    tsId["_id"]=j["_id"]
+                                                                    break
+                                                        testscen.append(tsId)
+                                            i["tsIds"]=testscen
+                                                                                            
                                         
                                         for i in mindmapIds:
                                             if "tsIds" in i:
                                                 for tsId in i["tsIds"]:
+                                                    scrndt=[]
                                                     if "screens" in tsId:
                                                         for screens in tsId["screens"]:
-                                                            for k in screenIds:
+                                                            if screens:
                                                                 if "_id" in screens:
-                                                                    if screens["_id"]==k["old_id"]:
-                                                                        screens["_id"]=k["_id"]
-                                                                        break
+                                                                    for k in screenIds:
+                                                                        if screens["_id"]==k["old_id"]:
+                                                                            screens["_id"]=k["_id"]
+                                                                            break
+                                                                scrndt.append(screens)
+                                                    tsId["screens"]=scrndt
                                         
                                         mdmaptscen=[]
                                         for i in mindmapIds:                                               
@@ -944,11 +954,11 @@ def LoadServices(app, redissession, client ,getClientName, *args):
                                         testcaseparent=[]                    
                                         testcaseids=[]                   
                                         for i in moduleids:
-                                            if i["testscenarios"] and len(i["testscenarios"])>0:
+                                            if "testscenarios" in i and len(i["testscenarios"])>0:
                                                 for j in i["testscenarios"]:
-                                                    if j["screens"] and len(j["screens"])>0:
+                                                    if "screens" in j and len(j["screens"])>0:
                                                         for k in j["screens"]:
-                                                            if k["testcases"] and len(k["testcases"])>0:                                
+                                                            if "testcases" in k and len(k["testcases"])>0:                                
                                                                 for testcase in k["testcases"]:
                                                                         array3={"_id":"","parent":[]}                                    
                                                                         if testcase in testcaseids:                                            
