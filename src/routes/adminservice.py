@@ -1916,14 +1916,14 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
             # app.logger.debug("Inside getUsers_ICE. Query: "+str(requestdata["query"]))
             if not isemptyrequest(requestdata):
                 result=list(dbsession.users.find({"projects":ObjectId(requestdata["project_id"]),"projectlevelrole._id" :requestdata["project_id"]},{"projectlevelrole.$":1, "name":1, "firstname":1, "lastname":1, "defaultrole":1, "email":1}))
-                role_name=list(dbsession.permissions.find({ }, {"name": 1}))
-                for x in result:
-                    for y in role_name:
-                        roleName = x["projectlevelrole"][0]["assignedrole"]
-                        if y["_id"] == ObjectId(roleName):
-                            x["assignedrole"] = y
+                roleDetails=list(dbsession.permissions.find({ }, {"name": 1}))
+                for role in result:
+                    for roleId in roleDetails:
+                        roleName = role["projectlevelrole"][0]["assignedrole"]
+                        if roleId["_id"] == ObjectId(roleName):
+                            role["assignedrole"] = roleId
                             break
-                    del x["projectlevelrole"]
+                    del role["projectlevelrole"]
                     
                 result1=list(dbsession.users.find({"defaultrole":{"$nin":[ObjectId("5db0022cf87fdec084ae49a9"),ObjectId("5f0ee20fba8ae8b8a603b5b6")]},"projects":ObjectId(requestdata["project_id"])},{"name":1,"_id":1}))
                 
