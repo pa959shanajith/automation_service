@@ -796,7 +796,7 @@ def LoadServices(app, redissession, client ,getClientName, *args):
                                                                 if tsId["_id"]==j["old_id"]:
                                                                     tsId["_id"]=j["_id"]
                                                                     break
-                                                        testscen.append(tsId)
+                                                            testscen.append(tsId)
                                             i["tsIds"]=testscen
                                                                                             
                                         
@@ -812,7 +812,7 @@ def LoadServices(app, redissession, client ,getClientName, *args):
                                                                         if screens["_id"]==k["old_id"]:
                                                                             screens["_id"]=k["_id"]
                                                                             break
-                                                                scrndt.append(screens)
+                                                                    scrndt.append(screens)
                                                     tsId["screens"]=scrndt
                                         
                                         mdmaptscen=[]
