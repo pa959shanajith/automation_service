@@ -1843,9 +1843,9 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
                     # for user_id in each_dict:
 
                     if 'id' in user_id:
-                        default_role_id = list(dbsession.permissions.find({ "name": role }, {"_id": 1}))
-                        dbsession.users.update_one({"_id":ObjectId(user_id["id"])}, {"$push": {"projects":project_id.inserted_id, "assignedrole": default_role_id[0]["_id"]}})
-                    
+                        default_role_id = list(dbsession.permissions.find({ "name": role }, {"_id": 1}))                        
+                        dbsession.users.update_one({"_id":ObjectId(user_id["id"])}, {"$push": {"projects":project_id.inserted_id, "projectlevelrole":{"_id":str(project_id.inserted_id), "assignedrole": str(default_role_id[0]["_id"])}}})
+
                 res={"rows":"success"}
 
             else:
@@ -1886,11 +1886,11 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
 
                     if requestdata['assignedUsers'][user_id]==True:
 
-                        dbsession.users.update_one({"_id":ObjectId(user_id)},{"$push":{"projects":ObjectId(requestdata["project_id"])}})
+                        dbsession.users.update_one({"_id":ObjectId(user_id)},{"$push":{"projects":ObjectId(requestdata["project_id"]), "projectlevelrole":{"_id":requestdata["project_id"], "assignedrole": requestdata["assignedrole"]}}})
 
                     elif requestdata['assignedUsers'][user_id]==False:
 
-                        dbsession.users.update_one({"_id":ObjectId(user_id)},{"$pull":{"projects":ObjectId(requestdata["project_id"])}})
+                        dbsession.users.update_one({"_id":ObjectId(user_id)},{"$pull":{"projects":ObjectId(requestdata["project_id"]), "projectlevelrole":{"_id":requestdata["project_id"], "assignedrole": requestdata["assignedrole"]}}})
 
                 res={'rows':'success'}
 
@@ -1915,8 +1915,18 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
             dbsession=client[clientName]
             # app.logger.debug("Inside getUsers_ICE. Query: "+str(requestdata["query"]))
             if not isemptyrequest(requestdata):
-                result=list(dbsession.users.find({"projects":{"$in":[ObjectId(requestdata["project_id"])]}},{"name":1,"_id":1}))
-                result1=list(dbsession.users.find({"defaultrole":{"$nin":[ObjectId("5db0022cf87fdec084ae49a9"),ObjectId("5f0ee20fba8ae8b8a603b5b6")]},"projects":{"$nin":[ObjectId(requestdata["project_id"])]}},{"name":1,"_id":1}))
+                result=list(dbsession.users.find({"projects":ObjectId(requestdata["project_id"]),"projectlevelrole._id" :requestdata["project_id"]},{"projectlevelrole.$":1, "name":1, "firstname":1, "lastname":1, "defaultrole":1, "email":1}))
+                role_name=list(dbsession.permissions.find({ }, {"name": 1}))
+                for x in result:
+                    for y in role_name:
+                        roleName = x["projectlevelrole"][0]["assignedrole"]
+                        if y["_id"] == ObjectId(roleName):
+                            x["assignedrole"] = y
+                            break
+                    del x["projectlevelrole"]
+                    
+                result1=list(dbsession.users.find({"defaultrole":{"$nin":[ObjectId("5db0022cf87fdec084ae49a9"),ObjectId("5f0ee20fba8ae8b8a603b5b6")]},"projects":ObjectId(requestdata["project_id"])},{"name":1,"_id":1}))
+                
                 res={'rows':{"assignedUsers":result, "unassignedUsers":result1}}
             else:
                 app.logger.warn('Empty data received. update project.')
