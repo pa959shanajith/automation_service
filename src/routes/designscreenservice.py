@@ -649,9 +649,9 @@ def LoadServices(app, redissession, client ,getClientName):
                     newlist.append(data['objMap'][eachobj])
 
                 for i in keywordquery:
-                    if i['objecttype'] in newlist:
-                        result['keywordList'][i['objecttype']] = i['keywords']
-                        newlist.remove(i['objecttype'])
+                    # if i['objecttype'] in newlist:
+                    result['keywordList'][i['objecttype']] = i['keywords']
+                        # newlist.remove(i['objecttype'])
                     if len(newlist) == 0:
                         break
 
