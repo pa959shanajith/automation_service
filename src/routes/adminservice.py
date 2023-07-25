@@ -1878,7 +1878,10 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
                     if user["_id"] not in map(listOfUserID,requestdata["assignedUsers"]):
                         newlyUnassignedUsers.append(user)
                 for user in requestdata["assignedUsers"]:
-                    dbsession.users.update_one({"_id":ObjectId(user["id"])},{"$push":{"projects":ObjectId(requestdata["project_id"]), "projectlevelrole":{"_id":requestdata["project_id"], "assignedrole": user["role"]}}})
+                    if "role" in user:
+                        default_role_id = list(dbsession.permissions.find({ "name": user["role"] }, {"_id": 1}))
+
+                    dbsession.users.update_one({"_id":ObjectId(user["id"])},{"$push":{"projects":ObjectId(requestdata["project_id"]), "projectlevelrole":{"_id":requestdata["project_id"], "assignedrole": str(default_role_id[0]["_id"])}}})
                 for user in newlyUnassignedUsers:
                     dbsession.users.update_one({"_id":ObjectId(user["_id"])},{"$pull":{"projects":ObjectId(requestdata["project_id"]), "projectlevelrole":{"_id":requestdata["project_id"]}}})    
                 res={'rows':'success'}
