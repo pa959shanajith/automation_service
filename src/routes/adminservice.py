@@ -1862,40 +1862,30 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
 
 
     @app.route('/plugins/userUpdateProject_ICE',methods=['POST'])
-
     def userUpdateProject_ICE():
-
         res={'rows':'fail'}
-
         try:
-
             requestdata=json.loads(request.data)
             clientName=getClientName(requestdata)             
             dbsession=client[clientName]
-
             # app.logger.debug("Inside userUpdateProject_ICE. Query: "+str(requestdata["query"]))
+            if not isemptyrequest(requestdata):                
+                previousAssignedUsers = dbsession.users.find({"projects": {"$in": [ObjectId(requestdata["project_id"])]}})
+                newlyUnassignedUsers = []
+                def listOfUserID(user):
+                    return ObjectId(user["id"])
+                for user in previousAssignedUsers:
+                    if user["_id"] not in map(listOfUserID,requestdata["assignedUsers"]):
+                        newlyUnassignedUsers.append(user)
+                for user in requestdata["assignedUsers"]:
+                    if "role" in user:
+                        default_role_id = list(dbsession.permissions.find({ "name": user["role"] }, {"_id": 1}))
 
-            if not isemptyrequest(requestdata):
-
-                # assignedUsers = requestdata["assignedUsers"].keys()
-                dbsession.projects.update_one({"_id":ObjectId(requestdata["project_id"])},{"$set":{"modifiedbyrole":ObjectId(requestdata["modifiedbyrole"]),"modifiedby":ObjectId(requestdata["modifiedby"]),"modifiedon":datetime.now()}})
-
-                for user_id in requestdata['assignedUsers']:
-
-                    # for usser_id in each_dict:
-
-                    if requestdata['assignedUsers'][user_id]==True:
-
-                        dbsession.users.update_one({"_id":ObjectId(user_id)},{"$push":{"projects":ObjectId(requestdata["project_id"]), "projectlevelrole":{"_id":requestdata["project_id"], "assignedrole": requestdata["assignedrole"]}}})
-
-                    elif requestdata['assignedUsers'][user_id]==False:
-
-                        dbsession.users.update_one({"_id":ObjectId(user_id)},{"$pull":{"projects":ObjectId(requestdata["project_id"]), "projectlevelrole":{"_id":requestdata["project_id"], "assignedrole": requestdata["assignedrole"]}}})
-
+                    dbsession.users.update_one({"_id":ObjectId(user["id"])},{"$push":{"projects":ObjectId(requestdata["project_id"]), "projectlevelrole":{"_id":requestdata["project_id"], "assignedrole": str(default_role_id[0]["_id"])}}})
+                for user in newlyUnassignedUsers:
+                    dbsession.users.update_one({"_id":ObjectId(user["_id"])},{"$pull":{"projects":ObjectId(requestdata["project_id"]), "projectlevelrole":{"_id":requestdata["project_id"]}}})    
                 res={'rows':'success'}
-
             else:
-
                 app.logger.warn('Empty data received. update project.')
 
         except Exception as updateprojectexc:
@@ -1911,7 +1901,7 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
-            clientName=getClientName(requestdata)             
+            clientName=getClientName(requestdata)
             dbsession=client[clientName]
             # app.logger.debug("Inside getUsers_ICE. Query: "+str(requestdata["query"]))
             if not isemptyrequest(requestdata):
@@ -1925,8 +1915,13 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
                             break
                     del role["projectlevelrole"]
                     
-                result1=list(dbsession.users.find({"defaultrole":{"$nin":[ObjectId("5db0022cf87fdec084ae49a9"),ObjectId("5f0ee20fba8ae8b8a603b5b6")]},"projects":ObjectId(requestdata["project_id"])},{"name":1,"_id":1}))
-                
+                result1=list(dbsession.users.find({"defaultrole":{"$nin":[ObjectId("5db0022cf87fdec084ae49a9"),ObjectId("5f0ee20fba8ae8b8a603b5b6")]},"projects":ObjectId(requestdata["project_id"])},{"name":1,"_id":1, "firstname":1, "lastname":1, "defaultrole":1, "email":1}))
+                for result_1 in result1:
+                    for role_Id in roleDetails:
+                        role_Name = result_1["defaultrole"]
+                        if role_Id["_id"] == role_Name:
+                            result_1["defaultrole"]=role_Id
+                            break                
                 res={'rows':{"assignedUsers":result, "unassignedUsers":result1}}
             else:
                 app.logger.warn('Empty data received. update project.')
