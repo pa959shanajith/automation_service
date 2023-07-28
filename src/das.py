@@ -111,7 +111,7 @@ webPluginList = {
 				"DE":"utility","WEBT":"web","APIT":"webservice","MOBT":"mobileapp","ETOAP":"oebs",
 				"DAPP":"desktop","MF":"mainframe","ETSAP":"sap","MOBWT":"mobileweb"
 			}
-dbsession=redissession=redissession_db2=redissession_db0=client=None
+dbsession=redissession=redissession_db2=redissession_db0=client=dbname=None
 
 
 def _jsonencoder_default(self, obj):
@@ -220,14 +220,14 @@ def updateActiveIceSessions():
     global webPluginList
     res = {"id":"","res":"fail","ts_now":str(datetime.now()),"connect_time":str(datetime.now()),
         "plugins":"","data":random.random()*100000000000000}
-    response = {"node_check":False,"ice_check":wrap(json.dumps(res),ice_das_key)}
+    response = {"node_check":False,"ice_check":json.dumps(res)}
     ice_uuid = None
     ice_ts = None
     try:
         requestdata = json.loads(request.data)
         app.logger.debug("Inside updateActiveIceSessions. Query: "+str(requestdata["query"]))
         if not isemptyrequest(requestdata):
-            clientName=getClientName(requestdata)      
+            clientName=getClientName(requestdata['icesession'])      
             dbsession=client[clientName]
             sess = redissession.get('icesessions')
             if sess == '' or sess is None:
@@ -236,14 +236,11 @@ def updateActiveIceSessions():
             if(requestdata['query'] == 'disconnect'):
                 icename=requestdata['icename'].lower()
                 with r_lock:
-                    activeicesessions=json.loads(unwrap(redissession.get('icesessions'),db_keys))
-                    if icename in activeicesessions:
-                        del activeicesessions[icename]
-                        redissession.set('icesessions',wrap(json.dumps(activeicesessions),db_keys))
+                    redissession.hset(clientName,icename,'')
                 res['res'] = "success"
 
             elif(requestdata['query']=='connect' and 'icesession' in requestdata):
-                icesession = unwrap(requestdata['icesession'],ice_das_key)
+                icesession = requestdata['icesession']
                 icesession = json.loads(icesession)
                 ice_action = icesession["iceaction"]
                 ice_token_dec = icesession["icetoken"]
@@ -295,13 +292,10 @@ def updateActiveIceSessions():
                                 res['status'] = "allow"
                                 f_allow = False
                                 with r_lock:
-                                    activeicesessions=json.loads(unwrap(redissession.get('icesessions'),db_keys))
-                                    # Remove stale sessions
-                                    ice_statuses = json.loads(redissession_db2.get("ICE_status"))
-                                    for ice in list(activeicesessions.keys()):
-                                        if ice not in ice_statuses or ice_statuses[ice]['connected'] == False: activeicesessions.pop(ice)
+                                    if redissession_db2.hget(clientName,ice_name) != None and json.loads(redissession_db2.hget(clientName,ice_name))['connected'] == False:
+                                        redissession.hset(clientName,ice_name,'')
                                     # To ensure another ICE with same name is not connected already
-                                    if ice_name in activeicesessions and activeicesessions[ice_name] != ice_uuid:
+                                    if redissession.hget(clientName,ice_name) != None and redissession.hget(clientName,ice_name) != ice_uuid and redissession.hget(clientName,ice_name) != b'':
                                         res['err_msg'] = "Connection exists with same token"
                                     # To check if license is available
                                     elif str(lsData['USER']) != "Unlimited" and len(activeicesessions) >= int(lsData['USER']):
@@ -309,7 +303,7 @@ def updateActiveIceSessions():
                                     # To add in active ice sessions
                                     else:
                                         activeicesessions[ice_name] = ice_uuid
-                                        redissession.set('icesessions', wrap(json.dumps(activeicesessions),db_keys))
+                                        redissession.hset(clientName,ice_name,ice_uuid)
                                         f_allow = True
                                 if f_allow: 
                                     res['res'] = "success"
@@ -332,7 +326,7 @@ def updateActiveIceSessions():
                                 res['err_msg'] = "Access denied: ICE is not in Registered state"
                             response["node_check"] = res['status'] = "InvalidICE"
                             app.logger.error("%s : ICE is not in Registered state ", ice_name)
-                response["ice_check"] = wrap(json.dumps(res),ice_das_key)
+                response["ice_check"] =json.dumps(res)
             app.logger.debug("Connected clients: "+str(list(activeicesessions.keys())))
         else:
             app.logger.warn('Empty data received. updateActiveIceSessions.')
@@ -505,14 +499,18 @@ def reportdataprocessor(resultset,fromdate,todate):
 ################################################################################
 
 def getClientName(requestdata):
-    global licenseServer
+    global licenseServer,dbname
     clientName="avoassure"
-    try:
-        if ('DB_NAME' in os.environ):
-            clientName=os.environ['DB_NAME']
-    except Exception as e:
-        app.logger.error(e)
-        app.logger.error('Error while fetching client name')
+    if dbname:
+        clientName = dbname
+    else:
+        try:
+            if 'host' in requestdata:
+                if 'localhost' not in requestdata['host'] and '127.0.0.1' not in requestdata['host']:
+                    clientName=requestdata['host'].split('.')[0]
+        except Exception as e:
+            app.logger.error(e)
+            app.logger.error('Error while fetching client name')
 
     return clientName
 
@@ -635,12 +633,14 @@ def wrap(data, key, iv=b'0'*16):
 ################################################################################
 
 def main():
-    global lsport,dasport,mongo_dbup,redis_dbup,licenseServer,client
+    global lsport,dasport,mongo_dbup,redis_dbup,licenseServer,client,dbname
     global redissession,dbsession,redissession_db2,redissession_db0
     das_conf_obj = open(config_path, 'r')
     das_conf = json.load(das_conf_obj)
     das_conf_obj.close()
     licenseServer=das_conf['licenseServer']
+    if 'database' in das_conf['avoassuredb']:
+        dbname=das_conf['avoassuredb']['database']
     creds = {}
     kwargs = {}
 
@@ -719,11 +719,6 @@ def main():
         redissession = redis.StrictRedis(host=redisdb_conf['host'], port=int(redisdb_conf['port']), password=redisdb_pass, db=3)
         redissession_db2 = redis.StrictRedis(host=redisdb_conf['host'], port=int(redisdb_conf['port']), password=redisdb_pass, db=2)
         redissession_db0 = redis.StrictRedis(host=redisdb_conf['host'], port=int(redisdb_conf['port']), password=redisdb_pass, db=0)
-
-        if redissession.get('icesessions') is None:
-            redissession.set('icesessions',wrap('{}',db_keys))
-        if redissession_db2.get("ICE_status") is None:
-            redissession_db2.set("ICE_status", '{}')
         redis_dbup = True
     except Exception as e:
         redis_dbup = False
