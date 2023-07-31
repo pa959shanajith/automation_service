@@ -227,7 +227,7 @@ def updateActiveIceSessions():
         requestdata = json.loads(request.data)
         app.logger.debug("Inside updateActiveIceSessions. Query: "+str(requestdata["query"]))
         if not isemptyrequest(requestdata):
-            clientName=getClientName(requestdata['icesession'])      
+            clientName=getClientName(json.loads(requestdata['icesession']))      
             dbsession=client[clientName]
             sess = redissession.get('icesessions')
             if sess == '' or sess is None:
