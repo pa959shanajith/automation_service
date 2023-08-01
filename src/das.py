@@ -111,7 +111,7 @@ webPluginList = {
 				"DE":"utility","WEBT":"web","APIT":"webservice","MOBT":"mobileapp","ETOAP":"oebs",
 				"DAPP":"desktop","MF":"mainframe","ETSAP":"sap","MOBWT":"mobileweb"
 			}
-dbsession=redissession=redissession_db2=redissession_db0=client=dbname=None
+dbsession=redissession=redissession_db2=redissession_db0=client=None
 
 
 def _jsonencoder_default(self, obj):
@@ -499,18 +499,18 @@ def reportdataprocessor(resultset,fromdate,todate):
 ################################################################################
 
 def getClientName(requestdata):
-    global licenseServer,dbname
+    global licenseServer
     clientName="avoassure"
-    if dbname:
-        clientName = dbname
-    else:
-        try:
-            if 'host' in requestdata:
-                if 'localhost' not in requestdata['host'] and '127.0.0.1' not in requestdata['host']:
-                    clientName=requestdata['host'].split('.')[0]
-        except Exception as e:
-            app.logger.error(e)
-            app.logger.error('Error while fetching client name')
+    pat = re.compile(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$")
+    try:
+        if ('DB_NAME' in os.environ):
+            clientName=os.environ['DB_NAME']
+        elif 'host' in requestdata:
+            if 'localhost' not in requestdata['host'] and not re.match(pat,requestdata['host']):
+                clientName=requestdata['host'].split('.')[0]
+    except Exception as e:
+        app.logger.error(e)
+        app.logger.error('Error while fetching client name')
 
     return clientName
 
@@ -633,14 +633,12 @@ def wrap(data, key, iv=b'0'*16):
 ################################################################################
 
 def main():
-    global lsport,dasport,mongo_dbup,redis_dbup,licenseServer,client,dbname
+    global lsport,dasport,mongo_dbup,redis_dbup,licenseServer,client
     global redissession,dbsession,redissession_db2,redissession_db0
     das_conf_obj = open(config_path, 'r')
     das_conf = json.load(das_conf_obj)
     das_conf_obj.close()
     licenseServer=das_conf['licenseServer']
-    if 'database' in das_conf['avoassuredb']:
-        dbname=das_conf['avoassuredb']['database']
     creds = {}
     kwargs = {}
 
@@ -716,6 +714,10 @@ def main():
     try:
         redisdb_conf = das_conf['cachedb']
         redisdb_pass = creds['cachedb']['password']
+        if ('CACHEDB_IP' in os.environ):
+            redisdb_conf['host']=os.environ['CACHEDB_IP']
+        if ('CACHEDB_PORT' in os.environ):
+            redisdb_conf['port']=os.environ['CACHEDB_PORT']
         redissession = redis.StrictRedis(host=redisdb_conf['host'], port=int(redisdb_conf['port']), password=redisdb_pass, db=3)
         redissession_db2 = redis.StrictRedis(host=redisdb_conf['host'], port=int(redisdb_conf['port']), password=redisdb_pass, db=2)
         redissession_db0 = redis.StrictRedis(host=redisdb_conf['host'], port=int(redisdb_conf['port']), password=redisdb_pass, db=0)
