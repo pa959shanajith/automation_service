@@ -68,6 +68,8 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
         try:
             requestdata=json.loads(request.data)
             action=requestdata["action"]
+            if requestdata["userimage"] == '':
+                del requestdata["userimage"]
             del requestdata["action"]
             app.logger.info("Inside manageUserDetails. Query: "+str(action))
             if not isemptyrequest(requestdata):
