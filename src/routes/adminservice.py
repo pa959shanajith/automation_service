@@ -195,7 +195,7 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
                 clientName=getClientName(requestdata)           
                 dbsession=client[clientName]
                 if "userid" in requestdata:
-                    result=dbsession.users.find_one({"_id":ObjectId(requestdata["userid"])},{"name":1,"firstname":1,"lastname":1,"email":1,"defaultrole":1,"addroles":1,"auth":1})
+                    result=dbsession.users.find_one({"_id":ObjectId(requestdata["userid"])},{"name":1,"firstname":1,"lastname":1,"email":1,"defaultrole":1,"addroles":1,"auth":1,"profileimage":1})
                     if result is not None:
                         if result["name"] in ["support.avoassure","ci_cd"]: result = None
                         else: result["rolename"]=dbsession.permissions.find_one({"_id":result["defaultrole"]})["name"]
@@ -205,7 +205,7 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
                 else:
                     perms_list = dbsession.permissions.find({},{"_id":1,"name":1})
                     perms = {x["_id"]: x["name"] for x in perms_list}
-                    result=list(dbsession.users.find({"name":{"$nin":["support.avoassure","ci_cd"]}},{"_id":1,"name":1,"defaultrole":1,"firstname":1,"lastname":1,"email":1}))
+                    result=list(dbsession.users.find({"name":{"$nin":["support.avoassure","ci_cd"]}},{"_id":1,"name":1,"defaultrole":1,"firstname":1,"lastname":1,"email":1, "profileimage":1}))
                     for i in result:
                         i["rolename"]=perms[i["defaultrole"]]
                     res={'rows':result}
@@ -1905,7 +1905,7 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
             dbsession=client[clientName]
             # app.logger.debug("Inside getUsers_ICE. Query: "+str(requestdata["query"]))
             if not isemptyrequest(requestdata):
-                result=list(dbsession.users.find({"projects":ObjectId(requestdata["project_id"]),"projectlevelrole._id" :requestdata["project_id"]},{"projectlevelrole.$":1, "name":1, "firstname":1, "lastname":1, "defaultrole":1, "email":1}))
+                result=list(dbsession.users.find({"projects":ObjectId(requestdata["project_id"]), "projectlevelrole._id" :requestdata["project_id"]},{"projectlevelrole.$":1, "name":1, "firstname":1, "lastname":1, "defaultrole":1, "email":1,"profileimage":1,"profileimage":1}))
                 roleDetails=list(dbsession.permissions.find({ }, {"name": 1}))
                 for role in result:
                     for roleId in roleDetails:
@@ -1915,7 +1915,7 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
                             break
                     del role["projectlevelrole"]
                     
-                result1=list(dbsession.users.find({"defaultrole":{"$nin":[ObjectId("5db0022cf87fdec084ae49a9"),ObjectId("5f0ee20fba8ae8b8a603b5b6")]},"projects":ObjectId(requestdata["project_id"])},{"name":1,"_id":1, "firstname":1, "lastname":1, "defaultrole":1, "email":1}))
+                result1=list(dbsession.users.find({"defaultrole":{"$nin":[ObjectId("5db0022cf87fdec084ae49a9"),ObjectId("5f0ee20fba8ae8b8a603b5b6")]},"projects":ObjectId(requestdata["project_id"])},{"name":1,"_id":1, "firstname":1, "lastname":1, "defaultrole":1, "email":1,"profileimage":1}))
                 for result_1 in result1:
                     for role_Id in roleDetails:
                         role_Name = result_1["defaultrole"]
