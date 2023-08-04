@@ -117,7 +117,11 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
                             requestdata["auth"]["defaultpassword"]=""
                             requestdata["auth"]["verificationpasstime"]=""
                             requestdata["auth"]["verificationpassword"]=""
-                        dbsession.users.insert_one(requestdata)
+                        if (requestdata["defaultrole"] == ObjectId("5db0022cf87fdec084ae49ab") and "isAdminUser" in requestdata and requestdata["isAdminUser"]==True):
+                            dbsession.users.insert_one(requestdata)
+                        else:
+                            del requestdata["isAdminUser"]
+                            dbsession.users.insert_one(requestdata)
                         userData = {
                             "uid":requestdata["_id"],
                             "email":requestdata["email"],
