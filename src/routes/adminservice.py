@@ -120,7 +120,8 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
                         if (requestdata["defaultrole"] == ObjectId("5db0022cf87fdec084ae49ab") and "isAdminUser" in requestdata and requestdata["isAdminUser"]==True):
                             dbsession.users.insert_one(requestdata)
                         else:
-                            del requestdata["isAdminUser"]
+                            if "isAdminUser" in requestdata :
+                                del requestdata["isAdminUser"]
                             dbsession.users.insert_one(requestdata)
                         userData = {
                             "uid":requestdata["_id"],
