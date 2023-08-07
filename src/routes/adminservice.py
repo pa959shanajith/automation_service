@@ -102,9 +102,10 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
                         requestdata["modifiedon"]=datetime.now()
                         requestdata["deactivated"]="false"
                         requestdata["addroles"]=[]
-                        result=list(dbsession.projects.find({"name":"Avo Trial"},{"_id":1}))
+                        result=list(dbsession.projects.find({"name":"Sample Project"},{"_id":1}))
                         if result:
                             requestdata["projects"]=[result[0]["_id"]]
+                            requestdata["projectlevelrole"] = [{"_id":str(result[0]["_id"]), "assignedrole":str(requestdata["defaultrole"])}]
                         else:
                             requestdata["projects"]=[]
                         requestdata["welcomeStepNo"] = 4
