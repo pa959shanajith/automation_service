@@ -102,9 +102,10 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
                         requestdata["modifiedon"]=datetime.now()
                         requestdata["deactivated"]="false"
                         requestdata["addroles"]=[]
-                        result=list(dbsession.projects.find({"name":"Avo Trial"},{"_id":1}))
+                        result=list(dbsession.projects.find({"name":"Sample Project"},{"_id":1}))
                         if result:
                             requestdata["projects"]=[result[0]["_id"]]
+                            requestdata["projectlevelrole"] = [{"_id":str(result[0]["_id"]), "assignedrole":str(requestdata["defaultrole"])}]
                         else:
                             requestdata["projects"]=[]
                         requestdata["welcomeStepNo"] = 4
@@ -1912,7 +1913,7 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
             dbsession=client[clientName]
             # app.logger.debug("Inside getUsers_ICE. Query: "+str(requestdata["query"]))
             if not isemptyrequest(requestdata):
-                result=list(dbsession.users.find({"projects":ObjectId(requestdata["project_id"]), "projectlevelrole._id" :requestdata["project_id"]},{"projectlevelrole.$":1, "name":1, "firstname":1, "lastname":1, "defaultrole":1, "email":1,"profileimage":1,"profileimage":1}))
+                result=list(dbsession.users.find({"projects":ObjectId(requestdata["project_id"]), "projectlevelrole._id" :requestdata["project_id"]},{"projectlevelrole.$":1, "name":1, "firstname":1, "lastname":1, "defaultrole":1, "email":1,"profileimage":1}))
                 roleDetails=list(dbsession.permissions.find({ }, {"name": 1}))
                 for role in result:
                     for roleId in roleDetails:
@@ -1922,7 +1923,7 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
                             break
                     del role["projectlevelrole"]
                     
-                result1=list(dbsession.users.find({"defaultrole":{"$nin":[ObjectId("5db0022cf87fdec084ae49a9"),ObjectId("5f0ee20fba8ae8b8a603b5b6")]},"projects":ObjectId(requestdata["project_id"])},{"name":1,"_id":1, "firstname":1, "lastname":1, "defaultrole":1, "email":1,"profileimage":1}))
+                result1=list(dbsession.users.find({"defaultrole":{"$nin":[ObjectId("5db0022cf87fdec084ae49a9"),ObjectId("5f0ee20fba8ae8b8a603b5b6")]},"projects":{"$nin":[ObjectId(requestdata["project_id"])]}},{"name":1,"_id":1, "firstname":1, "lastname":1, "defaultrole":1, "email":1,"profileimage":1}))
                 for result_1 in result1:
                     for role_Id in roleDetails:
                         role_Name = result_1["defaultrole"]
