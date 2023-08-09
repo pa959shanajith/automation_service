@@ -47,16 +47,15 @@ def LoadServices(app, redissession, client ,getClientName):
                                 username["firstname"]=modifiedname["firstname"]
                                 username["lastname"]=modifiedname["lastname"]
                                 break
-                    project_id = queryresult1["projects"]
-                    progressSteps=[]
-                    for ids in project_id:
-                        list_of_modules = list(dbsession.mindmaps.find({"projectid":ids}))
+                    
+                    for ids in queryresult: 
+                        list_of_modules = list(dbsession.mindmaps.find({"projectid":ids["_id"]}))
                         listofmodules=[]
                         for prj_ids in list_of_modules:
                             listofmodules.append(prj_ids["_id"])
                         if len(list_of_modules) == 0 :
                             progressStep = 0
-                        keyDetails =dbsession.configurekeys.find({"executionData.batchInfo.projectId":ids}).count()
+                        keyDetails =dbsession.configurekeys.find({"executionData.batchInfo.projectId":ids["_id"]}).count()
                         if len(list_of_modules) > 0 and keyDetails == 0 :
                             progressStep = 1
                         executionList=list(dbsession.testsuites.find({"mindmapid":{"$in":listofmodules}},{"_id":1}))
@@ -64,11 +63,7 @@ def LoadServices(app, redissession, client ,getClientName):
                                 progressStep = 2
                         elif len(executionList) > 0:
                                 progressStep = 3
-
-                        progressSteps.append(progressStep)
-
-                    for index in range(len(queryresult)):
-                        queryresult[index]['progressStep'] = progressSteps[index]
+                        ids["progressStep"]=progressStep
                 
                     res= {"rows":queryresult}
                 elif(requestdata["query"] == 'getAlltestSuites'):
