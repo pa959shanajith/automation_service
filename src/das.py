@@ -295,10 +295,10 @@ def updateActiveIceSessions():
                                     if redissession_db2.hget(clientName,ice_name) != None and json.loads(redissession_db2.hget(clientName,ice_name))['connected'] == False:
                                         redissession.hset(clientName,ice_name,'')
                                     # To ensure another ICE with same name is not connected already
-                                    if redissession.hget(clientName,ice_name) != None and redissession.hget(clientName,ice_name) != ice_uuid and redissession.hget(clientName,ice_name) != b'':
-                                        res['err_msg'] = "Connection exists with same token"
+                                    # if redissession.hget(clientName,ice_name) != None and redissession.hget(clientName,ice_name) != ice_uuid and redissession.hget(clientName,ice_name) != b'':
+                                    #     res['err_msg'] = "Connection exists with same token"
                                     # To check if license is available
-                                    elif str(lsData['USER']) != "Unlimited" and len(activeicesessions) >= int(lsData['USER']):
+                                    if str(lsData['USER']) != "Unlimited" and len(activeicesessions) >= int(lsData['USER']):
                                         res['err_msg'] = "All ice sessions are in use"
                                     # To add in active ice sessions
                                     else:
