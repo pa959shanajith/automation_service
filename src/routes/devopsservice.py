@@ -642,3 +642,22 @@ def LoadServices(app, redissession, client ,getClientName):
             print(e)
             return e
         return jsonify(res)
+
+    @app.route('/devops/getExecutionListDetails',methods=['POST'])
+    def getExecutionListDetails():
+        app.logger.debug("Inside getExecutionListDetails")
+        result = {'rows':'fail'}
+        try:
+            requestdata=json.loads(request.data)
+            if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)        
+                dbsession=client[clientName]
+
+                # fetching the data from executionList based on key and executionId
+                executionData = list(dbsession.executionlist.find({'executionListId':requestdata['executionListId']}))
+                result['rows'] = executionData
+            else:
+                app.logger.warn('Empty data received for get execution details.')
+        except Exception as getexecutionlistdetailsexec:
+            servicesException("getExecutionListDetails", getexecutionlistdetailsexec, True)
+        return jsonify(result)

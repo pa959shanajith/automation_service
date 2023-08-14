@@ -760,5 +760,31 @@ def LoadServices(app, redissession, client ,getClientName):
             servicesException("fetchExecutionDetail",fetchExecutionDetailexc, True)
         return jsonify(res)
 
+    #fetching all the reports status
+    @app.route('/reports/reportStatusScenario',methods=['POST'])
+    def reportStatusScenario():
+        res={'rows':'fail'}
+        try:
+            requestdata=json.loads(request.data)
+            app.logger.debug("Inside reportStatusScenarios_ICE. Query: "+str(requestdata["query"]))
+            if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)         
+                dbsession=client[clientName]
+                if(requestdata["query"] == 'executiondetails'):
+                    queryresult = []
+                    for executionId in requestdata["executionId"]:
+                        statusList = []
+                        result = list(dbsession.reports.find({"executionid": ObjectId(executionId)}))
+                        for element in result:
+                            status = { "status": element["status"], "reportId": str(element['_id']) }
+                            statusList.append(status)
+                        queryresult.append(statusList)
+                    res = {"rows":queryresult}
+            else:
+                app.logger.warn('Empty data received. report status of scenarios.')
+        except Exception as getreportstatusexc:
+            servicesException("reportStatusScenarios_ICE",getreportstatusexc)
+        return jsonify(res)
+
 
 # END OF REPORTS
