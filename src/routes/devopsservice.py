@@ -654,7 +654,7 @@ def LoadServices(app, redissession, client ,getClientName):
                 dbsession=client[clientName]
 
                 # fetching the data from executionList based on key and executionId
-                executionData = list(dbsession.executionlist.find({'executionListId':requestdata['executionListId'],"configkey": requestdata['key']}))
+                executionData = list(dbsession.executionlist.find({'executionListId':requestdata['executionListId']}))
                 result['rows'] = executionData
             else:
                 app.logger.warn('Empty data received for get execution details.')
