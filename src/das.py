@@ -33,6 +33,7 @@ import base64
 from Crypto.Cipher import AES
 import codecs
 app = Flask(__name__)
+import platform
 
 currexc = sys.executable
 try: currfiledir = os.path.dirname(os.path.abspath(__file__))
@@ -54,7 +55,10 @@ assistpath = internalspath + os.sep + "assist"
 logspath = internalspath + os.sep + "logs"
 verpath = internalspath + os.sep + "version.txt"
 credspath = internalspath + os.sep + ".tokens"
-gitpath = os.path.normpath(currdir + "/Lib/portableGit/cmd/git.exe")
+if platform.system() == "Windows":                
+    gitpath = os.path.normpath(currdir + "/Lib/portableGit/cmd/git.exe")
+else:
+    gitpath = "/usr/bin/git"
 
 das_ver = "3.0"
 if os.path.isfile(verpath):
