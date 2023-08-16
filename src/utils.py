@@ -234,7 +234,9 @@ ecodeServices = {
     "getDetails_SAUCELABS":"470",
     "manageSaucelabsDetails":"471",
     "getDetails_Azure":"472",
-    "manageAzureDetails":"473"
+    "manageAzureDetails":"473",
+    "getScrapeDataScenarioLevel_ICE":"474",
+    "updateScenarioComparisionStatus":"475"
 }
 
 

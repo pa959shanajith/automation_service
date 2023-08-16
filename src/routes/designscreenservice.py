@@ -82,6 +82,60 @@ def LoadServices(app, redissession, client ,getClientName):
         except Exception as getscrapedataexc:
             servicesException("getScrapeDataScreenLevel_ICE",getscrapedataexc, True)
         return jsonify(res)
+    
+    #updates the screens collection with comparison data after scenario level comparison
+    @app.route('/design/updateScenarioComparisionStatus', methods=['POST'])
+    def scenarioComparisionData():
+        try:
+            res={'rows':'fail'}
+            requestdata=json.loads(request.data)
+            clientName=getClientName(requestdata)
+            dbsession=client[clientName]
+            app.logger.debug("Inside updateScenarioComparisionStatus. Query: "+str(requestdata["query"]))
+            if not isemptyrequest(requestdata):
+                scenario_ID = ObjectId(requestdata['scenarioID'])
+                scenarioComparisonData = requestdata['scenarioComparisonData']
+                for screenComparisonData in scenarioComparisonData:
+                    dbsession.screens.update({'_id':ObjectId(screenComparisonData['screenId'])},{"$set":{"changed":screenComparisonData['changed'],"unchanged":screenComparisonData['unchanged'],"notfound":screenComparisonData['notfound'],"statusCode":screenComparisonData['statusCode']}})
+                res={"rows":"Success"}
+            else:
+                app.logger.warn('Empty data received.')
+        except Exception as getscrapedataexc:
+            servicesException("getScrapeDataScenarioLevel_ICE",getscrapedataexc, True)
+        return jsonify(res)       
+
+    #fetches the scraped data on scenario level
+    @app.route('/design/getScrapeDataScenarioLevel_ICE', methods=['POST'])
+    def getScrapeDataScenarioLevel_ICE():
+        res={'rows':'fail'}
+        try:
+            requestdata=json.loads(request.data)
+            clientName=getClientName(requestdata)
+            dbsession=client[clientName]
+            app.logger.debug("Inside getScrapeDataScenarioLevel_ICE. Query: "+str(requestdata["query"]))
+            if not isemptyrequest(requestdata):
+                scenario_ID = ObjectId(requestdata['scenarioID'])
+                screens = list(dbsession.screens.find({'parent':scenario_ID}))
+                testcaseids = dbsession.testscenarios.find_one({'_id':scenario_ID})['testcaseids']
+                dataobj_scenario_level = []
+                i=0
+                for screen in screens:
+                    dataobj_query = list(dbsession.dataobjects.find({"parent" :screen['_id']}))
+                    dataobj_scenario_level.append({'screen_id'  :screen['_id'],
+                                                   'scrapedurl' :screen['scrapedurl'],
+                                                   'view'       :dataobj_query,
+                                                   'name'       :screen['name'],
+                                                   'index'      :i,
+                                                   'orderlist'  :screen['orderlist'],
+                                                   'mirror'     :screen['screenshot'],
+                                                   'testcaseid' :testcaseids[i]})
+                    i+=1
+                res = {'rows':dataobj_scenario_level}
+            else:
+                app.logger.warn('Empty data received. reading Testcase')
+        except Exception as getscrapedataexc:
+            servicesException("getScrapeDataScenarioLevel_ICE",getscrapedataexc, True)
+        return jsonify(res)
 
     def update_identifier(object_identifier):
         all_identifier_list = ["xpath","id","rxpath","name","classname","cssselector","href","label"]
