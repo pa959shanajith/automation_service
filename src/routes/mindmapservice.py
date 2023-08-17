@@ -1438,7 +1438,7 @@ def LoadServices(app, redissession, client ,getClientName):
                 clientName=getClientName(requestdata)             
                 dbsession=client[clientName]
                 projectid=ObjectId(requestdata["projectid"])
-                screendetails=list(dbsession.screens.find({"projectid":projectid},{"_id":1,"name":1,"parent":1}))
+                screendetails=list(dbsession.screens.find({"projectid":projectid},{"_id":1,"name":1,"parent":1,"statusCode":1}))                
                 screenids = [scr["_id"] for scr in screendetails]
                 testcasedetails=list(dbsession.testcases.find({"screenid":{"$in":screenids}},{"_id":1,"name":1,"parent":1,"screenid":1}))
                 res={'rows':{'screenList':screendetails,'testCaseList':testcasedetails}}
