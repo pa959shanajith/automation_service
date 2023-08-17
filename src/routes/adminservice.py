@@ -942,6 +942,10 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
                     elif action == "update":
                         del requestdata["action"]
                         del requestdata["name"]
+                        if "host" in result:
+                            dbsession.notifications.update_one(query_filter, {"$unset": {"host": 1}})
+                        if "port" in result:
+                            dbsession.notifications.update_one(query_filter, {"$unset": {"port": 1}})
                         if requestdata["auth"] and type(requestdata["auth"]) != bool and "password" in requestdata["auth"]:
                             requestdata["auth"]["password"] = wrap(requestdata["auth"]["password"],ldap_key)
                         if requestdata["proxy"] and "pass" in requestdata["proxy"]:
