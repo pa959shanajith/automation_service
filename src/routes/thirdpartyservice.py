@@ -247,6 +247,8 @@ def LoadServices(app, redissession, client ,getClientName, *args):
 
                     if requestdata["itemType"] == 'UserStory':
                         dbsession.thirdpartyintegration.delete_many({"type":"Azure","userStoryId":requestdata["userStoryId"]})
+                    if requestdata["itemType"] == 'TestCase':
+                        dbsession.thirdpartyintegration.delete_many({"type":"Azure","TestCaseId":requestdata["TestCaseId"]})    
                     else:
                         dbsession.thirdpartyintegration.delete_many({"type":"Azure","TestSuiteId":requestdata["TestSuiteId"]})
 
@@ -500,7 +502,7 @@ def LoadServices(app, redissession, client ,getClientName, *args):
                             elif "testCaseNames" in mapObj:
                                 #updating testcase
                                 testname = mapObj["testCaseNames"]
-                                if ('userStoryId' in result1[0] and testname[0] == result1[0]['userStoryId']) or ('TestSuiteId' in result1[0] and testname[0] == result1[0]['TestSuiteId']):
+                                if ('userStoryId' in result1[0] and testname[0] == result1[0]['userStoryId']) or ('TestSuiteId' in result1[0] and testname[0] == result1[0]['TestSuiteId']) or ('TestCaseId' in result1[0] and testname[0] == result1[0]['TestCaseId']):
                                     result1[0]['projectid']=''
                                     result1[0]['projectName']=''
                                     result1[0]['projectCode']=''
@@ -546,3 +548,11 @@ def LoadServices(app, redissession, client ,getClientName, *args):
         except Exception as e:
             servicesException("getMappedDiscoverUser",e)
         return jsonify(res)
+
+
+
+# "Azure" : {
+#         "PAT" : "us7squa5bl3zo4oj62lwzrnctenzhfmk3x7zlzlkgfp4yxxeywdq",
+#         "username" : "sushanth.gupta1",
+#         "url" : "https://dev.azure.com/AvoAutomation"
+#     },
