@@ -301,12 +301,14 @@ def LoadServices(app, redissession, client ,getClientName):
             responseData = []
             for elements in queryresult:
                 updatedExecutionReq = elements['executionData']
+                noOfCount = list(dbsession.executionlist.find({'configkey':updatedExecutionReq['configurekey']}))
                 responseData.append({
                     'configurename': updatedExecutionReq['configurename'],
                     'configurekey': updatedExecutionReq['configurekey'],
                     'project': updatedExecutionReq['batchInfo'][0]['projectName'],
                     'release': updatedExecutionReq['batchInfo'][0]['releaseId'],
-                    'executionRequest': updatedExecutionReq
+                    'executionRequest': updatedExecutionReq,
+                    'noOfExecution' : len(noOfCount)
                 })
             if "param" in requestdata and requestdata["param"] =="reportData":
                 date_info=list(dbsession.executions.aggregate([{"$match":{"projectId":requestdata['projectid']}},{"$group":{"_id":"$configurekey","execDate":{"$last":"$starttime"}}}]))
@@ -320,7 +322,7 @@ def LoadServices(app, redissession, client ,getClientName):
             print(e)
             return e
         return jsonify(res)
-
+    
     @app.route('/devops/getAvoAgentAndAvoGridList',methods=['POST'])
     def getAvoAgentAndAvoGridList():
         app.logger.debug("Inside getAvoAgentAndAvoGridList")
