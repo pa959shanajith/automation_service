@@ -1,4 +1,5 @@
 #!/bin/sh
+echo 0000
 sudo yum install gcc openssl-devel bzip2-devel libffi-devel sqlite-devel;
 #rm -rf Python-3.7.6.tgz Python-3.7.6
 echo 11111
