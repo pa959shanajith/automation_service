@@ -215,7 +215,7 @@ def LoadServices(app, redissession, client ,getClientName):
         try:
             requestdata=json.loads(request.data)
             testSuiteId = requestdata['testSuiteId']
-            clientName=getClientName(requestdata)        
+            clientName=getClientName(requestdata)
             dbsession=client[clientName]
 
             # Fetching the data
@@ -233,6 +233,8 @@ def LoadServices(app, redissession, client ,getClientName):
             updatedResponse = dbsession.executionlist.update_many({'executionListId':requestdata['executionListId'],"configkey": requestdata['key']},{'$set':{"executionData.batchInfo": updatedData[0]['executionData']['batchInfo']}})
 
             executionData[0]['executionData']['batchInfo'] = [executionData[0]['executionData']['batchInfo'][index]]
+            if 'scenarioIndex' in requestdata:
+                executionData[0]['executionData']['batchInfo'][0]['suiteDetails'] = [executionData[0]['executionData']['batchInfo'][0]['suiteDetails'][requestdata['scenarioIndex']]]
             res['rows'] = executionData
 
         except Exception as e:
@@ -245,7 +247,7 @@ def LoadServices(app, redissession, client ,getClientName):
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
-            clientName=getClientName(requestdata)
+            clientName=getClientName(requestdata[-1])
             dbsession=client[clientName]
             del(requestdata[-1])
             processedData = []
@@ -371,10 +373,10 @@ def LoadServices(app, redissession, client ,getClientName):
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
-
+            clientName=getClientName(requestdata)
+            dbsession=client[clientName]
+            del requestdata[-1]
             for agentDetail in requestdata:
-                clientName=getClientName(requestdata)         
-                dbsession=client[clientName]
                 if(agentDetail['action'] == 'update'):
                     dbsession.avoagents.update({"_id":ObjectId(agentDetail['value']['_id'])},{'$set':{"icecount":agentDetail['value']["icecount"] , "status": agentDetail['value']['status']}})
                 else:
@@ -646,3 +648,22 @@ def LoadServices(app, redissession, client ,getClientName):
             print(e)
             return e
         return jsonify(res)
+
+    @app.route('/devops/getExecutionListDetails',methods=['POST'])
+    def getExecutionListDetails():
+        app.logger.debug("Inside getExecutionListDetails")
+        result = {'rows':'fail'}
+        try:
+            requestdata=json.loads(request.data)
+            if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)        
+                dbsession=client[clientName]
+
+                # fetching the data from executionList based on key and executionId
+                executionData = list(dbsession.executionlist.find({'executionListId':requestdata['executionListId']}))
+                result['rows'] = executionData
+            else:
+                app.logger.warn('Empty data received for get execution details.')
+        except Exception as getexecutionlistdetailsexec:
+            servicesException("getExecutionListDetails", getexecutionlistdetailsexec, True)
+        return jsonify(result)
