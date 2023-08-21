@@ -33,6 +33,7 @@ import base64
 from Crypto.Cipher import AES
 import codecs
 app = Flask(__name__)
+import platform
 
 currexc = sys.executable
 try: currfiledir = os.path.dirname(os.path.abspath(__file__))
@@ -54,7 +55,10 @@ assistpath = internalspath + os.sep + "assist"
 logspath = internalspath + os.sep + "logs"
 verpath = internalspath + os.sep + "version.txt"
 credspath = internalspath + os.sep + ".tokens"
-gitpath = os.path.normpath(currdir + "/Lib/portableGit/cmd/git.exe")
+if platform.system() == "Windows":                
+    gitpath = os.path.normpath(currdir + "/Lib/portableGit/cmd/git.exe")
+else:
+    gitpath = "/usr/bin/git"
 
 das_ver = "3.0"
 if os.path.isfile(verpath):
@@ -220,14 +224,14 @@ def updateActiveIceSessions():
     global webPluginList
     res = {"id":"","res":"fail","ts_now":str(datetime.now()),"connect_time":str(datetime.now()),
         "plugins":"","data":random.random()*100000000000000}
-    response = {"node_check":False,"ice_check":wrap(json.dumps(res),ice_das_key)}
+    response = {"node_check":False,"ice_check":json.dumps(res)}
     ice_uuid = None
     ice_ts = None
     try:
         requestdata = json.loads(request.data)
         app.logger.debug("Inside updateActiveIceSessions. Query: "+str(requestdata["query"]))
         if not isemptyrequest(requestdata):
-            clientName=getClientName(requestdata)      
+            clientName=getClientName(json.loads(requestdata['icesession']))      
             dbsession=client[clientName]
             sess = redissession.get('icesessions')
             if sess == '' or sess is None:
@@ -236,14 +240,11 @@ def updateActiveIceSessions():
             if(requestdata['query'] == 'disconnect'):
                 icename=requestdata['icename'].lower()
                 with r_lock:
-                    activeicesessions=json.loads(unwrap(redissession.get('icesessions'),db_keys))
-                    if icename in activeicesessions:
-                        del activeicesessions[icename]
-                        redissession.set('icesessions',wrap(json.dumps(activeicesessions),db_keys))
+                    redissession.hset(clientName,icename,'')
                 res['res'] = "success"
 
             elif(requestdata['query']=='connect' and 'icesession' in requestdata):
-                icesession = unwrap(requestdata['icesession'],ice_das_key)
+                icesession = requestdata['icesession']
                 icesession = json.loads(icesession)
                 ice_action = icesession["iceaction"]
                 ice_token_dec = icesession["icetoken"]
@@ -295,21 +296,18 @@ def updateActiveIceSessions():
                                 res['status'] = "allow"
                                 f_allow = False
                                 with r_lock:
-                                    activeicesessions=json.loads(unwrap(redissession.get('icesessions'),db_keys))
-                                    # Remove stale sessions
-                                    ice_statuses = json.loads(redissession_db2.get("ICE_status"))
-                                    for ice in list(activeicesessions.keys()):
-                                        if ice not in ice_statuses or ice_statuses[ice]['connected'] == False: activeicesessions.pop(ice)
+                                    if redissession_db2.hget(clientName,ice_name) != None and json.loads(redissession_db2.hget(clientName,ice_name))['connected'] == False:
+                                        redissession.hset(clientName,ice_name,'')
                                     # To ensure another ICE with same name is not connected already
-                                    if ice_name in activeicesessions and activeicesessions[ice_name] != ice_uuid:
-                                        res['err_msg'] = "Connection exists with same token"
+                                    # if redissession.hget(clientName,ice_name) != None and redissession.hget(clientName,ice_name) != ice_uuid and redissession.hget(clientName,ice_name) != b'':
+                                    #     res['err_msg'] = "Connection exists with same token"
                                     # To check if license is available
-                                    elif str(lsData['USER']) != "Unlimited" and len(activeicesessions) >= int(lsData['USER']):
+                                    if str(lsData['USER']) != "Unlimited" and len(activeicesessions) >= int(lsData['USER']):
                                         res['err_msg'] = "All ice sessions are in use"
                                     # To add in active ice sessions
                                     else:
                                         activeicesessions[ice_name] = ice_uuid
-                                        redissession.set('icesessions', wrap(json.dumps(activeicesessions),db_keys))
+                                        redissession.hset(clientName,ice_name,ice_uuid)
                                         f_allow = True
                                 if f_allow: 
                                     res['res'] = "success"
@@ -332,7 +330,7 @@ def updateActiveIceSessions():
                                 res['err_msg'] = "Access denied: ICE is not in Registered state"
                             response["node_check"] = res['status'] = "InvalidICE"
                             app.logger.error("%s : ICE is not in Registered state ", ice_name)
-                response["ice_check"] = wrap(json.dumps(res),ice_das_key)
+                response["ice_check"] =json.dumps(res)
             app.logger.debug("Connected clients: "+str(list(activeicesessions.keys())))
         else:
             app.logger.warn('Empty data received. updateActiveIceSessions.')
@@ -507,9 +505,13 @@ def reportdataprocessor(resultset,fromdate,todate):
 def getClientName(requestdata):
     global licenseServer
     clientName="avoassure"
+    pat = re.compile(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$")
     try:
         if ('DB_NAME' in os.environ):
             clientName=os.environ['DB_NAME']
+        elif 'host' in requestdata:
+            if 'localhost' not in requestdata['host'] and not re.match(pat,requestdata['host']):
+                clientName=requestdata['host'].split('.')[0]
     except Exception as e:
         app.logger.error(e)
         app.logger.error('Error while fetching client name')
@@ -716,14 +718,13 @@ def main():
     try:
         redisdb_conf = das_conf['cachedb']
         redisdb_pass = creds['cachedb']['password']
+        if ('CACHEDB_IP' in os.environ):
+            redisdb_conf['host']=os.environ['CACHEDB_IP']
+        if ('CACHEDB_PORT' in os.environ):
+            redisdb_conf['port']=os.environ['CACHEDB_PORT']
         redissession = redis.StrictRedis(host=redisdb_conf['host'], port=int(redisdb_conf['port']), password=redisdb_pass, db=3)
         redissession_db2 = redis.StrictRedis(host=redisdb_conf['host'], port=int(redisdb_conf['port']), password=redisdb_pass, db=2)
         redissession_db0 = redis.StrictRedis(host=redisdb_conf['host'], port=int(redisdb_conf['port']), password=redisdb_pass, db=0)
-
-        if redissession.get('icesessions') is None:
-            redissession.set('icesessions',wrap('{}',db_keys))
-        if redissession_db2.get("ICE_status") is None:
-            redissession_db2.set("ICE_status", '{}')
         redis_dbup = True
     except Exception as e:
         redis_dbup = False
