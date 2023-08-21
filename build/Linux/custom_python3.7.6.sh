@@ -1,6 +1,6 @@
 #!/bin/sh
 echo 0000
-sudo yum install gcc openssl-devel bzip2-devel libffi-devel sqlite-devel;
+sudo yum install gcc openssl-devel bzip2-devel libffi-devel sqlite-devel -y;
 #rm -rf Python-3.7.6.tgz Python-3.7.6
 echo 11111
 wget https://www.python.org/ftp/python/3.7.6/Python-3.7.6.tgz;
