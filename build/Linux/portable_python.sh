@@ -8,7 +8,7 @@ fi
 
 
 #PYSRC=/usr/local/ (if python present in system level)
-PYSRC=~/python${PYVER}.6
+PYSRC=custom_python${PYVER}.6
 #BASE=$(pwd)/LicenseServer
 BASE=$(pwd)/DAS
 #BASE=$(pwd)/PP_cloud
