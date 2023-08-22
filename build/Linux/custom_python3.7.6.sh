@@ -1,6 +1,8 @@
 #!/bin/sh
 sudo yum install gcc openssl-devel bzip2-devel libffi-devel sqlite-devel -y;
 rm -rf Python-3.7.6*.tgz Python-3.7.6*
+rm -rf custom_python3.7.6
+echo removed python related files
 wget https://www.python.org/ftp/python/3.7.6/Python-3.7.6.tgz;
 tar xzf Python-3.7.6.tgz;
 #mkdir -p ~/Build/Python3.7.6
@@ -17,7 +19,6 @@ tar xzf Python-3.7.6.tgz;
     #make altinstall
 #fi
 
-rm -rf custom_python3.7.6
 mkdir custom_python3.7.6;
 export pypath=$(pwd)/custom_python3.7.6;
 cd Python-3.7.6;
