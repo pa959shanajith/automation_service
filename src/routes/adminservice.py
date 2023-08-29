@@ -70,6 +70,9 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
             action=requestdata["action"]
             if requestdata["userimage"] == '':
                 del requestdata["userimage"]
+                userImage=''
+            else :
+                userImage=requestdata["userimage"]
             del requestdata["action"]
             app.logger.info("Inside manageUserDetails. Query: "+str(action))
             if not isemptyrequest(requestdata):
@@ -135,7 +138,7 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
                 elif (action=="update"):
                     if(requestdata["auth"]["password"] == "" and requestdata["auth"]["type"] == "inhouse" ):
                         result=dbsession.users.find_one({"_id":ObjectId(requestdata["userid"])})["auth"]["password"]
-                        dbsession.users.update_one({"_id":ObjectId(requestdata["userid"])}, {"$set": {"profileimage":requestdata["userimage"]}})
+                        dbsession.users.update_one({"_id":ObjectId(requestdata["userid"])}, {"$set": {"profileimage":userImage}})
                         requestdata["auth"]["password"] = result
                     update_query = {
                         "firstname":requestdata["firstname"],
@@ -203,7 +206,7 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
                 clientName=getClientName(requestdata)           
                 dbsession=client[clientName]
                 if "userid" in requestdata:
-                    result=dbsession.users.find_one({"_id":ObjectId(requestdata["userid"])},{"name":1,"firstname":1,"lastname":1,"email":1,"defaultrole":1,"addroles":1,"auth":1,"profileimage":1})
+                    result=dbsession.users.find_one({"_id":ObjectId(requestdata["userid"])},{"name":1,"firstname":1,"lastname":1,"email":1,"defaultrole":1,"addroles":1,"auth":1,"profileimage":1,"isadminuser":1})
                     if result is not None:
                         if result["name"] in ["support.avoassure","ci_cd"]: result = None
                         else: result["rolename"]=dbsession.permissions.find_one({"_id":result["defaultrole"]})["name"]
@@ -213,7 +216,7 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
                 else:
                     perms_list = dbsession.permissions.find({},{"_id":1,"name":1})
                     perms = {x["_id"]: x["name"] for x in perms_list}
-                    result=list(dbsession.users.find({"name":{"$nin":["support.avoassure","ci_cd"]}},{"_id":1,"name":1,"defaultrole":1,"firstname":1,"lastname":1,"email":1, "profileimage":1}))
+                    result=list(dbsession.users.find({"name":{"$nin":["support.avoassure","ci_cd"]}},{"_id":1,"name":1,"defaultrole":1,"firstname":1,"lastname":1,"email":1, "profileimage":1, "isadminuser":1}))
                     for i in result:
                         i["rolename"]=perms[i["defaultrole"]]
                     res={'rows':result}
