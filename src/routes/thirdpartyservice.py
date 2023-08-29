@@ -247,6 +247,8 @@ def LoadServices(app, redissession, client ,getClientName, *args):
 
                     if requestdata["itemType"] == 'UserStory':
                         dbsession.thirdpartyintegration.delete_many({"type":"Azure","userStoryId":requestdata["userStoryId"]})
+                    if requestdata["itemType"] == 'TestCase':
+                        dbsession.thirdpartyintegration.delete_many({"type":"Azure","TestCaseId":requestdata["TestCaseId"]})    
                     else:
                         dbsession.thirdpartyintegration.delete_many({"type":"Azure","TestSuiteId":requestdata["TestSuiteId"]})
 
@@ -325,27 +327,31 @@ def LoadServices(app, redissession, client ,getClientName, *args):
                     res= {"rows":result}
                 elif(requestdata["query"] == 'azuredetails'):
                     result = []
-                    projectlist=list(dbsession.users.find({"_id":ObjectId(requestdata["userid"])},{"projects":1}))
-                    if len(projectlist) > 0:
-                        projects = projectlist[0]['projects']
-                        scenariolist=list(dbsession.testscenarios.find({"projectid":{'$in':projects},"deleted":False,"$where":"this.parent.length>0"},{"name":1,"_id":1}))
-                        if len(scenariolist) > 0:
-                            scenarios = {str(i['_id']):i['name'] for i in scenariolist}
-                            temp_result=list(dbsession.thirdpartyintegration.find({"type":"Azure","testscenarioid":{'$in':list(scenarios.keys())}}))
-                            if len(temp_result) > 0:
-                                for mapping in temp_result:
-                                    mapping['testscenarioname']=[]
-                                    scenarioId=mapping['testscenarioid']
-                                    if scenarioId in scenarios:
-                                        mapping['testscenarioname'].append(scenarios[scenarioId])
-                                result.extend(temp_result)
-                    if 'scenarioName' in requestdata:
-                        for i in result:
-                            if requestdata['scenarioName']==i['testscenarioname'][0]:
-                                result=i
-                                break
-                            else:
-                                result=[]
+                    if "testscenarioid" in requestdata:
+                        result=list(dbsession.thirdpartyintegration.find({"type":"Azure","testscenarioid":requestdata["testscenarioid"]}))
+                        res= {"rows":result}
+                    else:
+                        projectlist=list(dbsession.users.find({"_id":ObjectId(requestdata["userid"])},{"projects":1}))
+                        if len(projectlist) > 0:
+                            projects = projectlist[0]['projects']
+                            scenariolist=list(dbsession.testscenarios.find({"projectid":{'$in':projects},"deleted":False,"$where":"this.parent.length>0"},{"name":1,"_id":1}))
+                            if len(scenariolist) > 0:
+                                scenarios = {str(i['_id']):i['name'] for i in scenariolist}
+                                temp_result=list(dbsession.thirdpartyintegration.find({"type":"Azure","testscenarioid":{'$in':list(scenarios.keys())}}))
+                                if len(temp_result) > 0:
+                                    for mapping in temp_result:
+                                        mapping['testscenarioname']=[]
+                                        scenarioId=mapping['testscenarioid']
+                                        if scenarioId in scenarios:
+                                            mapping['testscenarioname'].append(scenarios[scenarioId])
+                                    result.extend(temp_result)
+                        if 'scenarioName' in requestdata:
+                            for i in result:
+                                if requestdata['scenarioName']==i['testscenarioname'][0]:
+                                    result=i
+                                    break
+                                else:
+                                    result=[]
                     res= {"rows":result}
             else:
                 app.logger.warn('Empty data received. getting QcMappedList.')
@@ -500,7 +506,7 @@ def LoadServices(app, redissession, client ,getClientName, *args):
                             elif "testCaseNames" in mapObj:
                                 #updating testcase
                                 testname = mapObj["testCaseNames"]
-                                if ('userStoryId' in result1[0] and testname[0] == result1[0]['userStoryId']) or ('TestSuiteId' in result1[0] and testname[0] == result1[0]['TestSuiteId']):
+                                if ('userStoryId' in result1[0] and testname[0] == result1[0]['userStoryId']) or ('TestSuiteId' in result1[0] and testname[0] == result1[0]['TestSuiteId']) or ('TestCaseId' in result1[0] and testname[0] == result1[0]['TestCaseId']):
                                     result1[0]['projectid']=''
                                     result1[0]['projectName']=''
                                     result1[0]['projectCode']=''
