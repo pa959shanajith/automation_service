@@ -552,11 +552,3 @@ def LoadServices(app, redissession, client ,getClientName, *args):
         except Exception as e:
             servicesException("getMappedDiscoverUser",e)
         return jsonify(res)
-
-
-
-# "Azure" : {
-#         "PAT" : "us7squa5bl3zo4oj62lwzrnctenzhfmk3x7zlzlkgfp4yxxeywdq",
-#         "username" : "sushanth.gupta1",
-#         "url" : "https://dev.azure.com/AvoAutomation"
-#     },
