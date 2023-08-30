@@ -3116,8 +3116,10 @@ def LoadServices(app, redissession, client ,getClientName):
                                                }}}
                                                ]))                                              
 
-                    if mm_det:
+                    if len(mm_det) > 0 :
                         res={'rows':mm_det}
+                    else:
+                        res={'rows': [""]}
             else:
                 app.logger.warn('Empty data received while importing mindmap')
         except Exception as getProjectsMMTSexc:
