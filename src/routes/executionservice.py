@@ -672,3 +672,33 @@ def LoadServices(app, redissession, client ,getClientName):
         except Exception as getalltaskssexc:
             servicesException("checkApproval",getalltaskssexc, True)
             return jsonify(res)
+
+    @app.route('/suite/getScheduledCount', methods=['POST'])
+    def getScheduledCount():
+        app.logger.debug('Inside getScheduledCount')
+        result = {'rows': 'fail'}
+        try:
+            requestdata = json.loads(request.data)
+            if not isemptyrequest(requestdata):
+                clientName = getClientName(requestdata)
+                dbsession = client[clientName]
+
+                # fetch the count of scheduled execution based on configure key and status
+                status = ['scheduled', 'recurring']
+                query = {
+                    '$and': [
+                        { 
+                            'configurekey': requestdata['configKey']
+                        },
+                        {
+                            'status': { '$in': status }
+                        }
+                    ]
+                }
+                count = dbsession.scheduledexecutions.find(query).count()
+                result['rows'] = {"count": count}
+            else:
+                app.logger.warn()
+        except Exception as getscheduledcountexec:
+            servicesException('getScheduledCount', getscheduledcountexec, True)
+        return jsonify(result)
