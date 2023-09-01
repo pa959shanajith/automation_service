@@ -247,7 +247,7 @@ def LoadServices(app, redissession, client ,getClientName, *args):
 
                     if requestdata["itemType"] == 'UserStory':
                         dbsession.thirdpartyintegration.delete_many({"type":"Azure","userStoryId":requestdata["userStoryId"]})
-                    if requestdata["itemType"] == 'TestCase':
+                    elif requestdata["itemType"] == 'TestCase':
                         dbsession.thirdpartyintegration.delete_many({"type":"Azure","TestCaseId":requestdata["TestCaseId"]})    
                     else:
                         dbsession.thirdpartyintegration.delete_many({"type":"Azure","TestSuiteId":requestdata["TestSuiteId"]})
