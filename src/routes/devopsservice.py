@@ -354,6 +354,18 @@ def LoadServices(app, redissession, client ,getClientName):
             dbsession=client[clientName]      
             result=dbsession.configurekeys.delete_one({"token":requestdata['key']})
 
+            # delete all the scheduled execution ones user delete the profile
+            schedule_delete_query = {
+                'configurekey': requestdata['key']            
+            }
+            dbsession.scheduledexecutions.delete_many(schedule_delete_query)
+
+            # delete all the jobs from agendaJobs collection related to a specific configure key
+            agenda_delete_query = {
+                'data.scheduleData.configureKey': requestdata['key']
+            }
+            dbsession.agendaJobs.delete_many(agenda_delete_query)
+
             res['rows'] = 'success'
 
         except Exception as e:
