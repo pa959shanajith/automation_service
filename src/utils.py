@@ -234,7 +234,10 @@ ecodeServices = {
     "getDetails_SAUCELABS":"470",
     "manageSaucelabsDetails":"471",
     "getDetails_Azure":"472",
-    "manageAzureDetails":"473"
+    "manageAzureDetails":"473",
+    "getExecutionListDetails": "474",
+    "reportStatusScenarios_ICE": "475",
+    "getScheduledCount": "476"
 }
 
 
