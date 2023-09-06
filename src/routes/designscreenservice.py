@@ -782,7 +782,11 @@ def LoadServices(app, redissession, client ,getClientName):
                         insert_obj['url']= wrap(i['url'],key) if 'url' in i else ""
                         insert_obj['tag']= i['objtype'] if 'objtype' in i else ""
                         insert_obj['parent']=[ObjectId(requestdata["screenid"])]
-                        dbsession.dataobjects.insert(insert_obj)
+                        if "_id" in insert_obj:
+                            del insert_obj["_id"]
+                            dbsession.dataobjects.insert(insert_obj)
+                        else:
+                            dbsession.dataobjects.insert(insert_obj)
                     elif i['name'] in screen_object_names and i['update'].lower() == 'yes':
                         for j in screen_objects:
                             if i['name'] == j['custname']:
