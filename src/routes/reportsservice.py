@@ -35,7 +35,36 @@ def LoadServices(app, redissession, client ,getClientName):
                 dbsession=client[clientName]
                 if(requestdata["query"] == 'projects'):
                     queryresult1=dbsession.users.find_one({"_id": ObjectId(requestdata["userid"])},{"projects":1,"_id":0})
-                    queryresult=list(dbsession.projects.find({"_id":{"$in":queryresult1["projects"]}},{"name":1,"releases":1,"type":1}))
+                    queryresult=list(dbsession.projects.find({"_id":{"$in":queryresult1["projects"]}},{"name":1,"releases":1,"type":1,"modifiedby":1,"progressStep":1}))
+                    modifiedby_ids=[]
+                    for modifiedId in queryresult:
+                        modifiedby_ids.append(ObjectId(modifiedId["modifiedby"]))
+                    modifiedby_ids=list(set(modifiedby_ids))                  
+                    queryresult2=list(dbsession.users.find({"_id":{"$in":modifiedby_ids}},{"firstname":1,"lastname":1,"_id":1}))                    
+                    for username in queryresult:
+                        for modifiedname in queryresult2:
+                            if modifiedname["_id"] == username["modifiedby"]:
+                                username["firstname"]=modifiedname["firstname"]
+                                username["lastname"]=modifiedname["lastname"]
+                                break
+                    
+                    for ids in queryresult: 
+                        list_of_modules = list(dbsession.mindmaps.find({"projectid":ids["_id"]}))
+                        listofmodules=[]
+                        for prj_ids in list_of_modules:
+                            listofmodules.append(prj_ids["_id"])
+                        if len(list_of_modules) == 0 :
+                            progressStep = 0
+                        keyDetails =dbsession.configurekeys.find({"executionData.batchInfo.projectId":ids["_id"]}).count()
+                        if len(list_of_modules) > 0 and keyDetails == 0 :
+                            progressStep = 1
+                        executionList=list(dbsession.testsuites.find({"mindmapid":{"$in":listofmodules}},{"_id":1}))
+                        if len(list_of_modules) > 0 and keyDetails > 0 and len(executionList) == 0 :
+                                progressStep = 2
+                        elif len(executionList) > 0:
+                                progressStep = 3
+                        ids["progressStep"]=progressStep
+                
                     res= {"rows":queryresult}
                 elif(requestdata["query"] == 'getAlltestSuites'):
                     queryresult=list(dbsession.testsuites.aggregate([
@@ -668,6 +697,197 @@ def LoadServices(app, redissession, client ,getClientName):
                 res['errMsg']=errMsg+'Execution Id: '+errMsgVal
             servicesException("getReport_API", getreportexc, True)
         return flask.Response(flask.json.dumps(res), mimetype="application/json")
+        
+    @app.route('/reports/fetchExecutionDetail', methods=['POST'])
+    def fetchExecutionDetail():
+        res = {'rows': 'fail'}
+        try:
+            requestdata = json.loads(request.data)
+            app.logger.debug("Inside fetchExecutionDetail.")
+            if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)             
+                dbsession=client[clientName]
+                TF = '%Y-%m-%d %H:%M:%S'
+                startdate = datetime.strptime(requestdata['startDate'], TF)                
+                enddate = datetime.strptime(requestdata['endDate'], TF)            
+                if requestdata["prefixRegexProjName"] != "Default":                    
+                    projId=list(dbsession.projects.aggregate( [{"$match":{"name": { "$regex":requestdata["prefixRegexProjName"], "$options": 'i' } }} ,
+                    {"$group":{"_id":"null","projectids":{"$push":"$_id"}}}]))                    
+                elif type(requestdata["ProjName"]) != str:
+                    projId=list(dbsession.projects.aggregate( [{"$match":{"name": { "$in":requestdata["ProjName"]} }} ,
+                    {"$group":{"_id":"null","projectids":{"$push":"$_id"}}}]))
+                else:
+                    projId=list(dbsession.projects.aggregate( [{"$match":{"name": requestdata["ProjName"] }} ,
+                    {"$group":{"_id":"null","projectids":{"$push":"$_id"}}}])) 
+                    
+                if len(projId)>0:
+                    testsecnarioids=list(dbsession.testscenarios.aggregate([{"$match":{"projectid":{"$in": projId[0]["projectids"]}}},
+                    {"$group":{"_id":"null","testscenarioids":{"$push":"$_id"}}}]))
+                    if len(testsecnarioids)>0:
+                        testsuiteids=list(dbsession.testsuites.aggregate([{"$match":{"testscenarioids": {"$in":testsecnarioids[0]["testscenarioids"]}}},
+                        {"$group":{"_id":"null","testsuiteids":{"$push":"$_id"}}}]))
+                        if len(testsuiteids)>0:
+                            executionids=list(dbsession.executions.aggregate([{"$match":{"starttime": {"$gte":startdate,"$lte": enddate},
+                            "parent":{"$in":testsuiteids[0]["testsuiteids"]}}},
+                            {"$group":{"_id":"null","executionids":{"$push":"$_id"}}}]))
+                            if len(executionids)>0:
+                                count=dbsession.reports.find({"executionid": {"$in":executionids[0]["executionids"]}}).count()
+                                if count <= 5000:
+                                    dbsession.reports.aggregate([{"$match":{"executionid": {"$in":executionids[0]["executionids"]
+                                            }}},{"$lookup":{
+                                            'from': "testscenarios",
+                                            'localField': "testscenarioid",
+                                            'foreignField': "_id",
+                                            'as': "scenario"}},{"$unwind":"$scenario"},{"$project":{"_id":0,"scenarioid":"$scenario._id","Scenario_Name":"$scenario.name",
+                                            "status":"$overallstatus.overallstatus","StartTime":"$overallstatus.StartTime","EndTime":"$overallstatus.EndTime",
+                                            "BrowserType":"$overallstatus.browserType"}},{"$out":"scen_exe"}])
+                                    dbsession.scen_exe.aggregate([{"$lookup":{
+                                            'from': "mindmaps",
+                                            'localField': "scenarioid",
+                                            'foreignField': "testscenarios._id",
+                                            'as': "mindmaps"}},{"$unwind":"$mindmaps"},
+                                            {"$group":{"_id":"$mindmaps.name","projectid":{"$first":"$mindmaps.projectid"},"Testscenarios_details":{"$push":
+                                            {"Scenario_Name":"$Scenario_Name",
+                                            "status":"$status","StartTime":"$StartTime","EndTime":"$EndTime",
+                                            "BrowserType":"$BrowserType"}},"passcount":{ "$sum": { "$cond": [ { "$eq": [ "$status", 'Pass' ] }, 1, 0 ] } }}},
+                                            {"$project":{"name":"$_id","_id":0,"projectid":1,"passcount":1,"Testscenarios_details":1,"Totalcount":{"$size":"$Testscenarios_details"}}},{"$out":"mod_exe"}
+                                            ])
+                                    dbsession.projects.aggregate([{"$match":{"_id": { "$in":projId[0]["projectids"]}}},{"$lookup":{
+                                            'from': "projecttypekeywords",
+                                            'localField': "type",
+                                            'foreignField': "_id",
+                                            'as': "apptype"}},{"$unwind":"$apptype"},
+                                            {"$project":{"projName":"$name","appType":"$apptype.name"}},{"$out":"proj_exe"}
+                                            ])
+                                    data=list(dbsession.proj_exe.aggregate([{"$lookup":{
+                                            'from': "mod_exe",
+                                            'localField': "_id",
+                                            'foreignField': "projectid",
+                                            'as': "Testsuite_Details"}},{"$project":{"_id":0,"Testsuite_Details._id":0,"Testsuite_Details.projectid":0}}]))
+                                    dbsession.proj_exe.drop()
+                                    dbsession.scen_exe.drop()
+                                    dbsession.mod_exe.drop()
+                                    if data:
+                                            res={'rows':data}
+                                else:
+                                    res="Execution details exceeded the limit of 5000"
+                            else:
+                                res="No Exceutions found for the given project during the given startDate and endDate"
+                        else:
+                            res="No Testsuites found for the given project"
+                    else:
+                        res="No Testscenarios found for the given project"
+                else:
+                    res="No Projects found"
+                
+            else:
+                app.logger.warn('Empty data received while fetching execution details')
+        except Exception as  fetchExecutionDetailexc:
+            dbsession.proj_exe.drop()
+            dbsession.scen_exe.drop()
+            dbsession.mod_exe.drop()
+            servicesException("fetchExecutionDetail",fetchExecutionDetailexc, True)
+        return jsonify(res)
+    
+    @app.route('/reports/fetchExecProfileStatus',methods=['POST'])
+    def fetchExecProfileStatus():
+        res={'rows':'fail'}
+        result = {}
+        try:
+            requestdata=json.loads(request.data)
+            clientName=getClientName(requestdata)        
+            dbsession=client[clientName]
+            configurekey= requestdata['configurekey']
+            reports = dbsession.executions.aggregate([{"$match":{"configurekey":configurekey}},{"$group":{"_id":"$executionListId",
+                                                                    "modStatus":{"$push":{"_id":"$_id","status":"$status"}},"startDate":{"$first":"$starttime"}}},
+                                                                    {'$lookup':{
+                                                                                        'from':"reports",
+                                                                                        'localField':"modStatus._id",
+                                                                                        'foreignField':"executionid",
+                                                                                        'as':"reportdata"
+                                                                                        }
+                                                                                    },
+                                                                                    {"$project":{"_id":1,"modStatus":"$modStatus.status","scestatus":"$reportdata.status","startDate":1}},{"$sort":{"startDate":-1}}
+                                                                                    ])
+            result = list(reports)
+            res['rows'] = result
+            return jsonify(res)
+        except Exception as e:
+            servicesException("fetchExecProfileStatus",e)
+            res={'rows':'fail'}
+        return jsonify(res)    
+    
+
+    @app.route('/reports/fetchModSceDetails',methods=['POST'])
+    def fetchModSceDetails():
+        res={'rows':'fail'}
+        result = {}
+        try:
+            requestdata=json.loads(request.data)
+            clientName=getClientName(requestdata)        
+            dbsession=client[clientName]
+            # configurekey= requestdata['configurekey']
+            if (requestdata["param"] == "modulestatus"):
+                executionListId = requestdata['executionListId']
+                reports = dbsession.executions.aggregate([{"$match":{"executionListId":executionListId}},
+                                                                        {"$project":{"parent":1,"status":1}},{'$lookup':{
+                                                                        'from':"testsuites",
+                                                                        'localField':"parent",
+                                                                        'foreignField':"_id",
+                                                                        'as':"testsuites"
+                                                                            }
+                                                                        },{'$lookup':{
+                                                                        'from':"reports",
+                                                                        'localField':"_id",
+                                                                        'foreignField':"executionid",
+                                                                        'as':"reports"
+                                                                        } },
+                                                                        {"$project":{'modulename':{"$arrayElemAt":["$testsuites.name",0]},"status":1,"scenarioStatus":"$reports.status"}}
+                                                                        ])
+            elif (requestdata["param"] == "scenarioStatus"): 
+                executionid = requestdata['executionId']
+                reports=dbsession.reports.aggregate([{"$match":{"executionid":ObjectId(executionid)}},
+                                                            {"$project":{"testscenarioid":1,"status":1}},
+                                                            {'$lookup':{'from':"testscenarios",
+                                                                        'localField':"testscenarioid",
+                                                                        'foreignField':"_id",
+                                                                        'as':"testscenarios"
+                                                                         }
+                                                                                    },{"$project":{'scenarioname':{"$arrayElemAt":["$testscenarios.name",0]},"status":1}}])
+
+            result = list(reports)  
+            res['rows'] = result    
+            return jsonify(res) 
+        except Exception as e:
+            servicesException("fetchModSceDetails",e)
+            res={'rows':'fail'}
+        return jsonify(res)
+
+    #fetching all the reports status
+    @app.route('/reports/reportStatusScenario',methods=['POST'])
+    def reportStatusScenario():
+        res={'rows':'fail'}
+        try:
+            requestdata=json.loads(request.data)
+            app.logger.debug("Inside reportStatusScenarios_ICE. Query: "+str(requestdata["query"]))
+            if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)         
+                dbsession=client[clientName]
+                if(requestdata["query"] == 'executiondetails'):
+                    queryresult = []
+                    for executionId in requestdata["executionId"]:
+                        statusList = []
+                        result = list(dbsession.reports.find({"executionid": ObjectId(executionId)}))
+                        for element in result:
+                            status = { "status": element["status"], "reportId": str(element['_id']) }
+                            statusList.append(status)
+                        queryresult.append(statusList)
+                    res = {"rows":queryresult}
+            else:
+                app.logger.warn('Empty data received. report status of scenarios.')
+        except Exception as getreportstatusexc:
+            servicesException("reportStatusScenarios_ICE",getreportstatusexc)
+        return jsonify(res)
 
 
 # END OF REPORTS

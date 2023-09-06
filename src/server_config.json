@@ -4,8 +4,7 @@
         "host": "127.0.0.1",
         "port": "27017",
         "username": "78e14edcbd37e5e43b1fc2a535f41637",
-        "password": "da4e266febec8e0b395cebc604966a87",
-        "MongoClientPath":"D:\\source_code\\AvoAssureDB\\bin"
+        "password": "da4e266febec8e0b395cebc604966a87"
     },
     "cachedb": {
         "host": "127.0.0.1",

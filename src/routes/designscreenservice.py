@@ -17,6 +17,26 @@ def LoadServices(app, redissession, client ,getClientName):
 # END OF DEFAULT METHODS AND IMPORTS       -----------DO NOT EDIT
 ################################################################################
 
+    def unpad(data):
+        return data[0:-ord(data[-1])]
+    
+    def unwrap(hex_data, key, iv=b'0'*16):
+        dec_data=None
+        try:
+            data = codecs.decode(hex_data, 'hex')
+            aes = AES.new(key.encode('utf-8'), AES.MODE_CBC, iv)
+            dec_data = unpad(aes.decrypt(data).decode('utf-8'))
+        except Exception as e:
+            app.logger.error("Invalid input for Decryption")
+        return dec_data
+
+    def scrape_unwrap(hex_data):
+        key = "".join(['N','i','n','e','e','t','e','e','n','6','8','@','S','e',
+            'c','u','r','e','S','c','r','a','p','e','D','a','t','a','P','a','t','h'])
+        #to convert string to bytes
+        hex_data=hex_data.encode('utf-8')
+        return unwrap(hex_data, key)
+
     # fetches the scrape screen data
     @app.route('/design/getScrapeDataScreenLevel_ICE',methods=['POST'])
     def getScrapeDataScreenLevel_ICE():
@@ -44,6 +64,13 @@ def LoadServices(app, redissession, client ,getClientName):
                                         "reuse": True if(len(screen_query["parent"])>1) else False,
                                         "orderlist": (screen_query["orderlist"] if ("orderlist" in screen_query) else [])
                                       }
+                        for scraped_obj in res["rows"]["view"]:
+                            xpath_string=scraped_obj["xpath"].split(';')
+                            if len(xpath_string) == 3:
+                                left_part=scrape_unwrap(xpath_string[0])
+                                right_part=scrape_unwrap(xpath_string[2])
+                                if left_part is not None and right_part is not None:
+                                    scraped_obj["xpath"] = left_part+';'+xpath_string[1]+';'+right_part
                 if (requestdata['query']=="getWSscrapedata"):
                     dataobj_query = list(dbsession.dataobjects.find({"parent" :screen_id}))
                     scrapeinfo = dbsession.screens.find_one({"_id":screen_id,"deleted":False},{'_id':0,'parent':1,'scrapeinfo':1})
@@ -55,6 +82,71 @@ def LoadServices(app, redissession, client ,getClientName):
         except Exception as getscrapedataexc:
             servicesException("getScrapeDataScreenLevel_ICE",getscrapedataexc, True)
         return jsonify(res)
+    
+    #updates the screens collection with comparison data after scenario level comparison
+    @app.route('/design/updateScenarioComparisionStatus', methods=['POST'])
+    def scenarioComparisionData():
+        try:
+            res={'rows':'fail'}
+            requestdata=json.loads(request.data)
+            clientName=getClientName(requestdata)
+            dbsession=client[clientName]
+            app.logger.debug("Inside updateScenarioComparisionStatus. Query: "+str(requestdata["query"]))
+            if not isemptyrequest(requestdata):
+                scenario_ID = ObjectId(requestdata['scenarioID'])
+                scenarioComparisonData = requestdata['scenarioComparisonData']
+                for screenComparisonData in scenarioComparisonData:
+                    dbsession.screens.update({'_id':ObjectId(screenComparisonData['screenId'])},{"$set":{"changed":screenComparisonData['changed'],"unchanged":screenComparisonData['unchanged'],"notfound":screenComparisonData['notfound'],"statusCode":screenComparisonData['statusCode']}})
+                res={"rows":"Success"}
+            else:
+                app.logger.warn('Empty data received.')
+        except Exception as getscrapedataexc:
+            servicesException("getScrapeDataScenarioLevel_ICE",getscrapedataexc, True)
+        return jsonify(res)       
+
+    #fetches the scraped data on scenario level
+    @app.route('/design/getScrapeDataScenarioLevel_ICE', methods=['POST'])
+    def getScrapeDataScenarioLevel_ICE():
+        res={'rows':'fail'}
+        try:
+            requestdata=json.loads(request.data)
+            clientName=getClientName(requestdata)
+            dbsession=client[clientName]
+            app.logger.debug("Inside getScrapeDataScenarioLevel_ICE. Query: "+str(requestdata["query"]))
+            if not isemptyrequest(requestdata):
+                scenario_ID = ObjectId(requestdata['scenarioID'])
+                screens = list(dbsession.screens.find({'parent':scenario_ID}))
+                testcaseids = dbsession.testscenarios.find_one({'_id':scenario_ID})['testcaseids']
+                dataobj_scenario_level = []
+                i=0
+                for screen in screens:
+                    dataobj_query = list(dbsession.dataobjects.find({"parent" :screen['_id']}))
+                    dataobj_scenario_level.append({'screen_id'  :screen['_id'],
+                                                   'scrapedurl' :screen['scrapedurl'],
+                                                   'view'       :dataobj_query,
+                                                   'name'       :screen['name'],
+                                                   'index'      :i,
+                                                   'orderlist'  :screen['orderlist'],
+                                                   'mirror'     :screen['screenshot'],
+                                                   'testcaseid' :testcaseids[i]})
+                    i+=1
+                res = {'rows':dataobj_scenario_level}
+            else:
+                app.logger.warn('Empty data received. reading Testcase')
+        except Exception as getscrapedataexc:
+            servicesException("getScrapeDataScenarioLevel_ICE",getscrapedataexc, True)
+        return jsonify(res)
+
+    def update_identifier(object_identifier):
+        all_identifier_list = ["xpath","id","rxpath","name","classname","cssselector","href","label"]
+        current_identifier_list = []
+        for current_identifier_value in object_identifier:
+            current_identifier_list.append(current_identifier_value["identifier"])
+        if len(all_identifier_list) != len(current_identifier_list):
+            for all_identifier_list_index, all_identifier_list_value in enumerate(all_identifier_list):
+                if all_identifier_list_value not in current_identifier_list:
+                    object_identifier.append({"id":all_identifier_list_index+1,"identifier":all_identifier_list_value})
+        return object_identifier
 
     # update/delete/insert opertaions on the screen data
     @app.route('/design/updateScreen_ICE',methods=['POST'])
@@ -70,6 +162,12 @@ def LoadServices(app, redissession, client ,getClientName):
                     dataObjectIds=[ObjectId(i) for i in data['objectIds']]
                     doiden=data["identifiers"]
                     dbsession.dataobjects.update_many({"_id":{"$in":dataObjectIds}},{"$set":{"identifier":doiden}})
+                    res={"rows":"Success"}
+                if (data['param']=="updatedProperties"):
+                    dataObjectId=data['objectId']
+                    xpath=data["xpath"]
+                    identifiers=data['identifiers']
+                    dbsession.dataobjects.update_one({"_id":ObjectId(dataObjectId)},{"$set":{"xpath":xpath,"identifier":identifiers}})
                     res={"rows":"Success"}
                 if data['param'] == 'DebugModeScrapeData':
                     screenId = dbsession.testcases.find_one({'_id':ObjectId(data['testCaseId']), 'versionnumber':data['versionnumber']},{'screenid':1})
@@ -108,7 +206,7 @@ def LoadServices(app, redissession, client ,getClientName):
                         if (data_push != []):
                             insertedObjIds = dbsession.dataobjects.insert(data_push)
                             dbsession.dataobjects.update_many({"_id":{"$in":insertedObjIds}},
-                            {"$set":{"identifier":[{"id":1,"identifier":'xpath'},{"id":2,"identifier":'id' },{"id":3, "identifier":'rxpath' },{ "id":4,"identifier":'name' },{"id":5,"identifier":'classname'}]}})
+                            {"$set":{"identifier":[{"id":1,"identifier":'xpath'},{"id":2,"identifier":'id' },{"id":3, "identifier":'rxpath' },{ "id":4,"identifier":'name' },{"id":5,"identifier":'classname'},{"id":6,"identifier":'cssselector'},{"id":7,"identifier":'href'},{"id":8,"identifier":'label'}]}})
 
                             for index in range(len(orderList)):
                                 if (orderList[index] in tempOrderId_index_dict):
@@ -165,7 +263,7 @@ def LoadServices(app, redissession, client ,getClientName):
                     old_id=ObjectId(objList['oldObjId'])
                     new_obj=objList['newObjectData']
                     new_obj["parent"]=[screenId]
-                    new_obj["identifier"] = [{"id":1,"identifier":'xpath'},{"id":2,"identifier":'id' },{"id":3, "identifier":'rxpath' },{ "id":4,"identifier":'name' },{"id":5,"identifier":'classname'}]
+                    new_obj["identifier"] = [{"id":1,"identifier":'xpath'},{"id":2,"identifier":'id' },{"id":3, "identifier":'rxpath' },{ "id":4,"identifier":'name' },{"id":5,"identifier":'classname'},{"id":6,"identifier":'cssselector'},{"id":7,"identifier":'href'},{"id":8,"identifier":'label'}]
                     newObj_id = None
                     query = list(dbsession.dataobjects.find({'_id':old_id}))
                     if len(query[0]['parent'])>=2:
@@ -258,7 +356,9 @@ def LoadServices(app, redissession, client ,getClientName):
                                 data_obj["view"][i]["parent"] = temp
                                 data_up.append(data_obj["view"][i])
                         if "identifier" not in data_obj["view"][i]:
-                            data_obj["view"][i]["identifier"] = [{"id":1,"identifier":'xpath'},{"id":2,"identifier":'id' },{"id":3, "identifier":'rxpath' },{ "id":4,"identifier":'name' },{"id":5,"identifier":'classname'}]
+                            data_obj["view"][i]["identifier"] = [{"id":1,"identifier":'xpath'},{"id":2,"identifier":'id' },{"id":3, "identifier":'rxpath' },{ "id":4,"identifier":'name' },{"id":5,"identifier":'classname'},{"id":6,"identifier":'cssselector'},{"id":7,"identifier":'href'},{"id":8,"identifier":'label'}]
+                        else:
+                            data_obj["view"][i]["identifier"] = update_identifier(data_obj["view"][i]["identifier"])
                     if len(data_push)>0 or len(data_up)>0:
                         dbsession.dataobjects.update_many({"$and":[{"parent.1":{"$exists":True}},{"parent":screenId}]},{"$pull":{"parent":screenId}})
                         dbsession.dataobjects.delete_many({"$and":[{"parent":{"$size": 1}},{"parent":screenId}]})
@@ -363,7 +463,7 @@ def LoadServices(app, redissession, client ,getClientName):
                                 # app.logger.debug(data_push)
                                 insertedObjIds = dbsession.dataobjects.insert(data_push)
                                 dbsession.dataobjects.update_many({"_id":{"$in":insertedObjIds}},
-                                {"$set":{"identifier":[{"id":1,"identifier":'xpath'},{"id":2,"identifier":'id' },{"id":3, "identifier":'rxpath' },{ "id":4,"identifier":'name' },{"id":5,"identifier":'classname'}]}})
+                                {"$set":{"identifier":[{"id":1,"identifier":'xpath'},{"id":2,"identifier":'id' },{"id":3, "identifier":'rxpath' },{ "id":4,"identifier":'name' },{"id":5,"identifier":'classname'},{"id":6,"identifier":'cssselector'},{"id":7,"identifier":'href'},{"id":8,"identifier":'label'}]}})
 
                                 for index in range(len(orderList)):
                                     if (orderList[temp_index_objects] in tempOrderId_index_dict):
@@ -436,7 +536,7 @@ def LoadServices(app, redissession, client ,getClientName):
                         old_id=ObjectId(objList['oldObjId'])
                         new_obj=objList['newObjectData']
                         new_obj["parent"]=[screenId]
-                        new_obj["identifier"] = [{"id":1,"identifier":'xpath'},{"id":2,"identifier":'id' },{"id":3, "identifier":'rxpath' },{ "id":4,"identifier":'name' },{"id":5,"identifier":'classname'}]
+                        new_obj["identifier"] = [{"id":1,"identifier":'xpath'},{"id":2,"identifier":'id' },{"id":3, "identifier":'rxpath' },{ "id":4,"identifier":'name' },{"id":5,"identifier":'classname'},{"id":6,"identifier":'cssselector'},{"id":7,"identifier":'href'},{"id":8,"identifier":'label'}]
                         newObj_id = None
                         query = list(dbsession.dataobjects.find({'_id':old_id}))
                         if len(query[0]['parent'])>=2:
@@ -539,7 +639,7 @@ def LoadServices(app, redissession, client ,getClientName):
                                     data_obj["view"][i]["parent"] = temp
                                     data_up.append(data_obj["view"][i])
                             if "identifier" not in data_obj["view"][i]:
-                                data_obj["view"][i]["identifier"] = [{"id":1,"identifier":'xpath'},{"id":2,"identifier":'id' },{"id":3, "identifier":'rxpath' },{ "id":4,"identifier":'name' },{"id":5,"identifier":'classname'}]
+                                data_obj["view"][i]["identifier"] = [{"id":1,"identifier":'xpath'},{"id":2,"identifier":'id' },{"id":3, "identifier":'rxpath' },{ "id":4,"identifier":'name' },{"id":5,"identifier":'classname'},{"id":6,"identifier":'cssselector'},{"id":7,"identifier":'href'},{"id":8,"identifier":'label'}]
                         if len(data_push)>0 or len(data_up)>0:
                             dbsession.dataobjects.update_many({"$and":[{"parent.1":{"$exists":True}},{"parent":screenId}]},{"$pull":{"parent":screenId}})
                             dbsession.dataobjects.delete_many({"$and":[{"parent":{"$size": 1}},{"parent":screenId}]})
@@ -603,9 +703,9 @@ def LoadServices(app, redissession, client ,getClientName):
                     newlist.append(data['objMap'][eachobj])
 
                 for i in keywordquery:
-                    if i['objecttype'] in newlist:
-                        result['keywordList'][i['objecttype']] = i['keywords']
-                        newlist.remove(i['objecttype'])
+                    # if i['objecttype'] in newlist:
+                    result['keywordList'][i['objecttype']] = i['keywords']
+                        # newlist.remove(i['objecttype'])
                     if len(newlist) == 0:
                         break
 

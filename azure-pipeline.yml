@@ -54,9 +54,10 @@ stages:
     - script: |
         cd ..
         xcopy /I /Q /Y /E /S C:\portable_pythons\portable_python_das portable_python
+        xcopy /I /Q /Y /E /S C:\portable_pythons\mongoClient mongoClient
         cd portable_python
       name: Get_Python
-      displayName: Get Portable Python
+      displayName: Get Portable Python and Mongo Client
 
     - script: |
         cd $(Build.SourcesDirectory)
@@ -78,6 +79,7 @@ stages:
         move /Y ../portable_python/libs ./
         python .\build\db_utility.py
         move /Y .\src\server_config.json ./
+        move /Y ../mongoClient ./
         python .\build\build.py
         rmdir src /q /s
         rmdir include /q /s

@@ -196,6 +196,7 @@ def LoadServices(app, redissession, client ,getClientName):
                     userid=requestdata['userid']
                     dbconn=dbsession["users"]
                     projectIDResult=list(dbconn.find({"_id":ObjectId(userid)},{"projects":1}))
+
                 if(len(projectIDResult)!=0):
                     dbconn=dbsession["mindmaps"]
                     prjids=[]
@@ -225,7 +226,7 @@ def LoadServices(app, redissession, client ,getClientName):
                             prjDetails['appType'].append(str(prjDetail[0]['type']))
                             prjDetails['appTypeName'].append(projecttype_names[str(prjDetail[0]['type'])])
                             prjDetails['releases'].append(prjDetail[0]["releases"])
-                            prjDetails['domains'].append(prjDetail[0]["domain"])
+                            prjDetails['domains'].append(prjDetail[0]["domain"])                       
                             for rel in prjDetail[0]["releases"]:
                                 for cyc in rel['cycles']:
                                     prjDetails['cycles'][str(cyc['_id'])]=[str(cyc['_id']),rel['name'],cyc['name'],]
@@ -1199,25 +1200,25 @@ def LoadServices(app, redissession, client ,getClientName):
                             tempScenario1=scen
                             if len(tempScenario1)>0:
                                 if tempScenario1["screens"]:
+                                    finalscreen=[]
                                     for scrn in tempScenario1["screens"]:
                                         if "_id" in scrn:
                                             if scrn["_id"]==ObjectId(screenid):
                                                 dataObjects=list(dbsession.dataobjects.find({"parent":ObjectId(screenid)},{"parent":1}))
-                                                if len(dataObjects)==0:
-                                                   del scrn["_id"]                                                   
-                                                else:                                                    
+                                                if len(dataObjects)>0:                                                                                                      
                                                     dataObjectslist = dataObjects[0]['parent']
                                                     if len(dataObjectslist)==1:
                                                         dbsession.dataobjects.delete_many({'parent':ObjectId(screenid)})
                                                     else:
-                                                        dbsession.dataobjects.update_many({'parent':ObjectId(screenid)},{"$pull": {"parent": ObjectId(screenid)}})
-                                                    del scrn["_id"]
-                                                dbsession.screens.delete_many({'_id': ObjectId(screenid)})                                                
+                                                        dbsession.dataobjects.update_many({'parent':ObjectId(screenid)},{"$pull": {"parent": ObjectId(screenid)}})                                                    
+                                                dbsession.screens.delete_one({'_id': ObjectId(screenid)})                                                
                                                 if "testcases" in scrn:
                                                     for testcase in scrn["testcases"]:
-                                                        dbsession.testcases.delete_many({'_id': testcase})
-                                                        dbsession.testscenarios.update_many({'_id':scen["_id"]},{"$pull": {"testcaseids": testcase}})
-                                                    del scrn["testcases"]                                        
+                                                        dbsession.testcases.delete_one({'_id': testcase})
+                                                        dbsession.testscenarios.update_one({'_id':scen["_id"]},{"$pull": {"testcaseids": testcase}})                                                   
+                                            else:
+                                                finalscreen.append(scrn)
+                                    tempScenario1["screens"]=finalscreen                                     
                         testscenarios1.append(tempModule1['testscenarios']) 
                         testscenario1= testscenarios1[0]                               
                         dbsession.mindmaps.update_one({'_id' : tempModule1['_id']},  {'$set' : {'testscenarios':testscenario1}})
@@ -1245,11 +1246,11 @@ def LoadServices(app, redissession, client ,getClientName):
                         dbsession.testsuites.update_one({'name':tempmodule['name']},{"$pull": {"testscenarioids":ObjectId(scenarioid)}})
                     
                 
-                    dbsession.testscenarios.delete_many({'_id': ObjectId(scenarioid)})
+                    dbsession.testscenarios.delete_one({'_id': ObjectId(scenarioid)})
                 for screenid in screenids:
-                    dbsession.screens.delete_many({'_id': ObjectId(screenid)})
+                    dbsession.screens.delete_one({'_id': ObjectId(screenid)})
                 for testcaseid in testcaseids:
-                    dbsession.testcases.delete_many({'_id': ObjectId(testcaseid)}) 
+                    dbsession.testcases.delete_one({'_id': ObjectId(testcaseid)}) 
 
 
             elif len(screenids)>0:
@@ -1260,38 +1261,36 @@ def LoadServices(app, redissession, client ,getClientName):
                             continue
                         screenlist = screenObjects[0]['parent']
                         parentModules = list(dbsession.mindmaps.find({'testscenarios._id'  : {'$in':screenlist}}))
-                        
-                
                         for module in parentModules:
                             testscenarios=[]
                             tempModule=module
                             for scenario in tempModule['testscenarios']:
                                 tempScenario=scenario
                                 if len(scenario)>0:
+                                    finalscr=[]
                                     for screen in tempScenario["screens"]:
                                         if "_id" in screen:
                                             if screen["_id"]==ObjectId(screenid):
                                                 dataObjects=list(dbsession.dataobjects.find({"parent":ObjectId(screenid)},{"parent":1}))
-                                                if len(dataObjects)==0:
-                                                   del screen["_id"]                                                                                                     
-                                                else:
+                                                if len(dataObjects)>0:                                                   
                                                     dataObjectslist = dataObjects[0]['parent']
                                                     if len(dataObjectslist)==1:
                                                         dbsession.dataobjects.delete_many({'parent':ObjectId(screenid)})
                                                     else:
-                                                        dbsession.dataobjects.update_many({'parent':ObjectId(screenid)},{"$pull": {"parent":ObjectId(screenid)}})
-                                                    del screen["_id"]
+                                                        dbsession.dataobjects.update_many({'parent':ObjectId(screenid)},{"$pull": {"parent":ObjectId(screenid)}})                                                    
                                                 if "testcases" in screen:
                                                     for testcase in screen["testcases"]:
-                                                        dbsession.testcases.delete_many({'_id': testcase})
-                                                        dbsession.testscenarios.update_many({'_id':scenario["_id"]},{"$pull": {"testcaseids": testcase}})
-                                                    del screen["testcases"]                                            
+                                                        dbsession.testcases.delete_one({'_id': testcase})
+                                                        dbsession.testscenarios.update_one({'_id':scenario["_id"]},{"$pull": {"testcaseids": testcase}})                                                                                                   
+                                            else:
+                                                finalscr.append(screen)
+                                    tempScenario["screens"]=finalscr                                          
                             testscenarios.append(tempModule['testscenarios'])
                             testscenario=testscenarios[0]
                             dbsession.mindmaps.update_one({'_id' : tempModule['_id']},  {'$set' : {'testscenarios':testscenario}})
-                        dbsession.screens.delete_many({'_id': ObjectId(screenid)})
+                        dbsession.screens.delete_one({'_id': ObjectId(screenid)})
                     for testcaseid in testcaseids:
-                        dbsession.testcases.delete_many({'_id': ObjectId(testcaseid)}) 
+                        dbsession.testcases.delete_one({'_id': ObjectId(testcaseid)}) 
                                                       
 
 
@@ -1308,7 +1307,7 @@ def LoadServices(app, redissession, client ,getClientName):
                         testscenarios=[]
                         for scenario in module['testscenarios']:  
                             tempScenario=scenario 
-                            dbsession.testscenarios.update_many({'_id':scenario["_id"]},{"$pull": {"testcaseids": ObjectId(testcaseid)}})
+                            dbsession.testscenarios.update_one({'_id':scenario["_id"]},{"$pull": {"testcaseids": ObjectId(testcaseid)}})
                             for screen in tempScenario["screens"]:
                                 try:
                                         screen["testcases"].remove(ObjectId(testcaseid))
@@ -1317,7 +1316,7 @@ def LoadServices(app, redissession, client ,getClientName):
 
                             testscenarios.append(tempScenario)
                         dbsession.mindmaps.update_one({'_id' : module['_id']},  {'$set' : {'testscenarios':testscenarios}})
-                    dbsession.testcases.delete_many({'_id': ObjectId(testcaseid)}) 
+                    dbsession.testcases.delete_one({'_id': ObjectId(testcaseid)}) 
             res= {'rows' : 'success'}
         except Exception as e:
             servicesException("deleteScenario", e, True)
@@ -1437,7 +1436,7 @@ def LoadServices(app, redissession, client ,getClientName):
                 clientName=getClientName(requestdata)             
                 dbsession=client[clientName]
                 projectid=ObjectId(requestdata["projectid"])
-                screendetails=list(dbsession.screens.find({"projectid":projectid},{"_id":1,"name":1,"parent":1}))
+                screendetails=list(dbsession.screens.find({"projectid":projectid},{"_id":1,"name":1,"parent":1,"statusCode":1}))                
                 screenids = [scr["_id"] for scr in screendetails]
                 testcasedetails=list(dbsession.testcases.find({"screenid":{"$in":screenids}},{"_id":1,"name":1,"parent":1,"screenid":1}))
                 res={'rows':{'screenList':screendetails,'testCaseList':testcasedetails}}
@@ -1595,6 +1594,8 @@ def LoadServices(app, redissession, client ,getClientName):
         
     def get_creds_path():
         currexc = sys.executable
+        db_keys = "".join(['N','i','n','E','t','e','E','n','6','8','d','A','t','a','B',
+                            'A','s','3','e','N','c','R','y','p','T','1','0','n','k','3','y','S'])    
         try: currfiledir = os.path.dirname(os.path.abspath(__file__))
         except: currfiledir = os.path.dirname(currexc)
         currdir = os.getcwd()
@@ -1614,16 +1615,29 @@ def LoadServices(app, redissession, client ,getClientName):
         config = open(config_path, 'r')
         conf = json.load(config)
         config.close()
-        mongo_client_path=conf['avoassuredb']["MongoClientPath"]
+        mongo_client_path=currdir+os.sep+"mongoClient"
+        if platform.system() == "Windows":                
+            mongo_client_path =mongo_client_path + os.sep+"windows"
+        else:
+            mongo_client_path =mongo_client_path + os.sep+"linux"
+        
         if ('DB_IP' in os.environ and 'DB_PORT' in os.environ):
             DB_IP = str(os.environ['DB_IP']) 
             DB_PORT=str(os.environ['DB_PORT'])
+            mongo_user= unwrap(conf['avoassuredb']['username'],db_keys)
+            mongo_pass= unwrap(conf['avoassuredb']['password'],db_keys)
+            authDB= "admin"
         else:
             DB_IP=conf['avoassuredb']["host"]
             DB_PORT=conf['avoassuredb']["port"]
+            with open(credspath) as creds_file:
+                creds = json.loads(unwrap(creds_file.read(),db_keys))
+            mongo_user=creds['avoassuredb']['username']
+            mongo_pass =creds['avoassuredb']['password']
+            authDB= "avoassure"
         exportImportpath=conf['exportImportpath']
-        return credspath,mongo_client_path,DB_IP, DB_PORT,exportImportpath
-    
+        return mongo_client_path,DB_IP, DB_PORT,exportImportpath,mongo_user,mongo_pass,authDB
+
     def unpad(data):
         return data[0:-ord(data[-1])]
 
@@ -1632,15 +1646,7 @@ def LoadServices(app, redissession, client ,getClientName):
         aes = AES.new(key.encode('utf-8'), AES.MODE_CBC, iv)
         return unpad(aes.decrypt(data).decode('utf-8'))
     
-    def db_password():
-        db_keys = "".join(['N','i','n','E','t','e','E','n','6','8','d','A','t','a','B',
-                            'A','s','3','e','N','c','R','y','p','T','1','0','n','k','3','y','S'])
-        creds_path=get_creds_path()
-        with open(creds_path[0]) as creds_file:
-            creds = json.loads(unwrap(creds_file.read(),db_keys))
-        _ = creds['cachedb']['password'] + creds['avoassuredb']['username'] + creds['avoassuredb']['password']
-        return creds['avoassuredb']['username'],creds['avoassuredb']['password'] 
-
+    
     @app.route('/mindmap/exportMindmap', methods=['POST'])
     def exportMindmap():
         res = {'rows': 'fail'}
@@ -1649,16 +1655,11 @@ def LoadServices(app, redissession, client ,getClientName):
             app.logger.debug("Inside exportMindmap.")
             if not isemptyrequest(requestdata):
                 clientName=getClientName(requestdata)             
-                dbsession=client[clientName]
-                db_username, password=db_password()
-                userid=requestdata["userid"]
-                x,exportPath,DB_IP,DB_PORT,expPath=get_creds_path()
-                if platform.system() == "Windows":
-                    exportPath =exportPath + "\\"+"mongoexport"
-                    expPath=expPath+"\\"+"ExportMindmap"+"\\"+ userid    
-                else:
-                    exportPath =exportPath + "/"+"mongoexport"
-                    expPath=expPath+"/"+"ExportMindmap"+"/"+ userid
+                dbsession=client[clientName]                
+                userid=requestdata["userid"]                
+                mongoFile,DB_IP,DB_PORT,expPath,mongo_user,mongo_pass,authDB=get_creds_path()                              
+                mongoFile =mongoFile+ os.sep+"mongoexport"                
+                expPath=expPath+os.sep+"ExportMindmap"+os.sep+ userid
                 if (requestdata['query'] == 'exportMindmap'):
                     exportcheck=dbsession.Export_mindmap.find().count()
                     if exportcheck==0:
@@ -1689,12 +1690,13 @@ def LoadServices(app, redissession, client ,getClientName):
                                         {"$out":"Export_testcases"}])
                                     dbsession.dataobjects.aggregate([{'$match': {"parent": {'$in':screens}}}
                                         ,{"$out":"Export_dataobjects"}])
-    
-                            p=subprocess.call(f"{exportPath} --host {DB_IP} --port {DB_PORT} --db {clientName} --username {db_username} --password {password} --collection Export_mindmap -o {expPath}\\Modules.json  --jsonArray")
-                            q=subprocess.call(f"{exportPath} --host {DB_IP} --port {DB_PORT} --db {clientName} --username {db_username} --password {password} --collection Export_testscenarios -o {expPath}\\Testscenarios.json  --jsonArray")
-                            r=subprocess.call(f"{exportPath} --host {DB_IP} --port {DB_PORT} --db {clientName} --username {db_username} --password {password} --collection Export_screens -o {expPath}\\screens.json  --jsonArray")
-                            s=subprocess.call(f"{exportPath} --host {DB_IP} --port {DB_PORT} --db {clientName} --username {db_username} --password {password} --collection Export_testcases -o {expPath}\\Testcases.json  --jsonArray")
-                            t=subprocess.call(f"{exportPath} --host {DB_IP} --port {DB_PORT} --db {clientName} --username {db_username} --password {password} --collection Export_dataobjects -o {expPath}\\Dataobjects.json  --jsonArray")
+
+                            p=os.system("{} --host {} --port {} --db {} --username {} --password {} --authenticationDatabase {} --collection Export_mindmap -o {}{}Modules.json  --jsonArray".format(mongoFile,DB_IP,DB_PORT,clientName,mongo_user,mongo_pass,authDB,expPath,os.sep))
+                            q=os.system("{} --host {} --port {} --db {} --username {} --password {} --authenticationDatabase {} --collection Export_testscenarios -o {}{}Testscenarios.json  --jsonArray".format(mongoFile,DB_IP,DB_PORT,clientName,mongo_user,mongo_pass,authDB,expPath,os.sep))
+                            r=os.system("{} --host {} --port {} --db {} --username {} --password {} --authenticationDatabase {} --collection Export_screens -o {}{}screens.json  --jsonArray".format(mongoFile,DB_IP,DB_PORT,clientName,mongo_user,mongo_pass,authDB,expPath,os.sep))
+                            s=os.system("{} --host {} --port {} --db {} --username {} --password {} --authenticationDatabase {} --collection Export_testcases -o {}{}Testcases.json  --jsonArray".format(mongoFile,DB_IP,DB_PORT,clientName,mongo_user,mongo_pass,authDB,expPath,os.sep))
+                            t=os.system("{} --host {} --port {} --db {} --username {} --password {} --authenticationDatabase {} --collection Export_dataobjects -o {}{}Dataobjects.json  --jsonArray".format(mongoFile,DB_IP,DB_PORT,clientName,mongo_user,mongo_pass,authDB,expPath,os.sep))
+                            
                             if p ==q ==r==s==t==0:
                                 queryresult="success"
                             else:
@@ -1862,30 +1864,32 @@ def LoadServices(app, redissession, client ,getClientName):
             currentmoduleid=i["_id"]
             idsforModule=[]
             if "tsIds" in i:
-                for tsId in i["tsIds"]:
-                    for j in ScenarioIds:
-                        if tsId["_id"]==j["old_id"]:
-                            currentscenarioid=j["_id"]
-                            break
-                    iddata1={"_id":currentscenarioid,"screens":[]}
-                    if "screens" in tsId:
-                        for screens in tsId["screens"]:
-                            for k in screenIds:
+                for tsId in i["tsIds"]:                    
+                    if "_id" in tsId:
+                        for j in ScenarioIds:
+                            if tsId["_id"]==j["old_id"]:
+                                currentscenarioid=j["_id"]
+                                break
+                        iddata1={"_id":currentscenarioid,"screens":[]}
+                        if "screens" in tsId:
+                            for screens in tsId["screens"]:                                
                                 if "_id" in screens:
-                                    if screens["_id"]==k["old_id"]:
-                                        currentscreenid=k["_id"]
-                                        break
-                            iddata2={"_id":currentscreenid,"testcases":[]}
-                            if "testcases" in screens:
-                                for testcase in screens["testcases"]:
-                                    for l in testcaseIds:
-                                        if testcase:
-                                            if testcase == l["old_id"]: 
-                                                currenttestcaseid=l["_id"]
-                                                break                                                           
-                                    iddata2["testcases"].append(currenttestcaseid)
-                            iddata1["screens"].append(iddata2)
-                    idsforModule.append(iddata1)
+                                    for k in screenIds:
+                                        if screens["_id"]==k["old_id"]:
+                                            currentscreenid=k["_id"]
+                                            break
+                                    iddata2={"_id":currentscreenid,"testcases":[]}
+                                    if "testcases" in screens:
+                                        for testcase in screens["testcases"]:
+                                            if testcase:                                            
+                                                for l in testcaseIds:
+                                                    if testcase:
+                                                        if testcase == l["old_id"]: 
+                                                            currenttestcaseid=l["_id"]
+                                                            break                                                           
+                                                iddata2["testcases"].append(currenttestcaseid)
+                                    iddata1["screens"].append(iddata2)
+                        idsforModule.append(iddata1)
             array2["testscenarios"].append(idsforModule)
             array2["testscenarios"]=array2["testscenarios"][0]
             mdmaptscen.append(array2)
@@ -1897,11 +1901,12 @@ def LoadServices(app, redissession, client ,getClientName):
         for i in ScenarioIds:
             array1={"_id":"","testcaseids":[]}
             array1["_id"]=i["_id"]
-            for j in i["testcaseids"]:
-                for tcid in testcaseIds:
-                    if j==tcid["old_id"]:
-                            array1["testcaseids"].append(tcid["_id"])
-                            break
+            if "testcaseids" in i:
+                for j in i["testcaseids"]:
+                    for tcid in testcaseIds:
+                        if j==tcid["old_id"]:
+                                array1["testcaseids"].append(tcid["_id"])
+                                break
             scentestcase.append(array1)
         
         mycoll=dbsession["scenario_testcase"]
@@ -2015,23 +2020,26 @@ def LoadServices(app, redissession, client ,getClientName):
         testcaseparent=[]                    
         testcaseids=[]                  
         for i in moduleids:
-            for j in i["testscenarios"]:
-                for k in j["screens"]:                                
-                    for testcase in k["testcases"]:
-                            array3={"_id":"","parent":[]}                                    
-                            if testcase in testcaseids:                                            
-                                for q in testcaseparent:
-                                    if q["_id"] == testcase:                                                    
-                                        parentinc=q["parent"]
-                                        parentinc=parentinc+1
-                                        q["parent"] = parentinc                                                                                            
-                                    else:
-                                        continue                         
-                            else:                                            
-                                testcaseids.append(testcase)
-                                array3["_id"]=testcase								
-                                array3["parent"]=1
-                                testcaseparent.append(array3)
+            if "testscenarios" in i:
+                for j in i["testscenarios"]:
+                    if "screens" in j:
+                        for k in j["screens"]:
+                            if "testcases" in k:                                
+                                for testcase in k["testcases"]:
+                                        array3={"_id":"","parent":[]}                                    
+                                        if testcase in testcaseids:                                            
+                                            for q in testcaseparent:
+                                                if q["_id"] == testcase:                                                    
+                                                    parentinc=q["parent"]
+                                                    parentinc=parentinc+1
+                                                    q["parent"] = parentinc                                                                                            
+                                                else:
+                                                    continue                         
+                                        else:                                            
+                                            testcaseids.append(testcase)
+                                            array3["_id"]=testcase								
+                                            array3["parent"]=1
+                                            testcaseparent.append(array3)
 
         mycoll=dbsession["testcase_parent"]
         dbsession.testcase_parent.delete_many({})
@@ -2181,17 +2189,11 @@ def LoadServices(app, redissession, client ,getClientName):
                     dbsession.scenariotestcasemapping.drop()
                     dbsession.scr_parent.drop()
                     
-                    db_username, password=db_password()
-                    x,importPath,DB_IP,DB_PORT,impJsonPath=get_creds_path()
-                    if platform.system() == "Windows":
-                        importPath = importPath + "\\"+"mongoimport"
-                        impJsonPath=impJsonPath+"\\"+"ImportMindmap"+"\\"+ importtype
-                    else:
-                        importPath = importPath + "/"+"mongoimport"
-                        impJsonPath=impJsonPath+"/"+"ImportMindmap"+"/"+ importtype
-
-                    js=subprocess.call(f"{importPath} --host {DB_IP} --port {DB_PORT} --db {clientName} --username {db_username} --password {password} --collection jsontomindmap --file {impJsonPath}\\{userid}.json  --jsonArray")                    
+                    mongoFile,DB_IP,DB_PORT,impJsonPath,mongo_user,mongo_pass,authDB=get_creds_path()                    
+                    mongoFile = mongoFile +os.sep+"mongoimport"
+                    impJsonPath=impJsonPath+os.sep+"ImportMindmap"+os.sep+ importtype                    
                     
+                    js=os.system("{} --host {} --port {} --db {} --username {} --password {} --authenticationDatabase {} --collection jsontomindmap --file {}{}{}.json  --jsonArray".format(mongoFile,DB_IP,DB_PORT,clientName,mongo_user,mongo_pass,authDB,impJsonPath,os.sep,userid))
                                         
 
                     dbsession.jsontomindmap.aggregate([
@@ -2306,21 +2308,21 @@ def LoadServices(app, redissession, client ,getClientName):
                         for mm in mmIds:
                             data={"_id":"","testscenarios":[]}
                             data["_id"]=mm["_id"]
-                            if mm["testscenarionames"]:
+                            if "testscenarionames" in mm:
                                 for tsname in mm["testscenarionames"]:
                                     data1={"_id":"","screens":[]}
                                     for ts in tsIds:                                        
                                         if tsname["name"]==ts["name"]:
                                             data1["_id"]=ts["_id"]
                                             break
-                                    if tsname["screens"]: 
+                                    if "screens" in tsname: 
                                         for scrname in tsname["screens"]:
                                             data2={"_id":"","testcases":[]}
                                             for scr in scrIds:                                                
                                                 if scrname["name"]==scr["name"]:
                                                     data2["_id"]=scr["_id"]
                                                     break
-                                            if scrname["testcases"]:
+                                            if "testcases" in scrname:
                                                 for tcname in scrname["testcases"]:
                                                     for tc in tcIds:
                                                         if tcname==tc["name"]:
@@ -2340,10 +2342,11 @@ def LoadServices(app, redissession, client ,getClientName):
                     for i in tsIds:
                         array1={"_id":"","testcaseids":[]}
                         array1["_id"]=i["_id"]
-                        for j in i["testcases"]:
-                            for tcid in tcIds:
-                                if j==tcid["duplicatecheck"]:
-                                        array1["testcaseids"].append(tcid["_id"])
+                        if "testcases" in i:
+                            for j in i["testcases"]:
+                                for tcid in tcIds:
+                                    if j==tcid["duplicatecheck"]:
+                                            array1["testcaseids"].append(tcid["_id"])
                         scentestcase.append(array1)
                     
                     mycoll=dbsession["scenario_testcase_json_Import"]
@@ -2437,23 +2440,26 @@ def LoadServices(app, redissession, client ,getClientName):
                     testcaseparent=[]                    
                     testcaseids=[]                  
                     for i in mindmapId:
-                        for j in i["testscenarios"]:
-                            for k in j["screens"]:                                
-                                for testcase in k["testcases"]:
-                                        array3={"_id":"","parent":[]}                                    
-                                        if testcase in testcaseids:                                            
-                                            for q in testcaseparent:
-                                                if q["_id"] == testcase:                                                    
-                                                    parentinc=q["parent"]
-                                                    parentinc=parentinc+1
-                                                    q["parent"] = parentinc                                                                                            
-                                                else:
-                                                    continue                         
-                                        else:                                            
-                                            testcaseids.append(testcase)
-                                            array3["_id"]=testcase								
-                                            array3["parent"]=1
-                                            testcaseparent.append(array3)
+                        if "testscenarios" in i:
+                            for j in i["testscenarios"]:
+                                if "screens" in j:
+                                    for k in j["screens"]:
+                                        if "testcases" in k:                                
+                                            for testcase in k["testcases"]:
+                                                    array3={"_id":"","parent":[]}                                    
+                                                    if testcase in testcaseids:                                            
+                                                        for q in testcaseparent:
+                                                            if q["_id"] == testcase:                                                    
+                                                                parentinc=q["parent"]
+                                                                parentinc=parentinc+1
+                                                                q["parent"] = parentinc                                                                                            
+                                                            else:
+                                                                continue                         
+                                                    else:                                            
+                                                        testcaseids.append(testcase)
+                                                        array3["_id"]=testcase								
+                                                        array3["parent"]=1
+                                                        testcaseparent.append(array3)
 
                     mycoll=dbsession["testcase_parent_json_Import"]
                     dbsession.testcase_parent_json_Import.delete_many({})
@@ -2599,20 +2605,18 @@ def LoadServices(app, redissession, client ,getClientName):
                     userid=ObjectId(requestdata["userid"])
                     role=ObjectId(requestdata["role"])
                     projectid=ObjectId(requestdata["projectid"])                                        
-                    createdon = datetime.now()                   
-                    db_username, password=db_password()
-                    x,importPath,DB_IP,DB_PORT,impPath=get_creds_path()                                    
-                    if platform.system() == "Windows":
-                        importPath = importPath + "\\"+"mongoimport"
-                        impPath=impPath+"\\"+"ImportMindmap"+"\\"+ str(userid)
-                    else:
-                        importPath = importPath + "/"+"mongoimport"
-                        impPath=impPath+"/"+"ImportMindmap"+"/"+ str(userid)
-                    do=subprocess.call(f"{importPath} --host {DB_IP} --port {DB_PORT} --db {clientName} --username {db_username} --password {password} --collection Dataobjects_Import --file {impPath}\\Dataobjects.json  --jsonArray")
-                    mm=subprocess.call(f"{importPath} --host {DB_IP} --port {DB_PORT} --db {clientName} --username {db_username} --password {password} --collection Module_Import --file {impPath}\\Modules.json  --jsonArray")
-                    ts=subprocess.call(f"{importPath} --host {DB_IP} --port {DB_PORT} --db {clientName} --username {db_username} --password {password} --collection Scenario_Import --file {impPath}\\Testscenarios.json  --jsonArray")
-                    sr=subprocess.call(f"{importPath} --host {DB_IP} --port {DB_PORT} --db {clientName} --username {db_username} --password {password} --collection Screen_Import --file {impPath}\\screens.json  --jsonArray")
-                    tc=subprocess.call(f"{importPath} --host {DB_IP} --port {DB_PORT} --db {clientName} --username {db_username} --password {password} --collection Testcase_Import --file {impPath}\\Testcases.json  --jsonArray")
+                    createdon = datetime.now()                
+                    
+                    mongoFile,DB_IP,DB_PORT,impPath,mongo_user,mongo_pass,authDB=get_creds_path()                                   
+                    
+                    mongoFile = mongoFile +os.sep+"mongoimport"                    
+                    impPath=impPath+os.sep+"ImportMindmap"+os.sep+ str(userid)
+                
+                    do=os.system("{} --host {} --port {} --db {} --username {} --password {} --authenticationDatabase {} --collection Dataobjects_Import --file {}{}Dataobjects.json --jsonArray".format(mongoFile,DB_IP,DB_PORT,clientName,mongo_user,mongo_pass,authDB,impPath,os.sep))
+                    mm=os.system("{} --host {} --port {} --db {} --username {} --password {} --authenticationDatabase {} --collection Module_Import --file {}{}Modules.json --jsonArray".format(mongoFile,DB_IP,DB_PORT,clientName,mongo_user,mongo_pass,authDB,impPath,os.sep))
+                    ts=os.system("{} --host {} --port {} --db {} --username {} --password {} --authenticationDatabase {} --collection Scenario_Import --file {}{}Testscenarios.json --jsonArray".format(mongoFile,DB_IP,DB_PORT,clientName,mongo_user,mongo_pass,authDB,impPath,os.sep))
+                    sr=os.system("{} --host {} --port {} --db {} --username {} --password {} --authenticationDatabase {} --collection Screen_Import --file {}{}screens.json --jsonArray".format(mongoFile,DB_IP,DB_PORT,clientName,mongo_user,mongo_pass,authDB,impPath,os.sep))
+                    tc=os.system("{} --host {} --port {} --db {} --username {} --password {} --authenticationDatabase {} --collection Testcase_Import --file {}{}Testcases.json --jsonArray".format(mongoFile,DB_IP,DB_PORT,clientName,mongo_user,mongo_pass,authDB,impPath,os.sep))
                      
                     dbsession.Module_Import.aggregate([
                     {"$project":{"_id":0,"old_id":"$_id",
@@ -2741,23 +2745,34 @@ def LoadServices(app, redissession, client ,getClientName):
                         
 
                             for i in mindmapIds:
-                                if "tsIds" in i:
+                                testscen=[]
+                                if "tsIds" in i:                                    
                                     for tsId in i["tsIds"]:
-                                        for j in ScenarioIds:
-                                            if tsId["_id"]==j["old_id"]:
-                                                tsId["_id"]=j["_id"]
-                                                break
+                                        if tsId:
+                                            if "_id" in tsId:
+                                                for j in ScenarioIds:
+                                                    if tsId["_id"]==j["old_id"]:
+                                                        tsId["_id"]=j["_id"]
+                                                        break
+                                                testscen.append(tsId)
+                                i["tsIds"]=testscen
+                                                                                 
                             
                             for i in mindmapIds:
                                 if "tsIds" in i:
                                     for tsId in i["tsIds"]:
+                                        scrndt=[]
                                         if "screens" in tsId:
                                             for screens in tsId["screens"]:
-                                                for k in screenIds:
+                                                if screens:
                                                     if "_id" in screens:
-                                                        if screens["_id"]==k["old_id"]:
-                                                            screens["_id"]=k["_id"]
-                                                            break
+                                                        for k in screenIds:
+                                                            if screens["_id"]==k["old_id"]:
+                                                                screens["_id"]=k["_id"]
+                                                                break
+                                                        scrndt.append(screens)
+                                        tsId["screens"]=scrndt
+                                                
                             
                             mdmaptscen=[]
                             for i in mindmapIds:                                               
@@ -2898,11 +2913,11 @@ def LoadServices(app, redissession, client ,getClientName):
                             testcaseparent=[]                    
                             testcaseids=[]                   
                             for i in moduleids:
-                                if i["testscenarios"] and len(i["testscenarios"])>0:
+                                if "testscenarios" in i and len(i["testscenarios"])>0:
                                     for j in i["testscenarios"]:
-                                        if j["screens"] and len(j["screens"])>0:
+                                        if "screens" in j and len(j["screens"])>0:
                                             for k in j["screens"]:
-                                                if k["testcases"] and len(k["testcases"])>0:                                
+                                                if "testcases" in k and len(k["testcases"])>0:                                
                                                     for testcase in k["testcases"]:
                                                             array3={"_id":"","parent":[]}                                    
                                                             if testcase in testcaseids:                                            
@@ -3070,9 +3085,68 @@ def LoadServices(app, redissession, client ,getClientName):
                     dbsession.Export_mindmap.drop()
                     dbsession.Module_Import.drop()
                     dbsession.mindmapnames.drop()
+                    dbsession.Export_mindmap_git.drop()
+                    dbsession.git_Module_Import.drop()
                     res={'rows':'pass'}
             else:
                 app.logger.warn('Empty data received while importing mindmap')
         except Exception as dropTempExpImpCollexc:
             servicesException("dropTempExpImpColl",dropTempExpImpCollexc, True)
         return jsonify(res)
+
+    
+    @app.route('/mindmap/getProjectsMMTS',methods=['POST'])
+    def getProjectsMMTS():
+        res={'rows':'fail'}
+        try:
+            requestdata=json.loads(request.data)
+            app.logger.debug("Inside getProjectsMMTS.")
+            if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)             
+                dbsession=client[clientName]
+                if (requestdata['query'] == 'getProjectsMMTS'):
+                    projectid=ObjectId(requestdata["projectid"])
+                    mm_det=list(dbsession.mindmaps.aggregate([{"$match":{"projectid":projectid, "type":"basic"}},{'$lookup': {
+                                                'from': "testscenarios",
+                                                'localField': "_id",
+                                                'foreignField': "parent",
+                                                'as': "scenarioList"
+                                            }},{"$project":{"projectid":1,"scenarioList.name":1,"scenarioList._id":1,"name":1}},
+                                            {"$group":{"_id":"$projectid","mindmapList":{"$push":{"_id":"$_id","name":"$name","scenarioList":"$scenarioList"}
+                                               }}}
+                                               ]))                                              
+
+                    if len(mm_det) > 0 :
+                        res={'rows':mm_det}
+                    else:
+                        res={'rows': [""]}
+            else:
+                app.logger.warn('Empty data received while importing mindmap')
+        except Exception as getProjectsMMTSexc:
+            servicesException("getProjectsMMTS",getProjectsMMTSexc, True)
+        return jsonify(res)
+    
+
+    @app.route('/mindmap/updateE2E',methods=['POST'])
+    def updateE2E():
+        res={'rows':'fail'}
+        try:
+            requestdata=json.loads(request.data)
+            app.logger.debug("Inside getProjectsMMTS.")
+            if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)             
+                dbsession=client[clientName]
+                sceid=requestdata["scenarioID"]
+                queryresult = []
+                for scenarioid in sceid:
+                    mm_det=dbsession.testscenarios.find_one({"_id":(ObjectId(scenarioid)) },{"parent":1})
+                    mm_name=dbsession.mindmaps.find_one({"_id":{"$in":mm_det["parent"]},"type":"basic"},{"projectid":1, "name":1})
+                    proj_name=dbsession.projects.find_one({"_id":mm_name["projectid"]},{"name":1})
+                    queryresult.append({"module_name":mm_name["name"],"proj_name":proj_name["name"], "scenarioID":scenarioid})      
+                res={"rows":queryresult}
+            else:
+                app.logger.warn('Empty data received while importing mindmap')
+        except Exception as updateE2Eexc:
+            servicesException("updateE2E",updateE2Eexc, True)
+        return jsonify(res)
+

@@ -68,6 +68,11 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
         try:
             requestdata=json.loads(request.data)
             action=requestdata["action"]
+            if requestdata["userimage"] == '':
+                del requestdata["userimage"]
+                userImage=''
+            else :
+                userImage=requestdata["userimage"]
             del requestdata["action"]
             app.logger.info("Inside manageUserDetails. Query: "+str(action))
             if not isemptyrequest(requestdata):
@@ -100,9 +105,10 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
                         requestdata["modifiedon"]=datetime.now()
                         requestdata["deactivated"]="false"
                         requestdata["addroles"]=[]
-                        result=list(dbsession.projects.find({"name":"Avo Trial"},{"_id":1}))
+                        result=list(dbsession.projects.find({"name":"Sample Project"},{"_id":1}))
                         if result:
                             requestdata["projects"]=[result[0]["_id"]]
+                            requestdata["projectlevelrole"] = [{"_id":str(result[0]["_id"]), "assignedrole":str(requestdata["defaultrole"])}]
                         else:
                             requestdata["projects"]=[]
                         requestdata["welcomeStepNo"] = 0
@@ -115,7 +121,12 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
                             requestdata["auth"]["defaultpassword"]=""
                             requestdata["auth"]["verificationpasstime"]=""
                             requestdata["auth"]["verificationpassword"]=""
-                        dbsession.users.insert_one(requestdata)
+                        if (requestdata["defaultrole"] == ObjectId("5db0022cf87fdec084ae49ab") and "isadminuser" in requestdata and requestdata["isadminuser"]==True):
+                            dbsession.users.insert_one(requestdata)
+                        else:
+                            if "isadminuser" in requestdata :
+                                del requestdata["isadminuser"]
+                            dbsession.users.insert_one(requestdata)
                         userData = {
                             "uid":requestdata["_id"],
                             "email":requestdata["email"],
@@ -127,6 +138,7 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
                 elif (action=="update"):
                     if(requestdata["auth"]["password"] == "" and requestdata["auth"]["type"] == "inhouse" ):
                         result=dbsession.users.find_one({"_id":ObjectId(requestdata["userid"])})["auth"]["password"]
+                        dbsession.users.update_one({"_id":ObjectId(requestdata["userid"])}, {"$set": {"profileimage":userImage}})
                         requestdata["auth"]["password"] = result
                     update_query = {
                         "firstname":requestdata["firstname"],
@@ -194,7 +206,7 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
                 clientName=getClientName(requestdata)           
                 dbsession=client[clientName]
                 if "userid" in requestdata:
-                    result=dbsession.users.find_one({"_id":ObjectId(requestdata["userid"])},{"name":1,"firstname":1,"lastname":1,"email":1,"defaultrole":1,"addroles":1,"auth":1})
+                    result=dbsession.users.find_one({"_id":ObjectId(requestdata["userid"])},{"name":1,"firstname":1,"lastname":1,"email":1,"defaultrole":1,"addroles":1,"auth":1,"profileimage":1,"isadminuser":1})
                     if result is not None:
                         if result["name"] in ["support.avoassure","ci_cd"]: result = None
                         else: result["rolename"]=dbsession.permissions.find_one({"_id":result["defaultrole"]})["name"]
@@ -204,7 +216,7 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
                 else:
                     perms_list = dbsession.permissions.find({},{"_id":1,"name":1})
                     perms = {x["_id"]: x["name"] for x in perms_list}
-                    result=list(dbsession.users.find({"name":{"$nin":["support.avoassure","ci_cd"]}},{"_id":1,"name":1,"defaultrole":1,"firstname":1,"lastname":1,"email":1}))
+                    result=list(dbsession.users.find({"name":{"$nin":["support.avoassure","ci_cd"]}},{"_id":1,"name":1,"defaultrole":1,"firstname":1,"lastname":1,"email":1, "profileimage":1, "isadminuser":1}))
                     for i in result:
                         i["rolename"]=perms[i["defaultrole"]]
                     res={'rows':result}
@@ -942,6 +954,10 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
                     elif action == "update":
                         del requestdata["action"]
                         del requestdata["name"]
+                        if "host" in result:
+                            dbsession.notifications.update_one(query_filter, {"$unset": {"host": 1}})
+                        if "port" in result:
+                            dbsession.notifications.update_one(query_filter, {"$unset": {"port": 1}})
                         if requestdata["auth"] and type(requestdata["auth"]) != bool and "password" in requestdata["auth"]:
                             requestdata["auth"]["password"] = wrap(requestdata["auth"]["password"],ldap_key)
                         if requestdata["proxy"] and "pass" in requestdata["proxy"]:
@@ -1783,6 +1799,7 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
             requestdata=json.loads(request.data)
             clientName=getClientName(requestdata)             
             dbsession=client[clientName]
+            role=requestdata["assignedUsers"][0]["role"]
 
             app.logger.debug("Inside userCreateProject_ICE. Query: create Project")
 
@@ -1840,9 +1857,9 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
 
                     # for user_id in each_dict:
 
-                    if assignedUsers[user_id]==True:
-
-                        dbsession.users.update_one({"_id":ObjectId(user_id)},{"$push":{"projects":project_id.inserted_id}})
+                    if 'id' in user_id:
+                        default_role_id = list(dbsession.permissions.find({ "name": role }, {"_id": 1}))                        
+                        dbsession.users.update_one({"_id":ObjectId(user_id["id"])}, {"$push": {"projects":project_id.inserted_id, "projectlevelrole":{"_id":str(project_id.inserted_id), "assignedrole": str(default_role_id[0]["_id"])}}})
 
                 res={"rows":"success"}
 
@@ -1860,40 +1877,30 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
 
 
     @app.route('/plugins/userUpdateProject_ICE',methods=['POST'])
-
     def userUpdateProject_ICE():
-
         res={'rows':'fail'}
-
         try:
-
             requestdata=json.loads(request.data)
             clientName=getClientName(requestdata)             
             dbsession=client[clientName]
-
             # app.logger.debug("Inside userUpdateProject_ICE. Query: "+str(requestdata["query"]))
+            if not isemptyrequest(requestdata):                
+                previousAssignedUsers = dbsession.users.find({"projects": {"$in": [ObjectId(requestdata["project_id"])]}})
+                newlyUnassignedUsers = []
+                def listOfUserID(user):
+                    return ObjectId(user["id"])
+                for user in previousAssignedUsers:
+                    if user["_id"] not in map(listOfUserID,requestdata["assignedUsers"]):
+                        newlyUnassignedUsers.append(user)
+                for user in requestdata["assignedUsers"]:
+                    if "role" in user:
+                        default_role_id = list(dbsession.permissions.find({ "name": user["role"] }, {"_id": 1}))
 
-            if not isemptyrequest(requestdata):
-
-                # assignedUsers = requestdata["assignedUsers"].keys()
-                dbsession.projects.update_one({"_id":ObjectId(requestdata["project_id"])},{"$set":{"modifiedbyrole":ObjectId(requestdata["modifiedbyrole"]),"modifiedby":ObjectId(requestdata["modifiedby"]),"modifiedon":datetime.now()}})
-
-                for user_id in requestdata['assignedUsers']:
-
-                    # for usser_id in each_dict:
-
-                    if requestdata['assignedUsers'][user_id]==True:
-
-                        dbsession.users.update_one({"_id":ObjectId(user_id)},{"$push":{"projects":ObjectId(requestdata["project_id"])}})
-
-                    elif requestdata['assignedUsers'][user_id]==False:
-
-                        dbsession.users.update_one({"_id":ObjectId(user_id)},{"$pull":{"projects":ObjectId(requestdata["project_id"])}})
-
+                    dbsession.users.update_one({"_id":ObjectId(user["id"])},{"$push":{"projects":ObjectId(requestdata["project_id"]), "projectlevelrole":{"_id":requestdata["project_id"], "assignedrole": str(default_role_id[0]["_id"])}}})
+                for user in newlyUnassignedUsers:
+                    dbsession.users.update_one({"_id":ObjectId(user["_id"])},{"$pull":{"projects":ObjectId(requestdata["project_id"]), "projectlevelrole":{"_id":requestdata["project_id"]}}})    
                 res={'rows':'success'}
-
             else:
-
                 app.logger.warn('Empty data received. update project.')
 
         except Exception as updateprojectexc:
@@ -1909,12 +1916,27 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
-            clientName=getClientName(requestdata)             
+            clientName=getClientName(requestdata)
             dbsession=client[clientName]
             # app.logger.debug("Inside getUsers_ICE. Query: "+str(requestdata["query"]))
             if not isemptyrequest(requestdata):
-                result=list(dbsession.users.find({"projects":{"$in":[ObjectId(requestdata["project_id"])]}},{"name":1,"_id":1}))
-                result1=list(dbsession.users.find({"defaultrole":{"$nin":[ObjectId("5db0022cf87fdec084ae49a9"),ObjectId("5f0ee20fba8ae8b8a603b5b6")]},"projects":{"$nin":[ObjectId(requestdata["project_id"])]}},{"name":1,"_id":1}))
+                result=list(dbsession.users.find({"projects":ObjectId(requestdata["project_id"]), "projectlevelrole._id" :requestdata["project_id"]},{"projectlevelrole.$":1, "name":1, "firstname":1, "lastname":1, "defaultrole":1, "email":1,"profileimage":1}))
+                roleDetails=list(dbsession.permissions.find({ }, {"name": 1}))
+                for role in result:
+                    for roleId in roleDetails:
+                        roleName = role["projectlevelrole"][0]["assignedrole"]
+                        if roleId["_id"] == ObjectId(roleName):
+                            role["assignedrole"] = roleId
+                            break
+                    del role["projectlevelrole"]
+                    
+                result1=list(dbsession.users.find({"defaultrole":{"$nin":[ObjectId("5db0022cf87fdec084ae49a9"),ObjectId("5f0ee20fba8ae8b8a603b5b6")]},"projects":{"$nin":[ObjectId(requestdata["project_id"])]}},{"name":1,"_id":1, "firstname":1, "lastname":1, "defaultrole":1, "email":1,"profileimage":1}))
+                for result_1 in result1:
+                    for role_Id in roleDetails:
+                        role_Name = result_1["defaultrole"]
+                        if role_Id["_id"] == role_Name:
+                            result_1["defaultrole"]=role_Id
+                            break                
                 res={'rows':{"assignedUsers":result, "unassignedUsers":result1}}
             else:
                 app.logger.warn('Empty data received. update project.')

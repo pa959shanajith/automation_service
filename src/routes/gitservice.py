@@ -13,6 +13,9 @@ from os import path
 from pymongo import InsertOne
 from pymongo import UpdateOne
 currdir=os.getcwd()
+import platform
+import requests
+import base64
 
 def wrap(data, key, iv=b'0'*16):
     aes = AES.new(key.encode('utf-8'), AES.MODE_CBC, iv)
@@ -214,6 +217,52 @@ def LoadServices(app, redissession, client ,getClientName, *args):
             app.logger.warn(ex)
         return res
 
+    def get_creds_path():
+        currexc = sys.executable
+        db_keys = "".join(['N','i','n','E','t','e','E','n','6','8','d','A','t','a','B',
+                            'A','s','3','e','N','c','R','y','p','T','1','0','n','k','3','y','S'])    
+        try: currfiledir = os.path.dirname(os.path.abspath(__file__))
+        except: currfiledir = os.path.dirname(currexc)
+        currdir = os.getcwd()
+        if os.path.basename(currexc).startswith("AvoAssureDAS"):
+            currdir = os.path.dirname(currexc)
+        elif os.path.basename(currexc).startswith("python"):
+            currdir = currfiledir
+            needdir = "das_internals"
+            parent_currdir = os.path.abspath(os.path.join(currdir,".."))
+            if os.path.isdir(os.path.abspath(os.path.join(parent_currdir,"..",needdir))):
+                currdir = os.path.dirname(parent_currdir)
+            elif os.path.isdir(parent_currdir + os.sep + needdir):
+                currdir = parent_currdir
+        internalspath = currdir + os.sep + "das_internals"
+        credspath = internalspath + os.sep + ".tokens"
+        config_path = currdir + os.sep + "server_config.json"
+        config = open(config_path, 'r')
+        conf = json.load(config)
+        config.close()
+        mongo_client_path=currdir+os.sep+"mongoClient"
+        if platform.system() == "Windows":                
+            mongo_client_path =mongo_client_path + os.sep+"windows"
+        else:
+            mongo_client_path =mongo_client_path + os.sep+"linux"
+        
+        if ('DB_IP' in os.environ and 'DB_PORT' in os.environ):
+            DB_IP = str(os.environ['DB_IP']) 
+            DB_PORT=str(os.environ['DB_PORT'])
+            mongo_user= unwrap(conf['avoassuredb']['username'],db_keys)
+            mongo_pass= unwrap(conf['avoassuredb']['password'],db_keys)
+            authDB= "admin"
+        else:
+            DB_IP=conf['avoassuredb']["host"]
+            DB_PORT=conf['avoassuredb']["port"]
+            with open(credspath) as creds_file:
+                creds = json.loads(unwrap(creds_file.read(),db_keys))
+            mongo_user=creds['avoassuredb']['username']
+            mongo_pass =creds['avoassuredb']['password']
+            authDB= "avoassure"
+        exportImportpath=conf['exportImportpath']
+        return mongo_client_path,DB_IP, DB_PORT,exportImportpath,mongo_user,mongo_pass,authDB
+
     #Export mindmap to git repository
     @app.route('/git/exportToGit',methods=['POST'])
     def exportToGit():
@@ -225,21 +274,128 @@ def LoadServices(app, redissession, client ,getClientName, *args):
                 clientName=getClientName(requestdata)       
                 dbsession=client[clientName]
                 del_flag = False
-
-                project_id = dbsession.mindmaps.find_one({"_id":ObjectId(requestdata["moduleId"])},{"projectid":1,"_id":0})
-                chk_config = dbsession.gitconfiguration.find_one({"projectid":project_id["projectid"],"gituser":ObjectId(requestdata["userid"])},{"_id":1})
-                if not chk_config:
+                git_details = dbsession.gitconfiguration.find_one({"gituser":ObjectId(requestdata["userid"]),"projectid":ObjectId(requestdata["projectId"])},{"giturl":1,"gitaccesstoken":1,"gitusername":1,"gituseremail":1})
+                if not git_details:
                     res={'rows':'empty'}
                     return res
 
-                git_details = dbsession.gitconfiguration.find_one({"name":requestdata["gitname"],"gituser":ObjectId(requestdata["userid"]),"projectid":project_id["projectid"]},{"giturl":1,"gitaccesstoken":1,"gitusername":1,"gituseremail":1})
-                if not git_details:
-                    res={'rows':'Invalid config name'}
-                    return res
+                # git_details = dbsession.gitconfiguration.find_one({"name":requestdata["gitname"],"gituser":ObjectId(requestdata["userid"]),"projectid":ObjectId(requestdata["projectId"])},{"giturl":1,"gitaccesstoken":1,"gitusername":1,"gituseremail":1})
+                # if not git_details:
+                #     res={'rows':'Invalid config name'}
+                #     return res
 
-                url=git_details["giturl"].split('://')
-                url=url[0]+'://'+unwrap(git_details['gitaccesstoken'], ldap_key)+':x-oauth-basic@'+url[1]
+                proj_details = dbsession.gitexportdetails.find({"projectid":ObjectId(requestdata["projectId"])}).count()
+                repo_name = requestdata["projectName"]
+                branch_name ="main"
+                if proj_details <= 0:
+                    api_url = "https://api.github.com"
+                    access_token = unwrap(git_details['gitaccesstoken'], ldap_key)
+                    headers = {
+                        "Authorization": f"Bearer {access_token}",
+                        "Accept": "application/vnd.github.v3+json"
+                    }
 
+                    response = requests.get('https://api.github.com/user/repos', headers=headers)                    
+                    repos=[]
+                    if not response.status_code == 200:
+                        if response.status_code == 401:
+                            res = {'rows': "Invalid credentials"}
+                            return res
+                        else:
+                            res={"rows":"Unable to fetch Repos"}
+                            return res
+                    repositories = response.json()                        
+                    for repo in repositories:
+                        repos.append(repo["name"])
+                    if repo_name not in repos:
+                        data = {
+                            "name": repo_name,
+                            "description": repo_name,
+                            "private": True
+                        }
+
+                        response1 = requests.post(f"{api_url}/user/repos", headers=headers, json=data)
+
+                        if not response1.status_code == 201:
+                            if response.status_code == 401:
+                                res = {'rows': "Invalid credentials"}
+                                return res
+                            else:                         
+                                res={'rows':"Error creating repository"}
+                                return res
+                            
+                        repository_info = response1.json()  
+                        owner =repository_info["owner"]["login"]
+                        file_path = "README.md"
+                        commit_message = "Add README.md file"
+                        date=datetime.now()
+                        readme_content = requestdata["projectName"]+ " was created"
+
+                        file_content = base64.b64encode(readme_content.encode("utf-8")).decode("utf-8")
+                        data = {
+                            "message": commit_message,
+                            "content": file_content
+                        }
+
+                        url = f"{api_url}/repos/{owner}/{repo_name}/contents/{file_path}"
+                        headers = {
+                            "Authorization": f"Bearer {access_token}",
+                            "Accept": "application/vnd.github.v3+json"
+                        }
+                        response2 = requests.put(url, headers=headers, json=data)
+
+                        if not response2.status_code == 201:
+                            if response.status_code == 401:
+                                res = {'rows': "Invalid credentials"}
+                                return res
+                            else:
+                                return res
+                    else:
+                        repository_info = response.json()
+                        for name in  repository_info:
+                            if name["name"] == repo_name: 
+                                owner = name["owner"]["login"]
+                                break                   
+                        response3 = requests.get(f"{api_url}/repos/{owner}/{repo_name}/branches", headers=headers)
+
+                        # Check if the request was successful (status code 200)
+                        if not response3.status_code == 200:
+                            if response.status_code == 401:
+                                res = {'rows': "Invalid credentials"}
+                                return res
+                            else:
+                                 return res
+                        branches = response3.json()  # Parse the response as JSON
+                        branch_names = [branch['name'] for branch in branches]
+                        if not 'main' in branch_names:
+                            file_path = "README.md"
+                            commit_message = "Add README.md file"
+                            date=datetime.now()
+                            readme_content = requestdata["projectName"]+ " was created"
+
+                            file_content = base64.b64encode(readme_content.encode("utf-8")).decode("utf-8")
+                            data = {
+                                "message": commit_message,
+                                "content": file_content
+                            }
+
+                            url = f"{api_url}/repos/{owner}/{repo_name}/contents/{file_path}"
+                            headers = {
+                                "Authorization": f"Bearer {access_token}",
+                                "Accept": "application/vnd.github.v3+json"
+                            }
+                            response4 = requests.put(url, headers=headers, json=data)
+
+                            if not response4.status_code == 201:
+                                if response.status_code == 401:
+                                    res = {'rows': "Invalid credentials"}
+                                    return res
+                                else:
+                                    return res
+                 
+                url=git_details["giturl"].split('://')                
+                url=url[0]+'://'+unwrap(git_details['gitaccesstoken'], ldap_key)+':x-oauth-basic@'+url[1]+"/"+ repo_name+".git"
+                
                 #check whether cred is valid
                 git_path=currdir+os.sep+'exportGit'+os.sep+requestdata["userid"]
                 if(os.path.exists(git_path)): remove_dir(git_path)
@@ -248,15 +404,19 @@ def LoadServices(app, redissession, client ,getClientName, *args):
                 repo.config_writer().set_value('user', 'email', git_details['gituseremail']).release()
                 repo.config_writer().set_value('user', 'name', git_details['gitusername']).release()
                 origin = repo.create_remote('origin',url)
-                origin.fetch()
-                repo.git.checkout(requestdata["gitBranch"])
-                repo.git.pull()
-
-                moduleId = ObjectId(requestdata['moduleId'])
-                mindMapsList = list(dbsession.mindmaps.find({'_id':moduleId},{"projectid":1,"name":1,"createdby":1,"versionnumber":1,"deleted":1,"type":1,"testscenarios":1}))
-                for i in mindMapsList[0]['testscenarios']:
-                    tsc_name = dbsession.testscenarios.find_one({'_id':i['_id']},{"_id":0, "name":1})
-                    i['testscenarioname']=tsc_name['name']
+                try:
+                    origin.fetch()
+                except Exception as e:
+                    app.logger.error(e)
+                    res ={"rows":"unable to connect GIT"}
+                    return res
+                repo.git.checkout(branch_name)
+                try:
+                    repo.git.pull(ff=True)
+                except Exception as e:
+                    app.logger.error(e)
+                    res ={"rows":"unable to connect GIT"}
+                    return res
 
                 result = dbsession.gitexportdetails.find({"parent":git_details["_id"],"version":requestdata["gitVersion"]})
                 index = result.count() - 1
@@ -265,62 +425,59 @@ def LoadServices(app, redissession, client ,getClientName, *args):
                     res={'rows':'commit exists'}
                     return res
                 elif result == None or result.count() == 0:
-                    path=currdir+os.sep+"mindmapGit"+os.sep+requestdata["userid"]+os.sep+requestdata["gitFolderPath"]
+                    path=currdir+os.sep+"mindmapGit"+os.sep+requestdata["userid"]+os.sep+"main"
                     path=os.path.normpath(path)+os.sep
 
                     if(os.path.exists(path)): shutil.rmtree(path)
-    
-                    os.makedirs(path)
-                    os.mkdir(path+'Screens'+os.sep)
-                    os.mkdir(path+'Testcases'+os.sep)
-                    mm_file=open(path+mindMapsList[0]['name']+'.mm','w')
-                    mm_file.write(flask.json.JSONEncoder().encode(mindMapsList[0]))
-                    mm_file.close()
-                    for i in mindMapsList:
-                        scenarios = [s['_id'] for s in i['testscenarios']]
-                        i['screens'] = []
-                        i['testcases'] = []
-                        screenList = list(dbsession.screens.find({'parent':{"$in":scenarios}}))
-                        testcaseList = []
-                        for j in screenList:
-                            dataobj_query = list(dbsession.dataobjects.find({"parent" :j['_id']}))
-                            if "scrapeinfo" in j and 'header' in j["scrapeinfo"]:
-                                screen_json = j['scrapeinfo'] if 'scrapeinfo' in j else {}
-                                screen_json["reuse"] = True if(len(j["parent"])>1) else False
-                                screen_json["view"] = dataobj_query
-                                screen_json["name"] = j["name"]
-                            else:
-                                screen_json = { "view": dataobj_query, "name":j["name"],
-                                                "createdthrough": (j["createdthrough"] if ("createdthrough" in j) else ""),
-                                                "scrapedurl": (j["scrapedurl"] if ("scrapedurl" in j) else ""),
-                                                "mirror": (j["screenshot"] if ("screenshot" in j) else ""),
-                                                "reuse": True if(len(j["parent"])>1) else False
-                                            }
-                            app_type=dbsession.projects.find_one({'_id':j["projectid"]},{'type':1})['type']
-                            screen_json["appType"] = dbsession.projecttypekeywords.find_one({'_id':app_type},{'name':1})['name']
-                            screen_json["screenId"] = j['_id']
-                            i['screens'].append(screen_json)
-                            dataObjects = {}
-                            if (dataobj_query != []):
-                                for dos in dataobj_query:
-                                    if 'custname' in dos: dos['custname'] = dos['custname'].strip()
-                                    dataObjects[dos['_id']] = dos
+                    exportcheck=dbsession.Export_mindmap_git.find().count()
+                    if exportcheck==0:
+                        mindmapid = [ObjectId(i) for i in requestdata['moduleId']]                    
+                        if len(mindmapid)>0:                            
+                            mongoFile,DB_IP,DB_PORT,x,mongo_user,mongo_pass,authDB=get_creds_path()                        
+                            mongoFile=mongoFile+os.sep+"mongoexport"
+                            dbsession.Export_screens_git.drop()
+                            dbsession.Export_testcases_git.drop()
+                            dbsession.Export_dataobjects_git.drop()
+                            dbsession.Export_testscenarios_git.drop()
+                            dbsession.mindmaps.aggregate([{'$match': {"_id": {'$in':mindmapid}}},{"$out":"Export_mindmap_git"}])
+                            dbsession.Export_mindmap_git.update_many({},{"$set":{"appType":requestdata["exportProjAppType"]}})
+                            dbsession.testscenarios.aggregate([{'$match': {"parent": {'$in':mindmapid}}},
+                            {"$out":"Export_testscenarios_git"}])
+                            scenarioIds=list(dbsession.Export_testscenarios_git.aggregate( [
+                                {"$group":{"_id":"null","scenarioids":{"$push":"$_id"}}}, 
+                                {"$project":{"_id":0,"scenarioids":1}}
+                                ] ))
+                            if len(scenarioIds)>0:    
+                                scenarios=scenarioIds[0]["scenarioids"]
+                                dbsession.screens.aggregate([{'$match': {"parent": {'$in':scenarios}}},{"$out":"Export_screens_git"}])
+                                screenIds=list(dbsession.Export_screens_git.aggregate( [
+                                    {"$group":{"_id":"null","screenids":{"$push":"$_id"}}}, 
+                                    {"$project":{"_id":0,"screenids":1}}
+                                    ] ))
+                                if len(screenIds)>0:  
+                                    screens=screenIds[0]["screenids"]  
+                                    dbsession.testcases.aggregate([{'$match': {"screenid": {'$in':screens}}},
+                                        {"$out":"Export_testcases_git"}])
+                                    dbsession.dataobjects.aggregate([{'$match': {"parent": {'$in':screens}}}
+                                        ,{"$out":"Export_dataobjects_git"}])
+
                             
-                            screenNameFormat=screen_json["name"]+'_'+str(screen_json["screenId"])+'.json'
-                            screen_file=open(path+'Screens'+os.sep+screenNameFormat,'w')
-                            screen_file.write(flask.json.JSONEncoder().encode(screen_json))
-                            screen_file.close()
-                            testcaseList = list(dbsession.testcases.find({'screenid':j['_id'],'parent':1},{'screenid':1,'steps':1,'name':1,'parent':1,'datatables':1}))
-                            for k in testcaseList:
-                                del_flag = update_steps(k['steps'],dataObjects)
-                                dtnames = k.get('datatables', [])
-                                testcaseNameFormat=k["name"]+'_'+str(k["_id"])+'.json'
-                                tc_file=open(path+'Testcases'+os.sep+testcaseNameFormat,'w')
-                                if len(dtnames) > 0: k['steps'].append({'datatables':dtnames})
-                                tc_file.write(flask.json.JSONEncoder().encode(k['steps']))
-                                tc_file.close()
-                            i['testcases'] += testcaseList
-                    res = exportdataToGit(path, requestdata, origin, repo)
+                            p=os.system("{} --host {} --port {} --db {} --username {} --password {} --authenticationDatabase {} --collection Export_mindmap_git -o {}{}Modules  --jsonArray".format(mongoFile,DB_IP,DB_PORT,clientName,mongo_user,mongo_pass,authDB,path,os.sep))
+                            q=os.system("{} --host {} --port {} --db {} --username {} --password {} --authenticationDatabase {} --collection Export_testscenarios_git -o {}{}Testscenarios  --jsonArray".format(mongoFile,DB_IP,DB_PORT,clientName,mongo_user,mongo_pass,authDB,path,os.sep))
+                            r=os.system("{} --host {} --port {} --db {} --username {} --password {} --authenticationDatabase {} --collection Export_screens_git -o {}{}screens  --jsonArray".format(mongoFile,DB_IP,DB_PORT,clientName,mongo_user,mongo_pass,authDB,path,os.sep))
+                            s=os.system("{} --host {} --port {} --db {} --username {} --password {} --authenticationDatabase {} --collection Export_testcases_git -o {}{}Testcases --jsonArray".format(mongoFile,DB_IP,DB_PORT,clientName,mongo_user,mongo_pass,authDB,path,os.sep))
+                            t=os.system("{} --host {} --port {} --db {} --username {} --password {} --authenticationDatabase {} --collection Export_dataobjects_git -o {}{}Dataobjects  --jsonArray".format(mongoFile,DB_IP,DB_PORT,clientName,mongo_user,mongo_pass,authDB,path,os.sep))
+                            dbsession.Export_mindmap_git.drop()
+                            dbsession.Export_screens_git.drop()
+                            dbsession.Export_testcases_git.drop()
+                            dbsession.Export_dataobjects_git.drop()
+                            dbsession.Export_testscenarios_git.drop()
+
+                            res = exportdataToGit(dbsession,path, requestdata, origin, repo, repo_name)
+                        else:
+                            app.logger.warn('Empty data received.')
+                    else:
+                        res ={"rows":"InProgress"}
             else:
                 app.logger.warn('Empty data received.')
         except git.GitCommandError as ex:
@@ -332,6 +489,11 @@ def LoadServices(app, redissession, client ,getClientName, *args):
                 res={'rows':'Invalid token'}
             servicesException("exportToGit", ex, True)
         except Exception as ex:
+            dbsession.Export_mindmap_git.drop()
+            dbsession.Export_screens_git.drop()
+            dbsession.Export_testcases_git.drop()
+            dbsession.Export_dataobjects_git.drop()
+            dbsession.Export_testscenarios_git.drop()
             servicesException("exportToGit", ex, True)
         remove_dir(git_path)
         return res
@@ -364,7 +526,7 @@ def LoadServices(app, redissession, client ,getClientName, *args):
             servicesException('exportProject', e, True)
         return del_flag
 
-    def exportdataToGit(dirpath, result, origin, repo):
+    def exportdataToGit(dbsession,dirpath, result, origin, repo,repo_name):
         app.logger.debug("Inside exportdataToGit")
         res={'rows':'fail'}
         delpath=None
@@ -374,35 +536,40 @@ def LoadServices(app, redissession, client ,getClientName, *args):
             delpath=currdir+os.sep+"mindmapGit"
             data={}
             if not isemptyrequest(module_data):
-                clientName=getClientName(requestdata)        
-                dbsession=client[clientName]
-                git_details = dbsession.gitconfiguration.find_one({"name":module_data["gitname"],"gituser":ObjectId(module_data["userid"])},{"projectid":1})
+                git_details = dbsession.gitconfiguration.find_one({"gituser":ObjectId(module_data["userid"]),"projectid":ObjectId(module_data["projectId"])},{"_id":1})
 
                 git_path=currdir+os.sep+'exportGit'+os.sep+module_data["userid"]
-                final_path=os.path.normpath(git_path+os.sep+module_data["gitFolderPath"])
+                final_path=os.path.normpath(git_path+os.sep+"main")
 
                 if(os.path.exists(final_path)):
                     if os.path.exists(dirpath):
                         shutil.rmtree(final_path)
+            
                 shutil.move(dirpath, final_path)
                 # Add mimdmap file to remote repo
                 repo.git.add(final_path)
                 repo.index.commit(module_data["gitVersion"])
-                repo.git.push()
-
+                try:
+                    repo.git.push()
+                except Exception as e:
+                    app.logger.error(e)
+                    res ={"rows":"unable to connect GIT"}
+                    return res
                 # get the commit id and save it in gitexportdetails
                 for i in range(len(origin.refs)):
-                    if(origin.refs[i].remote_head==result["gitBranch"]):
+                    if(origin.refs[i].remote_head=="main"):
                         commit_id = origin.refs[i].commit.hexsha
                         break
 
                 data["userid"] = ObjectId(module_data["userid"])
-                data["projectid"] = git_details["projectid"]
-                data["branchname"] = module_data["gitBranch"]
-                data["folderpath"] = module_data["gitFolderPath"]
+                data["projectid"] = ObjectId(module_data["projectId"])
+                data["branchname"] = "main"
+                data["folderpath"] = "main"
                 data["version"] = module_data["gitVersion"]
                 data["parent"] = git_details["_id"]
                 data["commitid"] = commit_id
+                data["commitmessage"] = module_data["gitComMsgRef"]
+                data["projectname"] = repo_name
                 dbsession.gitexportdetails.insert(data)
                 
                 res={'rows':'Success'}
@@ -428,174 +595,488 @@ def LoadServices(app, redissession, client ,getClientName, *args):
             if not isemptyrequest(requestdata):
                 clientName=getClientName(requestdata)        
                 dbsession=client[clientName]
-                projectid = requestdata["projectid"]
-                gitname = requestdata["gitname"]
-                gitBranch = requestdata["gitbranch"]
+                expProj=ObjectId(requestdata["expProj"])
+                projectid=ObjectId(requestdata["projectid"])
+                # gitname = requestdata["gitname"]
+                # gitBranch = requestdata["gitbranch"]
                 gitVersionName = requestdata["gitversion"]
-                gitFolderPath = requestdata["gitfolderpath"]
-                roleid = requestdata["roleid"]
+                # gitFolderPath = requestdata["gitfolderpath"]
+                role = requestdata["roleid"]
                 userid = requestdata["userid"]
+                appType=requestdata["appType"]
+                projectName=requestdata["projectName"]
                 
-                git_data = dbsession.gitconfiguration.find_one({"name":gitname,"projectid":ObjectId(projectid)},{"gituser":1,"giturl":1,"gitaccesstoken":1})
+                git_data = dbsession.gitconfiguration.find_one({"projectid":projectid},{"gituser":1,"giturl":1,"gitaccesstoken":1})
                 if not git_data:
-                    git_data = list(dbsession.gitconfiguration.find({"name":gitname},{"_id":1}))
-                    if len(git_data) > 0:
-                        res = 'No entries'
+                    # git_data = list(dbsession.gitconfiguration.find({"name":gitname},{"_id":1}))
+                    # if len(git_data) > 0:
+                    #     res = {'rows': "No entries"}                        
+                    # else:
+                    res={'rows': "empty"}                        
+                else:    
+                    result = dbsession.gitexportdetails.find_one({"projectid":expProj,"version":gitVersionName},{"commitid":1,"projectname":1})
+                    if not result:
+                        res = {'rows': "Invalid inputs"}                   
+                        
                     else:
-                        res='empty'
-                    return res
+                        git_path=currdir+os.sep+'exportGit'+os.sep+str(userid)
+                        final_path=os.path.normpath(git_path)+os.sep+"main"                                    
+                        if(os.path.isdir(git_path)): remove_dir(git_path)
+                        url=git_data["giturl"].split('://')
+                        url=url[0]+'://'+unwrap(git_data["gitaccesstoken"], ldap_key)+':x-oauth-basic@'+url[1]+"/"+result["projectname"]+".git"                       
+                        repo = git.Repo.clone_from(url, git_path,no_checkout=True)
+                        repo.git.checkout(result['commitid'])
 
-                result = dbsession.gitexportdetails.find_one({"branchname":gitBranch,"version":gitVersionName,"projectid":ObjectId(projectid),"folderpath":gitFolderPath,"parent":git_data["_id"]},{"commitid":1})
-                if not result:
-                    res = 'Invalid inputs'
-                    return res
-                else:
-                    git_path=currdir+os.sep+'exportGit'+os.sep+str(userid)
-                    final_path=os.path.normpath(git_path+os.sep+gitFolderPath)
-                    
-                    if(os.path.isdir(git_path)): remove_dir(git_path)
-
-                    url=git_data["giturl"].split('://')
-                    url=url[0]+'://'+unwrap(git_data["gitaccesstoken"], ldap_key)+':x-oauth-basic@'+url[1]
-
-                    repo = git.Repo.clone_from(url, git_path, no_checkout=True)
-                    repo.git.checkout(result['commitid'])
-
-                    mm_file = [f for f in os.listdir(final_path) if f.endswith('.mm')]
-                    with open(final_path+os.sep+mm_file[0]) as mmFile:
-                        json_data=json.loads(mmFile.read())
-                        mmFile.close()
-                    
-                    screen_loc=final_path+os.sep+'Screens'+os.sep
-                    testcase_loc=final_path+os.sep+'Testcases'+os.sep
-                    for eachscreen in os.listdir(screen_loc):
-                        with open(screen_loc+eachscreen, 'r') as screenfile:
-                            screen=json.loads(screenfile.read())
-                            screenid=eachscreen.split('.')[0].split('_')[-1]
-                            screenfile.close()
-
-                        screenId = ObjectId(screenid)
-                        modifiedbyrole=  ObjectId(roleid)
-                        modifiedby =  ObjectId(userid)
-                        data_push=[]
-                        data_up=[]
-                        req = []
-                        dtables = []
-                        for i in range(len(screen["view"])):
-                            if '_id' not in screen["view"][i]:
-                                screen["view"][i]['_id'] = ObjectId()
+                        importMindmapcheck= dbsession.git_Module_Import.find({}).count()
+                        if importMindmapcheck==0:                    
+                            dbsession.git_Screen_Import.drop()
+                            dbsession.git_Scenario_Import.drop()
+                            dbsession.git_Testcase_Import.drop()
+                            dbsession.git_Dataobjects_Import.drop()
+                            dbsession.git_mindmap_testscenarios_Import.drop()
+                            dbsession.git_scenario_testcase_Import.drop()
+                            dbsession.git_screen_parent_Import.drop()
+                            dbsession.git_testcase_parent_Import.drop()
+                            dbsession.git_dobjects_parent_Import.drop()
+                            dbsession.git_Module_Import_ids.drop()
+                            dbsession.git_Scenario_Import_ids.drop()
+                            dbsession.git_Scenario_Import_tc.drop()
+                            dbsession.git_Screen_Import_ids.drop()
+                            dbsession.git_Testcase_Import_ids.drop()                    
+                            dbsession.git_testcase_steps.drop()                                                          
+                                                                
+                            createdon = datetime.now()                   
+                            
+                            mongoFile,DB_IP,DB_PORT,x,mongo_user,mongo_pass,authDB=get_creds_path()                                    
+                            mongoFile=mongoFile+os.sep+"mongoimport"
+                            do=os.system("{} --host {} --port {} --db {} --username {} --password {} --authenticationDatabase {} --collection git_Dataobjects_Import --file {}{}Dataobjects --jsonArray".format(mongoFile,DB_IP,DB_PORT,clientName,mongo_user,mongo_pass,authDB,final_path,os.sep))
+                            mm=os.system("{} --host {} --port {} --db {} --username {} --password {} --authenticationDatabase {} --collection git_Module_Import --file {}{}Modules --jsonArray".format(mongoFile,DB_IP,DB_PORT,clientName,mongo_user,mongo_pass,authDB,final_path,os.sep))
+                            ts=os.system("{} --host {} --port {} --db {} --username {} --password {} --authenticationDatabase {} --collection git_Scenario_Import --file {}{}Testscenarios --jsonArray".format(mongoFile,DB_IP,DB_PORT,clientName,mongo_user,mongo_pass,authDB,final_path,os.sep))
+                            sr=os.system("{} --host {} --port {} --db {} --username {} --password {} --authenticationDatabase {} --collection git_Screen_Import --file {}{}screens --jsonArray".format(mongoFile,DB_IP,DB_PORT,clientName,mongo_user,mongo_pass,authDB,final_path,os.sep))
+                            tc=os.system("{} --host {} --port {} --db {} --username {} --password {} --authenticationDatabase {} --collection git_Testcase_Import --file {}{}Testcases --jsonArray".format(mongoFile,DB_IP,DB_PORT,clientName,mongo_user,mongo_pass,authDB,final_path,os.sep))                            
+                            importappType=dbsession.git_Module_Import.find_one({},{"appType":1})
+                            if appType != importappType["appType"]:
+                                dbsession.git_Module_Import.drop()
+                                dbsession.git_Screen_Import.drop()
+                                dbsession.git_Scenario_Import.drop()
+                                dbsession.git_Testcase_Import.drop()
+                                dbsession.git_Dataobjects_Import.drop()
+                                res={'rows': "appType"}
                             else:
-                                screen["view"][i]['_id'] = ObjectId(screen["view"][i]['_id'])
-                            result=dbsession.dataobjects.find_one({'_id':screen["view"][i]['_id']},{"parent":1})
-                            if result == None:
-                                screen["view"][i]["parent"] = [screenId]
-                                data_push.append(screen["view"][i])
-                            else:
-                                temp=result['parent']
-                                if screenId not in temp:
-                                    temp.append(screenId)
-                                    screen["view"][i]["parent"] = temp
-                                    data_up.append(screen["view"][i])
-                                elif temp == [screenId]:
-                                    screen["view"][i]["parent"] = temp
-                                    data_push.append(screen["view"][i])
+                                dbsession.git_Module_Import.aggregate([
+                                {"$project":{"_id":0,"old_id":"$_id",
+                                        "name":1,
+                                        "projectid":projectid,
+                                        "versionnumber":1 ,
+                                        "createdby":userid,
+                                        "createdbyrole":role,
+                                        "createdthrough":1,
+                                        "type":"basic",
+                                        "createdon":createdon,
+                                        "deleted":1,
+                                        "modifiedby":userid,
+                                        "modifiedbyrole":role,
+                                        "modifiedon":createdon,
+                                        "tsIds":"$testscenarios"}},{"$out":"git_Module_Import"}
+                                ])
+                                
+                                duplicatemod=list(dbsession.git_Module_Import.aggregate([
+                                            {"$group" : { "_id": "$name", "count": { "$sum": 1 } } },
+                                            {"$match": {"_id" :{ "$ne" : "null" } , "count" : {"$gt": 1} } }, 
+                                            {"$project": {"name" : "$_id", "_id" : 0} }
+                                        ]))
+                                if len(duplicatemod)>0:
+                                    dbsession.git_Module_Import.drop()
+                                    dbsession.git_Screen_Import.drop()
+                                    dbsession.git_Scenario_Import.drop()
+                                    dbsession.git_Testcase_Import.drop()
+                                    dbsession.git_Dataobjects_Import.drop()
+                                    res={'rows': "dupMod"}
                                 else:
-                                    screen["view"][i]["parent"] = temp
-                                    data_up.append(screen["view"][i])
-                        if len(data_push)>0 or len(data_up)>0:
-                            dbsession.dataobjects.update_many({"$and":[{"parent.1":{"$exists":True}},{"parent":screenId}]},{"$pull":{"parent":screenId}})
-                            dbsession.dataobjects.delete_many({"$and":[{"parent":{"$size": 1}},{"parent":screenId}]})
-                            for row in data_push:
-                                req.append(InsertOne(row))
-                            for row in data_up:
-                                req.append(UpdateOne({"_id":row['_id']},{"$set":{"parent":row["parent"]}}))
-                            dbsession.dataobjects.bulk_write(req)
-                            if "mirror" in screen:
-                                screenshot = screen['mirror']
-                                if "scrapedurl" in screen:
-                                    scrapedurl = screen["scrapedurl"]
-                                    dbsession.screens.update({"_id":screenId},{"$set":{"screenshot":screenshot,"scrapedurl":scrapedurl,"modifiedby":modifiedby, 'modifiedbyrole':modifiedbyrole,"modifiedon" : datetime.now()}})
-                                else:
-                                    dbsession.screens.update({"_id":screenId},{"$set":{"screenshot":screenshot,"modifiedby":modifiedby, 'modifiedbyrole':modifiedbyrole,"modifiedon" : datetime.now()}})
-                            elif 'scrapeinfo' in screen:
-                                scrapeinfo=screen['scrapeinfo']
-                                dbsession.screens.update({"_id":screenId},{"$set":{"scrapedurl":scrapeinfo["endPointURL"],"modifiedby":modifiedby,'modifiedbyrole':modifiedbyrole, 'scrapeinfo':scrapeinfo,"modifiedon" : datetime.now()}})
-                            else:
-                                dbsession.screens.update({"_id":screenId},{"$set":{"modifiedby":modifiedby, 'modifiedbyrole':modifiedbyrole,"modifiedon" : datetime.now()}})
+                                    dbsession.git_Scenario_Import.aggregate([{"$project":{"_id":0,
+                                                        "old_id":"$_id",
+                                                        "name":1,
+                                                        "projectid":projectid,
+                                                        "old_parent":"$parent" ,
+                                                        "versionnumber":1 ,
+                                                        "createdby":userid,
+                                                        "createdbyrole":role,
+                                                        "createdon":createdon,
+                                                        "deleted":1,
+                                                        "modifiedby":userid,
+                                                        "modifiedbyrole":role,
+                                                        "modifiedon":createdon,
+                                                        "testcaseids":1}},{"$out":"git_Scenario_Import"}])
+                                    duplicatesce=list(dbsession.git_Scenario_Import.aggregate([
+                                                {"$group" : { "_id": "$name", "count": { "$sum": 1 } } },
+                                                {"$match": {"_id" :{ "$ne" : "null" } , "count" : {"$gt": 1} } }, 
+                                                {"$project": {"name" : "$_id", "_id" : 0} }
+                                            ]))
+                                    if len(duplicatesce)>0:
+                                        dbsession.git_Module_Import.drop()
+                                        dbsession.git_Screen_Import.drop()
+                                        dbsession.git_Scenario_Import.drop()
+                                        dbsession.git_Testcase_Import.drop()
+                                        dbsession.git_Dataobjects_Import.drop()
+                                        res={'rows': "dupSce"}
+                                    else:
+                                        dbsession.git_Screen_Import.aggregate([{"$project":{
+                                                                "_id":0,
+                                                                "old_id":"$_id",
+                                                                "name":1,
+                                                                "projectid":projectid,
+                                                                "old_parent":"$parent",
+                                                                "versionnumber":1 ,
+                                                                "createdby":userid,
+                                                                "createdbyrole":role,
+                                                                "createdon":createdon,
+                                                                "deleted":1,
+                                                                "modifiedby":userid,
+                                                                "modifiedbyrole":role,
+                                                                "modifiedon":createdon,
+                                                                "screenshot":1,
+                                                                "scrapedurl":1,
+                                                                "orderlist":1}},{"$out":"git_Screen_Import"}])
+                                        
+                                        dbsession.git_Testcase_Import.aggregate([{"$project":{
+                                                                "_id":0,
+                                                                    "old_id":"$_id",
+                                                                "name":1,
+                                                                "old_screenid":"$screenid" ,
+                                                                "versionnumber":1 ,
+                                                                "createdby":userid,
+                                                                "createdbyrole":role,
+                                                                "createdon":createdon,
+                                                                "deleted":1,
+                                                                "modifiedby":userid,
+                                                                "modifiedbyrole":role,
+                                                                "parent":1,
+                                                                "modifiedon":createdon,
+                                                                "steps":1,
+                                                                "projectid":projectid,
+                                                                "datatables":1
+                                                                }},{"$out":"git_Testcase_Import"}])
+                                        
+                                
+                                        dbsession.git_Dataobjects_Import.aggregate( [
+                                        
+                                    
+                                        {"$set":{"old_id":"$_id","old_parent" :"$parent"}},
+                                        
+                                        { "$project": {"_id":0,"parent":0
+                                                } },
+                                        {"$out":"git_Dataobjects_Import"}])
+                                    
+                                    
+                                        dbsession.git_Module_Import.aggregate([{"$project":{"_id":1,"tsIds":1}},{"$out":"git_Module_Import_ids"}])
+                                        mindmapIds=list(dbsession.git_Module_Import_ids.find({}))
+                                        dbsession.git_Scenario_Import.aggregate([{"$project":{"_id":1,"old_id":1,"testcaseids":1}},{"$out":"git_Scenario_Import_ids"}])
+                                        ScenarioIds=list(dbsession.git_Scenario_Import_ids.find({}))
+                                        dbsession.git_Screen_Import.aggregate([{"$project":{"_id":1,"old_id":1,"old_parent":1}},{"$out":"git_Screen_Import_ids"}])
+                                        screenIds=list(dbsession.git_Screen_Import_ids.find({}))
+                                        dbsession.git_Testcase_Import.aggregate([{"$project":{"_id":1,"old_id":1,"name":1,"old_screenid":1}},{"$out":"git_Testcase_Import_ids"}])
+                                        testcaseIds=list(dbsession.git_Testcase_Import_ids.find({}))
+                                        
 
-                    for eachTc in os.listdir(testcase_loc):
-                        with open(testcase_loc+eachTc, 'r') as testcasefile:
-                            tc=json.loads(testcasefile.read())
-                            testcaseid = eachTc.split('.')[0].split('_')[-1]
-                            testcasefile.close()
+                                        mindmapId=list(dbsession.git_Module_Import_ids.find({},{"_id":1}))                               
 
-                        if len(tc)> 0 : dtables = tc[-1].get('datatables', '')
-                        query_screen = dbsession.testcases.find_one({'_id':ObjectId(testcaseid)},{'screenid':1,'datatables':1})
-                        if len(dtables) > 0:
-                            #update removed datatable tcs by removing current tcid
-                            dbsession.datatables.update_many({"name": {'$nin': dtables}, "testcaseIds": testcaseid}, {"$pull": {"testcaseIds": testcaseid}})
-                            #update each datatable tcs list by adding tcid
-                            dbsession.datatables.update_many({"name": {'$in': dtables}, "testcaseIds": {"$ne": testcaseid}}, {"$push": {"testcaseIds": testcaseid}})
-                            del tc[-1]
-                        elif 'datatables' in query_screen and len(query_screen['datatables']) > 0:
-                            dbsession.datatables.update_many({"name": {'$in': query_screen['datatables']}, "testcaseIds": testcaseid}, {"$pull": {"testcaseIds": testcaseid}})
-                        queryresult1 = list(dbsession.dataobjects.find({'parent':query_screen['screenid']}))
-                        custnames = {}
-                        if (queryresult1 != []):
-                            custnames = {i['custname'].strip():i for i in queryresult1}
-                        steps = []
-                        missingCustname = {}
-                        for so in tc:
-                            cid = cname = so["custname"].strip()
-                            if cname in custnames:
-                                if ('objectName' in so) and ('xpath' in custnames[cname]) and (so["objectName"] == custnames[cname]['xpath']):
-                                    cid = custnames[cname]["_id"]
-                                else:
-                                    cid = ObjectId()
-                                    try:
-                                        s_cname = cname.split('_')
-                                        ind = int(s_cname.pop())
-                                        n_cname = '_'.join(s_cname)
-                                    except:
-                                        ind = 0
-                                        n_cname = cname
-                                    while True:
-                                        if n_cname+'_'+str(ind+1) not in custnames:
-                                            so["custname"] = n_cname+'_'+str(ind+1)
-                                            break
-                                        elif ('objectName' in so) and ('xpath' in custnames[n_cname+'_'+str(ind+1)]) and (so["objectName"] == custnames[n_cname+'_'+str(ind+1)]['xpath']):
-                                            cid = custnames[n_cname+'_'+str(ind+1)]["_id"]
-                                            break
-                                        ind += 1
-                                    if so["custname"] not in custnames:
-                                        custnames[so["custname"]] = {"_id":cid,"xpath":so["objectName"],"url":so['url'] if 'url' in so else ""}
-                                        missingCustname[cid] = so
-                            elif (cname not in custnames) and (cname not in defcn):
-                                cid = ObjectId()
-                                custnames[cname] = {"_id":cid,"xpath":so["objectName"],"url":so['url'] if 'url' in so else ""}
-                                missingCustname[cid] = so
-                            steps.append({
-                                "stepNo": so["stepNo"],
-                                "custname": cid,
-                                "keywordVal": so["keywordVal"],
-                                "inputVal": so["inputVal"],
-                                "outputVal": so["outputVal"],
-                                "appType": so["appType"],
-                                "remarks": so["remarks"] if ("remarks" in so) else "",
-                                "addDetails": so["addTestCaseDetailsInfo"] if ("addTestCaseDetailsInfo" in so) else "",
-                                "cord": so["cord"] if ("cord" in so) else ""
-                            })
-                        del tc
-                        createdataobjects(dbsession,query_screen['screenid'], missingCustname)
+                                        dbsession.git_Dataobjects_Import.aggregate([{"$lookup":{"from":"git_Screen_Import",
+                                            "localField":"old_parent",
+                                            "foreignField":"old_id",
+                                            "as":"screens"}},{"$group":{"_id":"$_id","parent":{"$push":"$screens._id"}}},{"$unwind":"$parent"},{"$out":"git_dobjects_parent_Import"}])
+                                    
 
-                        #query to update tescase
-                        queryresult = dbsession.testcases.update_many({'_id':ObjectId(testcaseid),'versionnumber':0},
-                                    {'$set':{'modifiedby':ObjectId(userid),'modifiedbyrole':ObjectId(roleid),'steps':steps,'datatables':dtables,"modifiedon" : datetime.now()}}).matched_count
+                                        for i in mindmapIds:
+                                            testscen=[]
+                                            if "tsIds" in i:                                    
+                                                for tsId in i["tsIds"]:
+                                                    if tsId:
+                                                        if "_id" in tsId:
+                                                            for j in ScenarioIds:
+                                                                if tsId["_id"]==j["old_id"]:
+                                                                    tsId["_id"]=j["_id"]
+                                                                    break
+                                                            testscen.append(tsId)
+                                            i["tsIds"]=testscen
+                                                                                            
+                                        
+                                        for i in mindmapIds:
+                                            if "tsIds" in i:
+                                                for tsId in i["tsIds"]:
+                                                    scrndt=[]
+                                                    if "screens" in tsId:
+                                                        for screens in tsId["screens"]:
+                                                            if screens:
+                                                                if "_id" in screens:
+                                                                    for k in screenIds:
+                                                                        if screens["_id"]==k["old_id"]:
+                                                                            screens["_id"]=k["_id"]
+                                                                            break
+                                                                    scrndt.append(screens)
+                                                    tsId["screens"]=scrndt
+                                        
+                                        mdmaptscen=[]
+                                        for i in mindmapIds:                                               
+                                            if "tsIds" in i:
+                                                for tsId in i["tsIds"]:                           
+                                                    if "screens" in tsId:
+                                                        for screens in tsId["screens"]:
+                                                            testcases=[]
+                                                            if "testcases" in screens:
+                                                                for testcase in screens["testcases"]:
+                                                                    if testcase:
+                                                                        for l in testcaseIds:
+                                                                            if testcase == l["old_id"]:                                                             
+                                                                                testcases.append(l["_id"])
+                                                                                break
+                                                                        del testcase
+                                                                screens["testcases"]=[]
+                                                                screens["testcases"].append(testcases)
+                                                                screens["testcases"]=screens["testcases"][0]
+                                                                        
 
-                res=json_data
+
+                                        mycoll=dbsession["git_mindmap_testscenarios_Import"]
+                                        dbsession.git_mindmap_testscenarios_Import.delete_many({})
+                                        if len(mindmapIds)>0:
+                                            dbsession.git_mindmap_testscenarios_Import.insert_many(mindmapIds)
+                                        dbsession.git_Scenario_Import_ids.aggregate([{'$lookup': {
+                                                                    'from': "git_Testcase_Import_ids",
+                                                                    'localField': "testcaseids",
+                                                                    'foreignField': "old_id",
+                                                                    'as': "testcases"
+                                            }},
+                                            {"$unwind":"$testcaseids"},{"$set": { "testcases":{ "$cond": [{"$eq": [{"$size": '$testcases'}, 0] }, [[]], '$testcases'] }}},{"$unwind":"$testcases"}, 
+                                            {"$set":{"testcaseids":{ "$cond": { "if": { "$ne": ["$testcaseids" , "$testcases.old_id" ] }, "then":"na", "else": "$testcases._id"} }}},
+                                            {"$group":{"_id":"$_id","testcaseids":{"$push":"$testcaseids"}}}, {"$out":"git_scenario_testcase_Import"}
+                                            ])
+                                        dbsession.git_scenario_testcase_Import.update_many({},{"$pull": {"testcaseids":"na"}})
+                                        
+                                        
+                                        screenParent=[]
+                                        for i in screenIds:
+                                            nestarray={"_id":"","parent":[]}
+                                            nestarray["_id"]=i["_id"]
+                                            currentscreenidparent=i["_id"]                      
+                                            for j in i["old_parent"]:
+                                                for ts in ScenarioIds:
+                                                    if j==ts["old_id"]:
+                                                        nestarray["parent"].append(ts["_id"])
+                                                        break
+                                            screenParent.append(nestarray)
+                                        
+                                        mycoll=dbsession["git_screen_parent_Import"]
+                                        dbsession.git_screen_parent_Import.delete_many({})
+                                        if len(screenParent)>0:
+                                            dbsession.git_screen_parent_Import.insert_many(screenParent)
+                                        
+                                        dbsession.git_Dataobjects_Import.aggregate([
+                                            {'$lookup': {
+                                                        'from': "git_dobjects_parent_Import",
+                                                        'localField': "_id",
+                                                        'foreignField': "_id",
+                                                        'as': "parentdobs"
+                                                        }
+                                                                },{"$set":{"parent":"$parentdobs.parent"}},{"$unwind":"$parent"},
+                                            { "$project" : {"parentdobs":0}},{"$out":"git_Dataobjects_Import"}
+                                                        ])
+
+                                        dbsession.git_Module_Import.aggregate([
+                                            {"$match":{"tsIds":{"$exists":"true"},"projectid":projectid}},
+                                            {'$lookup': {
+                                                                    'from': "git_mindmap_testscenarios_Import",
+                                                                    'localField': "_id",
+                                                                    'foreignField': "_id",
+                                                                    'as': "mindmapscenariodata"
+                                                                }
+                                                                },{"$set":{"testscenarios":"$mindmapscenariodata.tsIds"}},{"$unwind":"$testscenarios"},
+                                            { "$project" : {"mindmapscenariodata":0,"tsIds":0}},{"$out":"git_Module_Import"}
+                                                        ])
+                                                            
+                                        dbsession.git_Scenario_Import.aggregate([
+                                                                {'$match': {"projectid":projectid,"testcaseids.0": {"$exists": "true"}}},
+                                                                
+                                                                {'$lookup': {
+                                                                    'from': "git_scenario_testcase_Import",
+                                                                    'localField': "_id",
+                                                                    'foreignField': "_id",
+                                                                    'as': "scentestcasedata"
+                                                                }
+                                                                },{"$set":{"testcaseids" :"$scentestcasedata.testcaseids"}},                                                                                    
+                                                                {"$unwind":"$testcaseids"},
+                                                                { "$project" : {  "scentestcasedata":0,}},                                                        
+                                                                {'$out':"git_Scenario_Import_tc"}
+                                                                ])
+                                        dbsession.git_Scenario_Import.aggregate([{'$lookup': {
+                                                                    'from': "git_Module_Import",
+                                                                    'localField': "old_parent",
+                                                                    'foreignField': "old_id",
+                                                                    'as': "moduledata"
+                                                                }
+                                                                },{"$set":{"parent" : "$moduledata._id"}},{ "$project" : { "moduledata":0}},
+                                                                {'$out':"git_Scenario_Import"} ])
+                                        dbsession.git_Scenario_Import_tc.aggregate([
+                                        {"$merge":{"into":"git_Scenario_Import","on":"_id","whenMatched": [{
+                                            "$set": {"testcaseids": '$$new.testcaseids'}}]}}]) 
+
+                                        dbsession.git_Screen_Import.aggregate([
+                                            {'$lookup': {
+                                                                    'from': "git_screen_parent_Import",
+                                                                    'localField': "_id",
+                                                                    'foreignField': "_id",
+                                                                    'as': "scrparent"
+                                                                }},
+                                                                {'$lookup': {
+                                                                    'from': "git_Dataobjects_Import",
+                                                                    'localField': "old_id",
+                                                                    'foreignField': "old_parent",
+                                                                    'as': "dataobjects"
+                                                                }
+                                                                },
+                                                                {"$set":{"parent" : "$scrparent.parent",
+                                                                "orderlist":{"$map": {
+                                                                                    "input": "$dataobjects._id",
+                                                                                    "as": "r",
+                                                                                    "in": { "$toString": "$$r" }
+                                                                                    }}
+                                                                                    }},{"$unwind":"$parent"},
+                                                                { "$project" : { "scrparent":0,
+                                                                "dataobjects":0
+                                                                                }},{"$out":"git_Screen_Import"}
+
+                                        ])
+                                        ImportedData=dbsession.git_Module_Import.aggregate([{"$project":{"_id":1,"testscenarios":1}},{"$out":"git_Module_Import_ids"}])
+                                        mindmapId=list(dbsession.git_Module_Import_ids.find({},{"_id":1}))
+                                        queryresult=[]
+                                        for i in mindmapId:
+                                            queryresult.append(i["_id"])
+                                        moduleids=list(dbsession.git_Module_Import_ids.find({}))
+                                        testcaseparent=[]                    
+                                        testcaseids=[]                   
+                                        for i in moduleids:
+                                            if "testscenarios" in i and len(i["testscenarios"])>0:
+                                                for j in i["testscenarios"]:
+                                                    if "screens" in j and len(j["screens"])>0:
+                                                        for k in j["screens"]:
+                                                            if "testcases" in k and len(k["testcases"])>0:                                
+                                                                for testcase in k["testcases"]:
+                                                                        array3={"_id":"","parent":[]}                                    
+                                                                        if testcase in testcaseids:                                            
+                                                                            for q in testcaseparent:
+                                                                                if q["_id"] == testcase:                                                    
+                                                                                    parentinc=q["parent"]
+                                                                                    parentinc=parentinc+1
+                                                                                    q["parent"] = parentinc                                                                                            
+                                                                                else:
+                                                                                    continue                         
+                                                                        else:                                            
+                                                                            testcaseids.append(testcase)
+                                                                            array3["_id"]=testcase								
+                                                                            array3["parent"]=1
+                                                                            testcaseparent.append(array3)
+
+                                        mycoll=dbsession["git_testcase_parent_Import"]
+                                        dbsession.git_testcase_parent_Import.delete_many({})
+                                        if len(testcaseparent)>0:
+                                            dbsession.git_testcase_parent_Import.insert_many(testcaseparent)
+                                        dbsession.git_Testcase_Import.aggregate([
+                                                                {"$match":{"old_screenid":{"$exists":"true"},"projectid":projectid}},
+                                                                {'$lookup': {
+                                                                    'from': "git_Screen_Import",
+                                                                    'localField': "old_screenid",
+                                                                    'foreignField': "old_id",
+                                                                    'as': "screendata"
+                                                                }},{'$lookup': {
+                                                                    'from': "git_testcase_parent_Import",
+                                                                    'localField': "_id",
+                                                                    'foreignField': "_id",
+                                                                    'as': "tcparent"
+                                                                }},{"$unwind":"$tcparent"},
+                                                                {"$unwind":"$screendata"},{'$set': {'parent': { "$convert": { "input": "$tcparent.parent", "to": "int" } }
+                                                                ,"screenid":"$screendata._id"}},
+                                                                { "$project" : {"screendata":0,"tcparent":0}},
+                                                                    {"$out":"git_Testcase_Import"}
+                                                                    ])
+                                    
+                                        dbsession.git_Testcase_Import.aggregate([{"$match":{"steps.0": {"$exists": "true"}}},{"$unwind":"$steps"},
+                                                                {'$lookup': {
+                                                                    'from': "git_Dataobjects_Import",
+                                                                    'localField': "steps.custname",
+                                                                    'foreignField': "old_id",
+                                                                    'as': "dbobjects"
+                                                                }},
+                                                                {"$set": { "dbobjects":{ "$cond": [{"$eq": [{"$size": '$dbobjects'}, 0] }, [[]], '$dbobjects'] }}},{"$unwind":"$dbobjects"}, 
+                                                                {"$set":{"steps.custname":{ "$cond": { "if": { "$ne": ["$steps.custname" , "$dbobjects.old_id" ] }, "then":"$steps.custname", "else": "$dbobjects._id"} }}},
+                                                                {"$group":{"_id":"$_id","steps":{"$push":"$steps"}}},{"$out":"git_testcase_steps"}
+                                                                ], allowDiskUse= True) 
+
+                                        dbsession.git_testcase_steps.aggregate([
+                                        {"$merge":{"into":"git_Testcase_Import","on":"_id","whenMatched": [{
+                                            "$set": {"steps": '$$new.steps'}}]}}])                   
+                                                    
+                                        
+                                        dbsession.git_Module_Import.aggregate([{"$unset":["tsIds","old_id"]},{"$out":"git_Module_Import"}])
+                                        dbsession.git_Scenario_Import.aggregate([{"$unset":["old_id","old_parent","screens"]},{"$out":"git_Scenario_Import"}])
+                                        dbsession.git_Screen_Import.aggregate([{"$unset":["old_id","old_parent","testcases"]},{"$out":"git_Screen_Import"}])
+                                        dbsession.git_Testcase_Import.aggregate([{"$unset":["old_id","old_screenid","projectid"]},{"$out":"git_Testcase_Import"}])
+                                        dbsession.git_Dataobjects_Import.aggregate([{"$unset":["old_id","old_parent"]},{"$out":"git_Dataobjects_Import"}])
+
+                                        dbsession.git_Module_Import.aggregate([                                            
+                                        {'$match': {"projectid":projectid}},
+                                        {"$merge":{"into":"mindmaps","on":"_id","whenNotMatched":"insert"}}])                                            
+                                        dbsession.git_Screen_Import.aggregate([
+                                        {'$match': {"projectid":projectid}},
+                                        {"$merge":{"into":"screens","on":"_id","whenNotMatched":"insert"}}])
+                                        dbsession.git_Scenario_Import.aggregate([
+                                        {'$match': {"projectid":projectid}},
+                                        {"$merge":{"into":"testscenarios","on":"_id","whenNotMatched":"insert"}}])
+                                        dbsession.git_Testcase_Import.aggregate([
+                                        {"$merge":{"into":"testcases","on":"_id","whenNotMatched":"insert"}}])
+                                        dbsession.git_Dataobjects_Import.aggregate([
+                                        {"$merge":{"into":"dataobjects","on":"_id","whenNotMatched":"insert"}}])
+
+                                        dbsession.git_Module_Import.drop()
+                                        dbsession.git_Screen_Import.drop()
+                                        dbsession.git_Scenario_Import.drop()
+                                        dbsession.git_Testcase_Import.drop()
+                                        dbsession.git_Dataobjects_Import.drop()
+                                        dbsession.git_mindmap_testscenarios_Import.drop()
+                                        dbsession.git_scenario_testcase_Import.drop()
+                                        dbsession.git_screen_parent_Import.drop()
+                                        dbsession.git_testcase_parent_Import.drop()
+                                        dbsession.git_dobjects_parent_Import.drop()
+                                        dbsession.git_Module_Import_ids.drop()
+                                        dbsession.git_Scenario_Import_ids.drop()
+                                        dbsession.git_Scenario_Import_tc.drop()
+                                        dbsession.git_Screen_Import_ids.drop()
+                                        dbsession.git_Testcase_Import_ids.drop()                    
+                                        dbsession.git_testcase_steps.drop()
+                                            
+                                        
+                                        if queryresult:
+                                                res={'rows':queryresult}                
+                
+                        else:
+                            res={'rows': "InProgress"}
             else:
                 app.logger.warn('Empty data received.')
         except Exception as ex:
+            dbsession.git_Module_Import.drop()
+            dbsession.git_Screen_Import.drop()
+            dbsession.git_Scenario_Import.drop()
+            dbsession.git_Testcase_Import.drop()
+            dbsession.git_Dataobjects_Import.drop()
+            dbsession.git_mindmap_testscenarios_Import.drop()
+            dbsession.git_scenario_testcase_Import.drop()
+            dbsession.git_screen_parent_Import.drop()
+            dbsession.git_testcase_parent_Import.drop()
+            dbsession.git_dobjects_parent_Import.drop()
+            dbsession.git_Module_Import_ids.drop()
+            dbsession.git_Scenario_Import_ids.drop()
+            dbsession.git_Scenario_Import_tc.drop()
+            dbsession.git_Screen_Import_ids.drop()
+            dbsession.git_Testcase_Import_ids.drop()                    
+            dbsession.git_testcase_steps.drop()
             servicesException("importGitMindmap", ex, True)
         remove_dir(git_path)
         return res
@@ -682,3 +1163,26 @@ def LoadServices(app, redissession, client ,getClientName, *args):
             return data[0:-ord(data[-1])]
         except:
             return hex_data
+        
+    @app.route('/git/checkExportVer',methods=['POST'])
+    def checkExportVer():
+            res={'rows':'fail'}
+            try:
+                requestdata=json.loads(request.data)
+                app.logger.debug("Inside checkExportVer.")
+                if not isemptyrequest(requestdata):
+                    clientName=getClientName(requestdata)         
+                    dbsession=client[clientName]                
+                    expName=list(dbsession.gitexportdetails.find({"projectid":ObjectId(requestdata["projectId"])},{"commitmessage":1,"version":1,"_id":0}))
+                    if requestdata["query"] =="exportgit":
+                        ver=[]
+                        for version in expName:
+                            ver.append(version["version"])                
+                        res={"rows":ver}
+                    else:
+                        res={"rows": expName}
+                else:
+                    app.logger.warn('Empty data received while importing mindmap')
+            except Exception as checkExportVerexc:
+                servicesException("checkExportVer",checkExportVerexc, True)
+            return jsonify(res)
