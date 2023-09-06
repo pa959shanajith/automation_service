@@ -1,0 +1,30 @@
+FROM centos:8
+
+RUN cd /etc/yum.repos.d/
+RUN sed -i 's/mirrorlist/#mirrorlist/g' /etc/yum.repos.d/CentOS-*
+RUN sed -i 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-*
+RUN yum install epel-release -y
+RUN yum update -y
+RUN yum upgrade -y
+RUN yum install nginx -y
+RUN yum install redis -y
+RUN yum install fontconfig libXrender libXext xorg-x11-fonts-Type1 xorg-x11-fonts-75dpi freetype libpng zlib libjpeg-turbo -y
+RUN yum install net-tools -y
+RUN yum install git -y
+COPY ./avo_run.sh /
+COPY ./redis.conf /etc/
+RUN mkdir -p /home/DAS
+RUN mkdir -p /home/webapp
+RUN mkdir -p /mnt/AvoAssure
+COPY ./DAS /home/DAS
+COPY ./webapp /home/webapp
+COPY ./NGINX/nginx.conf /etc/nginx/
+COPY ./NGINX/server.crt /etc/nginx/
+COPY ./NGINX/server.key /etc/nginx/
+RUN chmod +x /avo_run.sh
+RUN chmod +x /home/DAS/run.sh
+RUN chmod +x /home/webapp/run.sh
+EXPOSE 443
+ENTRYPOINT ["/avo_run.sh"]
+
+
