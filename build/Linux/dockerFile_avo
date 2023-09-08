@@ -9,6 +9,9 @@ RUN yum upgrade -y
 RUN yum install nginx -y
 RUN yum install redis -y
 RUN yum install fontconfig libXrender libXext xorg-x11-fonts-Type1 xorg-x11-fonts-75dpi freetype libpng zlib libjpeg-turbo -y
+RUN yum install compat-openssl10 -y
+RUN yum install libpng15 -y
+COPY ./wkhtmltox-0.12.6-1.centos7.aarch64.rpm /home/
 RUN yum install net-tools -y
 RUN yum install git -y
 COPY ./avo_run.sh /
@@ -24,6 +27,8 @@ COPY ./NGINX/server.key /etc/nginx/
 RUN chmod +x /avo_run.sh
 RUN chmod +x /home/DAS/run.sh
 RUN chmod +x /home/webapp/run.sh
+RUN rpm -i /home/wkhtmltox-0.12.6-1.centos7.aarch64.rpm
+RUN rpm -i mongodb-mongosh-1.9.1.aarch64.rpm
 EXPOSE 443
 ENTRYPOINT ["/avo_run.sh"]
 
