@@ -14,7 +14,7 @@
     "licenseServer":{
         "enable":false,
         "url":"https://avolicapi.avoautomation.com/",
-        "path":"LS.db"
+        "path":"/mnt/AvoAssure/LS/LS.db"
     },
     "exportImportpath":"D:\\source_code\\WebServer\\assets"   
 }
