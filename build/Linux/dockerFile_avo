@@ -12,6 +12,7 @@ RUN yum install fontconfig libXrender libXext xorg-x11-fonts-Type1 xorg-x11-font
 RUN yum install compat-openssl10 -y
 RUN yum install libpng15 -y
 COPY ./wkhtmltox-0.12.6-1.centos7.aarch64.rpm /home/
+COPY ./mongodb-mongosh-1.9.1.aarch64.rpm /home/
 RUN yum install net-tools -y
 RUN yum install git -y
 COPY ./avo_run.sh /
