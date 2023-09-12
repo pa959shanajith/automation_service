@@ -16,5 +16,5 @@
         "url":"https://avolicapi.avoautomation.com/",
         "path":"/mnt/AvoAssure/LS/LS.db"
     },
-    "exportImportpath":"D:\\source_code\\WebServer\\assets"   
+    "exportImportpath":"/home/webapp/assets"   
 }
