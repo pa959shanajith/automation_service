@@ -5,8 +5,7 @@ sed -i 's|DB_NAME=avoassure|DB_NAME='"$DB_NAME"'|g' /home/webapp/.env;
 /usr/bin/redis-server /etc/redis.conf --daemonize yes --supervised systemd >> /home/status.txt 2>&1;
 /usr/sbin/nginx;
 nohup /home/DAS/run.sh >> /home/status.txt 2>&1 &
-nohup /home/webapp/run.sh >> /home/status.txt 2>&1 &
-nohup /home/ReportServer/run.sh >> /home/status.txt 2>&1
+nohup /home/webapp/run.sh >> /home/status.txt 2>&1
 echo "Avo Assure server started"
 
 
