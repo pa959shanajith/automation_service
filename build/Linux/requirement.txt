@@ -26,7 +26,7 @@ requests==2.22.0
 six==1.14.0
 smmap==3.0.5
 toml==0.10.2
-typed-ast==1.5.2
+typed-ast
 typing_extensions==4.0.1
 urllib3==1.25.8
 virtualenv==16.7.10
