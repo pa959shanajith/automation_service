@@ -26,7 +26,7 @@ if options.output:
 
 modules = [basename(splitext(x)[0]).replace('.', '_') for x in args]
 
-print("""\
+#print("""\
 #include <Python.h>
 #include <locale.h>
 #include <stdio.h>
@@ -40,7 +40,7 @@ print("""\
 #else
 # define MODINIT(name)  PyInit_ ## name
 #endif
-""")
+#""")
 
 for name in modules: print("PyMODINIT_FUNC MODINIT(%s) (void);" % name)
 
