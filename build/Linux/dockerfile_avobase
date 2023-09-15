@@ -33,5 +33,4 @@ RUN  pip3.7 install -r /home/requirement.txt --user
 WORKDIR /
 SHELL ["/bin/bash", "--login", "-c"]
 RUN wget -qO- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.3/install.sh | bash
-RUN source ~/.bashrc
 RUN nvm install $node_version
