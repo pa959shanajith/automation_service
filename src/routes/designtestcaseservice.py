@@ -19,10 +19,11 @@ def LoadServices(app, redissession, client ,getClientName):
     #keywords loader for design screen
     @app.route('/design/getKeywordDetails_ICE',methods=['POST'])
     def getKeywordDetails():
+        requestdata=json.loads(request.data)
         app.logger.debug('Inside getKeywordDetails')
         res={'rows':'fail'}
         try:
-            clientName=getClientName({})       
+            clientName=getClientName(requestdata)       
             dbsession=client[clientName]
             projecttypename = str(request.data,'utf-8')
             if not (projecttypename == '' or projecttypename == 'undefined'
