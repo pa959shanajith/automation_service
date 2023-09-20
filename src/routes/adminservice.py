@@ -1851,17 +1851,19 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
 
                 assignedUsers=requestdata["assignedUsers"]
                 del requestdata["assignedUsers"]
-                project_id=dbsession.projects.insert_one(requestdata)
+                check = list(dbsession.projects.find({'name':requestdata['name']}))
+                if(len(check) == 0):
+                    project_id=dbsession.projects.insert_one(requestdata)
 
-                for user_id in assignedUsers:
+                    for user_id in assignedUsers:
 
-                    # for user_id in each_dict:
+                        # for user_id in each_dict:
 
-                    if 'id' in user_id:
-                        default_role_id = list(dbsession.permissions.find({ "name": role }, {"_id": 1}))                        
-                        dbsession.users.update_one({"_id":ObjectId(user_id["id"])}, {"$push": {"projects":project_id.inserted_id, "projectlevelrole":{"_id":str(project_id.inserted_id), "assignedrole": str(default_role_id[0]["_id"])}}})
+                        if 'id' in user_id:
+                            default_role_id = list(dbsession.permissions.find({ "name": role }, {"_id": 1}))                        
+                            dbsession.users.update_one({"_id":ObjectId(user_id["id"])}, {"$push": {"projects":project_id.inserted_id, "projectlevelrole":{"_id":str(project_id.inserted_id), "assignedrole": str(default_role_id[0]["_id"])}}})
 
-                res={"rows":"success"}
+                    res={"rows":"success"}
 
             else:
 
