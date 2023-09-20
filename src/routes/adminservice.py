@@ -1864,6 +1864,8 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
                             dbsession.users.update_one({"_id":ObjectId(user_id["id"])}, {"$push": {"projects":project_id.inserted_id, "projectlevelrole":{"_id":str(project_id.inserted_id), "assignedrole": str(default_role_id[0]["_id"])}}})
 
                     res={"rows":"success"}
+                else:
+                    res = {"rows":{"error":"Project with this name already exist. Please use some other name"}}
 
             else:
 
