@@ -25,7 +25,7 @@ def LoadServices(app, redissession, client ,getClientName):
         try:
             clientName=getClientName(requestdata)       
             dbsession=client[clientName]
-            projecttypename = str(request.data,'utf-8')
+            projecttypename = requestdata["projecttypename"]
             if not (projecttypename == '' or projecttypename == 'undefined'
                     or projecttypename == 'null' or projecttypename == None):
                 keywordquery = list(dbsession.projecttypekeywords.find({'name':{'$in':[projecttypename,'Generic']}},{'keywordsmap':1,'_id':0}))
