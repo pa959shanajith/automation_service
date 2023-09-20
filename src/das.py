@@ -238,6 +238,7 @@ def updateActiveIceSessions():
                 redissession.set('icesessions',wrap('{}',db_keys))
             r_lock = redissession.lock('icesessions_lock')
             if(requestdata['query'] == 'disconnect'):
+                del activeicesessions[requestdata['icename']]
                 icename=requestdata['icename'].lower()
                 with r_lock:
                     redissession.hset(clientName,icename,'')
