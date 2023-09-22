@@ -238,7 +238,7 @@ def updateActiveIceSessions():
                 redissession.set('icesessions',wrap('{}',db_keys))
             r_lock = redissession.lock('icesessions_lock')
             if(requestdata['query'] == 'disconnect'):
-                del activeicesessions[requestdata['icename']]
+                del activeicesessions[clientName][requestdata['icename']]
                 icename=requestdata['icename'].lower()
                 with r_lock:
                     redissession.hset(clientName,icename,'')
@@ -303,11 +303,12 @@ def updateActiveIceSessions():
                                     # if redissession.hget(clientName,ice_name) != None and redissession.hget(clientName,ice_name) != ice_uuid and redissession.hget(clientName,ice_name) != b'':
                                     #     res['err_msg'] = "Connection exists with same token"
                                     # To check if license is available
-                                    if str(lsData['USER']) != "Unlimited" and len(activeicesessions) >= int(lsData['USER']):
+                                    if str(lsData['USER']) != "Unlimited"  and (len(activeicesessions[clientName]) >= int(lsData['USER']) and ice_name not in activeicesessions[clientName] ) if clientName in activeicesessions else False:
                                         res['err_msg'] = "All ice sessions are in use"
                                     # To add in active ice sessions
                                     else:
-                                        activeicesessions[ice_name] = ice_uuid
+                                        if clientName not in activeicesessions: activeicesessions[clientName] = {}
+                                        activeicesessions[clientName][ice_name] = ice_uuid
                                         redissession.hset(clientName,ice_name,ice_uuid)
                                         f_allow = True
                                 if f_allow: 
@@ -332,7 +333,7 @@ def updateActiveIceSessions():
                             response["node_check"] = res['status'] = "InvalidICE"
                             app.logger.error("%s : ICE is not in Registered state ", ice_name)
                 response["ice_check"] =json.dumps(res)
-            app.logger.debug("Connected clients: "+str(list(activeicesessions.keys())))
+            app.logger.debug("Connected clients: "+str(list(activeicesessions[clientName].keys())))
         else:
             app.logger.warn('Empty data received. updateActiveIceSessions.')
     except redis.ConnectionError as exc:
