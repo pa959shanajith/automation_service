@@ -83,6 +83,20 @@ def LoadServices(app, redissession, client ,getClientName):
                             '_id':1,
                             'name':1,
                             'type':{"$arrayElemAt":["$arr.type",0]}
+                        }},
+                        {'$lookup':{
+                            'from':"executions",
+                            'localField':"_id",
+                            'foreignField':"parent",
+                            'as':"check"
+                            }
+                        },
+                        {'$project':{
+                            '_id':1,
+                            'name':1,
+                            'type':1,
+                            'executionCount':{'$size':'$check'},
+                            'lastExecutedtime':{ "$max": "$check.starttime"}
                         }}
                     ]))
                     batchresult=list(dbsession.executions.distinct('batchname',{'parent':{'$in':[i['_id'] for i in queryresult]}}))
@@ -853,7 +867,7 @@ def LoadServices(app, redissession, client ,getClientName):
                                                                         'foreignField':"_id",
                                                                         'as':"testscenarios"
                                                                          }
-                                                                                    },{"$project":{'scenarioname':{"$arrayElemAt":["$testscenarios.name",0]},"status":1}}])
+                                                            },{"$project":{'scenarioname':{"$arrayElemAt":["$testscenarios.name",0]},"status":1}}])
 
             result = list(reports)  
             res['rows'] = result    
