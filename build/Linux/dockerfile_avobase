@@ -2,6 +2,8 @@ FROM centos:8
 
 ENV py_version=3.7.6
 ENV node_version=12.18.2
+ENV NVM_DIR=/usr/local/nvm
+RUN mkdir $NVM_DIR
 RUN cd /etc/yum.repos.d/
 RUN sed -i 's/mirrorlist/#mirrorlist/g' /etc/yum.repos.d/CentOS-*
 RUN sed -i 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-*
@@ -33,4 +35,6 @@ RUN  pip3.7 install -r /home/requirement.txt --user
 WORKDIR /
 SHELL ["/bin/bash", "--login", "-c"]
 RUN wget -qO- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.3/install.sh | bash
-RUN nvm install $node_version
+RUN /bin/bash -c "source $NVM_DIR/nvm.sh && nvm install $node_version && nvm use --delete-prefix $node_version"
+ENV NODE_PATH $NVM_DIR/versions/node/v$node_version/bin
+ENV PATH $NODE_PATH:$PATH
