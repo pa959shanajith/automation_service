@@ -811,8 +811,9 @@ def LoadServices(app, redissession, client ,getClientName):
             requestdata=json.loads(request.data)
             clientName=getClientName(requestdata)        
             dbsession=client[clientName]
-            configurekey= requestdata['configurekey']
-            reports = dbsession.executions.aggregate([{"$match":{"configurekey":configurekey}},{"$group":{"_id":"$executionListId",
+            if 'configurekey' in requestdata:
+                configurekey= requestdata['configurekey']
+                reports = dbsession.executions.aggregate([{"$match":{"configurekey":configurekey}},{"$group":{"_id":"$executionListId",
                                                                     "modStatus":{"$push":{"_id":"$_id","status":"$status"}},"startDate":{"$first":"$starttime"}}},
                                                                     {'$lookup':{
                                                                                         'from':"reports",
@@ -823,6 +824,28 @@ def LoadServices(app, redissession, client ,getClientName):
                                                                                     },
                                                                                     {"$project":{"_id":1,"modStatus":"$modStatus.status","scestatus":"$reportdata.status","startDate":1}},{"$sort":{"startDate":-1}}
                                                                                     ])
+            
+            else:
+                testsuiteid = ObjectId(requestdata['testsuiteid'])
+                reports = dbsession.executions.aggregate([
+                    {"$match":{"parent":testsuiteid}},
+                    {"$project": {
+                        "_id":1,
+                        "status":1,
+                        "starttime": 1
+                    }},
+                    {"$lookup": {
+                        'from':"reports",
+                        'localField':"_id",
+                        'foreignField':"executionid",
+                        'as':"reportdata"
+                    }},
+                    {"$project":{"_id":1,
+                        "modstatus":"$status",
+                        "scestatus":"$reportdata.status",
+                        "starttime":1}},
+                    {"$sort":{"startDate":-1}}
+                ])
             result = list(reports)
             res['rows'] = result
             return jsonify(res)
