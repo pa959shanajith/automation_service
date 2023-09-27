@@ -398,7 +398,7 @@ def LoadServices(app, redissession, client ,getClientName):
                     tscos = dbsession.testscenarios.find({}, {"projectid": 1})
                     tscomap = {}
                     for tsco in tscos: tscomap[tsco["_id"]] = prjmap[tsco["projectid"]] if tsco["projectid"] in prjmap else "-"
-                    schedules = list(dbsession.scheduledexecutions.find({"$and": [{"configurekey": requestdata["configKey"]}, {"configurename": requestdata["configName"]}]}))
+                    schedules = list(dbsession.scheduledexecutions.find({"configurekey": requestdata["configKey"]}))
                     poollist={}
                     pool = list(dbsession.icepools.find({}, {"poolname": 1}))
                     for pid in pool: poollist[pid['_id']] = pid['poolname']
@@ -506,7 +506,7 @@ def LoadServices(app, redissession, client ,getClientName):
                     for tsco in tscos: tscomap[tsco["_id"]] = prjmap[tsco["projectid"]] if tsco["projectid"] in prjmap else "-"
                     scheduledon = datetime.fromtimestamp(int(requestdata['scheduledDate'])/1000)
                     scheduledon = scheduledon.replace(tzinfo=None)
-                    schedules = list(dbsession.scheduledexecutions.find({"$and": [{"scheduledon":scheduledon}, {"configurekey": requestdata["configKey"]}, {"configurename": requestdata["configName"]}]}))
+                    schedules = list(dbsession.scheduledexecutions.find({"$and": [{"scheduledon":scheduledon}, {"configurekey": requestdata["configKey"]}]}))
                     poollist={}
                     pool = list(dbsession.icepools.find({}, {"poolname": 1}))
                     for pid in pool: poollist[pid['_id']] = pid['poolname']
