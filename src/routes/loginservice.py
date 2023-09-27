@@ -82,32 +82,15 @@ def LoadServices(app, redissession, client, licensedata,basecheckonls,getClientN
                                             if projects_id["_id"] in user_project_list:
                                                 del(projects_id_list[projects_id_list.index(projects_id["_id"])])
                                 if len(projects_id_list) != 0:
-                                    dbsession.users.update_one({"name":requestdata["username"]},{"$set":{"projects":projects_id_list}})
-                                
-                                try:
-                                    user_collection = dbsession.users.find({})
-                                    for user_document in user_collection:
-                                        #iterate through one user document
-                                        if user_document['name'] not in ['admin', 'ci_cd', 'support.avoassure'] and user_document['projects'] != []: # this updater is not for admin, ci_cd, support.avoassure user document
-                                            projects_key = dbsession.users.find_one({'name':user_document['name']},{"projects":1,'defaultrole':1,'_id':0})
-                                            projectlevel_role_key = []
-                                            for project_id in projects_key['projects']:
-                                                isprojectlelevelrole = user_document.get('projectlevelrole')
-                                                if isprojectlelevelrole == None or isprojectlelevelrole == []:
-                                                    append_val = {'_id': str(project_id),'assignedrole':str(user_document['defaultrole'])}
-                                                    projectlevel_role_key.append(append_val)
-                                                    dbsession.users.update_one({"name":user_document['name']},{"$set":{"projectlevelrole":projectlevel_role_key}})
-
-
-                                                else:
-                                                    projectlevel_role_key = dbsession.users.find_one({'name':user_document['name']},{"projectlevelrole":1,'_id':0})
-                                                    if not any(item['_id'] == str(project_id) for item in projectlevel_role_key['projectlevelrole']):
-                                                        append_val = {'_id': str(project_id),'assignedrole':str(user_document['defaultrole'])}
-                                                        projectlevel_role_key['projectlevelrole'].append(append_val)
-
-                                                    dbsession.users.update_one({"name":user_document['name']},{"$set":{"projectlevelrole":projectlevel_role_key['projectlevelrole']}})
-                                except Exception as e:
-                                    app.logger.debug("Error while updating the projectlevelrole with projectid and defaultrole of that user")
+                                    projectlevelrole = user_data['projectlevelrole']
+                                    projectlevelrole_ids = []
+                                    for projectlevel_onedoc in projectlevelrole:
+                                        projectlevelrole_ids.append(projectlevel_onedoc['_id'])
+                                    for project_id in projects_id_list:
+                                        if str(project_id) not in projectlevelrole_ids:
+                                            append_val = {'_id': str(project_id),'assignedrole':str(user_data["defaultrole"])}
+                                            projectlevelrole.append(append_val)
+                                    dbsession.users.update_one({"name":requestdata["username"]},{"$set":{"projects":projects_id_list,"projectlevelrole":projectlevelrole}})
                     except Exception as e:
                         servicesException("Exception in login/loaduser while assigning a sample project to a trial user", e, True)
                     
