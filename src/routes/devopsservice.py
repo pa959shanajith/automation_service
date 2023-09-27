@@ -102,7 +102,10 @@ def LoadServices(app, redissession, client ,getClientName):
             requestdata=json.loads(request.data)
             clientName=getClientName(requestdata)       
             dbsession=client[clientName]
-            requestdata['configkey'] = requestdata['executionData']['configurekey']
+            if 'configurekey' in requestdata['executionData']:
+                requestdata['configkey'] = requestdata['executionData']['configurekey']
+            elif 'configureKey' in requestdata['executionData']:
+                requestdata['configkey'] = requestdata['executionData']['configureKey']
             requestdata['executionListId'] = requestdata['executionData']['executionListId']
             dbsession.executionlist.insert_one(requestdata)
             res['rows'] = 'success'
