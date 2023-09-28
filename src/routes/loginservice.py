@@ -82,7 +82,15 @@ def LoadServices(app, redissession, client, licensedata,basecheckonls,getClientN
                                             if projects_id["_id"] in user_project_list:
                                                 del(projects_id_list[projects_id_list.index(projects_id["_id"])])
                                 if len(projects_id_list) != 0:
-                                    dbsession.users.update_one({"name":requestdata["username"]},{"$set":{"projects":projects_id_list}})
+                                    projectlevelrole = user_data['projectlevelrole']
+                                    projectlevelrole_ids = []
+                                    for projectlevel_onedoc in projectlevelrole:
+                                        projectlevelrole_ids.append(projectlevel_onedoc['_id'])
+                                    for project_id in projects_id_list:
+                                        if str(project_id) not in projectlevelrole_ids:
+                                            append_val = {'_id': str(project_id),'assignedrole':str(user_data["defaultrole"])}
+                                            projectlevelrole.append(append_val)
+                                    dbsession.users.update_one({"name":requestdata["username"]},{"$set":{"projects":projects_id_list,"projectlevelrole":projectlevelrole}})
                     except Exception as e:
                         servicesException("Exception in login/loaduser while assigning a sample project to a trial user", e, True)
                     
