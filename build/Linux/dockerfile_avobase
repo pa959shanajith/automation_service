@@ -1,0 +1,40 @@
+FROM centos:8
+
+ENV py_version=3.7.6
+ENV node_version=12.18.2
+ENV NVM_DIR=/usr/local/nvm
+RUN mkdir $NVM_DIR
+RUN cd /etc/yum.repos.d/
+RUN sed -i 's/mirrorlist/#mirrorlist/g' /etc/yum.repos.d/CentOS-*
+RUN sed -i 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-*
+RUN yum install epel-release -y
+RUN yum update -y
+RUN yum upgrade -y
+RUN yum install nginx -y
+RUN yum install redis -y
+RUN yum install fontconfig libXrender libXext xorg-x11-fonts-Type1 xorg-x11-fonts-75dpi freetype libpng zlib libjpeg-turbo -y
+RUN yum install compat-openssl10 -y
+RUN yum install libpng15 -y
+COPY ./wkhtmltox-0.12.6-1.centos7.aarch64.rpm /home/
+COPY ./mongodb-mongosh-1.9.1.aarch64.rpm /home/
+COPY ./requirement.txt /home/
+RUN yum install net-tools -y
+RUN yum install git -y
+RUN yum install wget -y
+RUN rpm -i /home/wkhtmltox-0.12.6-1.centos7.aarch64.rpm
+RUN rpm -i /home/mongodb-mongosh-1.9.1.aarch64.rpm
+RUN yum install gcc openssl-devel bzip2-devel libffi-devel sqlite-devel -y
+RUN yum -y install make
+RUN wget https://www.python.org/ftp/python/${py_version}/Python-${py_version}.tgz
+RUN tar xzf Python-${py_version}.tgz
+WORKDIR Python-${py_version}
+RUN ./configure --enable-optimizations --enable-shared LDFLAGS="-Wl,-rpath,'\$\$ORIGIN/../lib'"
+RUN make altinstall
+RUN ldconfig /usr/local/lib
+RUN  pip3.7 install -r /home/requirement.txt --user
+WORKDIR /
+SHELL ["/bin/bash", "--login", "-c"]
+RUN wget -qO- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.3/install.sh | bash
+RUN /bin/bash -c "source $NVM_DIR/nvm.sh && nvm install $node_version && nvm use --delete-prefix $node_version"
+ENV NODE_PATH $NVM_DIR/versions/node/v$node_version/bin
+ENV PATH $NODE_PATH:$PATH
