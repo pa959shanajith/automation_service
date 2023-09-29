@@ -82,8 +82,12 @@ def LoadServices(app, redissession, client, licensedata,basecheckonls,getClientN
                                             if projects_id["_id"] in user_project_list:
                                                 del(projects_id_list[projects_id_list.index(projects_id["_id"])])
                                 if len(projects_id_list) != 0:
-                                    projectlevelrole = user_data['projectlevelrole']
+                                    # projectlevelrole = user_data['projectlevelrole']
                                     projectlevelrole_ids = []
+                                    if 'projectlevelrole' in user_data:
+                                        projectlevelrole = user_data['projectlevelrole']
+                                    else:
+                                        projectlevelrole = []
                                     for projectlevel_onedoc in projectlevelrole:
                                         projectlevelrole_ids.append(projectlevel_onedoc['_id'])
                                     for project_id in projects_id_list:
