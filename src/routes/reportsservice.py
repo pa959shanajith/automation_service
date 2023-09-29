@@ -5,6 +5,12 @@
 from utils import *
 from datetime import datetime
 from pymongo import InsertOne
+from ftplib import FTP
+import os
+import shutil
+import base64
+from document_modules.generateAI_module import UserDocument
+import requests
 
 
 def LoadServices(app, redissession, client ,getClientName):
@@ -925,6 +931,112 @@ def LoadServices(app, redissession, client ,getClientName):
         except Exception as getreportstatusexc:
             servicesException("reportStatusScenarios_ICE",getreportstatusexc)
         return jsonify(res)
+    
+    def save_file(file_content,target_folder,filename,request_data):
+        try:
+            pdf_binary_data = bytes(file_content['buffer']['data'])
+            if not os.path.exists(target_folder):
+                os.makedirs(target_folder)
+            destination_path = os.path.join(target_folder,filename)
+            
+            with open(destination_path, 'wb') as pdf_file:
+                pdf_file.write(pdf_binary_data)
+                
+            app.logger.info(f"Stored file '{filename}' in folder '{target_folder}'")
+            addr = 'https://avogenerativeai.avoautomation.com'
+            test_url = addr + '/send_text'
+            # files = request_data['file']
+            files = {'file': (filename, open(destination_path, 'rb'))}
+            data={'instancename':request_data['organization'],'projectname':request_data['project'],'type':request_data['type'],'username':request_data['name']}
+            
+            response = requests.post(test_url,data=data,files=files,verify = False)
+            if response.status_code == 200:
+                app.logger.info('generate AI file sent successfully')
+                return True
+            elif response.status_code == 400:
+                app.logger.error('Bad Request')
+                return False
+            elif response.status_code == 401:
+                app.logger.error('Unauthorized user')
+                return False
+            elif response.status_code == 403:
+                app.logger.error('user does not have the necessary permissions to access')
+                return False
+            elif response.status_code == 404 :
+                app.logger.error('Source not found')
+                return False
+            elif response.status_code == 500 :
+                app.logger.error('Internal Server Error')
+                return False
+            return True        
+        except Exception as e:
+            app.logger.error(f"Error saving file: {str(e)}")
+            return False
+            
+    @app.route('/upload/generateAIfile', methods=['POST'])
+    def upload_file():
+        try:
+            request_data = request.get_json()
+
+            if 'file' not in request_data or 'originalname' not in request_data['file']:
+                return jsonify({'error': 'Invalid request data'}), 400
+            
+            
+                
+            filename = request_data['file']['originalname']
+            project_name = request_data['project']
+            organization_name = request_data['organization']
+            base_dir = 'D:/GenerateAI_temp'
+            target_folder = f'{base_dir}/{organization_name}/{project_name}'
+
+            if save_file(request_data['file'], target_folder, filename,request_data):
+                client_name = getClientName(request_data)
+                dbsession = client[client_name]
+
+                document_data = UserDocument(
+                    project=project_name,
+                    orgname=organization_name,
+                    name=request_data['name'],
+                    # path=os.path.join(target_folder, filename),
+                    path=f'{target_folder}/{filename}',
+                    uploadedBy=request_data['email'],
+                    input_type=request_data['type'],
+                    version="1.0"
+                )
+
+                data_to_insert = document_data.to_dict()
+                insert_result = dbsession.generateAI_temp.insert_one(data_to_insert)
+
+                if insert_result.acknowledged:
+                    return jsonify({'rows':'success', 'message': 'File uploaded successfully'}), 200
+                else:
+                    return jsonify({'rows':'fail','error': 'Data insertion failed'}), 500
+            else:
+                return jsonify({'rows':'fail','error': 'File upload failed'}), 500
+
+        except Exception as e:
+            app.logger.error(f"Error: {str(e)}")
+            return jsonify({'rows':'fail','error': 'Internal server error'}), 500
+    
+    @app.route('/upload/getallUploadFiles', methods=['POST'])
+    def getallfiles():
+        try:
+            request_data = request.get_json()
+
+            if 'email' not in request_data:
+                return jsonify({'error': 'Invalid request data'}), 400
+            client_name = getClientName(request_data)
+            dbsession = client[client_name]
+            fetch_result = list(dbsession.generateAI_temp.find({"uploadedBy":request_data['email']}))
+
+            if len(fetch_result):
+                return jsonify({'rows':fetch_result, 'message': 'records found'}), 200
+            else:
+                return jsonify({'rows':[],'message': 'no records found'}), 200
+
+        except Exception as e:
+            app.logger.error(f"Error: {str(e)}")
+            return jsonify({'rows':'fail','error': 'Internal server error'}), 500    
 
 
 # END OF REPORTS
