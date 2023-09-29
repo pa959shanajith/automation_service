@@ -303,7 +303,7 @@ def LoadServices(app, redissession, client ,getClientName):
             responseData = []
             for elements in queryresult:
                 updatedExecutionReq = elements['executionData']
-                noOfCount = list(dbsession.executionlist.find({'configkey':updatedExecutionReq['configurekey']}))
+                noOfCount = list(dbsession.executions.find({'configurekey':updatedExecutionReq['configurekey']}))
                 responseData.append({
                     'configurename': updatedExecutionReq['configurename'],
                     'configurekey': updatedExecutionReq['configurekey'],

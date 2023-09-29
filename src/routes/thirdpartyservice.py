@@ -383,7 +383,46 @@ def LoadServices(app, redissession, client ,getClientName, *args):
         except Exception as e:
             servicesException("getMappedDetails", e, True)
         return jsonify(res)
+    
+    @app.route('/qualityCenter/saveAppActivityData',methods=['POST'])
+    def saveAppActivityData():
+        res={'rows':'fail'}
+        try:
+            requestdata=json.loads(request.data)
+            app.logger.debug("Inside saveAppActivityData. Query: "+str(requestdata["activity"]))
+            if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)         
+                dbsession=client[clientName]
+                if("activity" in requestdata):
+                    result=dbsession.appActivityData.insert_one({"name":requestdata["name"], "activity":requestdata["activity"]})
+                    if(result != "fail"):
+                        res= {"rows":"sucessfull"}
+                    else:
+                        res = {"rows": "fail"}
+                   
+            else:
+                app.logger.warn('Empty data received.saveAppActivityData.')
 
+        except Exception as e:
+            servicesException("saveAppActivityData", e, True)
+        return jsonify(res)  
+
+
+    @app.route('/qualityCenter/fetchAppData',methods=['POST'])
+    def fetchAppData():
+        res={'rows':'fail'}
+        try:
+            requestdata=json.loads(request.data)
+            if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)      
+                dbsession=client[clientName]
+                res['rows']=list(dbsession.appActivityData.find({'name':requestdata['name']['key']}))  
+            else:
+                app.logger.warn('Empty data received.fetchAppData.')
+
+        except Exception as e:
+            servicesException("fetchAppData", e, True)
+        return jsonify(res)  
         
     @app.route('/qualityCenter/updateMapDetails_ICE',methods=['POST'])
     def updateMapDetails_ICE():

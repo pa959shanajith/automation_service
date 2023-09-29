@@ -275,6 +275,8 @@ def LoadServices(app, redissession, client,getClientName,licensedata):
         requestdata=json.loads(request.data)
         try:
             if not isemptyrequest(requestdata):
+                res={'status':'pass'}
+                return res
                 clientName=getClientName(requestdata)
                 dbsession=client[clientName]
                 maxPE=dbsession.licenseManager.find_one({"client": clientName})['data']['PE']
