@@ -309,7 +309,7 @@ def LoadServices(app, redissession, client ,getClientName):
                     if type(requestdata["moduleid"]) == str:
                         modId = requestdata["moduleid"]
                     mindmapdata = dbsession.mindmaps.find_one({"_id": ObjectId(modId)}, {
-                                                            "testscenarios": 1, "_id": 1, "name": 1, "projectid": 1, "type": 1, "versionnumber": 1})
+                                                            "testscenarios": 1, "_id": 1, "name": 1, "projectid": 1, "type": 1, "versionnumber": 1,"currentlyinuse":1})
                     mindmaptype = mindmapdata["type"]
                     scenarioids = []
                     screenids = []
@@ -425,6 +425,7 @@ def LoadServices(app, redissession, client ,getClientName):
                     finaldata["state"] = "saved"
                     finaldata["versionnumber"] = mindmapdata["versionnumber"]
                     finaldata["children"] = []
+                    finaldata["currentlyInUse"]=mindmapdata["currentlyinuse"]
                     finaldata["completeFlow"] = True
                     finaldata["type"] = "modules" if mindmaptype == "basic" else "endtoend"
                     if mindmapdata["_id"] in moduledata and 'task' in moduledata[mindmapdata["_id"]] and moduledata[mindmapdata["_id"]]["task"]["status"] != 'complete':
@@ -674,7 +675,27 @@ def LoadServices(app, redissession, client ,getClientName):
         except Exception as e:
             servicesException("saveMindmap", e, True)
         return jsonify(res)
-
+    @app.route('/design/updateTestSuiteInUseBy', methods=['POST'])
+    def updateTestSuiteInUseBy():
+        try:
+            res={'rows':'fail'}
+            requestdata=json.loads(request.data)
+            clientName=getClientName(requestdata)
+            dbsession=client[clientName]
+            app.logger.debug("Inside updateTestSuiteInUseBy. Query: "+str(requestdata["query"]))
+            if not isemptyrequest(requestdata):
+            
+                accessedBy=requestdata['accessedBy']
+                if (len(requestdata['testsuiteId'])>0 and requestdata['assignToUser']==True):
+                   dbsession.mindmaps.update_one({'_id':ObjectId(requestdata['testsuiteId'])},{"$set":{"currentlyinuse":accessedBy}})
+                if (len(requestdata["oldTestSuiteId"])!=0 and requestdata['resetFlag']==True):
+                   dbsession.mindmaps.update_one({'_id':ObjectId(requestdata["oldTestSuiteId"])},{"$set":{"currentlyinuse":""}})   
+                res={"rows":"Success"}
+            else:
+                app.logger.warn('Empty data received.')
+        except Exception as getscrapedataexc:
+            servicesException("getScrapeDataScenarioLevel_ICE",getscrapedataexc, True)
+        return jsonify(res)    
     def saveTestSuite(dbsession,projectid,modulename,versionnumber,createdthrough,createdby,createdbyrole,moduletype,testscenarios=[]):
         app.logger.debug("Inside saveTestSuite.")
         createdon = datetime.now()
@@ -691,7 +712,8 @@ def LoadServices(app, redissession, client ,getClientName):
         "modifiedon": createdon,
         "modifiedbyrole": ObjectId(createdbyrole),
         "type": moduletype,
-        "testscenarios":[]
+        "testscenarios":[],
+        "currentlyinuse":""
         }
         queryresult=dbsession.mindmaps.insert_one(data).inserted_id
         return queryresult
@@ -863,7 +885,8 @@ def LoadServices(app, redissession, client ,getClientName):
         "modifiedon": createdon,
         "modifiedbyrole": ObjectId(createdbyrole),
         "type": moduletype,
-        "testscenarios":[]
+        "testscenarios":[],
+        "currentlyinuse":""
         }
         queryresult=dbsession.mindmaps.insert_one(data).inserted_id
         return queryresult
