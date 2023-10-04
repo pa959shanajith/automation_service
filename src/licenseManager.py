@@ -228,7 +228,6 @@ def LoadServices(app, redissession, client,getClientName,licensedata):
                 dbsession=client[clientName]
                 totalSteps=0
                 maxExec=dbsession.licenseManager.find_one({"client": clientName})['data']['TE']
-                maxExec = 'Unlimited'
                 if maxExec == "Unlimited":
                     res={'status':'pass','data':totalSteps}
                     return res
