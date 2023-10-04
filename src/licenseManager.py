@@ -236,10 +236,10 @@ def LoadServices(app, redissession, client,getClientName,licensedata):
                     reportitems=list(dbsession.reports.aggregate([{"$match":{"executedtime" :{'$gte' : datetime(datetime.now().year, datetime.now().month, 1, 00, 00, 00)}}},
                         {"$lookup":{
                             "from":"reportitems",
-                            "localField":"reportitems",
-                            "foreignField":"_id",
+                            "localField":"_id",
+                            "foreignField":"reportid",
                             "as":"reportitem"}},
-                        # {"$unwind":"$reportitem"}  #As now reportimes are stored in different documents
+                        # {"$unwind":"$reportitem"}  #As now repor times are stored in different documents
                         ]))
                     
                     for step in reportitems["reportitem"]:
