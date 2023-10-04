@@ -268,17 +268,17 @@ def LoadServices(app, redissession, client ,getClientName):
                     report = json.loads(requestdata['report'])
                     rows = report['rows']
                     overallstatus = report['overallstatus']
-                    limit = 15000
-                    reportitems = []
-                    ind=1
-                    x=0
-                    while True:
-                        reportitems.append({'index':ind,'rows':rows[x:x+limit]})
-                        x+=limit
-                        ind+=1
-                        if x>=len(rows):
-                            break
-                    ritems = dbsession.reportitems.insert_many(reportitems)
+                    # limit = 15000
+                    # reportitems = []
+                    # ind=1
+                    # x=0
+                    # while True:
+                    #     reportitems.append({'index':ind,'rows':rows[x:x+limit]})
+                    #     x+=limit
+                    #     ind+=1
+                    #     if x>=len(rows):
+                    #         break
+                    # ritems = dbsession.reportitems.insert_many(reportitems)
 
                     querydata = {
                         "executionid": ObjectId(requestdata['executionid']),
@@ -290,9 +290,17 @@ def LoadServices(app, redissession, client ,getClientName):
                         "modifiedon": modifiedon,
                         "modifiedby": ObjectId(requestdata['modifiedby']),
                         "modifiedbyrole": ObjectId(requestdata['modifiedbyrole']),
-                        "reportitems": ritems.inserted_ids
+                        "reportitems": []  #Modified to support latest changes
                     }
                     res["rows"] = str(dbsession.reports.insert(querydata))
+
+
+                    # Storing the reportitems after the reports to get the report id
+                    # Updated
+                    for item in rows:
+                        item['reportid'] = ObjectId(res["rows"])
+                    ritems = dbsession.reportitems.insert_many(rows)
+
                 app.logger.debug("Executed ExecuteTestSuite_ICE. Query: " + param)
             else:
                 app.logger.warn('Empty data received. execute testsuite.')
