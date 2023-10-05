@@ -424,7 +424,6 @@ def LoadServices(app, redissession, client ,getClientName):
                     finaldata["childIndex"] = 0
                     finaldata["state"] = "saved"
                     finaldata["versionnumber"] = mindmapdata["versionnumber"]
-                    finaldata["currentlyInUse"]=mindmapdata["currentlyinuse"]
                     finaldata["children"] = []
                     finaldata["currentlyInUse"]=mindmapdata["currentlyinuse"]
                     finaldata["completeFlow"] = True
