@@ -99,8 +99,12 @@ def LoadServices(app, redissession, client,getClientName,licensedata):
             if not isemptyrequest(requestdata):
                 clientName=getClientName(requestdata)
                 dbsession=client[clientName]
+                present = datetime.now()
+                present = present.replace(hour=0, minute=0, second=0, microsecond=0)
                 lsData=dbsession.licenseManager.find_one({"client":clientName})['data']
-                if lsData['Status'] != 'Active':
+                expiryDate=lsData['ExpiresOn'].split('/')
+                expiryDate=datetime(int(expiryDate[2]), int(expiryDate[0]), int(expiryDate[1]))
+                if expiryDate < present:
                     res = {'status':'fail','message':'License is not active '}
                 else:
                     res = {'status':'pass','data':lsData['Status']}
