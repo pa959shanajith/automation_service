@@ -916,7 +916,7 @@ def LoadServices(app, redissession, client ,getClientName):
                         statusList = []
                         result = list(dbsession.reports.find({"executionid": ObjectId(executionId)}))
                         for element in result:
-                            status = { "status": element["status"], "reportId": str(element['_id']) }
+                            status = { "status": element["status"], "reportId": str(element['_id']), "timeEllapsed": element["overallstatus"]["EllapsedTime"] }
                             statusList.append(status)
                         queryresult.append(statusList)
                     res = {"rows":queryresult}
