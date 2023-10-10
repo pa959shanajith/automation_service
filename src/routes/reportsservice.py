@@ -841,7 +841,7 @@ def LoadServices(app, redissession, client ,getClientName):
                         'as':"reportdata"
                     }},
                     {"$project":{"_id":1,
-                        "modstatus":"$status",
+                        "modstatus":["$status"],
                         "scestatus":"$reportdata.status",
                         "starttime":1}},
                     {"$sort":{"startDate":-1}}
