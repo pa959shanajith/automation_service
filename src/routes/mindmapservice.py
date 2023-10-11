@@ -1050,7 +1050,7 @@ def LoadServices(app, redissession, client ,getClientName):
             if moduledata['testsuiteId'] is None:
                 # If the the Module does not have an ID then we will check if the target name has conflict.
                 if checkModuleNameExists(dbsession,moduledata["testsuiteName"],projectid):
-                    error="A project cannot have similar module name"
+                    error="A project cannot have similar test suite name"
                     break
                 else:
                     moduledata['state']="renamed"
@@ -1059,14 +1059,14 @@ def LoadServices(app, redissession, client ,getClientName):
                 name=getModuleName(dbsession,moduledata['testsuiteId'])
                 if name!=moduledata["testsuiteName"]:
                     if checkModuleNameExists(dbsession,moduledata["testsuiteName"],projectid):
-                        error="Module cannot be renamed to an existing module name"
+                        error="Test suite cannot be renamed to an existing test suite name"
                         break
                     else:
                         moduledata['state']="renamed"
             for scenariodata in moduledata['testscenarioDetails']:
                 # This check for similar scenario name within the same module.
                 if scenariodata['testscenarioName'] in scenarionames:
-                    error="A project cannot have similar scenario names: "+scenariodata['testscenarioName']
+                    error="A project cannot have similar testcase names: "+scenariodata['testscenarioName']
                     break
                 else:
                     scenarionames.add(scenariodata['testscenarioName'])
@@ -1074,14 +1074,14 @@ def LoadServices(app, redissession, client ,getClientName):
                 # If the the Scenario does not have an ID then we will check if the target name has conflict.
                 if scenariodata['testscenarioid'] is None:
                     if checkScenarioNameExists(dbsession,projectid,scenariodata['testscenarioName']):
-                        error="A project cannot have similar scenario names: change "+scenariodata['testscenarioName']+" name"
+                        error="A project cannot have similar testcase names: change "+scenariodata['testscenarioName']+" name"
                         break
                 else:
                     # If the the Scenario has an ID then we will check if the target name has conflict if not then rename will be allowed.
                     scenarioname=getScenarioName(dbsession,scenariodata['testscenarioid'])
                     if scenarioname!=scenariodata['testscenarioName']:
                         if checkScenarioNameExists(dbsession,projectid,scenariodata['testscenarioName']):
-                            error="A project cannot have similar scenario names: change "+scenariodata['testscenarioName']+" name"
+                            error="A project cannot have similar testcase names: change "+scenariodata['testscenarioName']+" name"
                             break
                         else:
                             scenariodata['state']="renamed"
@@ -1500,7 +1500,7 @@ def LoadServices(app, redissession, client ,getClientName):
                 for moduledata in requestdata['testsuiteDetails']:
                     if moduledata['testsuiteId'] is None:
                         if( checkModuleNameExists(dbsession,moduledata["testsuiteName"],projectid) ):
-                            error="Module name cannot be reused"
+                            error="Test suite name cannot be reused"
                             break
                         else:
                             currentmoduleid=saveTestSuite(dbsession,projectid,moduledata['testsuiteName'],versionnumber,createdthrough,userid,userroleid,type)
@@ -1508,7 +1508,7 @@ def LoadServices(app, redissession, client ,getClientName):
                         oldModulename=getModuleName(dbsession,moduledata['testsuiteId'])
                         if oldModulename!=moduledata["testsuiteName"]:
                             if( checkModuleNameExists(dbsession,moduledata["testsuiteName"],projectid) ):
-                                error="Module name cannot be reused"
+                                error="Test suite name cannot be reused"
                                 break
                             else:
                                 updateModuleName(dbsession,moduledata["testsuiteName"],projectid,moduledata['testsuiteId'],userid,userroleid)
