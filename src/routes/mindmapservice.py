@@ -2655,6 +2655,7 @@ def LoadServices(app, redissession, client ,getClientName):
                             "modifiedby":userid,
                             "modifiedbyrole":role,
                             "modifiedon":createdon,
+                            "currentlyinuse":"",
                             "tsIds":"$testscenarios"}},{"$out":"Module_Import"}
                     ])
                     
