@@ -1780,6 +1780,7 @@ def LoadServices(app, redissession, client ,getClientName):
                         "modifiedby":userid,
                         "modifiedbyrole":role,
                         "modifiedon":createdon,
+                        "currentlyinuse":"",
                         "tsIds":"$testscenarios"
                         }},{"$out":"Import_mindmaps"}])
         dbsession.testscenarios.aggregate([
@@ -2452,6 +2453,7 @@ def LoadServices(app, redissession, client ,getClientName):
                                 "modifiedby":userid,
                                 "modifiedbyrole":role,
                                 "modifiedon":createdon,
+                                "currentlyinuse":"",
                                 "testscenarios":1}},
                                 {"$out":"mindmapnames"}
                                         ])
