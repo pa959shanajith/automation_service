@@ -203,7 +203,10 @@ def LoadServices(app, redissession, client ,getClientName):
                 clientName=getClientName(requestdata)         
                 dbsession=client[clientName]
                 reports = list(dbsession.reports.find({"_id":ObjectId(requestdata["reportid"])}))
-                report_items= list(dbsession.reportitems.find({"_id":reports[0]["reportitems"][0]}))
+                # report_items= list(dbsession.reportitems.find({"_id":reports[0]["reportitems"][0]}))
+
+                # Added below query 
+                report_items= list(dbsession.reportitems.find({'reportid':reports[0]['_id']}))
                 scenarios = list(dbsession.testscenarios.find({"_id":reports[0]["testscenarioid"]}))
                 execs = list(dbsession.executions.find({"_id":reports[0]["executionid"]}))
                 testsuites = list(dbsession.testsuites.find({"_id":execs[0]["parent"][0]}))
@@ -214,7 +217,7 @@ def LoadServices(app, redissession, client ,getClientName):
                         cyclename = cyc["name"]
                         break
                         
-                reportData = {"rows":report_items[0]["rows"],"overallstatus":reports[0]["overallstatus"]}
+                reportData = {"rows":report_items,"overallstatus":reports[0]["overallstatus"]}
                 query = {
                     'report': reportData,
                     'executionid': reports[0]['executionid'],
@@ -248,7 +251,7 @@ def LoadServices(app, redissession, client ,getClientName):
             requestdata=json.loads(request.data)
             app.logger.debug("Inside updateReportData.")
             if not isemptyrequest(requestdata):
-                clientName=getClientName(requestdata)        
+                clientName=getClientName(requestdata)
                 dbsession=client[clientName]
                 queryresult = dbsession.reports.find({"_id":ObjectId(requestdata["reportid"])},{"reportitems":1})
                 report = queryresult[0]['reportitems']
@@ -257,14 +260,18 @@ def LoadServices(app, redissession, client ,getClientName):
                 llimit = slno//limit    #slno should be >= steps
                 report_rows = []
                 reportitemsid = 0
-                for i in range(llimit,len(report)): # practically should iterate once
-                    a = list(dbsession.reportitems.find({"_id":report[i],"rows.id":slno},{"rows.$":1}))
-                    if(len(a)>0):
-                        report_rows=a[0]['rows']
-                        reportitemsid =a[0]['_id']
-                        break
+                # for i in range(llimit,len(report)): # practically should iterate once
+                #     a = list(dbsession.reportitems.find({"_id":report[i],"rows.id":slno},{"rows.$":1}))
+                #     if(len(a)>0):
+                #         report_rows=a[0]['rows']
+                #         reportitemsid =a[0]['_id']
+                #         break
+
+                a = list(dbsession.reportitems.find({"reportid":queryresult[0]['_id'],"id":slno}))
+                report_rows=a[0]
+                reportitemsid = a[0]['_id']
                 row = None
-                obj = report_rows[0]
+                obj = report_rows
                 if obj['id']==int(requestdata['slno']):
                     row = obj
                 if "'" in obj['StepDescription']:
@@ -285,7 +292,7 @@ def LoadServices(app, redissession, client ,getClientName):
                         defect = 'azure_defect_id'
                         mongo_query['type'] = "AZURE"
                     row.update({defect:str(requestdata['defectid'])})
-                    queryresult = dbsession.reportitems.update({"_id":reportitemsid,"rows.id":slno},{"$set":{"rows.$":row}})
+                    queryresult = dbsession.reportitems.replace_one({"_id":reportitemsid,"id":slno},row)
                     dbsession.thirdpartyintegration.insert_one(mongo_query)
                     res={'rows':'Success'}
         except Exception as updatereportdataexc:
