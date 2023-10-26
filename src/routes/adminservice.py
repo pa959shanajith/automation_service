@@ -1580,6 +1580,72 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
             app.logger.debug(traceback.format_exc())
             servicesException("manageSaucelabsDetails",e)
         return jsonify(res)
+    
+    #Fetch Browserstack data 
+    @app.route('/admin/getDetails_BROWSERSTACK', methods=['POST'])
+    def getDetails_BROWSERSTACK():
+        app.logger.info("Inside getDetails_BROWSERSTACK")
+        res={'rows':'fail'}
+        try:
+            requestdata=json.loads(request.data)
+            if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)             
+                dbsession=client[clientName]
+                result=dbsession.userpreference.find_one({"user":ObjectId(requestdata["userId"])}, {'Browserstack':1, '_id':0})
+                if result:
+                    res={'rows':result['Browserstack']}
+                else:
+                    res={'rows':"empty"}    
+            else:
+                app.logger.warn('Empty data received in getDetails_BROWSERSTACK fetch.')
+        except Exception as e:
+            servicesException("getDetails_BROWSERSTACK",e)
+        return jsonify(res)
+    
+    #manage Browserstack Details
+    @app.route('/admin/manageBrowserstackDetails',methods=['POST'])
+    def manageBrowserstackDetails():
+        app.logger.info("Inside manageBrowserstackDetails")
+        res={'rows':'fail'}
+        data={}
+        try:
+            requestdata=json.loads(request.data)
+            if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)             
+                dbsession=client[clientName]
+                result = dbsession.userpreference.find_one({"user":ObjectId(requestdata["userId"])}, {'_id':1})
+                result1 = dbsession.userpreference.find_one({"user":ObjectId(requestdata["userId"]), 'Browserstack':{'$exists':True, '$ne': None}})
+                if requestdata["action"]=="delete":
+                    res1 = "success"
+                    if result==None:
+                        res1 = "fail"
+                    elif result1!=None:
+                        dbsession.userpreference.update_one({"_id":result["_id"]},{"$unset":{ 'Browserstack':""}})
+                elif requestdata["action"]=='create':
+                    if result1!=None:
+                        res1 = "fail"
+                    else:
+                        if result==None:
+                            data['user'] = ObjectId(requestdata["userId"])
+                            data['Browserstack'] = { 'api': requestdata["BrowserstackAPI"], 'username': requestdata["BrowserstackUsername"]}
+                            dbsession.userpreference.insert_one(data)
+                            res1 = "success"
+                        else:
+                            data['Browserstack'] = { 'api': requestdata["BrowserstackAPI"], 'username': requestdata["BrowserstackUsername"]}
+                            dbsession.userpreference.update_one({"_id":ObjectId(result["_id"])},{"$set":data})
+                            res1 = "success"
+                elif requestdata["action"]=='update':
+                    if result==None:
+                        res1 = "fail"
+                    else:
+                        data['Browserstack'] = { 'api': requestdata["BrowserstackAPI"], 'username': requestdata["BrowserstackUsername"]  }
+                        dbsession.userpreference.update_one({"_id":ObjectId(result["_id"])},{"$set":data})
+                        res1 = "success"
+            res['rows'] = res1
+        except Exception as e:
+            app.logger.debug(traceback.format_exc())
+            servicesException("manageBrowserstackDetails",e)
+        return jsonify(res)
 
     #Fetch Zephyr data 
     @app.route('/admin/getDetails_Zephyr', methods=['POST'])
