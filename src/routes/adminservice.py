@@ -84,6 +84,9 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
                     res={"rows":"forbidden"}
                 elif(action=="delete"):
                     result=dbsession.users.delete_one({"name":requestdata['name']})
+                    listofmodules=list(dbsession.mindmaps.find({"currentlyinuse":requestdata['name']}))
+                    for module in listofmodules:
+                        dbsession.mindmaps.update_one({'_id':module['_id']},{"$set":{"currentlyinuse":""}}) 
                     # Delete EULA record for this user
                     dbsession.eularecords.delete_one({"username":requestdata['name']})
                     # Delete assigned tasks
