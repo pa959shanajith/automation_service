@@ -298,6 +298,8 @@ def LoadServices(app, redissession, client ,getClientName):
                     # Storing the reportitems after the reports to get the report id
                     # Updated
                     for item in rows:
+                        item['scenario_id'] = requestdata['testscenarioid']
+                        item['execution_ids'] = requestdata['executionid']
                         item['reportid'] = ObjectId(res["rows"])
                     ritems = dbsession.reportitems.insert_many(rows)
 
