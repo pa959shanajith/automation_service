@@ -770,7 +770,11 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
                                 result.append(diff_pro[i])
                             elif k == requestdata["domainid"] and diff_pro[i] in v:
                                 remove_pro.append(diff_pro[i])
-
+                                username=dbsession.users.find_one({'_id':ObjectId(requestdata["userid"])})["name"]
+                                findquery = {"projectid":diff_pro[i],"currentlyinuse":username}
+                                listofmodules=list(dbsession.mindmaps.find(findquery))
+                                for module in listofmodules:
+                                    dbsession.mindmaps.update_one({'_id':module['_id']},{"$set":{"currentlyinuse":""}})
                     result=dbsession.users.update_one({"_id":ObjectId(requestdata["userid"])},{"$set":{"projects":result}})
                     dbsession.tasks.delete_many({"projectid":{"$in":remove_pro},"assignedto":ObjectId(requestdata["userid"]),"status":{"$ne":'complete'}})
                     dbsession.tasks.delete_many({"projectid":{"$in":remove_pro},"owner":ObjectId(requestdata["userid"]),"status":{"$ne":'complete'}})
