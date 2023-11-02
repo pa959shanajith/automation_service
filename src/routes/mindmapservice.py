@@ -931,8 +931,9 @@ def LoadServices(app, redissession, client ,getClientName):
         "modifiedon":createdon,
         "screenshot":"",
         "scrapedurl":args[0],
-        "scrapeinfo":args[1]
         }
+        if(args[1] != ""):
+            data["scrapeinfo"]=args[1]
         queryresult=dbsession.screens.insert_one(data).inserted_id
         return queryresult
 
