@@ -630,7 +630,9 @@ def LoadServices(app, redissession, client ,getClientName):
                                     currentscreenid=getScreenID(dbsession,screendata["screenName"],projectid)
                                     updateparent(dbsession,"screens",currentscreenid,currentscenarioid,"add")
                                 else:
-                                    currentscreenid=saveScreen(dbsession,projectid,screendata["screenName"],versionnumber,createdby,createdbyrole,currentscenarioid)
+                                    scrapedurl = screendata['scrapedurl'] if 'scrapedurl' in screendata else ""
+                                    scrapeinfo = screendata['scrapeinfo'] if 'scrapeinfo' in screendata else "" 
+                                    currentscreenid=saveScreen(dbsession,projectid,screendata["screenName"],versionnumber,createdby,createdbyrole,currentscenarioid,scrapedurl,scrapeinfo)
                             else:
                                 if screendata["state"]=="renamed":
                                     updateScreenName(dbsession,screendata['screenName'],projectid,screendata['screenid'],createdby,createdbyrole)
@@ -645,7 +647,8 @@ def LoadServices(app, redissession, client ,getClientName):
                                         currenttestcaseid=getTestcaseID(dbsession,currentscreenid,testcasedata['testcaseName'])
                                         updateparent(dbsession,"testcases",currenttestcaseid,currentscreenid,"add")
                                     else:
-                                        currenttestcaseid=saveTestcase(dbsession,currentscreenid,testcasedata['testcaseName'],versionnumber,createdby,createdbyrole)
+                                        steps = testcasedata['steps'] if 'steps' in testcasedata else []
+                                        currenttestcaseid=saveTestcase(dbsession,currentscreenid,testcasedata['testcaseName'],versionnumber,createdby,createdbyrole,steps)
                                 else:
                                     if testcasedata['state']=="renamed":
                                         updateTestcaseName(dbsession,testcasedata['testcaseName'],projectid,testcasedata['testcaseid'],createdby,createdbyrole)
@@ -911,7 +914,7 @@ def LoadServices(app, redissession, client ,getClientName):
         queryresult=dbsession.testscenarios.insert_one(data).inserted_id
         return queryresult
 
-    def saveScreen(dbsession,projectid,screenname,versionnumber,createdby,createdbyrole,scenarioid):
+    def saveScreen(dbsession,projectid,screenname,versionnumber,createdby,createdbyrole,scenarioid,*args):
         app.logger.debug("Inside saveScreen.")
         createdon = datetime.now()
         data={
@@ -927,12 +930,14 @@ def LoadServices(app, redissession, client ,getClientName):
         "modifiedbyrole":ObjectId(createdbyrole),
         "modifiedon":createdon,
         "screenshot":"",
-        "scrapedurl":""
+        "scrapedurl":args[0],
         }
+        if(args[1] != ""):
+            data["scrapeinfo"]=args[1]
         queryresult=dbsession.screens.insert_one(data).inserted_id
         return queryresult
 
-    def saveTestcase(dbsession,screenid,testcasename,versionnumber,createdby,createdbyrole):
+    def saveTestcase(dbsession,screenid,testcasename,versionnumber,createdby,createdbyrole,steps):
         app.logger.debug("Inside saveTestcase.")
         createdon = datetime.now()
         data={
@@ -945,7 +950,7 @@ def LoadServices(app, redissession, client ,getClientName):
             "modifiedby": ObjectId(createdby),
             "modifiedbyrole": ObjectId(createdbyrole),
             "modifiedon":createdon,
-            "steps":[],
+            "steps":steps,
             "parent":1,
             "deleted":False
         }
