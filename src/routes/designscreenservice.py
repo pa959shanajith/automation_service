@@ -148,6 +148,93 @@ def LoadServices(app, redissession, client ,getClientName):
                     object_identifier.append({"id":all_identifier_list_index+1,"identifier":all_identifier_list_value})
         return object_identifier
 
+
+    # Creating a function to update steps if webservice screen is saved
+    def updateTestStep(dbsession,to_update_teststep,screen_detail):
+         steps = [ 
+                        {
+                            "stepNo" : 1,
+                            "custname" : "WebService List",
+                            "keywordVal" : "setEndPointURL",
+                            "inputVal" : [ 
+                                screen_detail['endPointURL'] if 'endPointURL' in screen_detail else ""
+                            ],
+                            "outputVal" : "",
+                            "appType" : "Webservice",
+                            "remarks" : "",
+                            "addDetails" : "",
+                            "cord" : ""
+                        }, 
+                        {
+                            "stepNo" : 2,
+                            "custname" : "WebService List",
+                            "keywordVal" : "setMethods",
+                            "inputVal" : [ 
+                                screen_detail['method'] if 'method' in screen_detail else ""
+                            ],
+                            "outputVal" : "",
+                            "appType" : "Webservice",
+                            "remarks" : "",
+                            "addDetails" : "",
+                            "cord" : ""
+                        }, 
+                        {
+                            "stepNo" : 3,
+                            "custname" : "WebService List",
+                            "keywordVal" : "setHeader",
+                            "inputVal" : [ 
+                                screen_detail['header'] if 'header' in screen_detail else ""
+                            ],
+                            "outputVal" : "",
+                            "appType" : "Webservice",
+                            "remarks" : "",
+                            "addDetails" : "",
+                            "cord" : ""
+                        },
+                        {
+                            "stepNo" : 4,
+                            "custname" : "WebService List",
+                            "keywordVal" : "setWholeBody",
+                            "inputVal" : [ 
+                                screen_detail['body'] if 'body' in screen_detail else ""
+                            ],
+                            "outputVal" : "",
+                            "appType" : "Webservice",
+                            "remarks" : "",
+                            "addDetails" : "",
+                            "cord" : ""
+                        }
+                    ]
+         if(screen_detail['param']):
+             steps.append({
+                "stepNo" : len(steps)+1,
+                "custname" : "WebService List",
+                "keywordVal" : "setParam",
+                "inputVal" : [ 
+                    screen_detail['param'] if 'param' in screen_detail else ""
+                ],
+                "outputVal" : "",
+                "appType" : "Webservice",
+                "remarks" : "",
+                "addDetails" : "",
+                "cord" : ""
+            }) 
+             
+         steps.append( {
+            "stepNo" : len(steps)+1,
+            "custname" : "WebService List",
+            "keywordVal" : "executeRequest",
+            "inputVal" : [ 
+                ""
+            ],
+            "outputVal" : "",
+            "appType" : "Webservice",
+            "remarks" : "",
+            "addDetails" : "",
+            "cord" : ""
+        })
+         dbsession.testcases.update_one({'_id':to_update_teststep['_id']},{'$set':{'steps':steps}})
+
     # update/delete/insert opertaions on the screen data
     @app.route('/design/updateScreen_ICE',methods=['POST'])
     def updateScreen_ICE():
@@ -322,6 +409,13 @@ def LoadServices(app, redissession, client ,getClientName):
                         if len(Old_obj) > 0:
                             remove_data=[o["_id"] for o in Old_obj]
                             dbsession.dataobjects.delete_many({"_id":{"$in":remove_data}})
+                    
+                    # Code to add details in the teststeps
+                    to_update_teststep =  list(dbsession.testcases.find({"screenid":screenId}))
+                    screen_detail = list(dbsession.screens.find({"_id":screenId}))
+                    updateTestStep(dbsession,to_update_teststep[0],screen_detail[0]['scrapeinfo'])
+                    
+
                     res={"rows":"Success"}
                 elif data["param"] == "importScrapeData":
                     screenId = ObjectId(data["screenId"])

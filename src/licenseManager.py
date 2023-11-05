@@ -102,6 +102,7 @@ def LoadServices(app, redissession, client,getClientName,licensedata):
                 present = datetime.now()
                 present = present.replace(hour=0, minute=0, second=0, microsecond=0)
                 lsData=dbsession.licenseManager.find_one({"client":clientName})['data']
+
                 expiryDate=lsData['ExpiresOn']
                 expiryDate = datetime.strptime(expiryDate, "%m/%d/%Y")
                 if expiryDate < present:
@@ -235,17 +236,19 @@ def LoadServices(app, redissession, client,getClientName,licensedata):
                     res={'status':'pass','data':totalSteps}
                     return res
                 if len(list(dbsession.reports.find({}))) > 0:
-                    reportitems=list(dbsession.reports.aggregate([{"$match":{"executedtime" :{'$gte' : datetime(datetime.now().year, datetime.now().month, 1, 00, 00, 00)}}},{"$lookup":{
-                        "from":"reportitems",
-                        "localField":"reportitems",
-                        "foreignField":"_id",
-                        "as":"reportitem"}},{"$unwind":"$reportitem"}
+                    # As Reportitems are stored in different document scnearioid is the
+                    reportitems=list(dbsession.reports.aggregate([{"$match":{"executedtime" :{'$gte' : datetime(datetime.now().year, datetime.now().month, 1, 00, 00, 00)}}},
+                        {"$lookup":{
+                            "from":"reportitems",
+                            "localField":"_id",
+                            "foreignField":"reportid",
+                            "as":"reportitem"}},
+                        # {"$unwind":"$reportitem"}  #As now repor times are stored in different documents
                         ]))
                     
-                    for reportitem in reportitems:
-                        for step in reportitem["reportitem"]["rows"]:
-                            if "Step" in step:
-                                totalSteps= totalSteps + 1   
+                    for step in reportitems["reportitem"]:
+                        if "Step" in step:
+                            totalSteps= totalSteps + 1
                 for exec in requestdata["executionData"]["batchInfo"]:
                     suites=exec["suiteDetails"]
                     scenarioIds=list(map(lambda suite:suite["scenarioId"],suites))

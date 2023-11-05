@@ -352,6 +352,13 @@ def LoadServices(app, redissession, client ,getClientName, *args):
                                     break
                                 else:
                                     result=[]
+                        elif 'scenario' in requestdata:
+                            for i in result:
+                                if requestdata['scenario']==i['testscenarioid']:
+                                    result=i
+                                    break
+                                else:
+                                    result=[]            
                     res= {"rows":result}
             else:
                 app.logger.warn('Empty data received. getting QcMappedList.')

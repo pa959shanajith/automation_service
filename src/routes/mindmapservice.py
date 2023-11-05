@@ -309,7 +309,7 @@ def LoadServices(app, redissession, client ,getClientName):
                     if type(requestdata["moduleid"]) == str:
                         modId = requestdata["moduleid"]
                     mindmapdata = dbsession.mindmaps.find_one({"_id": ObjectId(modId)}, {
-                                                            "testscenarios": 1, "_id": 1, "name": 1, "projectid": 1, "type": 1, "versionnumber": 1})
+                                                            "testscenarios": 1, "_id": 1, "name": 1, "projectid": 1, "type": 1, "versionnumber": 1,"currentlyinuse":1})
                     mindmaptype = mindmapdata["type"]
                     scenarioids = []
                     screenids = []
@@ -425,6 +425,7 @@ def LoadServices(app, redissession, client ,getClientName):
                     finaldata["state"] = "saved"
                     finaldata["versionnumber"] = mindmapdata["versionnumber"]
                     finaldata["children"] = []
+                    finaldata["currentlyInUse"]=mindmapdata["currentlyinuse"]
                     finaldata["completeFlow"] = True
                     finaldata["type"] = "modules" if mindmaptype == "basic" else "endtoend"
                     if mindmapdata["_id"] in moduledata and 'task' in moduledata[mindmapdata["_id"]] and moduledata[mindmapdata["_id"]]["task"]["status"] != 'complete':
@@ -629,7 +630,9 @@ def LoadServices(app, redissession, client ,getClientName):
                                     currentscreenid=getScreenID(dbsession,screendata["screenName"],projectid)
                                     updateparent(dbsession,"screens",currentscreenid,currentscenarioid,"add")
                                 else:
-                                    currentscreenid=saveScreen(dbsession,projectid,screendata["screenName"],versionnumber,createdby,createdbyrole,currentscenarioid)
+                                    scrapedurl = screendata['scrapedurl'] if 'scrapedurl' in screendata else ""
+                                    scrapeinfo = screendata['scrapeinfo'] if 'scrapeinfo' in screendata else "" 
+                                    currentscreenid=saveScreen(dbsession,projectid,screendata["screenName"],versionnumber,createdby,createdbyrole,currentscenarioid,scrapedurl,scrapeinfo)
                             else:
                                 if screendata["state"]=="renamed":
                                     updateScreenName(dbsession,screendata['screenName'],projectid,screendata['screenid'],createdby,createdbyrole)
@@ -644,7 +647,8 @@ def LoadServices(app, redissession, client ,getClientName):
                                         currenttestcaseid=getTestcaseID(dbsession,currentscreenid,testcasedata['testcaseName'])
                                         updateparent(dbsession,"testcases",currenttestcaseid,currentscreenid,"add")
                                     else:
-                                        currenttestcaseid=saveTestcase(dbsession,currentscreenid,testcasedata['testcaseName'],versionnumber,createdby,createdbyrole)
+                                        steps = testcasedata['steps'] if 'steps' in testcasedata else []
+                                        currenttestcaseid=saveTestcase(dbsession,currentscreenid,testcasedata['testcaseName'],versionnumber,createdby,createdbyrole,steps)
                                 else:
                                     if testcasedata['state']=="renamed":
                                         updateTestcaseName(dbsession,testcasedata['testcaseName'],projectid,testcasedata['testcaseid'],createdby,createdbyrole)
@@ -674,7 +678,27 @@ def LoadServices(app, redissession, client ,getClientName):
         except Exception as e:
             servicesException("saveMindmap", e, True)
         return jsonify(res)
-
+    @app.route('/design/updateTestSuiteInUseBy', methods=['POST'])
+    def updateTestSuiteInUseBy():
+        try:
+            res={'rows':'fail'}
+            requestdata=json.loads(request.data)
+            clientName=getClientName(requestdata)
+            dbsession=client[clientName]
+            app.logger.debug("Inside updateTestSuiteInUseBy. Query: "+str(requestdata["query"]))
+            if not isemptyrequest(requestdata):
+            
+                accessedBy=requestdata['accessedBy']
+                if (len(requestdata['testsuiteId'])>0 and requestdata['assignToUser']==True):
+                   dbsession.mindmaps.update_one({'_id':ObjectId(requestdata['testsuiteId'])},{"$set":{"currentlyinuse":accessedBy}})
+                if (len(requestdata["oldTestSuiteId"])!=0 and requestdata['resetFlag']==True):
+                   dbsession.mindmaps.update_one({'_id':ObjectId(requestdata["oldTestSuiteId"])},{"$set":{"currentlyinuse":""}})   
+                res={"rows":"Success"}
+            else:
+                app.logger.warn('Empty data received.')
+        except Exception as getscrapedataexc:
+            servicesException("getScrapeDataScenarioLevel_ICE",getscrapedataexc, True)
+        return jsonify(res)    
     def saveTestSuite(dbsession,projectid,modulename,versionnumber,createdthrough,createdby,createdbyrole,moduletype,testscenarios=[]):
         app.logger.debug("Inside saveTestSuite.")
         createdon = datetime.now()
@@ -691,7 +715,8 @@ def LoadServices(app, redissession, client ,getClientName):
         "modifiedon": createdon,
         "modifiedbyrole": ObjectId(createdbyrole),
         "type": moduletype,
-        "testscenarios":[]
+        "testscenarios":[],
+        "currentlyinuse":""
         }
         queryresult=dbsession.mindmaps.insert_one(data).inserted_id
         return queryresult
@@ -863,7 +888,8 @@ def LoadServices(app, redissession, client ,getClientName):
         "modifiedon": createdon,
         "modifiedbyrole": ObjectId(createdbyrole),
         "type": moduletype,
-        "testscenarios":[]
+        "testscenarios":[],
+        "currentlyinuse":""
         }
         queryresult=dbsession.mindmaps.insert_one(data).inserted_id
         return queryresult
@@ -888,7 +914,7 @@ def LoadServices(app, redissession, client ,getClientName):
         queryresult=dbsession.testscenarios.insert_one(data).inserted_id
         return queryresult
 
-    def saveScreen(dbsession,projectid,screenname,versionnumber,createdby,createdbyrole,scenarioid):
+    def saveScreen(dbsession,projectid,screenname,versionnumber,createdby,createdbyrole,scenarioid,*args):
         app.logger.debug("Inside saveScreen.")
         createdon = datetime.now()
         data={
@@ -904,12 +930,14 @@ def LoadServices(app, redissession, client ,getClientName):
         "modifiedbyrole":ObjectId(createdbyrole),
         "modifiedon":createdon,
         "screenshot":"",
-        "scrapedurl":""
+        "scrapedurl":args[0],
         }
+        if(args[1] != ""):
+            data["scrapeinfo"]=args[1]
         queryresult=dbsession.screens.insert_one(data).inserted_id
         return queryresult
 
-    def saveTestcase(dbsession,screenid,testcasename,versionnumber,createdby,createdbyrole):
+    def saveTestcase(dbsession,screenid,testcasename,versionnumber,createdby,createdbyrole,steps):
         app.logger.debug("Inside saveTestcase.")
         createdon = datetime.now()
         data={
@@ -922,7 +950,7 @@ def LoadServices(app, redissession, client ,getClientName):
             "modifiedby": ObjectId(createdby),
             "modifiedbyrole": ObjectId(createdbyrole),
             "modifiedon":createdon,
-            "steps":[],
+            "steps":steps,
             "parent":1,
             "deleted":False
         }
@@ -1757,6 +1785,7 @@ def LoadServices(app, redissession, client ,getClientName):
                         "modifiedby":userid,
                         "modifiedbyrole":role,
                         "modifiedon":createdon,
+                        "currentlyinuse":"",
                         "tsIds":"$testscenarios"
                         }},{"$out":"Import_mindmaps"}])
         dbsession.testscenarios.aggregate([
@@ -2429,6 +2458,7 @@ def LoadServices(app, redissession, client ,getClientName):
                                 "modifiedby":userid,
                                 "modifiedbyrole":role,
                                 "modifiedon":createdon,
+                                "currentlyinuse":"",
                                 "testscenarios":1}},
                                 {"$out":"mindmapnames"}
                                         ])
@@ -2632,6 +2662,7 @@ def LoadServices(app, redissession, client ,getClientName):
                             "modifiedby":userid,
                             "modifiedbyrole":role,
                             "modifiedon":createdon,
+                            "currentlyinuse":"",
                             "tsIds":"$testscenarios"}},{"$out":"Module_Import"}
                     ])
                     

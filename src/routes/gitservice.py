@@ -677,6 +677,7 @@ def LoadServices(app, redissession, client ,getClientName, *args):
                                         "modifiedby":userid,
                                         "modifiedbyrole":role,
                                         "modifiedon":createdon,
+                                        "currentlyinuse":"",
                                         "tsIds":"$testscenarios"}},{"$out":"git_Module_Import"}
                                 ])
                                 
