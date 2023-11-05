@@ -269,19 +269,21 @@ def LoadServices(app, redissession, client, licensedata,basecheckonls,getClientN
                     dictdata['rolename'] = permissions_data['name']
                     plugins = permissions_data['plugins']
                     # lic_plugins = licensedata['plugins']
-                    lic_plugins=dbsession.licenseManager.find_one({"client":clientName})["data"]
-                    allowed_plugins = []
+                    # lic_plugins=dbsession.licenseManager.find_one({"client":clientName})["data"]
+                    licenseDetails = dbsession.licenseManager.find_one({"client":clientName})["data"]
+                    # allowed_plugins = []
                     # dictdata['isTrial'] = licensedata['isTrial']
-                    if "Trial" in lic_plugins["LicenseTypes"]:
+                    if "Trial" in licenseDetails["LicenseTypes"]:
                         dictdata['isTrial'] = True
                     else:
                         dictdata['isTrial'] = False
-                    for keys in lic_plugins:
-                        # allowed_plugins.append({ "pluginName": keys,"pluginValue": True})
-                        allowed_plugins.append({ "pluginName": keys,"pluginValue": lic_plugins[keys]})
+                    # for keys in lic_plugins:
+                    #     # allowed_plugins.append({ "pluginName": keys,"pluginValue": True})
+                    #     allowed_plugins.append({ "pluginName": keys,"pluginValue": lic_plugins[keys]})
                     # for keys in ui_plugins:
                     #     allowed_plugins.append({ "pluginName": ui_plugins[keys],"pluginValue": False if lic_plugins[keys] == False else plugins[keys]})
-                    dictdata['pluginresult']=allowed_plugins
+                    # dictdata['pluginresult']=allowed_plugins
+                    dictdata['licenseDetails']=licenseDetails
                     res={'rows': dictdata}
                 elif(requestdata["query"] == 'nameidInfoByRoleIDList'):
                     roleids=[]
