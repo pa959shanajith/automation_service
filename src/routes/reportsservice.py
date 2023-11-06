@@ -1036,7 +1036,51 @@ def LoadServices(app, redissession, client ,getClientName):
 
         except Exception as e:
             app.logger.error(f"Error: {str(e)}")
-            return jsonify({'rows':'fail','error': 'Internal server error'}), 500    
+            return jsonify({'rows':'fail','error': 'Internal server error'}), 500
+    
+    @app.route('/generate/testcase', methods=['POST'])
+    def generateTestcase():
+        try:
+            request_data = request.get_json()
+            required_fields = ['email', 'name', 'projectname', 'organization', 'generateType']
+            if all(field not in request_data and ('generateType' not in request_data or 'typename' not in request_data['generateType']) for field in required_fields):
+                return jsonify({'error': 'Invalid request data'}), 400
+            headers = {
+                'Accept': 'application/json',
+                'Content-Type':'application/json'
+            }
+            addr = 'https://avogenerativeai.avoautomation.com'
+            test_url = addr + '/generate_testcase'
+           
+            data={'generate_type':request_data['generateType'], 'instancename':request_data['organization'],'projectname':request_data['project'],'email':request_data['email'],'username':request_data['name']}
+            json_data = json.dumps(data)
+            response = requests.post(test_url,headers=headers,data=json_data,verify = False)
+            if response.status_code == 200:
+                JsonObject = response.json()
+                app.logger.info('testcase generated successfully')
+                return jsonify({'rows':JsonObject, 'message': 'records found'}), 200
+            elif response.status_code == 400:
+                app.logger.error('Bad Request')
+                return jsonify({'rows':"fail", 'message': 'Bad Request'}), 400
+            elif response.status_code == 401:
+                app.logger.error('Unauthorized user')
+                return jsonify({'rows':"fail", 'message': 'Unauthorized user'}), 401
+            elif response.status_code == 403:
+                app.logger.error('user does not have the necessary permissions to access')
+                return jsonify({'rows':"fail", 'message': 'user does not have the necessary permissions to access'}), 403
+            elif response.status_code == 404 :
+                app.logger.error('Source not found')
+                return jsonify({'rows':"fail", 'message': 'Source not found'}), 404
+            elif response.status_code == 500 :
+                app.logger.error('Internal Server Error')
+                return jsonify({'rows':"fail", 'message': 'Internal Server Error'}), 500
+            elif response.status_code == 504 :
+                app.logger.error('Gateway Time-out')
+                return jsonify({'rows':"fail", 'message': 'Gateway Time-out'}), 504
+
+        except Exception as e:
+            app.logger.error(f"Error: {str(e)}")
+            return jsonify({'rows':'fail','error': 'Internal server error'}), 500          
 
 
 # END OF REPORTS
