@@ -930,14 +930,14 @@ def LoadServices(app, redissession, client ,getClientName):
         "modifiedbyrole":ObjectId(createdbyrole),
         "modifiedon":createdon,
         "screenshot":"",
-        "scrapedurl":args[0],
+        "scrapedurl":args[0] if len(args) > 0 else "",
         }
-        if(args[1] != ""):
+        if(len(args) > 1 and args[1] != ""):
             data["scrapeinfo"]=args[1]
         queryresult=dbsession.screens.insert_one(data).inserted_id
         return queryresult
 
-    def saveTestcase(dbsession,screenid,testcasename,versionnumber,createdby,createdbyrole,steps):
+    def saveTestcase(dbsession,screenid,testcasename,versionnumber,createdby,createdbyrole,*args):
         app.logger.debug("Inside saveTestcase.")
         createdon = datetime.now()
         data={
@@ -950,7 +950,7 @@ def LoadServices(app, redissession, client ,getClientName):
             "modifiedby": ObjectId(createdby),
             "modifiedbyrole": ObjectId(createdbyrole),
             "modifiedon":createdon,
-            "steps":steps,
+            "steps":args[0] if len(args) > 0 else [],
             "parent":1,
             "deleted":False
         }
