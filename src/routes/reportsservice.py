@@ -1082,5 +1082,33 @@ def LoadServices(app, redissession, client ,getClientName):
             app.logger.error(f"Error: {str(e)}")
             return jsonify({'rows':'fail','error': 'Internal server error'}), 500          
 
+    @app.route('/JSON/userstory', methods=['POST'])
+    def getuserstories():
+        try:
+            request_data = request.get_json()
+            required_fields = ['email', 'name','organization']
+            if all(field not in request_data for field in required_fields):
+                return jsonify({'error': 'Invalid request data'}), 400
+            client_name = getClientName(request_data)
+            dbsession = client[client_name]
+            query = {
+                "uploadedBy": request_data['email'],
+                "name": request_data['name'],
+                "organization": request_data['organization'],
+                "uploadedTime": {'$exists': True}
+            }
+            fetch_result = list(dbsession.generateAI_temp.find(query).sort("uploadedTime",-1).limit(1))
+
+            if len(fetch_result):
+                json_file_path = fetch_result[0]['path']
+                with open(json_file_path,'r') as file:
+                    json_data = file.read()
+                return jsonify({'rows':eval(json_data), 'message': 'records found'}), 200
+            else:
+                return jsonify({'rows':[],'message': 'no records found'}), 200
+
+        except Exception as e:
+            app.logger.error(f"Error: {str(e)}")
+            return jsonify({'rows':'fail','error': 'Internal server error'}), 500
 
 # END OF REPORTS
