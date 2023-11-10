@@ -139,29 +139,32 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
                         }
                         res={"rows":{"status":"success", "userData":userData}}
                 elif (action=="update"):
-                    if(requestdata["auth"]["password"] == "" and requestdata["auth"]["type"] == "inhouse" ):
+                    checkuser=dbsession.users.find_one({"$or":[ {"name":requestdata['name']}, {"email":requestdata["email"]}]},{"name":1,"email":1})
+                    if checkuser!=None  and checkuser['email'] == requestdata["email"]:
+                        res={"rows":"exists"}
+                    elif(requestdata["auth"]["password"] == "" and requestdata["auth"]["type"] == "inhouse" ):
                         result=dbsession.users.find_one({"_id":ObjectId(requestdata["userid"])})["auth"]["password"]
                         dbsession.users.update_one({"_id":ObjectId(requestdata["userid"])}, {"$set": {"profileimage":userImage}})
                         requestdata["auth"]["password"] = result
-                    update_query = {
-                        "firstname":requestdata["firstname"],
-                        "lastname":requestdata["lastname"],
-                        "email":requestdata["email"],
-                        "addroles":[ObjectId(i) for i in requestdata["additionalroles"]],
-                        "modifiedby":ObjectId(requestdata["createdby"]),
-                        "modifiedbyrole":ObjectId(requestdata["createdbyrole"]),
-                        "modifiedon":datetime.now(),
-                    }
-                    result=dbsession.users.find_one({"_id":ObjectId(requestdata["userid"])})
-                    au = result["auth"]
-                    if "oldPassword" in requestdata:
-                        au["passwordhistory"]=(au["passwordhistory"] + [au["password"]])[-4:]
-                        update_query["invalidCredCount"]=0
-                    for key in requestdata["auth"]:
-                        au[key] = requestdata["auth"][key]
-                    update_query["auth"] = au
-                    dbsession.users.update_one({"_id":ObjectId(requestdata["userid"])},{"$set":update_query})
-                    res={"rows":"success"}
+                        update_query = {
+                            "firstname":requestdata["firstname"],
+                            "lastname":requestdata["lastname"],
+                            "email":requestdata["email"],                           
+                            "addroles":[ObjectId(i) for i in requestdata["additionalroles"]],
+                            "modifiedby":ObjectId(requestdata["createdby"]),
+                            "modifiedbyrole":ObjectId(requestdata["createdbyrole"]),
+                            "modifiedon":datetime.now(),
+                        }
+                        result=dbsession.users.find_one({"_id":ObjectId(requestdata["userid"])})
+                        au = result["auth"]
+                        if "oldPassword" in requestdata:
+                            au["passwordhistory"]=(au["passwordhistory"] + [au["password"]])[-4:]
+                            update_query["invalidCredCount"]=0
+                        for key in requestdata["auth"]:
+                            au[key] = requestdata["auth"][key]
+                        update_query["auth"] = au
+                        dbsession.users.update_one({"_id":ObjectId(requestdata["userid"])},{"$set":update_query})
+                        res={"rows":"success"}
                 elif (action=="resetpassword"):
                     user_id = requestdata['user_id']['user_id'] if 'user_id' in requestdata['user_id'] else requestdata['user_id']
                     result=dbsession.users.find_one({"_id":ObjectId(user_id)})
