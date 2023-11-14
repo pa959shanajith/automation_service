@@ -425,7 +425,10 @@ def LoadServices(app, redissession, client ,getClientName):
                     finaldata["state"] = "saved"
                     finaldata["versionnumber"] = mindmapdata["versionnumber"]
                     finaldata["children"] = []
-                    finaldata["currentlyInUse"]=mindmapdata["currentlyinuse"]
+                    if "currentlyinuse" in mindmapdata:
+                        finaldata["currentlyInUse"]=mindmapdata["currentlyinuse"]
+                    else:
+                        finaldata["currentlyInUse"]= ''
                     finaldata["completeFlow"] = True
                     finaldata["type"] = "modules" if mindmaptype == "basic" else "endtoend"
                     if mindmapdata["_id"] in moduledata and 'task' in moduledata[mindmapdata["_id"]] and moduledata[mindmapdata["_id"]]["task"]["status"] != 'complete':
