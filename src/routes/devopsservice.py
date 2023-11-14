@@ -376,7 +376,7 @@ def LoadServices(app, redissession, client ,getClientName):
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
-            clientName=getClientName(requestdata)
+            clientName=getClientName(requestdata[-1])
             dbsession=client[clientName]
             del requestdata[-1]
             for agentDetail in requestdata:
