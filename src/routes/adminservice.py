@@ -149,7 +149,9 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
                         update_query = {
                             "firstname":requestdata["firstname"],
                             "lastname":requestdata["lastname"],
-                            "email":requestdata["email"],                           
+                            "email":requestdata["email"],
+                            "defaultrole" : ObjectId(requestdata['defaultrole']),
+                            "isadminuser" : requestdata['isadminuser'],                           
                             "addroles":[ObjectId(i) for i in requestdata["additionalroles"]],
                             "modifiedby":ObjectId(requestdata["createdby"]),
                             "modifiedbyrole":ObjectId(requestdata["createdbyrole"]),
