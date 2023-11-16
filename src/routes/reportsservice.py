@@ -1095,7 +1095,8 @@ def LoadServices(app, redissession, client ,getClientName):
                 "uploadedBy": request_data['email'],
                 "name": request_data['name'],
                 "organization": request_data['organization'],
-                "uploadedTime": {'$exists': True}
+                "uploadedTime": {'$exists': True},
+                "type":"userstories"
             }
             fetch_result = list(dbsession.generateAI_temp.find(query).sort("uploadedTime",-1).limit(1))
 
