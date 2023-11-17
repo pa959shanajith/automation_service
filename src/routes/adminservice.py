@@ -158,6 +158,10 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
                             "modifiedbyrole":ObjectId(requestdata["createdbyrole"]),
                             "modifiedon":datetime.now(),
                         }
+                        if "5db0022cf87fdec084ae49ab" == requestdata['defaultrole'] and requestdata['isadminuser'] == True :                            
+                            update_query["isadminuser"] : requestdata['isadminuser']
+                        else:
+                            update_query["isadminuser"] : False
                         result=dbsession.users.find_one({"_id":ObjectId(requestdata["userid"])})
                         au = result["auth"]
                         if "oldPassword" in requestdata:
