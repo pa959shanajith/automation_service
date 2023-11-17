@@ -139,13 +139,14 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
                         }
                         res={"rows":{"status":"success", "userData":userData}}
                 elif (action=="update"):
-                    checkuser=dbsession.users.find_one({"$or":[ {"name":requestdata['name']}, {"email":requestdata["email"]}]},{"name":1,"email":1})
-                    if checkuser!=None  and checkuser['email'] == requestdata["email"]:
-                        res={"rows":"exists"}
-                    elif(requestdata["auth"]["password"] == "" and requestdata["auth"]["type"] == "inhouse" ):
-                        result=dbsession.users.find_one({"_id":ObjectId(requestdata["userid"])})["auth"]["password"]
-                        dbsession.users.update_one({"_id":ObjectId(requestdata["userid"])}, {"$set": {"profileimage":userImage}})
-                        requestdata["auth"]["password"] = result
+                    checkuser=list(dbsession.users.find({"email":requestdata["email"]},{"name":1,"email":1}))
+                    if checkuser!=None and ((len(checkuser) == 1 and checkuser[0]["name"] != requestdata["name"]) or len(checkuser) > 1):
+                        res={"rows":"email exists"}
+                    else:
+                        if(requestdata["auth"]["password"] == "" and requestdata["auth"]["type"] == "inhouse" ):
+                            result=dbsession.users.find_one({"_id":ObjectId(requestdata["userid"])})["auth"]["password"]
+                            dbsession.users.update_one({"_id":ObjectId(requestdata["userid"])}, {"$set": {"profileimage":userImage}})
+                            requestdata["auth"]["password"] = result
                         update_query = {
                             "firstname":requestdata["firstname"],
                             "lastname":requestdata["lastname"],
