@@ -177,9 +177,10 @@ def LoadServices(app, redissession, client ,getClientName):
                             "remarks" : "",
                             "addDetails" : "",
                             "cord" : ""
-                        }, 
-                        {
-                            "stepNo" : 3,
+                        }]
+         if(screen_detail['header']):
+             steps.append({
+                            "stepNo" : len(steps)+1,
                             "custname" : "WebService List",
                             "keywordVal" : "setHeader",
                             "inputVal" : [ 
@@ -190,9 +191,10 @@ def LoadServices(app, redissession, client ,getClientName):
                             "remarks" : "",
                             "addDetails" : "",
                             "cord" : ""
-                        },
-                        {
-                            "stepNo" : 4,
+                        })
+         if(screen_detail['body']):
+             steps.append({
+                            "stepNo" : len(steps)+1,
                             "custname" : "WebService List",
                             "keywordVal" : "setWholeBody",
                             "inputVal" : [ 
@@ -203,15 +205,15 @@ def LoadServices(app, redissession, client ,getClientName):
                             "remarks" : "",
                             "addDetails" : "",
                             "cord" : ""
-                        }
-                    ]
+                        })
+
          if(screen_detail['param']):
              steps.append({
                 "stepNo" : len(steps)+1,
                 "custname" : "WebService List",
                 "keywordVal" : "setParam",
                 "inputVal" : [ 
-                    screen_detail['param'] if 'param' in screen_detail else ""
+                    screen_detail['param'].replace("##", "&") if 'param' in screen_detail else ""
                 ],
                 "outputVal" : "",
                 "appType" : "Webservice",
@@ -219,7 +221,7 @@ def LoadServices(app, redissession, client ,getClientName):
                 "addDetails" : "",
                 "cord" : ""
             }) 
-             
+
          steps.append( {
             "stepNo" : len(steps)+1,
             "custname" : "WebService List",
