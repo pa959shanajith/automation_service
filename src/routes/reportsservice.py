@@ -9,8 +9,9 @@ from ftplib import FTP
 import os
 import shutil
 import base64
-from document_modules.generateAI_module import UserDocument
+from document_modules.generateAI_module import UserDocument,UserTestcases,AI_Testcases
 import requests
+from datetime import datetime
 
 
 def LoadServices(app, redissession, client ,getClientName):
@@ -1111,5 +1112,52 @@ def LoadServices(app, redissession, client ,getClientName):
         except Exception as e:
             app.logger.error(f"Error: {str(e)}")
             return jsonify({'rows':'fail','error': 'Internal server error'}), 500
+    
+    @app.route('/Save/testcases', methods=['POST'])
+    def saveTestcases():
+        try:
+            request_data = request.get_json()
+            required_fields = ['email', 'name','organization','projectname','testcase','type']
+            if all(field not in request_data for field in required_fields):
+                return jsonify({'error': 'Invalid request data'}), 400
+            client_name = getClientName(request_data)
+            dbsession = client[client_name]
+            
+            document_testcase = AI_Testcases(
+                testcase = request_data['testcase']
+            )
+
+            testcase_to_insert = document_testcase.to_dict()
+            insert_result = dbsession.AI_Testcases.insert_one(testcase_to_insert)
+
+            if insert_result.acknowledged:
+                query = {
+                "email": request_data['email'],
+                "name": request_data['name'],
+                "organization": request_data['organization'],
+                "project": request_data['projectname']
+                }
+                update = {
+                    "$push": {
+                    "testcases": {
+                        "testcase": insert_result.inserted_id,
+                        "testcasetype": request_data['type'],
+                        "createdAt": datetime.now(),
+                        "updatedAt": datetime.now()
+                    }
+                }
+                }
+                insert_user_testcase = dbsession.UserTestcases.update_one(query,update,upsert=True)
+                if insert_user_testcase.acknowledged:
+                   return jsonify({'rows':'success', 'message': 'user and AI testcase saved successfully'}), 200
+                    
+                else:
+                    return jsonify({'rows':'fail','error': 'failed to save user testcase'}), 500
+            else:
+                return jsonify({'rows':'fail','error': 'Data save or update failed'}), 500
+
+        except Exception as e:
+            app.logger.error(f"Error: {str(e)}")
+            return jsonify({'rows':'fail','error': 'Internal server error'}), 500    
 
 # END OF REPORTS
