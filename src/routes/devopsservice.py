@@ -321,8 +321,24 @@ def LoadServices(app, redissession, client ,getClientName):
                     for dateinfo in date_info:
                         if data["configurekey"] == dateinfo["_id"]:
                             data["execDate"] = dateinfo["execDate"]
-                            break            
-            res['rows'] = responseData
+                            break
+            pagecount= requestdata["page"]
+            limit = 10
+
+            start_index = (pagecount - 1) * limit
+            end_index = start_index + limit
+
+            pagination_data = responseData[start_index:end_index]
+            total_count = len(responseData)  
+            response = {
+                "data" :pagination_data,
+                "pagination" : {
+                    "page" : pagecount,
+                    'limit' : limit,
+                    'totalcount' : total_count
+                }
+            }
+            res['rows'] = response
         except Exception as e:
             print(e)
             return e
