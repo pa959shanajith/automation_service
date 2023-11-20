@@ -187,8 +187,13 @@ def LoadServices(app, redissession, client ,getClientName):
                     'releases':[],
                     'cycles':{},
                     'projecttypes':projecttype_names,
-                    'domains':[]
+                    'domains':[],
+                    'projectlevelrole' : []
                 }
+                projectlevelrole = list(dbsession.users.find({"_id":ObjectId(requestdata['userid'])},{"projectlevelrole": 1}))
+
+                prjDetails['projectlevelrole'].append(projectlevelrole[0]['projectlevelrole'])
+
                 if 'userrole' in requestdata and requestdata['userrole'] == "Test Manager":
                     dbconn=dbsession["projects"]
                     projectIDResult=list(dbconn.find({},{"_id":1}))
@@ -226,7 +231,7 @@ def LoadServices(app, redissession, client ,getClientName):
                             prjDetails['appType'].append(str(prjDetail[0]['type']))
                             prjDetails['appTypeName'].append(projecttype_names[str(prjDetail[0]['type'])])
                             prjDetails['releases'].append(prjDetail[0]["releases"])
-                            prjDetails['domains'].append(prjDetail[0]["domain"])                       
+                            prjDetails['domains'].append(prjDetail[0]["domain"])
                             for rel in prjDetail[0]["releases"]:
                                 for cyc in rel['cycles']:
                                     prjDetails['cycles'][str(cyc['_id'])]=[str(cyc['_id']),rel['name'],cyc['name'],]

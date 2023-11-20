@@ -321,7 +321,7 @@ def LoadServices(app, redissession, client ,getClientName):
                     for dateinfo in date_info:
                         if data["configurekey"] == dateinfo["_id"]:
                             data["execDate"] = dateinfo["execDate"]
-                            break
+                            break            
             res['rows'] = responseData
         except Exception as e:
             print(e)
