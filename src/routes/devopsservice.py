@@ -102,7 +102,10 @@ def LoadServices(app, redissession, client ,getClientName):
             requestdata=json.loads(request.data)
             clientName=getClientName(requestdata)       
             dbsession=client[clientName]
-            requestdata['configkey'] = requestdata['executionData']['configurekey']
+            if 'configurekey' in requestdata['executionData']:
+                requestdata['configkey'] = requestdata['executionData']['configurekey']
+            elif 'configureKey' in requestdata['executionData']:
+                requestdata['configkey'] = requestdata['executionData']['configureKey']
             requestdata['executionListId'] = requestdata['executionData']['executionListId']
             dbsession.executionlist.insert_one(requestdata)
             res['rows'] = 'success'
@@ -303,22 +306,44 @@ def LoadServices(app, redissession, client ,getClientName):
             responseData = []
             for elements in queryresult:
                 updatedExecutionReq = elements['executionData']
+                noOfCount = list(dbsession.executions.find({'configurekey':updatedExecutionReq['configurekey']}))
                 responseData.append({
                     'configurename': updatedExecutionReq['configurename'],
                     'configurekey': updatedExecutionReq['configurekey'],
                     'project': updatedExecutionReq['batchInfo'][0]['projectName'],
                     'release': updatedExecutionReq['batchInfo'][0]['releaseId'],
-                    'executionRequest': updatedExecutionReq
+                    'executionRequest': updatedExecutionReq,
+                    'noOfExecution' : len(noOfCount)
                 })
+            if "param" in requestdata and requestdata["param"] =="reportData":
+                date_info=list(dbsession.executions.aggregate([{"$match":{"projectId":requestdata['projectid']}},{"$group":{"_id":"$configurekey","execDate":{"$last":"$starttime"}}}]))
+                for data in responseData:
+                    for dateinfo in date_info:
+                        if data["configurekey"] == dateinfo["_id"]:
+                            data["execDate"] = dateinfo["execDate"]
+                            break
+            pagecount= requestdata["page"]
+            limit = 10
 
-            res['rows'] = responseData
+            start_index = (pagecount - 1) * limit
+            end_index = start_index + limit
 
-
+            pagination_data = responseData[start_index:end_index]
+            total_count = len(responseData)  
+            response = {
+                "data" :pagination_data,
+                "pagination" : {
+                    "page" : pagecount,
+                    'limit' : limit,
+                    'totalcount' : total_count
+                }
+            }
+            res['rows'] = response
         except Exception as e:
             print(e)
             return e
         return jsonify(res)
-
+    
     @app.route('/devops/getAvoAgentAndAvoGridList',methods=['POST'])
     def getAvoAgentAndAvoGridList():
         app.logger.debug("Inside getAvoAgentAndAvoGridList")
@@ -367,7 +392,7 @@ def LoadServices(app, redissession, client ,getClientName):
         res={'rows':'fail'}
         try:
             requestdata=json.loads(request.data)
-            clientName=getClientName(requestdata)
+            clientName=getClientName(requestdata[-1])
             dbsession=client[clientName]
             del requestdata[-1]
             for agentDetail in requestdata:

@@ -187,8 +187,13 @@ def LoadServices(app, redissession, client ,getClientName):
                     'releases':[],
                     'cycles':{},
                     'projecttypes':projecttype_names,
-                    'domains':[]
+                    'domains':[],
+                    'projectlevelrole' : []
                 }
+                projectlevelrole = list(dbsession.users.find({"_id":ObjectId(requestdata['userid'])},{"projectlevelrole": 1}))
+
+                prjDetails['projectlevelrole'].append(projectlevelrole[0]['projectlevelrole'])
+
                 if 'userrole' in requestdata and requestdata['userrole'] == "Test Manager":
                     dbconn=dbsession["projects"]
                     projectIDResult=list(dbconn.find({},{"_id":1}))
@@ -196,6 +201,7 @@ def LoadServices(app, redissession, client ,getClientName):
                     userid=requestdata['userid']
                     dbconn=dbsession["users"]
                     projectIDResult=list(dbconn.find({"_id":ObjectId(userid)},{"projects":1}))
+
                 if(len(projectIDResult)!=0):
                     dbconn=dbsession["mindmaps"]
                     prjids=[]
@@ -308,7 +314,7 @@ def LoadServices(app, redissession, client ,getClientName):
                     if type(requestdata["moduleid"]) == str:
                         modId = requestdata["moduleid"]
                     mindmapdata = dbsession.mindmaps.find_one({"_id": ObjectId(modId)}, {
-                                                            "testscenarios": 1, "_id": 1, "name": 1, "projectid": 1, "type": 1, "versionnumber": 1})
+                                                            "testscenarios": 1, "_id": 1, "name": 1, "projectid": 1, "type": 1, "versionnumber": 1,"currentlyinuse":1})
                     mindmaptype = mindmapdata["type"]
                     scenarioids = []
                     screenids = []
@@ -424,6 +430,10 @@ def LoadServices(app, redissession, client ,getClientName):
                     finaldata["state"] = "saved"
                     finaldata["versionnumber"] = mindmapdata["versionnumber"]
                     finaldata["children"] = []
+                    if "currentlyinuse" in mindmapdata:
+                        finaldata["currentlyInUse"]=mindmapdata["currentlyinuse"]
+                    else:
+                        finaldata["currentlyInUse"]= ''
                     finaldata["completeFlow"] = True
                     finaldata["type"] = "modules" if mindmaptype == "basic" else "endtoend"
                     if mindmapdata["_id"] in moduledata and 'task' in moduledata[mindmapdata["_id"]] and moduledata[mindmapdata["_id"]]["task"]["status"] != 'complete':
@@ -628,7 +638,9 @@ def LoadServices(app, redissession, client ,getClientName):
                                     currentscreenid=getScreenID(dbsession,screendata["screenName"],projectid)
                                     updateparent(dbsession,"screens",currentscreenid,currentscenarioid,"add")
                                 else:
-                                    currentscreenid=saveScreen(dbsession,projectid,screendata["screenName"],versionnumber,createdby,createdbyrole,currentscenarioid)
+                                    scrapedurl = screendata['scrapedurl'] if 'scrapedurl' in screendata else ""
+                                    scrapeinfo = screendata['scrapeinfo'] if 'scrapeinfo' in screendata else "" 
+                                    currentscreenid=saveScreen(dbsession,projectid,screendata["screenName"],versionnumber,createdby,createdbyrole,currentscenarioid,scrapedurl,scrapeinfo)
                             else:
                                 if screendata["state"]=="renamed":
                                     updateScreenName(dbsession,screendata['screenName'],projectid,screendata['screenid'],createdby,createdbyrole)
@@ -643,7 +655,8 @@ def LoadServices(app, redissession, client ,getClientName):
                                         currenttestcaseid=getTestcaseID(dbsession,currentscreenid,testcasedata['testcaseName'])
                                         updateparent(dbsession,"testcases",currenttestcaseid,currentscreenid,"add")
                                     else:
-                                        currenttestcaseid=saveTestcase(dbsession,currentscreenid,testcasedata['testcaseName'],versionnumber,createdby,createdbyrole)
+                                        steps = testcasedata['steps'] if 'steps' in testcasedata else []
+                                        currenttestcaseid=saveTestcase(dbsession,currentscreenid,testcasedata['testcaseName'],versionnumber,createdby,createdbyrole,steps)
                                 else:
                                     if testcasedata['state']=="renamed":
                                         updateTestcaseName(dbsession,testcasedata['testcaseName'],projectid,testcasedata['testcaseid'],createdby,createdbyrole)
@@ -673,7 +686,27 @@ def LoadServices(app, redissession, client ,getClientName):
         except Exception as e:
             servicesException("saveMindmap", e, True)
         return jsonify(res)
-
+    @app.route('/design/updateTestSuiteInUseBy', methods=['POST'])
+    def updateTestSuiteInUseBy():
+        try:
+            res={'rows':'fail'}
+            requestdata=json.loads(request.data)
+            clientName=getClientName(requestdata)
+            dbsession=client[clientName]
+            app.logger.debug("Inside updateTestSuiteInUseBy. Query: "+str(requestdata["query"]))
+            if not isemptyrequest(requestdata):
+            
+                accessedBy=requestdata['accessedBy']
+                if (len(requestdata['testsuiteId'])>0 and requestdata['assignToUser']==True):
+                   dbsession.mindmaps.update_one({'_id':ObjectId(requestdata['testsuiteId'])},{"$set":{"currentlyinuse":accessedBy}})
+                if (len(requestdata["oldTestSuiteId"])!=0 and requestdata['resetFlag']==True):
+                   dbsession.mindmaps.update_one({'_id':ObjectId(requestdata["oldTestSuiteId"])},{"$set":{"currentlyinuse":""}})   
+                res={"rows":"Success"}
+            else:
+                app.logger.warn('Empty data received.')
+        except Exception as getscrapedataexc:
+            servicesException("getScrapeDataScenarioLevel_ICE",getscrapedataexc, True)
+        return jsonify(res)    
     def saveTestSuite(dbsession,projectid,modulename,versionnumber,createdthrough,createdby,createdbyrole,moduletype,testscenarios=[]):
         app.logger.debug("Inside saveTestSuite.")
         createdon = datetime.now()
@@ -690,7 +723,8 @@ def LoadServices(app, redissession, client ,getClientName):
         "modifiedon": createdon,
         "modifiedbyrole": ObjectId(createdbyrole),
         "type": moduletype,
-        "testscenarios":[]
+        "testscenarios":[],
+        "currentlyinuse":""
         }
         queryresult=dbsession.mindmaps.insert_one(data).inserted_id
         return queryresult
@@ -862,7 +896,8 @@ def LoadServices(app, redissession, client ,getClientName):
         "modifiedon": createdon,
         "modifiedbyrole": ObjectId(createdbyrole),
         "type": moduletype,
-        "testscenarios":[]
+        "testscenarios":[],
+        "currentlyinuse":""
         }
         queryresult=dbsession.mindmaps.insert_one(data).inserted_id
         return queryresult
@@ -887,7 +922,7 @@ def LoadServices(app, redissession, client ,getClientName):
         queryresult=dbsession.testscenarios.insert_one(data).inserted_id
         return queryresult
 
-    def saveScreen(dbsession,projectid,screenname,versionnumber,createdby,createdbyrole,scenarioid):
+    def saveScreen(dbsession,projectid,screenname,versionnumber,createdby,createdbyrole,scenarioid,*args):
         app.logger.debug("Inside saveScreen.")
         createdon = datetime.now()
         data={
@@ -903,12 +938,14 @@ def LoadServices(app, redissession, client ,getClientName):
         "modifiedbyrole":ObjectId(createdbyrole),
         "modifiedon":createdon,
         "screenshot":"",
-        "scrapedurl":""
+        "scrapedurl":args[0] if len(args) > 0 else "",
         }
+        if(len(args) > 1 and args[1] != ""):
+            data["scrapeinfo"]=args[1]
         queryresult=dbsession.screens.insert_one(data).inserted_id
         return queryresult
 
-    def saveTestcase(dbsession,screenid,testcasename,versionnumber,createdby,createdbyrole):
+    def saveTestcase(dbsession,screenid,testcasename,versionnumber,createdby,createdbyrole,*args):
         app.logger.debug("Inside saveTestcase.")
         createdon = datetime.now()
         data={
@@ -921,7 +958,7 @@ def LoadServices(app, redissession, client ,getClientName):
             "modifiedby": ObjectId(createdby),
             "modifiedbyrole": ObjectId(createdbyrole),
             "modifiedon":createdon,
-            "steps":[],
+            "steps":args[0] if len(args) > 0 else [],
             "parent":1,
             "deleted":False
         }
@@ -1026,7 +1063,7 @@ def LoadServices(app, redissession, client ,getClientName):
             if moduledata['testsuiteId'] is None:
                 # If the the Module does not have an ID then we will check if the target name has conflict.
                 if checkModuleNameExists(dbsession,moduledata["testsuiteName"],projectid):
-                    error="A project cannot have similar module name"
+                    error="A project cannot have similar test suite name"
                     break
                 else:
                     moduledata['state']="renamed"
@@ -1035,14 +1072,14 @@ def LoadServices(app, redissession, client ,getClientName):
                 name=getModuleName(dbsession,moduledata['testsuiteId'])
                 if name!=moduledata["testsuiteName"]:
                     if checkModuleNameExists(dbsession,moduledata["testsuiteName"],projectid):
-                        error="Module cannot be renamed to an existing module name"
+                        error="Test suite cannot be renamed to an existing test suite name"
                         break
                     else:
                         moduledata['state']="renamed"
             for scenariodata in moduledata['testscenarioDetails']:
                 # This check for similar scenario name within the same module.
                 if scenariodata['testscenarioName'] in scenarionames:
-                    error="A project cannot have similar scenario names: "+scenariodata['testscenarioName']
+                    error="A project cannot have similar testcase names: "+scenariodata['testscenarioName']
                     break
                 else:
                     scenarionames.add(scenariodata['testscenarioName'])
@@ -1050,14 +1087,14 @@ def LoadServices(app, redissession, client ,getClientName):
                 # If the the Scenario does not have an ID then we will check if the target name has conflict.
                 if scenariodata['testscenarioid'] is None:
                     if checkScenarioNameExists(dbsession,projectid,scenariodata['testscenarioName']):
-                        error="A project cannot have similar scenario names: change "+scenariodata['testscenarioName']+" name"
+                        error="A project cannot have similar testcase names: change "+scenariodata['testscenarioName']+" name"
                         break
                 else:
                     # If the the Scenario has an ID then we will check if the target name has conflict if not then rename will be allowed.
                     scenarioname=getScenarioName(dbsession,scenariodata['testscenarioid'])
                     if scenarioname!=scenariodata['testscenarioName']:
                         if checkScenarioNameExists(dbsession,projectid,scenariodata['testscenarioName']):
-                            error="A project cannot have similar scenario names: change "+scenariodata['testscenarioName']+" name"
+                            error="A project cannot have similar testcase names: change "+scenariodata['testscenarioName']+" name"
                             break
                         else:
                             scenariodata['state']="renamed"
@@ -1435,7 +1472,7 @@ def LoadServices(app, redissession, client ,getClientName):
                 clientName=getClientName(requestdata)             
                 dbsession=client[clientName]
                 projectid=ObjectId(requestdata["projectid"])
-                screendetails=list(dbsession.screens.find({"projectid":projectid},{"_id":1,"name":1,"parent":1}))
+                screendetails=list(dbsession.screens.find({"projectid":projectid},{"_id":1,"name":1,"parent":1,"statusCode":1}))                
                 screenids = [scr["_id"] for scr in screendetails]
                 testcasedetails=list(dbsession.testcases.find({"screenid":{"$in":screenids}},{"_id":1,"name":1,"parent":1,"screenid":1}))
                 res={'rows':{'screenList':screendetails,'testCaseList':testcasedetails}}
@@ -1476,7 +1513,7 @@ def LoadServices(app, redissession, client ,getClientName):
                 for moduledata in requestdata['testsuiteDetails']:
                     if moduledata['testsuiteId'] is None:
                         if( checkModuleNameExists(dbsession,moduledata["testsuiteName"],projectid) ):
-                            error="Module name cannot be reused"
+                            error="Test suite name cannot be reused"
                             break
                         else:
                             currentmoduleid=saveTestSuite(dbsession,projectid,moduledata['testsuiteName'],versionnumber,createdthrough,userid,userroleid,type)
@@ -1484,7 +1521,7 @@ def LoadServices(app, redissession, client ,getClientName):
                         oldModulename=getModuleName(dbsession,moduledata['testsuiteId'])
                         if oldModulename!=moduledata["testsuiteName"]:
                             if( checkModuleNameExists(dbsession,moduledata["testsuiteName"],projectid) ):
-                                error="Module name cannot be reused"
+                                error="Test suite name cannot be reused"
                                 break
                             else:
                                 updateModuleName(dbsession,moduledata["testsuiteName"],projectid,moduledata['testsuiteId'],userid,userroleid)
@@ -1756,6 +1793,7 @@ def LoadServices(app, redissession, client ,getClientName):
                         "modifiedby":userid,
                         "modifiedbyrole":role,
                         "modifiedon":createdon,
+                        "currentlyinuse":"",
                         "tsIds":"$testscenarios"
                         }},{"$out":"Import_mindmaps"}])
         dbsession.testscenarios.aggregate([
@@ -2428,6 +2466,7 @@ def LoadServices(app, redissession, client ,getClientName):
                                 "modifiedby":userid,
                                 "modifiedbyrole":role,
                                 "modifiedon":createdon,
+                                "currentlyinuse":"",
                                 "testscenarios":1}},
                                 {"$out":"mindmapnames"}
                                         ])
@@ -2631,6 +2670,7 @@ def LoadServices(app, redissession, client ,getClientName):
                             "modifiedby":userid,
                             "modifiedbyrole":role,
                             "modifiedon":createdon,
+                            "currentlyinuse":"",
                             "tsIds":"$testscenarios"}},{"$out":"Module_Import"}
                     ])
                     
@@ -3092,3 +3132,60 @@ def LoadServices(app, redissession, client ,getClientName):
         except Exception as dropTempExpImpCollexc:
             servicesException("dropTempExpImpColl",dropTempExpImpCollexc, True)
         return jsonify(res)
+
+    
+    @app.route('/mindmap/getProjectsMMTS',methods=['POST'])
+    def getProjectsMMTS():
+        res={'rows':'fail'}
+        try:
+            requestdata=json.loads(request.data)
+            app.logger.debug("Inside getProjectsMMTS.")
+            if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)             
+                dbsession=client[clientName]
+                if (requestdata['query'] == 'getProjectsMMTS'):
+                    projectid=ObjectId(requestdata["projectid"])
+                    mm_det=list(dbsession.mindmaps.aggregate([{"$match":{"projectid":projectid, "type":"basic"}},{'$lookup': {
+                                                'from': "testscenarios",
+                                                'localField': "_id",
+                                                'foreignField': "parent",
+                                                'as': "scenarioList"
+                                            }},{"$project":{"projectid":1,"scenarioList.name":1,"scenarioList._id":1,"name":1}},
+                                            {"$group":{"_id":"$projectid","mindmapList":{"$push":{"_id":"$_id","name":"$name","scenarioList":"$scenarioList"}
+                                               }}}
+                                               ]))                                              
+
+                    if len(mm_det) > 0 :
+                        res={'rows':mm_det}
+                    else:
+                        res={'rows': [""]}
+            else:
+                app.logger.warn('Empty data received while importing mindmap')
+        except Exception as getProjectsMMTSexc:
+            servicesException("getProjectsMMTS",getProjectsMMTSexc, True)
+        return jsonify(res)
+    
+
+    @app.route('/mindmap/updateE2E',methods=['POST'])
+    def updateE2E():
+        res={'rows':'fail'}
+        try:
+            requestdata=json.loads(request.data)
+            app.logger.debug("Inside getProjectsMMTS.")
+            if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)             
+                dbsession=client[clientName]
+                sceid=requestdata["scenarioID"]
+                queryresult = []
+                for scenarioid in sceid:
+                    mm_det=dbsession.testscenarios.find_one({"_id":(ObjectId(scenarioid)) },{"parent":1})
+                    mm_name=dbsession.mindmaps.find_one({"_id":{"$in":mm_det["parent"]},"type":"basic"},{"projectid":1, "name":1})
+                    proj_name=dbsession.projects.find_one({"_id":mm_name["projectid"]},{"name":1})
+                    queryresult.append({"module_name":mm_name["name"],"proj_name":proj_name["name"], "scenarioID":scenarioid})      
+                res={"rows":queryresult}
+            else:
+                app.logger.warn('Empty data received while importing mindmap')
+        except Exception as updateE2Eexc:
+            servicesException("updateE2E",updateE2Eexc, True)
+        return jsonify(res)
+
