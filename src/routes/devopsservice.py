@@ -686,3 +686,39 @@ def LoadServices(app, redissession, client ,getClientName):
         except Exception as getexecutionlistdetailsexec:
             servicesException("getExecutionListDetails", getexecutionlistdetailsexec, True)
         return jsonify(result)
+    
+
+    @app.route('/devops/getExecutionAndScenarioDetails',methods=['POST'])
+    def getExecutionAndScenarioDetails():
+        app.logger.debug("Inside getExecutionAndScenarioDetails")
+        result = {'rows':'fail'}
+        try:
+            requestdata=json.loads(request.data)
+            if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)        
+                dbsession=client[clientName]
+
+                #Fetching execution and scenarioid
+                data = list(dbsession.executions.aggregate([
+                            {'$match': {'executionListId' : requestdata['executionListId']}},
+                            {'$lookup':
+                                {
+                                'from': 'reports',
+                                'localField': '_id',
+                                'foreignField': 'executionid',
+                                'as': 'scenariodetails'
+                                }
+                            },
+                            {'$project':{
+                                    '_id': 1,
+                                    'scenariodetails.testscenarioid': 1
+                                }
+                            }
+                        ]))
+                result['rows'] = data
+            else:
+                app.logger.warn('Empty data received for get execution details.')
+        except Exception as getExecutionAndScenarioDetailsexec:
+            servicesException("getExecutionAndScenarioDetails", getExecutionAndScenarioDetailsexec, True)
+        return jsonify(result)
+    
