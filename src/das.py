@@ -165,6 +165,9 @@ def addroutes():
 
     import devopsservice
     devopsservice.LoadServices(app, redissession, client,getClientName)
+
+    import visualanalysis
+    visualanalysis.LoadServices(app, redissession, client,getClientName)
     
     if os.path.exists(gitpath):
         os.environ["GIT_PYTHON_GIT_EXECUTABLE"] = gitpath
@@ -507,6 +510,7 @@ def getClientName(requestdata):
     clientName="avoassure"
     pat = re.compile(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$")
     try:
+        print("This is OS environment: ", os.environ)
         if ('DB_NAME' in os.environ):
             clientName=os.environ['DB_NAME']
         elif 'host' in requestdata:
