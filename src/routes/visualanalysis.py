@@ -70,10 +70,7 @@ def LoadServices(app, redissession, client,getClientName):
     # Function to generate response data for module level execution status
     def fetch_profilelevel_execution_status(requestdata, projectid, userid, starttime, endtime):
         try:
-            clientName = getClientName(requestdata) 
-            print("REquest data: ", requestdata)     
-            print("client name: ", clientName)     
-            print()  
+            clientName = getClientName(requestdata)
             dbsession = client[clientName]
         except Exception as e:
             return e
@@ -89,7 +86,10 @@ def LoadServices(app, redissession, client,getClientName):
             def pipeline_function(key):
                 pipeline = [
                     {
-                        "$match":{"configurekey": key}
+                        "$match": {
+                            "configurekey": key,
+                            "starttime": {"$gte": start_datetime, "$lte": end_datetime}
+                            }
                         },
                     {
                         "$group": {
@@ -169,13 +169,64 @@ def LoadServices(app, redissession, client,getClientName):
             return e
 
 
+    # Function return module level execution status within a specified time range (for an execution)
+    def fetch_modulelevel_execution_status(requestdata, executionlistid, starttime, endtime):
+        try:
+            clientName = getClientName(requestdata) 
+            dbsession = client[clientName]
+        except Exception as e:
+            return e
+
+        try:
+            # start_datetime, end_datetime = date_conversion(starttime, endtime)
+            reports = list(dbsession.executions.aggregate([{"$match":{"executionListId":executionlistid}},
+                                                        {"$project":{"parent":1,"status":1,"starttime":1}},
+                                                        {'$lookup':{
+                                                                        'from':"testsuites",
+                                                                        'localField':"parent",
+                                                                        'foreignField':"_id",
+                                                                        'as':"testsuites"
+                                                                        }
+                                                                    },
+                                                        {'$lookup':{
+                                                                        'from':"reports",
+                                                                        'localField':"_id",
+                                                                        'foreignField':"executionid",
+                                                                        'as':"reports"
+                                                                        } 
+                                                                    },
+                                                        {"$project":{'modulename':{"$arrayElemAt":["$testsuites.name",0]},"status":1,"starttime":1, "scenarioStatus":"$reports.status"}},
+                                                        {"$sort": {"starttime":-1}}
+                                                        ]))
+
+            # Count occurrences of each scenario status for each module
+            result_list = []
+            for data in reports:
+                module_id = str(data['_id'])
+                status = data['status']
+                modulename = data['modulename']
+                scenario_statuses = data['scenarioStatus']
+                status_counts = Counter(scenario_statuses)
+                
+                result_data = {
+                    '_id': module_id,
+                    'modulename': modulename,
+                    'status': status,
+                    'scenarioStatus': dict(status_counts)
+                }
+                result_list.append(result_data)
+
+            return result_list
+        except Exception as e:
+            return e
+
 
     #########################################################################
     ######################### MODULE EXECUTION API ##########################
     #########################################################################
 
     # Status check API
-    @app.route("/DAS_test", methods=["GET"])    
+    @app.route("/visual_api_check", methods=["GET"])    
     def das_testing():
         return jsonify({"data": "Static Visualization API ready...!!!", "status": 200})
     
@@ -185,8 +236,8 @@ def LoadServices(app, redissession, client,getClientName):
     def api_profilelevel_execution_analysis():
         app.logger.debug("Inside Profile_Level_Execution_Status")
         try:
-            data = request.get_json()
-            request_data = validate_request(data, require_projectid=True, require_userid=True)
+            requestdata = request.get_json()
+            request_data = validate_request(requestdata, require_projectid=True, require_userid=True)
 
             if "error" in request_data:
                 return jsonify({"data": request_data["error"], "status": 400})
@@ -196,9 +247,36 @@ def LoadServices(app, redissession, client,getClientName):
             start_time = request_data["start_time"]
             end_time = request_data["end_time"]
             
+            result = fetch_profilelevel_execution_status(requestdata, projectid, userid, start_time, end_time)
+            print(json.dumps({"data": result, "start_time": start_time, "end_time": end_time, "status": 200}, indent=2))
 
+            # Convert the date string to the desired format
+            start_time = datetime.strptime(start_time, "%Y-%m-%d").strftime("%d/%m/%Y")
+            end_time = datetime.strptime(end_time, "%Y-%m-%d").strftime("%d/%m/%Y")
+            
+            return jsonify({"data": result, "start_time": start_time, "end_time": end_time, "status": 200})
 
-            result = fetch_profilelevel_execution_status(data, projectid, userid, start_time, end_time)
+        # Handle any exceptions with a 500 Internal Server Error response
+        except Exception as e:
+            return jsonify({"data": {"message": str(e)}, "status": 500})
+
+    
+    # POST API to fetch executions count at module level
+    @app.route("/moduleLevel_ExecutionStatus", methods=["POST"])
+    def api_modulelevel_execution_analysis():
+        app.logger.debug("Inside Module_Level_Execution_Status")
+        try:
+            requestdata = request.get_json()
+            request_data = validate_request(requestdata, require_execListid=True)
+
+            if "error" in request_data:
+                return jsonify({"data": request_data["error"], "status": 400})
+            
+            execListID = request_data["execListID"]
+            start_time = request_data["start_time"]
+            end_time = request_data["end_time"]
+
+            result = fetch_modulelevel_execution_status(requestdata, execListID, start_time, end_time)
             print(json.dumps({"data": result, "start_time": start_time, "end_time": end_time, "status": 200}, indent=2))
 
             # Convert the date string to the desired format

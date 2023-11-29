@@ -510,7 +510,6 @@ def getClientName(requestdata):
     clientName="avoassure"
     pat = re.compile(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$")
     try:
-        print("This is OS environment: ", os.environ)
         if ('DB_NAME' in os.environ):
             clientName=os.environ['DB_NAME']
         elif 'host' in requestdata:
