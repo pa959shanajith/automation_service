@@ -157,10 +157,11 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
                             "modifiedbyrole":ObjectId(requestdata["createdbyrole"]),
                             "modifiedon":datetime.now(),
                         }
-                        if "5db0022cf87fdec084ae49ab" == requestdata['defaultrole'] and requestdata['isadminuser'] == True :                            
-                            update_query["isadminuser"] = requestdata['isadminuser']
-                        else:
-                            update_query["isadminuser"] = False
+                        if "isadminuser" in requestdata:
+                            if "5db0022cf87fdec084ae49ab" == requestdata['defaultrole'] and requestdata['isadminuser'] == True :                            
+                                update_query["isadminuser"] = requestdata['isadminuser']
+                            else:
+                                update_query["isadminuser"] = False
                         result=dbsession.users.find_one({"_id":ObjectId(requestdata["userid"])})
                         au = result["auth"]
                         if "oldPassword" in requestdata:
@@ -248,6 +249,9 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
                 clientName=getClientName(requestdata)             
                 dbsession=client[clientName]
                 result = list(dbsession.users.find({'invalidCredCount': 5}))
+                for user in result:
+                    rolename = dbsession.permissions.find_one({"_id" : user['defaultrole']},{'name':1})
+                    user['rolename']= rolename['name']
                 res={'rows':result}
             else:
                 app.logger.warn('Empty data received. users fetch.')
