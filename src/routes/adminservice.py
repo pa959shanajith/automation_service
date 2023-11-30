@@ -249,6 +249,9 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
                 clientName=getClientName(requestdata)             
                 dbsession=client[clientName]
                 result = list(dbsession.users.find({'invalidCredCount': 5}))
+                for user in result:
+                    rolename = dbsession.permissions.find_one({"_id" : user['defaultrole']},{'name':1})
+                    user['rolename']= rolename['name']
                 res={'rows':result}
             else:
                 app.logger.warn('Empty data received. users fetch.')
