@@ -41,6 +41,7 @@ def LoadServices(app, redissession, client ,getClientName):
                         modifiedby_ids.append(ObjectId(modifiedId["modifiedby"]))
                     modifiedby_ids=list(set(modifiedby_ids))                  
                     queryresult2=list(dbsession.users.find({"_id":ObjectId(requestdata['userid'])},{"firstname":1,"lastname":1,"_id":1,"projectlevelrole":1}))                    
+                    modifieduser=list(dbsession.users.find({"_id":{"$in":modifiedby_ids}},{"firstname":1,"lastname":1,"_id":1}))                    
                     for projectDetails in queryresult:
                         for userDetails in queryresult2:
                             if "projectlevelrole" in userDetails:
@@ -48,9 +49,15 @@ def LoadServices(app, redissession, client ,getClientName):
                                     if role["_id"] == str(projectDetails['_id']):
                                         projectDetails['projectlevelrole']= role
                                         break
-                            if userDetails["_id"] == projectDetails["modifiedby"]:
-                                projectDetails["firstname"]=userDetails["firstname"]
-                                projectDetails["lastname"]=userDetails["lastname"]
+                            # if userDetails["_id"] == projectDetails["modifiedby"]:
+                            #     projectDetails["firstname"]=userDetails["firstname"]
+                            #     projectDetails["lastname"]=userDetails["lastname"]
+                            #     break
+                    for user in queryresult:
+                        for modifiedrole in modifieduser:
+                            if modifiedrole["_id"] == user['modifiedby']:
+                                user['firstname'] = modifiedrole['firstname']
+                                user['lastname'] = modifiedrole['lastname']
                                 break
                     
                     for ids in queryresult: 
