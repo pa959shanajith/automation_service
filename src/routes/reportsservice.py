@@ -40,16 +40,17 @@ def LoadServices(app, redissession, client ,getClientName):
                     for modifiedId in queryresult:
                         modifiedby_ids.append(ObjectId(modifiedId["modifiedby"]))
                     modifiedby_ids=list(set(modifiedby_ids))                  
-                    queryresult2=list(dbsession.users.find({"_id":{"$in":modifiedby_ids}},{"firstname":1,"lastname":1,"_id":1,"projectlevelrole":1}))                    
-                    for username in queryresult:
-                        for modifiedname in queryresult2:
-                            if "projectlevelrole" in modifiedname:
-                                for role in modifiedname['projectlevelrole']:
-                                    if role["_id"] == str(username['_id']):
-                                        username['projectlevelrole']= role
-                            if modifiedname["_id"] == username["modifiedby"]:
-                                username["firstname"]=modifiedname["firstname"]
-                                username["lastname"]=modifiedname["lastname"]
+                    queryresult2=list(dbsession.users.find({"_id":ObjectId(requestdata['userid'])},{"firstname":1,"lastname":1,"_id":1,"projectlevelrole":1}))                    
+                    for projectDetails in queryresult:
+                        for userDetails in queryresult2:
+                            if "projectlevelrole" in userDetails:
+                                for role in userDetails['projectlevelrole']:
+                                    if role["_id"] == str(projectDetails['_id']):
+                                        projectDetails['projectlevelrole']= role
+                                        break
+                            if userDetails["_id"] == projectDetails["modifiedby"]:
+                                projectDetails["firstname"]=userDetails["firstname"]
+                                projectDetails["lastname"]=userDetails["lastname"]
                                 break
                     
                     for ids in queryresult: 

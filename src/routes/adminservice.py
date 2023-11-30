@@ -1881,7 +1881,7 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
             requestdata=json.loads(request.data)
             clientName=getClientName(requestdata)             
             dbsession=client[clientName]
-            role=requestdata["assignedUsers"][0]["role"]
+            # role=requestdata["assignedUsers"][0]["role"]
 
             app.logger.debug("Inside userCreateProject_ICE. Query: create Project")
 
@@ -1932,7 +1932,7 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
                         j["modifiedbyrole"]=requestdata["modifiedbyrole"]
 
                 assignedUsers=requestdata["assignedUsers"]
-                del requestdata["assignedUsers"]
+                # del requestdata["assignedUsers"]
                 check = list(dbsession.projects.find({'name':requestdata['name']}))
                 if(len(check) == 0):
                     project_id=dbsession.projects.insert_one(requestdata)
@@ -1940,6 +1940,7 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
                     for user_id in assignedUsers:
 
                         # for user_id in each_dict:
+                        role=user_id['role']
 
                         if 'id' in user_id:
                             default_role_id = list(dbsession.permissions.find({ "name": role }, {"_id": 1}))                        
@@ -1981,8 +1982,18 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
                 for user in requestdata["assignedUsers"]:
                     if "role" in user:
                         default_role_id = list(dbsession.permissions.find({ "name": user["role"] }, {"_id": 1}))
-
-                    dbsession.users.update_one({"_id":ObjectId(user["id"])},{"$push":{"projects":ObjectId(requestdata["project_id"]), "projectlevelrole":{"_id":requestdata["project_id"], "assignedrole": str(default_role_id[0]["_id"])}}})
+                    project_exists=dbsession.users.find_one({"_id":ObjectId(user["id"]),"projects":ObjectId(requestdata["project_id"])})
+                    if project_exists:
+                        projectlevelroles=[]
+                        for project in project_exists['projectlevelrole']:
+                            if project["_id"] == requestdata["project_id"]:
+                                project["assignedrole"] =str(default_role_id[0]["_id"])
+                                projectlevelroles.append(project)
+                                break
+                            else:projectlevelroles.append(project)
+                        dbsession.users.update_one({"_id":ObjectId(user["id"])},{"$set":{"projectlevelrole":projectlevelroles}})
+                    else:
+                        dbsession.users.update_one({"_id":ObjectId(user["id"])},{"$push":{"projects":ObjectId(requestdata["project_id"]), "projectlevelrole":{"_id":requestdata["project_id"], "assignedrole": str(default_role_id[0]["_id"])}}})
                 for user in newlyUnassignedUsers:
                     dbsession.users.update_one({"_id":ObjectId(user["_id"])},{"$pull":{"projects":ObjectId(requestdata["project_id"]), "projectlevelrole":{"_id":requestdata["project_id"]}}})    
                 res={'rows':'success'}
