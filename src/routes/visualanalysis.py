@@ -260,7 +260,7 @@ def LoadServices(app, redissession, client,getClientName):
                         }
                     }}
                 ]
-            result = dbsession.reportitems_copy.aggregate(pipeline)
+            result = dbsession.reportitems.aggregate(pipeline)
 
             transformed_data = []
             for entry in result:
@@ -334,7 +334,7 @@ def LoadServices(app, redissession, client,getClientName):
                     execlist_name = "Execution" + str(count)
                     executionid_list = [str(execution['_id']) for execution in value.get('executionids', [])]
 
-                    failcount_result = dbsession.reportitems_copy.aggregate([{
+                    failcount_result = dbsession.reportitems.aggregate([{
                                                                                 "$match": {
                                                                                 "executionid": {"$in": executionid_list},
                                                                                 "Keyword": {"$ne": "TestCase Name"}, 
@@ -463,7 +463,7 @@ def LoadServices(app, redissession, client,getClientName):
     #########################################################################
     ########################## DEFECT ANALYSIS API ##########################
     #########################################################################
-    
+
     # POST API to fetch defect executions
     @app.route("/defect_analysis", methods=["POST"])
     def api_defect_execution_analysis():
