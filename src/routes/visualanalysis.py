@@ -260,7 +260,7 @@ def LoadServices(app, redissession, client,getClientName):
                         }
                     }}
                 ]
-            result = dbsession.reportitems.aggregate(pipeline)
+            result = dbsession.reportitems_copy.aggregate(pipeline)
 
             transformed_data = []
             for entry in result:
@@ -305,6 +305,7 @@ def LoadServices(app, redissession, client,getClientName):
                                                             "session.userid": userid},
                                                             {"_id":0,"token":1, 
                                                             "executionData.configurename":1})
+                     
             # Dictionary to store the transformed data
             transformed_data = []
 
@@ -334,20 +335,29 @@ def LoadServices(app, redissession, client,getClientName):
                     execlist_name = "Execution" + str(count)
                     executionid_list = [str(execution['_id']) for execution in value.get('executionids', [])]
 
-                    failcount_result = dbsession.reportitems.aggregate([{
+                    failcount_result = list(dbsession.reportitems_copy.aggregate([{
                                                                                 "$match": {
                                                                                 "executionid": {"$in": executionid_list},
                                                                                 "Keyword": {"$ne": "TestCase Name"}, 
                                                                                 "status": "Fail"}
                                                                             },
                                                                             {"$group": {"_id": None, "count": {"$sum": 1}}}
-                                                                            ])
+                                                                            ]))
                     
-                    defect_details.append({
-                        "execlistid": executionlist_ID,
-                        "execlist_name": execlist_name,
-                        "fail_count": failcount_result['count']
-                    })
+                    if len(failcount_result) == 0: 
+                        defect_details.append({
+                            "execlistid": executionlist_ID,
+                            "execlist_name": execlist_name,
+                            "fail_count": 0
+                        })
+                    
+                    else:
+                        defect_details.append({
+                            "execlistid": executionlist_ID,
+                            "execlist_name": execlist_name,
+                            "fail_count": failcount_result[0].get("count")
+                        })
+                        
 
                 # Update the transformed data dictionary
                 transformed_data.append({
