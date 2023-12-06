@@ -532,7 +532,7 @@ def LoadServices(app, redissession, client ,getClientName):
                 query = dbsession.mindmaps.find(
                     findquery, {"name": 1, "_id": 1, "type": 1, "createdon":1})
                 
-                queryresult = list(query.sort('name', pymongo.ASCENDING))
+                queryresult = list(query.sort([('createdon', pymongo.DESCENDING),('name', pymongo.ASCENDING)]))
             
                 res = {'rows': queryresult}
         except Exception as e:
