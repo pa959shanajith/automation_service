@@ -945,5 +945,84 @@ def LoadServices(app, redissession, client ,getClientName):
             servicesException("reportStatusScenarios_ICE",getreportstatusexc)
         return jsonify(res)
 
+    # POST API to store testcase details
+    @app.route("/ALM_createtestcase", methods=["POST"])
+    def alm_create_testcase():
+        app.logger.debug("Inside alm_create_testcase")
+        try:
+            request_data = request.get_json()
+            required_keys = ["sutBaseUrl","project","projectName","process","processName","processGlobalId","testCaseName","testCaseDescription"]
+            missing_keys = [key for key in required_keys if key not in request_data]
 
+            if len(missing_keys):
+                return jsonify({"error": f"Missing keys: {', '.join(missing_keys)}"}), 400
+
+            testcase_data = {
+                'project': request_data["project"],
+                'projectName': request_data["projectName"],
+                'name':request_data["testCaseName"],
+                'description':request_data["testCaseDescription"],
+                'language':request_data["countryVersion"],
+                'isCustom':True,
+                'automationVersion':True,
+                'process':request_data["process"],
+                'processGlobalId':request_data["processGlobalId"],
+                'releaseCreated':'Avo',
+                'releaseChanged':'Avo',
+                'createdBy': request_data.get('username',''),
+                'lastModifiedBy':request_data.get('username',''),
+                'createdAt':datetime.now(),
+                'lastModifiedAt':datetime.now(),
+                'url':request_data['url'],
+                'error':{
+                    'errorType':'',
+                    'errorCode':'',
+                    'errorShortMessage':'',
+                    'errorLongMessage':'',
+                    'errorUrl':''
+                }
+            }
+
+            client_name = getClientName(request_data)
+            dbsession = client[client_name]
+            app.logger.debug("testcase details uploading to ALM_testcases")    
+            # create or update the ALM testcases collection
+            insert_testcase_result = dbsession.ALM_testcases.insert_one(testcase_data)
+            if insert_testcase_result.acknowledged:
+                testcase_id = str(insert_testcase_result.inserted_id)
+                app.logger.debug("testcase details uploaded id : "+testcase_id)
+                update_query = {'project':request_data["project"]}
+                update_fields = {
+                    'calmTenantId' : request_data["calmTenantId"],
+                    'calmTenantLabel' : request_data["calmTenantLabel"],
+                    'sutSystemType' : request_data["sutSystemType"],
+                    'sutSystemId' : request_data["sutSystemId"],
+                    'sutBaseUrl' : request_data["sutBaseUrl"],
+                    'sutSoftwareVersion' : request_data["sutSoftwareVersion"],
+                    'projectName' : request_data["projectName"],
+                    'scope' : request_data["scope"],
+                    'scopeName' : request_data["scopeName"],
+                    'countryVersion' : request_data["countryVersion"],
+                    'process' : request_data["process"],
+                    'processName' : request_data["processName"],
+                    'processGlobalId' : request_data["processGlobalId"],
+                    'updatedTime': datetime.now()
+                }
+                app.logger.debug("project details uploading to ALM_Projects")
+                project_result = dbsession.ALM_Projects.update_one(update_query,
+                {'$push':{'testcases':testcase_id},'$set':update_fields},upsert=True)
+                print(project_result)
+                if project_result.acknowledged:
+                    app.logger.debug("project details uploaded ")
+                    return jsonify({'rows':testcase_id, 'message': 'project and testcases inserted successfully'}), 200
+                else:
+                    app.logger.warn("failed to upload project details")
+                    return jsonify({'rows':'fail','error': 'Project data insertion failed'}), 500
+            else:
+                app.logger.warn("failed to upload testcase details")
+                return jsonify({'rows':'fail','error': 'Testcase Data insertion failed'}), 500
+        # Handle any exceptions with a 500 Internal Server Error response
+        except Exception as e:
+            app.logger.warn("something went wrong while uploading details Error: "+str(e))
+            return jsonify({"data": {"message": str(e)}, "status": 500})
 # END OF REPORTS
