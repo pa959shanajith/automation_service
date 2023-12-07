@@ -234,7 +234,6 @@ def updateActiveIceSessions():
             clientName=getClientName(json.loads(requestdata['icesession']))      
             dbsession=client[clientName]
             sess = redissession.get('icesessions')
-            app.logger.info("DL------>clientName {} in das file updateActiveIceSessions".format(clientName))
             if sess == '' or sess is None:
                 redissession.set('icesessions',wrap('{}',db_keys))
             r_lock = redissession.lock('icesessions_lock')
@@ -256,7 +255,6 @@ def updateActiveIceSessions():
                 ice_type = ice_token_dec["icetype"]
                 ice_uuid = icesession['ice_id']
                 ice_ts = icesession['connect_time']
-                app.logger.info("DL------>hostname {} in das file updateActiveIceSessions Register".format(hostname))
                 if('.' not in ice_ts): ice_ts = ice_ts + '.000000'
                 latest_access_time = datetime.strptime(ice_ts, '%Y-%m-%d %H:%M:%S.%f')
                 app.logger.debug("icename: "+ice_name+" / time: "+str(latest_access_time))
@@ -269,7 +267,6 @@ def updateActiveIceSessions():
                     response["node_check"] = res['status'] = "InvalidToken"
                 else:
                     ice_status = queryresult["status"]
-                    app.logger.info("DL------>ice_status {} in das file updateActiveIceSessions Register".format(ice_status))
                     # Register Phase
                     if ice_action == REGISTER:
                         if ice_status != PROVISION_STATUS:
@@ -301,7 +298,6 @@ def updateActiveIceSessions():
                                 f_allow = False
                                 with r_lock:
                                     if redissession_db2.hget(clientName,ice_name) != None and json.loads(redissession_db2.hget(clientName,ice_name))['connected'] == False:
-                                        # check and remove if not needed
                                         redissession.hset(clientName,ice_name,'')
                                     # To ensure another ICE with same name is not connected already
                                     # if redissession.hget(clientName,ice_name) != None and redissession.hget(clientName,ice_name) != ice_uuid and redissession.hget(clientName,ice_name) != b'':
