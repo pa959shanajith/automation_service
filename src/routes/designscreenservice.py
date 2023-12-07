@@ -82,6 +82,60 @@ def LoadServices(app, redissession, client ,getClientName):
         except Exception as getscrapedataexc:
             servicesException("getScrapeDataScreenLevel_ICE",getscrapedataexc, True)
         return jsonify(res)
+    
+    #updates the screens collection with comparison data after scenario level comparison
+    @app.route('/design/updateScenarioComparisionStatus', methods=['POST'])
+    def scenarioComparisionData():
+        try:
+            res={'rows':'fail'}
+            requestdata=json.loads(request.data)
+            clientName=getClientName(requestdata)
+            dbsession=client[clientName]
+            app.logger.debug("Inside updateScenarioComparisionStatus. Query: "+str(requestdata["query"]))
+            if not isemptyrequest(requestdata):
+                scenario_ID = ObjectId(requestdata['scenarioID'])
+                scenarioComparisonData = requestdata['scenarioComparisonData']
+                for screenComparisonData in scenarioComparisonData:
+                    dbsession.screens.update({'_id':ObjectId(screenComparisonData['screenId'])},{"$set":{"changed":screenComparisonData['changed'],"unchanged":screenComparisonData['unchanged'],"notfound":screenComparisonData['notfound'],"statusCode":screenComparisonData['statusCode']}})
+                res={"rows":"Success"}
+            else:
+                app.logger.warn('Empty data received.')
+        except Exception as getscrapedataexc:
+            servicesException("getScrapeDataScenarioLevel_ICE",getscrapedataexc, True)
+        return jsonify(res)       
+
+    #fetches the scraped data on scenario level
+    @app.route('/design/getScrapeDataScenarioLevel_ICE', methods=['POST'])
+    def getScrapeDataScenarioLevel_ICE():
+        res={'rows':'fail'}
+        try:
+            requestdata=json.loads(request.data)
+            clientName=getClientName(requestdata)
+            dbsession=client[clientName]
+            app.logger.debug("Inside getScrapeDataScenarioLevel_ICE. Query: "+str(requestdata["query"]))
+            if not isemptyrequest(requestdata):
+                scenario_ID = ObjectId(requestdata['scenarioID'])
+                screens = list(dbsession.screens.find({'parent':scenario_ID}))
+                testcaseids = dbsession.testscenarios.find_one({'_id':scenario_ID})['testcaseids']
+                dataobj_scenario_level = []
+                i=0
+                for screen in screens:
+                    dataobj_query = list(dbsession.dataobjects.find({"parent" :screen['_id']}))
+                    dataobj_scenario_level.append({'screen_id'  :screen['_id'],
+                                                   'scrapedurl' :screen['scrapedurl'],
+                                                   'view'       :dataobj_query,
+                                                   'name'       :screen['name'],
+                                                   'index'      :i,
+                                                   'orderlist'  :screen['orderlist'],
+                                                   'mirror'     :screen['screenshot'],
+                                                   'testcaseid' :testcaseids[i]})
+                    i+=1
+                res = {'rows':dataobj_scenario_level}
+            else:
+                app.logger.warn('Empty data received. reading Testcase')
+        except Exception as getscrapedataexc:
+            servicesException("getScrapeDataScenarioLevel_ICE",getscrapedataexc, True)
+        return jsonify(res)
 
     def update_identifier(object_identifier):
         all_identifier_list = ["xpath","id","rxpath","name","classname","cssselector","href","label"]
@@ -93,6 +147,95 @@ def LoadServices(app, redissession, client ,getClientName):
                 if all_identifier_list_value not in current_identifier_list:
                     object_identifier.append({"id":all_identifier_list_index+1,"identifier":all_identifier_list_value})
         return object_identifier
+
+
+    # Creating a function to update steps if webservice screen is saved
+    def updateTestStep(dbsession,to_update_teststep,screen_detail):
+         steps = [ 
+                        {
+                            "stepNo" : 1,
+                            "custname" : "WebService List",
+                            "keywordVal" : "setEndPointURL",
+                            "inputVal" : [ 
+                                screen_detail['endPointURL'] if 'endPointURL' in screen_detail else ""
+                            ],
+                            "outputVal" : "",
+                            "appType" : "Webservice",
+                            "remarks" : "",
+                            "addDetails" : "",
+                            "cord" : ""
+                        }, 
+                        {
+                            "stepNo" : 2,
+                            "custname" : "WebService List",
+                            "keywordVal" : "setMethods",
+                            "inputVal" : [ 
+                                screen_detail['method'] if 'method' in screen_detail else ""
+                            ],
+                            "outputVal" : "",
+                            "appType" : "Webservice",
+                            "remarks" : "",
+                            "addDetails" : "",
+                            "cord" : ""
+                        }]
+         if(screen_detail['header']):
+             steps.append({
+                            "stepNo" : len(steps)+1,
+                            "custname" : "WebService List",
+                            "keywordVal" : "setHeader",
+                            "inputVal" : [ 
+                                screen_detail['header'] if 'header' in screen_detail else ""
+                            ],
+                            "outputVal" : "",
+                            "appType" : "Webservice",
+                            "remarks" : "",
+                            "addDetails" : "",
+                            "cord" : ""
+                        })
+         if(screen_detail['body']):
+             steps.append({
+                            "stepNo" : len(steps)+1,
+                            "custname" : "WebService List",
+                            "keywordVal" : "setWholeBody",
+                            "inputVal" : [ 
+                                screen_detail['body'] if 'body' in screen_detail else ""
+                            ],
+                            "outputVal" : "",
+                            "appType" : "Webservice",
+                            "remarks" : "",
+                            "addDetails" : "",
+                            "cord" : ""
+                        })
+
+         if(screen_detail['param']):
+             steps.append({
+                "stepNo" : len(steps)+1,
+                "custname" : "WebService List",
+                "keywordVal" : "setParam",
+                "inputVal" : [ 
+                    screen_detail['param'].replace("##", "&") if 'param' in screen_detail else ""
+                ],
+                "outputVal" : "",
+                "appType" : "Webservice",
+                "remarks" : "",
+                "addDetails" : "",
+                "cord" : ""
+            }) 
+
+         steps.append( {
+            "stepNo" : len(steps)+1,
+            "custname" : "WebService List",
+            "keywordVal" : "executeRequest",
+            "inputVal" : [ 
+                ""
+            ],
+            "outputVal" : "",
+            "appType" : "Webservice",
+            "remarks" : "",
+            "addDetails" : "",
+            "cord" : ""
+        })
+         dbsession.testcases.update_one({'_id':to_update_teststep['_id']},{'$set':{'steps':steps}})
 
     # update/delete/insert opertaions on the screen data
     @app.route('/design/updateScreen_ICE',methods=['POST'])
@@ -268,6 +411,13 @@ def LoadServices(app, redissession, client ,getClientName):
                         if len(Old_obj) > 0:
                             remove_data=[o["_id"] for o in Old_obj]
                             dbsession.dataobjects.delete_many({"_id":{"$in":remove_data}})
+                    
+                    # Code to add details in the teststeps
+                    to_update_teststep =  list(dbsession.testcases.find({"screenid":screenId}))
+                    screen_detail = list(dbsession.screens.find({"_id":screenId}))
+                    updateTestStep(dbsession,to_update_teststep[0],screen_detail[0]['scrapeinfo'])
+                    
+
                     res={"rows":"Success"}
                 elif data["param"] == "importScrapeData":
                     screenId = ObjectId(data["screenId"])
@@ -649,9 +799,9 @@ def LoadServices(app, redissession, client ,getClientName):
                     newlist.append(data['objMap'][eachobj])
 
                 for i in keywordquery:
-                    if i['objecttype'] in newlist:
-                        result['keywordList'][i['objecttype']] = i['keywords']
-                        newlist.remove(i['objecttype'])
+                    # if i['objecttype'] in newlist:
+                    result['keywordList'][i['objecttype']] = i['keywords']
+                        # newlist.remove(i['objecttype'])
                     if len(newlist) == 0:
                         break
 
@@ -728,7 +878,11 @@ def LoadServices(app, redissession, client ,getClientName):
                         insert_obj['url']= wrap(i['url'],key) if 'url' in i else ""
                         insert_obj['tag']= i['objtype'] if 'objtype' in i else ""
                         insert_obj['parent']=[ObjectId(requestdata["screenid"])]
-                        dbsession.dataobjects.insert(insert_obj)
+                        if "_id" in insert_obj:
+                            del insert_obj["_id"]
+                            dbsession.dataobjects.insert(insert_obj)
+                        else:
+                            dbsession.dataobjects.insert(insert_obj)
                     elif i['name'] in screen_object_names and i['update'].lower() == 'yes':
                         for j in screen_objects:
                             if i['name'] == j['custname']:

@@ -190,6 +190,7 @@ def LoadServices(app, redissession, client ,getClientName):
         try:
             requestdata = json.loads(request.data)
             param = str(requestdata["query"])
+            app.logger.info("DL------>requestdata {} in executionservice file ExecuteTestSuite_ICE".format(requestdata))
             app.logger.debug("Inside ExecuteTestSuite_ICE. Query: " + param)
             if not isemptyrequest(requestdata):
                 clientName=getClientName(requestdata)        
@@ -245,8 +246,9 @@ def LoadServices(app, redissession, client ,getClientName):
                                 insertquery['projectId'] = requestdata['projectId']
                                 insertquery['releaseName'] = requestdata['releaseName']
                                 insertquery['cycleId'] = requestdata['cycleId']
-
+                            app.logger.info("DL------>insertquery {} in executionservice file ExecuteTestSuite_ICE in insertintoexecution ".format(insertquery))
                             execid = str(dbsession.executions.insert(insertquery))
+                            app.logger.info("DL------>insertquery done {} in executionservice file ExecuteTestSuite_ICE in insertintoexecution ".format(execid))
                             execids[tsuid] = execid
                     res["rows"] = {"batchid": str(batchid), "execids": execids}
                 elif param  == 'updateintoexecution':
@@ -254,12 +256,14 @@ def LoadServices(app, redissession, client ,getClientName):
                     if 'starttime' in requestdata:
                         start_t = datetime.strptime(requestdata['starttime'], TF)
                         for exec_id in requestdata['executionids']:
+                            app.logger.info("DL------>udating status queued to inprogress {} in executionservice file ExecuteTestSuite_ICE in updateintoexecution ".format(start_t))
                             dbsession.executions.update({"_id":ObjectId(exec_id), "status":"queued"}, {'$set': {"status":'inprogress',"starttime":start_t}})
                     else:
                         end_t = datetime.strptime(requestdata['endtime'], TF) if 'endtime' in requestdata else datetime.now()
                         updt_args = {"endtime":end_t}
                         if "status" in requestdata: updt_args["status"]=requestdata['status']
                         for exec_id in requestdata['executionids']:
+                            app.logger.info("DL------>udating end status {} in executionservice file ExecuteTestSuite_ICE in updateintoexecution ".format(end_t))
                             dbsession.executions.update({"_id":ObjectId(exec_id)}, {'$set': updt_args})
                     res["rows"] = True
 
@@ -268,17 +272,17 @@ def LoadServices(app, redissession, client ,getClientName):
                     report = json.loads(requestdata['report'])
                     rows = report['rows']
                     overallstatus = report['overallstatus']
-                    limit = 15000
-                    reportitems = []
-                    ind=1
-                    x=0
-                    while True:
-                        reportitems.append({'index':ind,'rows':rows[x:x+limit]})
-                        x+=limit
-                        ind+=1
-                        if x>=len(rows):
-                            break
-                    ritems = dbsession.reportitems.insert_many(reportitems)
+                    # limit = 15000
+                    # reportitems = []
+                    # ind=1
+                    # x=0
+                    # while True:
+                    #     reportitems.append({'index':ind,'rows':rows[x:x+limit]})
+                    #     x+=limit
+                    #     ind+=1
+                    #     if x>=len(rows):
+                    #         break
+                    # ritems = dbsession.reportitems.insert_many(reportitems)
 
                     querydata = {
                         "executionid": ObjectId(requestdata['executionid']),
@@ -290,9 +294,23 @@ def LoadServices(app, redissession, client ,getClientName):
                         "modifiedon": modifiedon,
                         "modifiedby": ObjectId(requestdata['modifiedby']),
                         "modifiedbyrole": ObjectId(requestdata['modifiedbyrole']),
-                        "reportitems": ritems.inserted_ids
+                        "reportitems": []  #Modified to support latest changes
                     }
+                    app.logger.info("DL------>insert querydata {} in executionservice file ExecuteTestSuite_ICE in insertreportquery ".format(querydata))
                     res["rows"] = str(dbsession.reports.insert(querydata))
+                    app.logger.info("DL------>insert querydata done {} in executionservice file ExecuteTestSuite_ICE in insertreportquery ".format( res["rows"]))
+
+
+                    # Storing the reportitems after the reports to get the report id
+                    # Updated
+                    for item in rows:
+                        item['scenario_id'] = requestdata['testscenarioid']
+                        item['execution_ids'] = requestdata['executionid']
+                        item['reportid'] = ObjectId(res["rows"])
+                    app.logger.info("DL------>insert rows {} in executionservice file ExecuteTestSuite_ICE in insertreportitemsquery ".format(rows))
+                    ritems = dbsession.reportitems.insert_many(rows)
+                    app.logger.info("DL------>insert rows done {} in executionservice file ExecuteTestSuite_ICE in insertreportitemsquery ".format(ritems))
+
                 app.logger.debug("Executed ExecuteTestSuite_ICE. Query: " + param)
             else:
                 app.logger.warn('Empty data received. execute testsuite.')
@@ -332,6 +350,10 @@ def LoadServices(app, redissession, client ,getClientName):
                         parentid = ObjectId(requestdata['parentId'])	
                     else:	
                         parentid = ObjectId()
+                    if "scheduleThrough" in requestdata:
+                        schedulethrough = requestdata["scheduleThrough"]
+                    else:
+                        schedulethrough = "client"
                     dataquery = {
                         "scheduledon": datetime.fromtimestamp(int(requestdata['timestamp'])/1000,pytz.UTC),
                         "executeon": requestdata["executeon"],
@@ -351,7 +373,8 @@ def LoadServices(app, redissession, client ,getClientName):
                         "startdate": datetime.fromtimestamp(int(requestdata['startDate'])/1000,pytz.UTC),
                         "configurekey": requestdata["configureKey"],
                         "configurename": requestdata["configureName"],
-                        "endafter": requestdata["endAfter"]
+                        "endafter": requestdata["endAfter"],
+                        "schedulethrough": schedulethrough
                     }
                     if "smartid" in requestdata: dataquery["smartid"] = uuid.UUID(requestdata["smartid"])
                     scheduleid = dbsession.scheduledexecutions.insert(dataquery)
@@ -393,7 +416,7 @@ def LoadServices(app, redissession, client ,getClientName):
                     tscos = dbsession.testscenarios.find({}, {"projectid": 1})
                     tscomap = {}
                     for tsco in tscos: tscomap[tsco["_id"]] = prjmap[tsco["projectid"]] if tsco["projectid"] in prjmap else "-"
-                    schedules = list(dbsession.scheduledexecutions.find({"$and": [{"configurekey": requestdata["configKey"]}, {"configurename": requestdata["configName"]}]}))
+                    schedules = list(dbsession.scheduledexecutions.find({"configurekey": requestdata["configKey"]}))
                     poollist={}
                     pool = list(dbsession.icepools.find({}, {"poolname": 1}))
                     for pid in pool: poollist[pid['_id']] = pid['poolname']
@@ -501,7 +524,7 @@ def LoadServices(app, redissession, client ,getClientName):
                     for tsco in tscos: tscomap[tsco["_id"]] = prjmap[tsco["projectid"]] if tsco["projectid"] in prjmap else "-"
                     scheduledon = datetime.fromtimestamp(int(requestdata['scheduledDate'])/1000)
                     scheduledon = scheduledon.replace(tzinfo=None)
-                    schedules = list(dbsession.scheduledexecutions.find({"$and": [{"scheduledon":scheduledon}, {"configurekey": requestdata["configKey"]}, {"configurename": requestdata["configName"]}]}))
+                    schedules = list(dbsession.scheduledexecutions.find({"$and": [{"scheduledon":scheduledon}, {"configurekey": requestdata["configKey"]}]}))
                     poollist={}
                     pool = list(dbsession.icepools.find({}, {"poolname": 1}))
                     for pid in pool: poollist[pid['_id']] = pid['poolname']

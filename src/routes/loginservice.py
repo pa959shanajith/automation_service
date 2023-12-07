@@ -50,7 +50,8 @@ def LoadServices(app, redissession, client, licensedata,basecheckonls,getClientN
                                 dbsession.licenseManager.update_one({"client":clientName},{'$set': {"data":lsData}})
                     if "fnName" in requestdata and requestdata["fnName"]=="forgotPasswordEmail":
                         if ("email" in requestdata and requestdata["email"]): #handling duplicate email-id's
-                            user_data = list(dbsession.users.find({"email":requestdata["email"]},{"_id":1,"name":1,"firstname":1,"lastname":1,"email":1,"auth":1,"invalidCredCount":1}))
+                            # dbsession.users.update_one({"profileImage":requestdata["userimage"]})
+                            user_data = list(dbsession.users.find({"email":requestdata["email"]},{"profileimage":1,"_id":1,"name":1,"firstname":1,"lastname":1,"email":1,"auth":1,"invalidCredCount":1}))
                         else:
                             user_data = [dbsession.users.find_one({"name":requestdata["username"]})]
                         
@@ -81,7 +82,18 @@ def LoadServices(app, redissession, client, licensedata,basecheckonls,getClientN
                                             if projects_id["_id"] in user_project_list:
                                                 del(projects_id_list[projects_id_list.index(projects_id["_id"])])
                                 if len(projects_id_list) != 0:
-                                    dbsession.users.update_one({"name":requestdata["username"]},{"$set":{"projects":projects_id_list}})
+                                    projectlevelrole_ids = []
+                                    if 'projectlevelrole' in user_data:
+                                        projectlevelrole = user_data['projectlevelrole']
+                                    else:
+                                        projectlevelrole = []
+                                    for projectlevel_onedoc in projectlevelrole:
+                                        projectlevelrole_ids.append(projectlevel_onedoc['_id'])
+                                    for project_id in projects_id_list:
+                                        if str(project_id) not in projectlevelrole_ids:
+                                            append_val = {'_id': str(project_id),'assignedrole':str(user_data["defaultrole"])}
+                                            projectlevelrole.append(append_val)
+                                    dbsession.users.update_one({"name":requestdata["username"]},{"$set":{"projects":projects_id_list,"projectlevelrole":projectlevelrole}})
                     except Exception as e:
                         servicesException("Exception in login/loaduser while assigning a sample project to a trial user", e, True)
                     
@@ -256,20 +268,12 @@ def LoadServices(app, redissession, client, licensedata,basecheckonls,getClientN
                     dictdata['roleid'] = permissions_data['_id']
                     dictdata['rolename'] = permissions_data['name']
                     plugins = permissions_data['plugins']
-                    # lic_plugins = licensedata['plugins']
-                    lic_plugins=dbsession.licenseManager.find_one({"client":clientName})["data"]
-                    allowed_plugins = []
-                    # dictdata['isTrial'] = licensedata['isTrial']
-                    if "Trial" in lic_plugins["LicenseTypes"]:
+                    licenseDetails = dbsession.licenseManager.find_one({"client":clientName})["data"]
+                    if "Trial" in licenseDetails["LicenseTypes"]:
                         dictdata['isTrial'] = True
                     else:
                         dictdata['isTrial'] = False
-                    for keys in lic_plugins:
-                        # allowed_plugins.append({ "pluginName": keys,"pluginValue": True})
-                        allowed_plugins.append({ "pluginName": keys,"pluginValue": lic_plugins[keys]})
-                    # for keys in ui_plugins:
-                    #     allowed_plugins.append({ "pluginName": ui_plugins[keys],"pluginValue": False if lic_plugins[keys] == False else plugins[keys]})
-                    dictdata['pluginresult']=allowed_plugins
+                    dictdata['licenseDetails']=licenseDetails
                     res={'rows': dictdata}
                 elif(requestdata["query"] == 'nameidInfoByRoleIDList'):
                     roleids=[]
