@@ -1025,4 +1025,55 @@ def LoadServices(app, redissession, client ,getClientName):
         except Exception as e:
             app.logger.warn("something went wrong while uploading details Error: "+str(e))
             return jsonify({"data": {"message": str(e)}, "status": 500})
+
+    # POST API to store SAP ALM mapped testcases
+    @app.route("/saveALM_MappedTestcase", methods=["POST"])
+    def saveALM_MappedTestcase():
+        app.logger.debug("Inside saveALM_MappedTestcase")
+        try:
+            request_data = request.get_json()
+            # required_keys = ["sutBaseUrl","project","projectName","process","processName","processGlobalId","testCaseName","testCaseDescription"]
+            # missing_keys = [key for key in required_keys if key not in request_data]
+
+            # if len(missing_keys):
+            #     return jsonify({"error": f"Missing keys: {', '.join(missing_keys)}"}), 400
+
+            client_name = getClientName(request_data)
+            dbsession = client[client_name]
+            app.logger.debug("testcase details uploading to ALM_testcases")    
+            # create or update the ALM testcases collection
+            # insert_testcase_result = dbsession.ALM_testcases.insert_one(testcase_data)
+            # if insert_testcase_result.acknowledged:
+            #     testcase_id = str(insert_testcase_result.inserted_id)
+            app.logger.debug("testcase details uploaded id : "+request_data["testcaseId"])
+            document_id = ObjectId(request_data["testcaseId"])
+            update_query = {'_id':document_id}
+            update_fields = {
+                "mappedTestcase":{
+                "testscenarioid": request_data["testscenarioid"],
+                'projectid': request_data["projectId"],			
+                'projectName': request_data["projectName"],
+                'itemType': request_data["itemType"],
+                'testCaseName': request_data["testCaseName"],
+                'testCaseDescription': request_data["testCaseDescription"],
+                'updatedTime': datetime.now()
+            }
+            }
+            app.logger.debug("ALM mapped testcase details  uploading to ALM_testcases")
+            project_result = dbsession.ALM_testcases.update_one(update_query,
+            {'$set':update_fields},upsert=True)
+            print(project_result)
+            if project_result.acknowledged:
+                app.logger.debug("testcase details updated ")
+                return jsonify({'rows':request_data["testcaseId"], 'message': 'mapped testcases details updated successfully'}), 200
+            else:
+                app.logger.warn("failed to update mapped testcase details")
+                return jsonify({'rows':'fail','error': 'failed to update mapped testcase details'}), 500
+            # else:
+            #     app.logger.warn("failed to upload testcase details")
+            #     return jsonify({'rows':'fail','error': 'Testcase Data insertion failed'}), 500
+        # Handle any exceptions with a 500 Internal Server Error response
+        except Exception as e:
+            app.logger.warn("something went wrong while updating details Error: "+str(e))
+            return jsonify({"data": {"message": str(e)}, "status": 500})        
 # END OF REPORTS
