@@ -51,12 +51,12 @@ def LoadServices(app, redissession, client ,getClientName):
 
                         if requestdata['executionData']['donotexe']['current'][testsuite['testsuiteId']][scenarioIndexFromFrontEnd] == scenarioIndexFromBackEnd:
                             scenarioIndexFromFrontEnd+=1
-                            scenarioName = list(dbsession.testscenarios.find({'_id':scenarioids},{'name': 1}))
+                            scenarioName = list(dbsession.testscenarios.find({'_id':testsuiteData[0]['testscenarioids'][scenarioids]},{'name': 1}))
                             testsuite['suiteDetails'].append({
                                 "condition" : testsuiteData[0]['conditioncheck'][scenarioIndexFromBackEnd],
                                 "dataparam" : [testsuiteData[0]['getparampaths'][scenarioIndexFromBackEnd]],
                                 "scenarioName" : scenarioName[0]['name'],
-                                "scenarioId" : str(scenarioids),
+                                "scenarioId" : str(testsuiteData[0]['testscenarioids'][scenarioids]),
                                 "accessibilityParameters" : testsuiteData[0]['accessibilityParameters'] if 'accessibilityParameters' in testsuiteData[0] else []
                             })
 
