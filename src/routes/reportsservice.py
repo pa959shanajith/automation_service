@@ -5,7 +5,7 @@
 from utils import *
 from datetime import datetime
 from pymongo import InsertOne
-
+from pymongo import DESCENDING
 
 def LoadServices(app, redissession, client ,getClientName):
     setenv(app)
@@ -1046,6 +1046,11 @@ def LoadServices(app, redissession, client ,getClientName):
             # if insert_testcase_result.acknowledged:
             #     testcase_id = str(insert_testcase_result.inserted_id)
             app.logger.debug("testcase details uploaded id : "+request_data["testcaseId"])
+            last_config_profile = dbsession.executionlist.find_one(sort=[('_id',DESCENDING)],projection={"executionData":1})
+            if last_config_profile:
+                print("Last profile:", last_config_profile)
+            else:
+                print("No records found.")
             document_id = ObjectId(request_data["testcaseId"])
             update_query = {'_id':document_id}
             update_fields = {
@@ -1057,7 +1062,8 @@ def LoadServices(app, redissession, client ,getClientName):
                 'testCaseName': request_data["testCaseName"],
                 'testCaseDescription': request_data["testCaseDescription"],
                 'updatedTime': datetime.now()
-            }
+            },
+            "Profile":last_config_profile["executionData"]
             }
             app.logger.debug("ALM mapped testcase details  uploading to ALM_testcases")
             project_result = dbsession.ALM_testcases.update_one(update_query,
@@ -1075,5 +1081,44 @@ def LoadServices(app, redissession, client ,getClientName):
         # Handle any exceptions with a 500 Internal Server Error response
         except Exception as e:
             app.logger.warn("something went wrong while updating details Error: "+str(e))
-            return jsonify({"data": {"message": str(e)}, "status": 500})        
+            return jsonify({"data": {"message": str(e)}, "status": 500})
+        
+    # POST API to Fetch the execution Profile
+    @app.route("/getALM_TestProfile", methods=["POST"])
+    def getALM_Profile():
+        app.logger.debug("Inside getALM_Profile")
+        try:
+            request_data = request.get_json()
+            # required_keys = ["sutBaseUrl","project","projectName","process","processName","processGlobalId","testCaseName","testCaseDescription"]
+            # missing_keys = [key for key in required_keys if key not in request_data]
+
+            # if len(missing_keys):
+            #     return jsonify({"error": f"Missing keys: {', '.join(missing_keys)}"}), 400
+
+            client_name = getClientName(request_data)
+            dbsession = client[client_name]
+            app.logger.debug("fetching profile details from ALM_testcases")    
+            # create or update the ALM testcases collection
+            # insert_testcase_result = dbsession.ALM_testcases.insert_one(testcase_data)
+            # if insert_testcase_result.acknowledged:
+            #     testcase_id = str(insert_testcase_result.inserted_id)
+            document_id = ObjectId(request_data["testcaseId"])
+            find_query = {'_id':document_id}
+            projection = {"Profile":1}
+            app.logger.debug("ALM mapped testcase details  uploading to ALM_testcases")
+            profile_result = dbsession.ALM_testcases.find_one(find_query,projection)
+            print(profile_result)
+            if profile_result is not None:
+                app.logger.debug("testcase details updated ")
+                return jsonify({'rows':profile_result, 'message': 'mapped testcases details updated successfully'}), 200
+            else:
+                app.logger.debug("no test profile found")
+                return jsonify({'rows':[],'error': 'no test profile found'}), 200
+            # else:
+            #     app.logger.warn("failed to upload testcase details")
+            #     return jsonify({'rows':'fail','error': 'Testcase Data insertion failed'}), 500
+        # Handle any exceptions with a 500 Internal Server Error response
+        except Exception as e:
+            app.logger.warn("something went wrong while updating details Error: "+str(e))
+            return jsonify({"data": {"message": str(e)}, "status": 500})            
 # END OF REPORTS
