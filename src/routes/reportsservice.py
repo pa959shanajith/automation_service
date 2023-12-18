@@ -648,13 +648,13 @@ def LoadServices(app, redissession, client ,getClientName):
                 if("scenarioIds" in requestdata):
                     scenarioIds = dbsession.reports.distinct("testscenarioid", filter1)
                     for scenId in requestdata["scenarioIds"]:
-                        if len(scenId.strip())==0:
+                        if len(scenId['testscenarioid'].strip())==0:
                             continue
                         try:
-                            if ObjectId(scenId) not in scenarioIds:
-                                errIds.append(str(scenId))
+                            if ObjectId(scenId['testscenarioid']) not in scenarioIds:
+                                errIds.append(str(scenId['testscenarioid']))
                             else:
-                                correctScenarios.append(ObjectId(scenId))
+                                correctScenarios.append(ObjectId(scenId['testscenarioid']))
                         except:
                             errIds.append(str(scenId))
                     if len(correctScenarios) != 0 or len(errIds) != 0:
