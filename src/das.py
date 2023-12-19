@@ -168,6 +168,9 @@ def addroutes():
 
     import visualanalysis
     visualanalysis.LoadServices(app, redissession, client,getClientName)
+
+    import promptbasedanalysis
+    promptbasedanalysis.LoadServices(app, redissession, client,getClientName)
     
     if os.path.exists(gitpath):
         os.environ["GIT_PYTHON_GIT_EXECUTABLE"] = gitpath
