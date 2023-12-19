@@ -951,6 +951,7 @@ def LoadServices(app, redissession, client ,getClientName):
         app.logger.debug("Inside alm_create_testcase")
         try:
             request_data = request.get_json()
+            print(request_data)
             required_keys = ["sutBaseUrl","project","projectName","process","processName","processGlobalId","testCaseName","testCaseDescription"]
             missing_keys = [key for key in required_keys if key not in request_data]
 
