@@ -206,7 +206,7 @@ def LoadServices(app, redissession, client ,getClientName):
                 dbsession=client[clientName]
                 if(requestdata["query"] == 'executiondetails'):
                     queryresult = list(dbsession.reports.aggregate([
-                    {'$match':{"executionid":{'$in':[ObjectId(i)for i in requestdata["executionid"]]}}},
+                    {'$match':{"executionid":ObjectId(requestdata["executionid"]) }},
                     {'$lookup':{
                         'from':"testscenarios",
                         'localField':"testscenarioid",
