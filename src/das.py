@@ -169,6 +169,9 @@ def addroutes():
     import visualanalysis
     visualanalysis.LoadServices(app, redissession, client,getClientName)
 
+    import rasa
+    rasa.LoadServices(app, redissession, client,getClientName)
+
     import promptbasedanalysis
     promptbasedanalysis.LoadServices(app, redissession, client,getClientName)
     

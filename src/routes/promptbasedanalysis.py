@@ -109,7 +109,7 @@ def LoadServices(app, redissession, client,getClientName):
         
     # Basic API status check
     @app.route("/prompt_based_analysis", methods=["GET"])
-    def das_testing():
+    def prompt_based_analysis_testing():
         return jsonify({"data": "Prompt Based Analysis API ready...!!!", "status": 200})
 
 
