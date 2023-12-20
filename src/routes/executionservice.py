@@ -190,7 +190,6 @@ def LoadServices(app, redissession, client ,getClientName):
         try:
             requestdata = json.loads(request.data)
             param = str(requestdata["query"])
-            app.logger.info("DL------>requestdata {} in executionservice file ExecuteTestSuite_ICE".format(requestdata))
             app.logger.debug("Inside ExecuteTestSuite_ICE. Query: " + param)
             if not isemptyrequest(requestdata):
                 clientName=getClientName(requestdata)        
@@ -246,9 +245,8 @@ def LoadServices(app, redissession, client ,getClientName):
                                 insertquery['projectId'] = requestdata['projectId']
                                 insertquery['releaseName'] = requestdata['releaseName']
                                 insertquery['cycleId'] = requestdata['cycleId']
-                            app.logger.info("DL------>insertquery {} in executionservice file ExecuteTestSuite_ICE in insertintoexecution ".format(insertquery))
+
                             execid = str(dbsession.executions.insert(insertquery))
-                            app.logger.info("DL------>insertquery done {} in executionservice file ExecuteTestSuite_ICE in insertintoexecution ".format(execid))
                             execids[tsuid] = execid
                     res["rows"] = {"batchid": str(batchid), "execids": execids}
                 elif param  == 'updateintoexecution':
@@ -256,14 +254,12 @@ def LoadServices(app, redissession, client ,getClientName):
                     if 'starttime' in requestdata:
                         start_t = datetime.strptime(requestdata['starttime'], TF)
                         for exec_id in requestdata['executionids']:
-                            app.logger.info("DL------>udating status queued to inprogress {} in executionservice file ExecuteTestSuite_ICE in updateintoexecution ".format(start_t))
                             dbsession.executions.update({"_id":ObjectId(exec_id), "status":"queued"}, {'$set': {"status":'inprogress',"starttime":start_t}})
                     else:
                         end_t = datetime.strptime(requestdata['endtime'], TF) if 'endtime' in requestdata else datetime.now()
                         updt_args = {"endtime":end_t}
                         if "status" in requestdata: updt_args["status"]=requestdata['status']
                         for exec_id in requestdata['executionids']:
-                            app.logger.info("DL------>udating end status {} in executionservice file ExecuteTestSuite_ICE in updateintoexecution ".format(end_t))
                             dbsession.executions.update({"_id":ObjectId(exec_id)}, {'$set': updt_args})
                     res["rows"] = True
 
@@ -296,9 +292,7 @@ def LoadServices(app, redissession, client ,getClientName):
                         "modifiedbyrole": ObjectId(requestdata['modifiedbyrole']),
                         "reportitems": []  #Modified to support latest changes
                     }
-                    app.logger.info("DL------>insert querydata {} in executionservice file ExecuteTestSuite_ICE in insertreportquery ".format(querydata))
                     res["rows"] = str(dbsession.reports.insert(querydata))
-                    app.logger.info("DL------>insert querydata done {} in executionservice file ExecuteTestSuite_ICE in insertreportquery ".format( res["rows"]))
 
 
                     # Storing the reportitems after the reports to get the report id
@@ -307,9 +301,7 @@ def LoadServices(app, redissession, client ,getClientName):
                         item['scenario_id'] = requestdata['testscenarioid']
                         item['execution_ids'] = requestdata['executionid']
                         item['reportid'] = ObjectId(res["rows"])
-                    app.logger.info("DL------>insert rows {} in executionservice file ExecuteTestSuite_ICE in insertreportitemsquery ".format(rows))
                     ritems = dbsession.reportitems.insert_many(rows)
-                    app.logger.info("DL------>insert rows done {} in executionservice file ExecuteTestSuite_ICE in insertreportitemsquery ".format(ritems))
 
                 app.logger.debug("Executed ExecuteTestSuite_ICE. Query: " + param)
             else:
