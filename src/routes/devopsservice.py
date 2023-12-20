@@ -43,7 +43,7 @@ def LoadServices(app, redissession, client ,getClientName):
                     scenarioIndexFromBackEnd = -1
                     scenarioIndexFromFrontEnd = 0
                     testsuite['suiteDetails'] = []
-                    for scenarioids in testsuiteData[0]['testscenarioids']:
+                    for scenarioids in range(len(testsuiteData[0]['testscenarioids'])):
                         scenarioIndexFromBackEnd+=1
 
                         if scenarioIndexFromFrontEnd >= len(requestdata['executionData']['donotexe']['current'][testsuite['testsuiteId']]):
@@ -51,7 +51,7 @@ def LoadServices(app, redissession, client ,getClientName):
 
                         if requestdata['executionData']['donotexe']['current'][testsuite['testsuiteId']][scenarioIndexFromFrontEnd] == scenarioIndexFromBackEnd:
                             scenarioIndexFromFrontEnd+=1
-                            scenarioName = list(dbsession.testscenarios.find({'_id':scenarioids},{'name': 1}))
+                            scenarioName = list(dbsession.testscenarios.find({'_id': testsuiteData[0]['testscenarioids'][scenarioids]},{'name': 1}))
                             testsuite['suiteDetails'].append({
                                 "condition" : testsuiteData[0]['conditioncheck'][scenarioIndexFromBackEnd],
                                 "dataparam" : [testsuiteData[0]['getparampaths'][scenarioIndexFromBackEnd]],
@@ -64,7 +64,8 @@ def LoadServices(app, redissession, client ,getClientName):
                     testsuiteData[0]['donotexecute'] = [0]*len(testsuiteData[0]['donotexecute'])
                     for index in requestdata['executionData']['donotexe']['current'][testsuite['testsuiteId']]:
                         testsuiteData[0]['donotexecute'][index] = 1
-
+                        break
+                    
                     dbsession.testsuites.update({"mindmapid":ObjectId(testsuite['testsuiteId'])},{'$set':{"donotexecute":testsuiteData[0]['donotexecute']}})
                     
                     
