@@ -1,8 +1,8 @@
 import json
-from datetime import datetime, timedelta
-from collections import Counter
 import requests
 import rasa_query as rasafunctions
+from http import HTTPStatus
+from flask_caching import Cache
 
 from utils import *
 
@@ -10,8 +10,10 @@ from utils import *
 def LoadServices(app, redissession, client,getClientName):
     setenv(app)
 
+    cache = Cache(app, config={'CACHE_TYPE': 'simple', 'CACHE_DEFAULT_TIMEOUT': 60})
+
     ##########################################################################################
-    ############################## FUNCTION FOR REQUEST VALIDATION ###########################
+    ################################## SUPPORTING FUNCTIONS ##################################
     ##########################################################################################
 
     # Function for request validation
@@ -63,6 +65,40 @@ def LoadServices(app, redissession, client,getClientName):
         return payload
 
 
+    def make_rasa_request(endpoint, payload):
+        return requests.post(endpoint, json=payload)
+    
+
+    def handle_rasa_response(recipient_id, function_name, payload, client, getClientName):
+        # This code dynamically checks if a function with a specific name exists in the 'rasafunctions' module
+        if function_name in rasafunctions.__dict__ and callable(rasafunctions.__dict__[function_name]):
+            function_to_call = rasafunctions.__dict__[function_name]
+            datatype, result = function_to_call(payload, client, getClientName)
+
+        transformed_data = {
+            "_id": recipient_id,
+            "_type": datatype,
+            "data": result,
+            "status": HTTPStatus.OK
+        }
+
+        # Store the result in the cache for 60 seconds
+        cache.set(function_name, transformed_data, timeout=60)
+
+        return jsonify(transformed_data), HTTPStatus.OK
+
+
+    def get_cache_keys():
+        return cache.cache._cache.keys()
+    
+
+    def get_cache_data(key):
+        return cache.get(key)
+
+    ##########################################################################################
+    ################################## RASA SERVER ENDPOINT ##################################
+    ##########################################################################################
+
     # rasa_server_endpoint = "https://avoaiapidev.avoautomation.com/rasa_model"
     rasa_server_endpoint = "http://127.0.0.1:5001/rasa_model"
 
@@ -74,7 +110,7 @@ def LoadServices(app, redissession, client,getClientName):
     # Status check API
     @app.route("/rasa_testing", methods=["GET"]) 
     def rasa_testing():
-        return jsonify({"data": "Rasa DAS API is working...!!!", "status": 200})
+        return jsonify({"data": "Rasa DAS API is working...!!!", "status": HTTPStatus.OK}), HTTPStatus.OK
     
 
     @app.route('/rasa_prompt_model', methods=['POST'])
@@ -83,42 +119,32 @@ def LoadServices(app, redissession, client,getClientName):
         try:
             requestdata = request.get_json()
             if not requestdata:
-                return jsonify({"data":"Invalid Request Format", "status":400}), 400
+                return jsonify({"data":"Invalid Request Format", "status": HTTPStatus.BAD_REQUEST}), HTTPStatus.BAD_REQUEST
             
             # Check whether user is passing any message or not
             if requestdata["message"] == "":
-                return jsonify({"data":"Please Ask a Question...!!!", "status":200}), 200
+                return jsonify({"data":"Please Ask a Question...!!!", "status": HTTPStatus.OK}), HTTPStatus.OK
             
             # Check for validating data of incoming request
             request_data = validate_request(requestdata, require_projectid=True, require_userid=True)
             if "error" in request_data:
-                return jsonify({"data": request_data["error"], "status": 400}), 400
+                return jsonify({"data": request_data["error"], "status": HTTPStatus.BAD_REQUEST}), HTTPStatus.BAD_REQUEST
             
-            # Compose request for Rasa
             payload = compose_payload(request_data)
             print(json.dumps(payload, indent=2))
 
-            # Make POST request to rasa server
-            response = requests.post(rasa_server_endpoint, json=payload)
+            response = make_rasa_request(rasa_server_endpoint, payload)
             output = response.json()[0]
+            recipient_id = output["recipient_id"]
             function_name = output["text"]
-
-            # This code dynamically checks if a function with a specific name exists in the 'rasafunctions' module, 
-            # and if it does, it calls the function and stores the result.
-            if function_name in rasafunctions.__dict__ and callable(rasafunctions.__dict__[function_name]):
-                function_to_call = rasafunctions.__dict__[function_name]
-                print("Function to call: ", function_to_call)
-                result = function_to_call(payload, client, getClientName)
+            
+            # Check if the result is already in the cache
+            cached_result = cache.get(function_name)
+            if cached_result is not None:
+                print("Generated result through cache")
+                return jsonify({"data": cached_result, "status": HTTPStatus.OK}), HTTPStatus.OK
             else:
-                print(f"Function '{function_name}' not found")
-
-            transformed_data = {
-                "recipient_id": output["recipient_id"],
-                "data": result,
-                "status": 200
-            }
-
-            return jsonify(transformed_data), 200
+                return handle_rasa_response(recipient_id, function_name, payload, client, getClientName)
         
         except Exception as e:
-            return jsonify({"message": str(e), "status": "error"}), 500
+            return jsonify({"message": str(e), "status": "error"}), HTTPStatus.INTERNAL_SERVER_ERROR
