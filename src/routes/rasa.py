@@ -17,9 +17,10 @@ def LoadServices(app, redissession, client,getClientName):
     ##########################################################################################
 
     # Function for request validation
-    def validate_request(data, require_projectid=False, require_userid=False):
+    def validate_request(data, require_projectid=False, require_userid=False, require_roleid=False):
         projectid = data.get("projectid")
         userid = data.get("sender")
+        roleid = data.get("roleid")
         message = data.get("message")
         metadata = data.get("metadata")
         start_time = data.get("start_time")
@@ -42,10 +43,15 @@ def LoadServices(app, redissession, client,getClientName):
         # Check whether "senderid" is present or not
         if require_userid and not userid:
             return {"error": "sender is required"}
+        
+        # Check whether "roleid" is present or not
+        if require_roleid and not roleid:
+            return {"error": "roleid is required"}
 
         return {
             "projectid": projectid,
             "userid": userid,
+            "roleid": roleid,
             "message": message,
             "metadata": metadata,
             "start_time": start_time,
@@ -57,6 +63,7 @@ def LoadServices(app, redissession, client,getClientName):
         payload = {
             "projectid": data["projectid"],
             "sender": data["userid"],
+            "roleid": data["roleid"],
             "message": data["message"],
             "metadata": data["metadata"],
             "start_time": data["start_time"],
@@ -74,6 +81,10 @@ def LoadServices(app, redissession, client,getClientName):
         if function_name in rasafunctions.__dict__ and callable(rasafunctions.__dict__[function_name]):
             function_to_call = rasafunctions.__dict__[function_name]
             datatype, result = function_to_call(payload, client, getClientName)
+
+        else:
+            result = "I'm sorry, I don't have an answer for that right now. I'll learn and improve over time. Please ask another question."
+            datatype = "text"
 
         transformed_data = {
             "_id": recipient_id,
@@ -126,7 +137,7 @@ def LoadServices(app, redissession, client,getClientName):
                 return jsonify({"data":"Please Ask a Question...!!!", "status": HTTPStatus.OK}), HTTPStatus.OK
             
             # Check for validating data of incoming request
-            request_data = validate_request(requestdata, require_projectid=True, require_userid=True)
+            request_data = validate_request(requestdata, require_projectid=True, require_userid=True, require_roleid=True)
             if "error" in request_data:
                 return jsonify({"data": request_data["error"], "status": HTTPStatus.BAD_REQUEST}), HTTPStatus.BAD_REQUEST
             
@@ -142,7 +153,7 @@ def LoadServices(app, redissession, client,getClientName):
             cached_result = cache.get(function_name)
             if cached_result is not None:
                 print("Generated result through cache")
-                return jsonify({"data": cached_result, "status": HTTPStatus.OK}), HTTPStatus.OK
+                return jsonify(cached_result), HTTPStatus.OK
             else:
                 return handle_rasa_response(recipient_id, function_name, payload, client, getClientName)
         
