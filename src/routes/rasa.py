@@ -2,7 +2,8 @@ import json
 import requests
 import rasa_query as rasafunctions
 from http import HTTPStatus
-from flask_caching import Cache
+# from flask_caching import Cache
+from flask import Response
 
 from utils import *
 
@@ -10,7 +11,7 @@ from utils import *
 def LoadServices(app, redissession, client,getClientName):
     setenv(app)
 
-    cache = Cache(app, config={'CACHE_TYPE': 'simple', 'CACHE_DEFAULT_TIMEOUT': 60})
+    # cache = Cache(app, config={'CACHE_TYPE': 'simple', 'CACHE_DEFAULT_TIMEOUT': 60})
 
     ##########################################################################################
     ################################## SUPPORTING FUNCTIONS ##################################
@@ -94,24 +95,23 @@ def LoadServices(app, redissession, client,getClientName):
         }
 
         # Store the result in the cache for 60 seconds
-        cache.set(function_name, transformed_data, timeout=60)
-
+        # cache.set(function_name, transformed_data, timeout=60)
         return jsonify(transformed_data), HTTPStatus.OK
 
 
-    def get_cache_keys():
-        return cache.cache._cache.keys()
+    # def get_cache_keys():
+    #     return cache.cache._cache.keys()
     
 
-    def get_cache_data(key):
-        return cache.get(key)
+    # def get_cache_data(key):
+    #     return cache.get(key)
 
     ##########################################################################################
     ################################## RASA SERVER ENDPOINT ##################################
     ##########################################################################################
 
-    # rasa_server_endpoint = "https://avoaiapidev.avoautomation.com/rasa_model"
-    rasa_server_endpoint = "http://127.0.0.1:5001/rasa_model"
+    rasa_server_endpoint = "https://avoaiapidev.avoautomation.com/rasa_model"
+    # rasa_server_endpoint = "http://127.0.0.1:5001/rasa_model"
 
 
     ##########################################################################################
@@ -147,15 +147,15 @@ def LoadServices(app, redissession, client,getClientName):
             response = make_rasa_request(rasa_server_endpoint, payload)
             output = response.json()[0]
             recipient_id = output["recipient_id"]
-            function_name = output["text"]
+            function_name = output["custom"]["function_name"]
             
             # Check if the result is already in the cache
-            cached_result = cache.get(function_name)
-            if cached_result is not None:
-                print("Generated result through cache")
-                return jsonify(cached_result), HTTPStatus.OK
-            else:
-                return handle_rasa_response(recipient_id, function_name, payload, client, getClientName)
+            # cached_result = cache.get(function_name)
+            # if cached_result is not None:
+            #     print("Generated result through cache")
+            #     return jsonify(cached_result), HTTPStatus.OK
+            # else:
+            return handle_rasa_response(recipient_id, function_name, payload, client, getClientName)
         
         except Exception as e:
             return jsonify({"message": str(e), "status": "error"}), HTTPStatus.INTERNAL_SERVER_ERROR
