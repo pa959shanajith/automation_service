@@ -3,7 +3,6 @@ import requests
 import rasa_query as rasafunctions
 from http import HTTPStatus
 # from flask_caching import Cache
-from flask import Response
 
 from utils import *
 
@@ -110,8 +109,8 @@ def LoadServices(app, redissession, client,getClientName):
     ################################## RASA SERVER ENDPOINT ##################################
     ##########################################################################################
 
-    rasa_server_endpoint = "https://avoaiapidev.avoautomation.com/rasa_model"
-    # rasa_server_endpoint = "http://127.0.0.1:5001/rasa_model"
+    # rasa_server_endpoint = "https://avoaiapidev.avoautomation.com/rasa_model"
+    rasa_server_endpoint = "http://127.0.0.1:5001/rasa_model"
 
 
     ##########################################################################################
