@@ -78,6 +78,7 @@ def list_of_projects(requestdata, client, getClientName):
         return e
 
 
+# Function to fetch the users assigned in same project
 def list_of_project_users(requestdata, client, getClientName):
     try:
         clientName = getClientName(requestdata)
@@ -200,6 +201,93 @@ def project_having_more_defects(requestdata, client, getClientName):
  
     except Exception as e:
         return e
+
+
+# Function to fetch module fail count for all the profiles created by user
+def module_with_more_defects(requestdata, client, getClientName):
+    try:
+        clientName = getClientName(requestdata)
+        dbsession = client[clientName]
+    except Exception as e:
+        return e
+    
+    try:
+        projectid = requestdata["projectid"]
+        userid = requestdata["sender"]
+        results = list(dbsession.configurekeys.find({"executionData.batchInfo.projectId": projectid,
+                                                            "session.userid": userid},
+                                                            {"_id":0,"token":1, 
+                                                            "executionData.configurename":1}))
+        
+        def mongoPipeline(key):
+            # Define the aggregation pipeline
+            pipeline = [
+                        {
+                            "$match": {"configurekey": key, "status": "fail"}
+                        },
+                        {
+                            "$project": {
+                                "parent": "$parent",
+                                "status": "$status"
+                            }
+                        },
+                        {
+                            "$lookup": {
+                                "from": "testsuites",
+                                "localField": "parent",
+                                "foreignField": "_id",
+                                "as": "moduledata"
+                            }
+                        },
+                        {
+                            "$group": {
+                                "_id": "$parent",
+                                "module_name": {"$first": "$moduledata.name"},
+                                "fail_count": {"$sum": {"$cond": {"if": {"$eq": ["$status", "fail"]}, "then": 1, "else": 0}}},
+                                "total_count": {
+                                    "$sum": {
+                                        "$cond": {
+                                            "if": {"$in": ["$status", ["pass", "fail"]]},
+                                            "then": 1,
+                                            "else": 0
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        {
+                            "$project": {
+                                "module_name": {"$arrayElemAt":["$module_name",0]}, 
+                                "defect_count": "$fail_count",
+                                "_id": 0
+                            }
+                        },
+                        {
+                            "$sort": {"defect_count": -1}
+                        },
+                        {
+                            "$limit": 5
+                        }
+                    ]
+
+
+            return pipeline
+
+        modules=[]
+        for keys in results:
+            profileid = keys["token"]
+            profilename = keys["executionData"]["configurename"]
+        
+            # Create a dictionary for each exec_detail
+            exec = mongoPipeline(profileid)
+            result =list(dbsession.executions.aggregate(exec))
+            if result:
+                modules.append(result[0])
+        return "table",modules
+
+    except Exception as e:
+        return e
+    
 
 ##########################################################################################
 ################################### DEFAULT FUNCTIONS ####################################
