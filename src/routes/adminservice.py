@@ -1575,8 +1575,8 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
                         res1 = "fail"
                     elif result1!=None:
                         dbsession.userpreference.update_one({"_id":result["_id"]},{"$unset":{ 'Saucelabs':""}})
-                    else:
-                        res['rows'] = 'fail'
+                    elif result1 == None:
+                        res1 = 'fail'
                 elif requestdata["action"]=='create':
                     if result1!=None:
                         res1 = "fail"
@@ -1643,8 +1643,8 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
                         res1 = "fail"
                     elif result1!=None:
                         dbsession.userpreference.update_one({"_id":result["_id"]},{"$unset":{ 'Browserstack':""}})
-                    else:
-                        res['rows'] = 'fail'
+                    elif result1 == None:
+                        res1 = 'fail'
                 elif requestdata["action"]=='create':
                     if result1!=None:
                         res1 = "fail"
