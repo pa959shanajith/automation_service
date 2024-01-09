@@ -1,8 +1,7 @@
 import json
 import requests
-import rasa_query as rasafunctions
+import rasaquery as rasafunctions
 from http import HTTPStatus
-# from flask_caching import Cache
 
 from utils import *
 
@@ -10,21 +9,31 @@ from utils import *
 def LoadServices(app, redissession, client,getClientName):
     setenv(app)
 
-    # cache = Cache(app, config={'CACHE_TYPE': 'simple', 'CACHE_DEFAULT_TIMEOUT': 60})
-
     ##########################################################################################
     ################################## SUPPORTING FUNCTIONS ##################################
     ##########################################################################################
-
+    
     # Function for request validation
-    def validate_request(data, require_projectid=False, require_userid=False, require_roleid=False):
+    def validate_request(data, require_projectid=False, require_userid=False, require_roleid=False, require_metadata=False):
+        """
+        Validate incoming request data
+        Parameters:
+            data (dict): Request data
+            require_projectid (bool): Whether projectid is required
+            require_userid (bool): Whether userid is required
+            require_roleid (bool): Whether roleid is required 
+            require_metadata (bool): Whether metadata is required 
+        Returns:
+            dict: Validation result  
+        """
+
         projectid = data.get("projectid")
         userid = data.get("sender")
         roleid = data.get("roleid")
         message = data.get("message")
         metadata = data.get("metadata")
-        start_time = data.get("start_time")
-        end_time = data.get("end_time")
+        start_time = data.get("starttime")
+        end_time = data.get("endtime")
 
         # Case 1: User passes starttime but not endtime
         if start_time and not end_time:
@@ -32,6 +41,12 @@ def LoadServices(app, redissession, client,getClientName):
 
         # Case 2: User didn't pass starttime and endtime
         if not start_time and not end_time:
+            end_time = datetime.now().strftime("%Y-%m-%d")
+            six_months_ago = datetime.now() - timedelta(days=180)
+            start_time = six_months_ago.strftime("%Y-%m-%d")
+
+        # Case 3: User passes endtime but not starttime
+        if end_time and not start_time:
             end_time = datetime.now().strftime("%Y-%m-%d")
             six_months_ago = datetime.now() - timedelta(days=180)
             start_time = six_months_ago.strftime("%Y-%m-%d")
@@ -47,6 +62,10 @@ def LoadServices(app, redissession, client,getClientName):
         # Check whether "roleid" is present or not
         if require_roleid and not roleid:
             return {"error": "roleid is required"}
+        
+        # Check whether "metadata" is present or not
+        if require_metadata and not metadata:
+            return {"error": "metadata is required"}
 
         return {
             "projectid": projectid,
@@ -59,6 +78,7 @@ def LoadServices(app, redissession, client,getClientName):
         }
 
 
+    # Function to compose payload
     def compose_payload(data):
         payload = {
             "projectid": data["projectid"],
@@ -66,16 +86,18 @@ def LoadServices(app, redissession, client,getClientName):
             "roleid": data["roleid"],
             "message": data["message"],
             "metadata": data["metadata"],
-            "start_time": data["start_time"],
-            "end_time": data["end_time"]
+            "starttime": data["start_time"],
+            "endtime": data["end_time"]
         }
         return payload
 
 
+    # Function to make rasa request
     def make_rasa_request(endpoint, payload):
         return requests.post(endpoint, json=payload)
     
 
+    # Function for dynamic function calling
     def handle_rasa_response(recipient_id, function_name, payload, client, getClientName):
         # This code dynamically checks if a function with a specific name exists in the 'rasafunctions' module
         if function_name in rasafunctions.__dict__ and callable(rasafunctions.__dict__[function_name]):
@@ -98,19 +120,12 @@ def LoadServices(app, redissession, client,getClientName):
         return jsonify(transformed_data), HTTPStatus.OK
 
 
-    # def get_cache_keys():
-    #     return cache.cache._cache.keys()
-    
-
-    # def get_cache_data(key):
-    #     return cache.get(key)
-
     ##########################################################################################
     ################################## RASA SERVER ENDPOINT ##################################
     ##########################################################################################
 
-    rasa_server_endpoint = "https://avoaiapidev.avoautomation.com/rasa_model"
-    # rasa_server_endpoint = "http://127.0.0.1:5001/rasa_model"
+    # rasa_server_endpoint = "https://avoaiapidev.avoautomation.com/rasa_model"
+    rasa_server_endpoint = "http://127.0.0.1:5001/rasa_model"
 
 
     ##########################################################################################
@@ -136,24 +151,23 @@ def LoadServices(app, redissession, client,getClientName):
                 return jsonify({"data":"Please Ask a Question...!!!", "status": HTTPStatus.OK}), HTTPStatus.OK
             
             # Check for validating data of incoming request
-            request_data = validate_request(requestdata, require_projectid=True, require_userid=True, require_roleid=True)
+            request_data = validate_request(requestdata, require_projectid=True, require_userid=True, require_roleid=True, require_metadata=True)
+
             if "error" in request_data:
                 return jsonify({"data": request_data["error"], "status": HTTPStatus.BAD_REQUEST}), HTTPStatus.BAD_REQUEST
             
+            # Compose payload to send to Rasa
             payload = compose_payload(request_data)
-            print(json.dumps(payload, indent=2))
+            print("Payload: ", json.dumps(payload, indent=2))
 
+            # Getting RASA response
             response = make_rasa_request(rasa_server_endpoint, payload)
+
+            # fetch required data from RASA response
             output = response.json()[0]
             recipient_id = output["recipient_id"]
             function_name = output["custom"]["function_name"]
             
-            # Check if the result is already in the cache
-            # cached_result = cache.get(function_name)
-            # if cached_result is not None:
-            #     print("Generated result through cache")
-            #     return jsonify(cached_result), HTTPStatus.OK
-            # else:
             return handle_rasa_response(recipient_id, function_name, payload, client, getClientName)
         
         except Exception as e:

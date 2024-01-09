@@ -1,5 +1,6 @@
 from bson import ObjectId
 import pipelines
+from utils import *
 
 ##########################################################################################
 ################################### COMMON FUNCTIONS #####################################
@@ -13,6 +14,7 @@ data_type = {
     "table/chart": "table/chart"
 }
 
+
 # Mapping for chart type
 chart_type = {
     "category1": ["bar", "pie", "doughnut"],
@@ -20,6 +22,7 @@ chart_type = {
 }
 
 
+# Function for database connection
 def mongo_connection(requestdata, client, getClientName):
     try:
         clientName = getClientName(requestdata)
@@ -27,6 +30,19 @@ def mongo_connection(requestdata, client, getClientName):
         return dbsession
     except Exception as e:
         return e
+    
+
+# Function to convert dates in mongo comparable format
+def date_conversion(request):
+    start_time = request["starttime"]
+    end_time = request["endtime"]
+
+    formatted_starttime = start_time + " 00:00:00.000Z"
+    formatted_endtime = end_time + " 23:59:59.999Z"
+    start_datetime = datetime.strptime(formatted_starttime, "%Y-%m-%d %H:%M:%S.%fZ")
+    end_datetime = datetime.strptime(formatted_endtime, "%Y-%m-%d %H:%M:%S.%fZ")
+
+    return start_datetime, end_datetime
 
 
 ##########################################################################################
@@ -41,22 +57,31 @@ def list_of_projects(requestdata, client, getClientName):
         # fetch required data from request
         userid = requestdata["sender"]
 
+        # fetch and convert the date format
+        starttime, endtime = date_conversion(request=requestdata)
+
         # Data processing
         data_pipeline = pipelines.fetch_projects(userid=userid)
         result = list(dbsession.users.aggregate(data_pipeline))
-        return data_type["table"], result
+        if not result:
+            return data_type["text"], "Data not found..!!!"
+        else:
+            return data_type["table"], result
 
     except Exception as e:
         return e
 
 
-# Function to fetch the users assigned in a project
+# Function to fetch the users assigned in a specific project with their roles
 def list_of_users(requestdata, client, getClientName):
     try:
         dbsession = mongo_connection(requestdata, client, getClientName)
     
         # fetch required data from request
         projectid = requestdata["projectid"]
+
+        # fetch and convert the date format
+        starttime, endtime = date_conversion(request=requestdata)
 
         # Data processing
         data_pipeline = pipelines.fetch_users(projectid=projectid)
@@ -66,9 +91,12 @@ def list_of_users(requestdata, client, getClientName):
             "chart_types": chart_type["category1"]
             }
         
-        # Final output
-        result = {"table_data": result1, "chart_data": result2}
-        return data_type["table/chart"], result
+        if not result1 or not result2:
+            return data_type["text"], "Data not found..!!!"
+        else:
+            # Final output
+            result = {"table_data": result1, "chart_data": result2}
+            return data_type["table/chart"], result
 
     except Exception as e:
         return e

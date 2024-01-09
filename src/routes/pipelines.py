@@ -39,6 +39,7 @@ def fetch_projects(userid):
 def fetch_users(projectid):
     pipeline = [
             {"$match": {"projects": ObjectId(projectid)}},
-            {"$project": {"name":1}}
+            {"$project": {"name":1}},
+            # need to add role name in the output (database bug)
         ]
     return pipeline
