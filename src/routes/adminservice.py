@@ -1571,7 +1571,7 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
                 result1 = dbsession.userpreference.find_one({"user":ObjectId(requestdata["userId"]), 'Saucelabs':{'$exists':True, '$ne': None}})
                 if requestdata["action"]=="delete":
                     res1 = "success"
-                    if result==None:
+                    if result==None or result1 == None:
                         res1 = "fail"
                     elif result1!=None:
                         dbsession.userpreference.update_one({"_id":result["_id"]},{"$unset":{ 'Saucelabs':""}})
@@ -1637,7 +1637,7 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
                 result1 = dbsession.userpreference.find_one({"user":ObjectId(requestdata["userId"]), 'Browserstack':{'$exists':True, '$ne': None}})
                 if requestdata["action"]=="delete":
                     res1 = "success"
-                    if result==None:
+                    if result==None  or result1 == None:
                         res1 = "fail"
                     elif result1!=None:
                         dbsession.userpreference.update_one({"_id":result["_id"]},{"$unset":{ 'Browserstack':""}})
