@@ -1,5 +1,29 @@
 from bson import ObjectId
 
+
+def fetch_tokens(projectid, userid):
+    pipeline = [
+        {
+            "$match": {
+                "executionData.batchInfo.projectId": projectid,
+                "session.userid": userid
+            }
+        },
+        {
+            "$project": {
+                "_id": 0,
+                "token": 1,
+                "executionData.configurename": 1
+            }
+        }
+    ]
+    return pipeline
+
+ 
+####################################################################################
+#################################### EXECUTION #####################################
+####################################################################################
+
 def fetch_projects(userid):
     pipeline = [
             {"$match": {"_id": ObjectId(userid)}},
@@ -43,3 +67,42 @@ def fetch_users(projectid):
             # need to add role name in the output (database bug)
         ]
     return pipeline
+
+
+def pipeline_list_module_executed(tokens, start_datetime, end_datetime):
+    pipeline = [
+        {
+            "$match": {
+                "configurekey": {"$in": tokens},
+                "starttime": {"$gte": start_datetime, "$lte": end_datetime}
+            }
+        },
+        {
+            "$group": {
+                "_id": "$parent"
+            }
+        },
+        {
+            "$lookup": {
+                "from": "testsuites",
+                "localField": "_id",
+                "foreignField": "_id",
+                "as": "suiteData"
+            }
+        },
+        {
+            "$project": {
+                "_id":0,
+                "suite_names": {"$arrayElemAt":["$suiteData.name",0]}
+            }
+        }
+    ]
+    return pipeline 
+
+
+####################################################################################
+##################################### DEFECT #######################################
+####################################################################################
+
+def pipeline_project_having_more_defects():
+    pass

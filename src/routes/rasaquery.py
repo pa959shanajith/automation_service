@@ -45,6 +45,15 @@ def date_conversion(request):
     return start_datetime, end_datetime
 
 
+def process_data(dbsession, collectionname, pipeline):
+    result = list(dbsession.collectionname.aggregate(pipeline))
+    if not result:
+        return data_type["text"], "Data not found..!!!"
+    else:
+        return data_type["table"], result
+
+
+
 ##########################################################################################
 ################################### MODULE FUNCTIONS #####################################
 ##########################################################################################
@@ -142,26 +151,35 @@ def count_mod_executed_proj_prof_level(requestdata, client, getClientName):
         pass
 
 
-def mod_executed_proj_prof_level(requestdata, client, getClientName):
+# Function to fetch the list of modules executed in a project or profile
+def list_module_executed(requestdata, client, getClientName):
     try:
-        clientName = getClientName(requestdata)
-        dbsession = client[clientName]
-    except Exception as e:
-        return e
-    
-    try:
+        dbsession = mongo_connection(requestdata, client, getClientName)
+
+        # fetch required data from request
         projectid = requestdata["projectid"]
-        userid = requestdata["sender"]
+        userid = requestdata["userid"]
         profileid = requestdata["metadata"]["profileid"]
 
-        # Data at project level
-        if not profileid:
-            results = list(dbsession.configurekeys.find({"executionData.batchInfo.projectId": projectid,
-                                                        "session.userid": userid},
-                                                        {"_id":0,"token":1, 
-                                                        "executionData.configurename":1}))
-            print(results)
-            return "text", "Shaurya Suman"
+        # fetch and convert the date format
+        starttime, endtime = date_conversion(request=requestdata)
+
+        # Data processing
+        if profileid:
+            data_pipeline = pipelines.pipeline_list_module_executed(tokens=[profileid], start_datetime=starttime, end_datetime=endtime)
+            collection_name = "executions"
+            result = process_data(dbsession, collection_name, data_pipeline)
+            return result
+
+        else:
+            token_pipeline = pipelines.fetch_tokens(projectid=projectid, userid=userid)
+            token_values = list(dbsession.configurekeys.aggregate(token_pipeline))
+            tokens = [tokens["token"] for tokens in token_values]
+        
+            data_pipeline = pipelines.pipeline_list_module_executed(tokens=tokens, start_datetime=starttime, end_datetime=endtime)
+            collection_name = "executions"
+            result = process_data(dbsession, collection_name, data_pipeline)
+            return result
 
     except Exception as e:
         return e
@@ -173,37 +191,18 @@ def mod_executed_proj_prof_level(requestdata, client, getClientName):
     
 def project_having_more_defects(requestdata, client, getClientName):
     try:
-        clientName = getClientName(requestdata)
-        dbsession = client[clientName]
-    except Exception as e:
-        return e
+        dbsession = mongo_connection(requestdata, client, getClientName)
     
-    try:
-        project_id = requestdata["projectid"]
-        user_id = requestdata["sender"]
-        role_id = requestdata["roleid"]
-        profile_id = requestdata["metadata"]["profileid"]
- 
-        # Fetch the assigned role for this role_id
-        role_name = list(dbsession.permissions.find({"_id":ObjectId(role_id)}, {"_id":0, "name":1}))[0]["name"]
-        
- 
-        # # Project Level Data
-        # if not profile_id:
-        #     if role_name == "Quality Manager":
-        #         pipeline_result = get_pipeline(projectid=project_id)
-        #         return pipeline_result
- 
-        #     elif role_name == "Quality Lead":
-        #         pipeline_result = get_pipeline(projectid=project_id, userid=user_id)
-        #         # result = dbsession.aggregate(pipeline)
-        #         return pipeline_result
- 
-        # # Profile Level Data
-        # else:
-        #     pipeline_result = get_pipeline(projectid=project_id, userid=user_id, profileid=profile_id)  
-        #     # result = dbsession.aggregate(pipeline)
-        #     return pipeline_result
+        # fetch required data from request
+        projectid = requestdata["projectid"]
+        userid = requestdata["sender"]
+        profileid = requestdata["metadata"]["profileid"]
+
+        # fetch and convert the date format
+        starttime, endtime = date_conversion(request=requestdata)
+
+        # Data processing
+        data_pipeline = pipelines.pipeline_project_having_more_defects()
  
     except Exception as e:
         return e
