@@ -640,7 +640,7 @@ def LoadServices(app, redissession, client ,getClientName):
                             if screendata["screenid"] is None:
                                 if "newreuse" in screendata:
                                     currentscreenid=getScreenID(dbsession,screendata["screenName"],projectid)
-                                    updateparent(dbsession,"screens",currentscreenid,currentscenarioid,"add")
+                                    updateparent(dbsession,"screens",currentscreenid,currentscenarioid,"add")                                    
                                 else:
                                     scrapedurl = screendata['scrapedurl'] if 'scrapedurl' in screendata else ""
                                     scrapeinfo = screendata['scrapeinfo'] if 'scrapeinfo' in screendata else "" 
@@ -651,7 +651,7 @@ def LoadServices(app, redissession, client ,getClientName):
                                 currentscreenid=screendata["screenid"]
                                 if "reuse" in screendata and screendata["reuse"]:
                                     updateScreenAndTestcase(dbsession,currentscreenid,createdby,createdbyrole)
-                                    updateparent(dbsession,"screens",currentscreenid,currentscenarioid,"add")
+                                    updateparent(dbsession,"screens",currentscreenid,currentscenarioid,"add")                                    
                             iddata2={"_id":ObjectId(currentscreenid),"testcases":[]}
                             for testcasedata in screendata['testcaseDetails']:
                                 if testcasedata["testcaseid"] is None:
@@ -773,6 +773,42 @@ def LoadServices(app, redissession, client ,getClientName):
         }
         queryresult=dbsession.screens.insert_one(data).inserted_id
         return queryresult
+    @app.route('/design/insertScreen', methods=['POST'])
+    def insertScreen():
+        try:
+            requestdata=json.loads(request.data)
+            clientName=getClientName(requestdata)
+            dbsession=client[clientName]
+            createdon = datetime.now()
+ 
+            if requestdata['param']=="create":
+            # app.logger.debug("Inside insertScreen. Query: "+str(requestdata["query"]))
+                data={
+                    "projectid":ObjectId(requestdata['projectid']),
+                    "name":requestdata['name'],
+                    "versionnumber":requestdata['versionnumber'],
+                    # "parent":[ObjectId(requestdata['scenarioid'])],
+                    "createdby":ObjectId(requestdata['createdby']),
+                    "createdbyrole":ObjectId(requestdata['createdbyrole']),
+                    "createdon":createdon,
+                    "deleted":False,
+                    "parent" : [],
+                    "modifiedby":ObjectId(requestdata['createdby']),
+                    "modifiedbyrole":ObjectId(requestdata['createdbyrole']),
+                    "modifiedon":createdon,
+                    "screenshot":"",
+                    "scrapedurl":"",
+                    "orderlist":[],
+                    }
+                dbsession.screens.insert_one(data).inserted_id
+                res = {"rows":"Success"}
+            elif requestdata['param']=="update":
+                dbsession.screens.update({"_id":ObjectId(requestdata['screenid'])},{"$set":{"name":requestdata['name'],"modifiedby":ObjectId(requestdata['userId']),"modifedon":createdon,"modifiedbyrole":ObjectId(requestdata["roleId"])}})
+                res={"rows":"Success"}
+        
+        except Exception as e:
+            servicesException("insertScreen",e, True)
+        return jsonify(res)
 
     def saveTestcase(dbsession,screenid,testcasename,versionnumber,createdby,createdbyrole):
         app.logger.debug("Inside saveTestcase.")
@@ -1494,8 +1530,32 @@ def LoadServices(app, redissession, client ,getClientName):
                 projectid=ObjectId(requestdata["projectid"])
                 screendetails=list(dbsession.screens.find({"projectid":projectid},{"_id":1,"name":1,"parent":1,"statusCode":1}))                
                 screenids = [scr["_id"] for scr in screendetails]
-                testcasedetails=list(dbsession.testcases.find({"screenid":{"$in":screenids}},{"_id":1,"name":1,"parent":1,"screenid":1}))
-                res={'rows':{'screenList':screendetails,'testCaseList':testcasedetails}}
+                testcasedetails=list(dbsession.testcases.find({"screenid":{"$in":screenids}},{"_id":1,"name":1,"parent":1,"screenid":1}))                
+                if 'param' in requestdata:
+                    if requestdata['param'] == 'globalRepo':
+                        scrn_det=[]
+                        for screenid in screendetails:
+                            if 'orderlist' in screenid:
+                                for orderlist in screenid['orderlist']:
+                                    if isinstance(orderlist, dict):
+                                        if '_id' in orderlist:
+                                            dataobjectsParent  = dbsession.dataobjects.find_one({'_id':ObjectId(orderlist["_id"])},{'parent':1})                                            
+                                    else:
+                                        dataobjectsParent  = dbsession.dataobjects.find_one({'_id':ObjectId(orderlist)},{'parent':1})
+                                    print(dataobjectsParent)
+                                    if dataobjectsParent != None:
+                                        if len(dataobjectsParent['parent']) > 1:
+                                            for i, value in enumerate(screenid['orderlist']):
+                                                if value == orderlist:
+                                                    screenid['orderlist'][i] = {'_id': value, 'flag': True}
+                                scrn_det.append(screenid)                              
+ 
+                            else:
+                                screenid["orderlist"]=[]
+                                scrn_det.append(screenid)
+                        res={'rows':{'screenList':scrn_det,'testCaseList':testcasedetails}}
+                else:
+                    res={'rows':{'screenList':screendetails,'testCaseList':testcasedetails}}
             else:
                 app.logger.warn("Empty data received. getScreens")
         except Exception as e:
