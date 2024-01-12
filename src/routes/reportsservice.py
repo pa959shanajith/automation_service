@@ -35,7 +35,7 @@ def LoadServices(app, redissession, client ,getClientName):
             dbsession=client[clientName]
             if(requestdata["query"] == 'projects'):
                 queryresult1=dbsession.users.find_one({"_id": ObjectId(requestdata["userid"])},{"projects":1,"_id":0})
-                queryresult=list(dbsession.projects.find({"_id":{"$in":queryresult1["projects"]}},{"name":1,"releases":1,"type":1,"modifiedby":1,"progressStep":1, 'projectlevelrole':1}))
+                queryresult=list(dbsession.projects.find({"_id":{"$in":queryresult1["projects"]}},{"name":1,"releases":1,"type":1,"modifiedby":1,"progressStep":1, 'projectlevelrole':1, "modifiedon":1}))
                 modifiedby_ids=[]
                 for modifiedId in queryresult:
                     modifiedby_ids.append(ObjectId(modifiedId["modifiedby"]))
