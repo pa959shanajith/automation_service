@@ -293,10 +293,15 @@ def LoadServices(app, redissession, client ,getClientName):
                             data_push.append(data_obj[i])
                             
                         if (data_push != []):
-                            insertedObjIds = dbsession.dataobjects.insert(data_push)
-                            dbsession.dataobjects.update_many({"_id":{"$in":insertedObjIds}},
-                            {"$set":{"identifier":[{"id":1,"identifier":'xpath'},{"id":2,"identifier":'id' },{"id":3, "identifier":'rxpath' },{ "id":4,"identifier":'name' },{"id":5,"identifier":'classname'},{"id":6,"identifier":'cssselector'},{"id":7,"identifier":'href'},{"id":8,"identifier":'label'}]}})
-
+                            for i in range(len(data_push)):
+                                if "_id" in data_push[i]:
+                                   insertedObjIds = [{ObjectId(data_push[i]["_id"])}]
+                                   dbsession.dataobjects.update({'_id': ObjectId(data_push[i]["_id"])},{"$push":{'parent':screenId}})
+                                else:
+                                    insertedObjIds = dbsession.dataobjects.insert(data_push)
+                                    dbsession.dataobjects.update_many({"_id":{"$in":insertedObjIds}},
+                                    {"$set":{"identifier":[{"id":1,"identifier":'xpath'},{"id":2,"identifier":'id' },{"id":3, "identifier":'rxpath' },{ "id":4,"identifier":'name' },{"id":5,"identifier":'classname'},{"id":6,"identifier":'cssselector'},{"id":7,"identifier":'href'},{"id":8,"identifier":'label'}]}})
+                                    
                             for index in range(len(orderList)):
                                 if (orderList[index] in tempOrderId_index_dict):
                                     addedObjIndex = tempOrderId_index_dict[orderList[index]]
