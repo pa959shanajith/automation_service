@@ -841,6 +841,7 @@ def LoadServices(app, redissession, client ,getClientName):
             requestdata=json.loads(request.data)
             clientName=getClientName(requestdata)             
             dbsession=client[clientName]
+            migration=requestdata['migration']
             requestdata=requestdata["data"]
             projectid=requestdata['projectid']
             # testcasename = "Tc_"+projectid
@@ -902,7 +903,10 @@ def LoadServices(app, redissession, client ,getClientName):
                             iddata1["screens"].append(iddata2)
                         idsforModule.append(iddata1)
                         updateTestcaseIDsInScenario(dbsession,currentscenarioid,testcaseidsforscenario)
-                    updateTestScenariosInModule(dbsession,currentmoduleid,idsforModule)
+                        if (migration == False):
+                            updateTestScenariosInModule(dbsession,currentmoduleid,idsforModule)
+                        else:
+                            updateTestScenariosInModuleMigration(dbsession,currentmoduleid,idsforModule)
                 scenarioInfo = []
                 for node in requestdata['deletednodes']:
                     if node[1] == "scenarios":
