@@ -1,4 +1,3 @@
-import json
 import requests
 import rasaquery as rasafunctions
 from http import HTTPStatus
@@ -102,15 +101,18 @@ def LoadServices(app, redissession, client,getClientName):
         # This code dynamically checks if a function with a specific name exists in the 'rasafunctions' module
         if function_name in rasafunctions.__dict__ and callable(rasafunctions.__dict__[function_name]):
             function_to_call = rasafunctions.__dict__[function_name]
-            datatype, result = function_to_call(payload, client, getClientName)
+            datatype, summary, result = function_to_call(payload, client, getClientName)
 
         else:
-            result = "I'm sorry, I don't have an answer for that right now. I'll learn and improve over time. Please ask another question."
             datatype = "text"
+            summary = ""
+            result = "I'm sorry, I don't have an answer for that right now. I'll learn and improve over time. Please ask another question."
+            
 
         transformed_data = {
             "_id": recipient_id,
             "_type": datatype,
+            "_summary": summary,
             "data": result,
             "status": HTTPStatus.OK
         }
@@ -124,8 +126,8 @@ def LoadServices(app, redissession, client,getClientName):
     ################################## RASA SERVER ENDPOINT ##################################
     ##########################################################################################
 
-    # rasa_server_endpoint = "https://avoaiapidev.avoautomation.com/rasa_model"
-    rasa_server_endpoint = "http://127.0.0.1:5001/rasa_model"
+    rasa_server_endpoint = "https://avoaiapidev.avoautomation.com/rasa_model"
+    # rasa_server_endpoint = "http://127.0.0.1:5001/rasa_model"
 
 
     ##########################################################################################

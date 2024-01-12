@@ -45,17 +45,43 @@ def date_conversion(request):
     return start_datetime, end_datetime
 
 
-def process_data(dbsession, collectionname, pipeline):
-    result = list(dbsession.collectionname.aggregate(pipeline))
-    if not result:
-        return data_type["text"], "Data not found..!!!"
-    else:
-        return data_type["table"], result
+class DataPreparation:
+
+    # Function to process tabular data
+    def process_table_data(dbsession, collectionname, pipeline):
+        collection = getattr(dbsession, collectionname)
+        result = list(collection.aggregate(pipeline))
+        return result
+
+
+    def process_final_chart_data(**kwargs):
+        # Access the desired values from kwargs
+        title = kwargs.get("title", "")
+        labels = kwargs.get("labels", [])
+        backgroundColor = kwargs.get("backgroundColor", [])
+        chartsData = kwargs.get("chartsData", [])
+        chartType = kwargs.get("chartType", [])
+        displayLegend = kwargs.get("displayLegend", "false")
+
+        data = {
+            "title": title,
+            "labels": labels,
+            "backgroundColor": backgroundColor,
+            "chartsData": chartsData,
+            "chartType": chartType,
+            "displayLegend": displayLegend
+        }
+        return data
+
+
+    def merge_table_and_chart_data(tabledata, chartdata):
+        merged_data = {"table_data": tabledata, "chart_data": chartdata}
+        return merged_data
 
 
 
 ##########################################################################################
-################################### MODULE FUNCTIONS #####################################
+################################# EXECUTION FUNCTIONS ####################################
 ##########################################################################################
 
 # Function fetches all the projects the user is assigned to along with their role names
@@ -66,16 +92,36 @@ def list_of_projects(requestdata, client, getClientName):
         # fetch required data from request
         userid = requestdata["sender"]
 
-        # fetch and convert the date format
-        starttime, endtime = date_conversion(request=requestdata)
+        # Summary for the response
+        collection_name = "users"
+        title = "Total Projects"
+        labels = "Project Count"
+        color = "#36a2eb"
+        charttype = ["pie", "doughnut"]
 
         # Data processing
         data_pipeline = pipelines.fetch_projects(userid=userid)
-        result = list(dbsession.users.aggregate(data_pipeline))
-        if not result:
-            return data_type["text"], "Data not found..!!!"
+        table_result = DataPreparation.process_table_data(dbsession=dbsession, collectionname=collection_name, pipeline=data_pipeline)
+        chart_result = None  # Initialize chart_result to None
+        
+        if table_result:
+            # Pass values to process_final_chart_data using **kwargs
+            chart_result = DataPreparation.process_final_chart_data(
+                                                                title=title,
+                                                                labels=labels,
+                                                                backgroundColor=color,
+                                                                chartsData=len(table_result),
+                                                                chartType=charttype,
+                                                                displayLegend="true"
+                                                            )
+            datatype = data_type["table/chart"]
+            summary = "Please find the list of projects assigned to you along with the role names."
         else:
-            return data_type["table"], result
+            datatype = data_type["text"]
+            summary = "No data found for the requested query"
+
+        result = DataPreparation.merge_table_and_chart_data(tabledata=table_result, chartdata=chart_result)
+        return datatype, summary, result
 
     except Exception as e:
         return e
@@ -164,10 +210,11 @@ def list_module_executed(requestdata, client, getClientName):
         # fetch and convert the date format
         starttime, endtime = date_conversion(request=requestdata)
 
+        collection_name = "executions"
+
         # Data processing
         if profileid:
             data_pipeline = pipelines.pipeline_list_module_executed(tokens=[profileid], start_datetime=starttime, end_datetime=endtime)
-            collection_name = "executions"
             result = process_data(dbsession, collection_name, data_pipeline)
             return result
 
@@ -177,7 +224,6 @@ def list_module_executed(requestdata, client, getClientName):
             tokens = [tokens["token"] for tokens in token_values]
         
             data_pipeline = pipelines.pipeline_list_module_executed(tokens=tokens, start_datetime=starttime, end_datetime=endtime)
-            collection_name = "executions"
             result = process_data(dbsession, collection_name, data_pipeline)
             return result
 
