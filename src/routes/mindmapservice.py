@@ -1497,6 +1497,18 @@ def LoadServices(app, redissession, client ,getClientName):
     def updateTestScenariosInModule(dbsession,currentmoduleid,idsforModule):
         dbsession.mindmaps.update_one({"_id":ObjectId(currentmoduleid)},{'$set':{'testscenarios':idsforModule}})
         return
+    
+    def updateTestScenariosInModuleMigration(dbsession,currentmoduleid,idsforModule):
+        testCaseId = idsforModule[0]["_id"]
+        testScreens = idsforModule[0]["screens"]
+        dbsession.mindmaps.update_one({
+            "_id": ObjectId(currentmoduleid),
+            "testscenarios._id": testCaseId
+        },
+        {
+            '$push': {'testscenarios.$.screens': {"$each": testScreens}}
+        })
+        return
 
     def updateScreenAndTestcase(dbsession,screenid,createdby,createdbyrole):
         createdon = datetime.now()
