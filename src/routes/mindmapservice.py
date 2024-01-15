@@ -616,6 +616,7 @@ def LoadServices(app, redissession, client ,getClientName):
             versionnumber=requestdata['versionnumber']
             createdthrough=requestdata['createdthrough']
             module_type="basic"
+            createdon = datetime.now()
             error=checkReuse(dbsession,requestdata)
             currentmoduleid=None
             if error is None:
@@ -685,6 +686,7 @@ def LoadServices(app, redissession, client ,getClientName):
                     res = {'rows' : {"currentmoduleid" : currentmoduleid , "scenarioInfo" :scenarioInfo}}
                 else:
                     res={'rows':currentmoduleid}
+                dbsession.projects.update_one({"_id":ObjectId(projectid), }, {"$set":{"modifiedon": createdon} })
             else:
                 res={'rows':'reuseerror',"error":error}
         except Exception as e:
