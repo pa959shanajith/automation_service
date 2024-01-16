@@ -945,6 +945,26 @@ def LoadServices(app, redissession, client ,getClientName):
             servicesException("reportStatusScenarios_ICE",getreportstatusexc)
         return jsonify(res)
 
+    @app.route('/fetchALM_Testcases',methods=['POST'])
+    def alm_fetch_testcases():
+        res={'rows':'fail'}
+        try:
+            requestdata=json.loads(request.data)
+            app.logger.debug("Inside fetchALM_Testcases. Query: "+str(requestdata["query"]))
+            clientName=getClientName(requestdata)         
+            dbsession=client[clientName]
+            projection = {"_id":1,"name":1,"description":1}
+            result = list(dbsession.ALM_testcases.find({},projection))
+            if len(result):
+                app.logger.debug("ALM Testcases found ")
+                return jsonify({'rows':result, 'message': str(len(result)) +' testcases found '}), 200  
+            else :
+                app.logger.debug("ALM Testcases not found ")
+                return jsonify({'rows':[], 'message': str(len(result)) +' testcases found '}), 204
+        except Exception as e:
+            servicesException("reportStatusScenarios_ICE",e)
+            return jsonify({"rows": "fail", "error": str(e)}),500    
+
     # POST API to store testcase details
     @app.route("/ALM_createtestcase", methods=["POST"])
     def alm_create_testcase():
