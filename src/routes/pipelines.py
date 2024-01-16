@@ -96,11 +96,49 @@ def pipeline_list_module_executed(tokens, start_datetime, end_datetime):
         {
             "$project": {
                 "_id":0,
-                "suite_names": {"$arrayElemAt":["$suiteData.name",0]}
+                "Module Names": {"$arrayElemAt":["$suiteData.name",0]}
             }
         }
     ]
     return pipeline 
+
+
+def pipeline_count_module_executed(tokens, start_datetime, end_datetime):
+    pipeline = [
+        {
+            "$match": {
+                "configurekey":{"$in": tokens},
+                "starttime": {"$gte": start_datetime, "$lte": end_datetime}
+            }
+        },
+        {
+            "$group": {
+                "_id": "$parent",
+                "Count": {"$sum": 1}
+            },  
+        },
+        {
+            "$lookup": {
+                "from": "testsuites",
+                "localField": "_id",
+                "foreignField": "_id",
+                "as": "Module Name"
+            }
+        },
+        {
+            "$project": {
+                "Module Name": {"$arrayElemAt": ["$Module Name.name",0]},
+                "Count": 1,
+                "_id":0
+            }
+        },
+        {
+            "$sort": {
+                "Count": -1
+            }
+        }
+    ]
+    return pipeline
 
 
 ####################################################################################
