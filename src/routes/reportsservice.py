@@ -1031,7 +1031,7 @@ def LoadServices(app, redissession, client ,getClientName):
             filename = request_data['file']['originalname']
             project_name = request_data['project']
             organization_name = request_data['organization']
-            base_dir = 'D:/GenerateAI_temp'
+            base_dir = 'C:/GenerateAI_temp'
             target_folder = f'{base_dir}/{organization_name}/{project_name}'
 
             if save_file(request_data['file'], target_folder, filename,request_data):
