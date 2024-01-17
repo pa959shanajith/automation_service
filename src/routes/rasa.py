@@ -118,8 +118,8 @@ def LoadServices(app, redissession, client,getClientName):
     ################################## RASA SERVER ENDPOINT ##################################
     ##########################################################################################
 
-    # rasa_server_endpoint = "https://avoaiapidev.avoautomation.com/rasa_model" #enable it to use for production
-    rasa_server_endpoint = "http://127.0.0.1:5001/rasa_model"
+    rasa_server_endpoint = "https://avoaiapidev.avoautomation.com/rasa_model" #enable it to use for production
+    # rasa_server_endpoint = "http://127.0.0.1:5001/rasa_model"
 
 
     ##########################################################################################
@@ -142,7 +142,13 @@ def LoadServices(app, redissession, client,getClientName):
             
             # Check whether user is passing any message or not
             if requestdata["message"] == "":
-                return jsonify({"data":"Please Ask a Question...!!!", "status": HTTPStatus.OK}), HTTPStatus.OK
+                transformed_data = {
+                    "_type": "no_message",
+                    "_summary": "Please Ask a Question...!!!",
+                    "data": {"table_data": None, "chart_data": None},
+                    "status": HTTPStatus.OK
+                }
+                return jsonify(transformed_data), HTTPStatus.OK
             
             # Check for validating data of incoming request
             request_data = validate_request(requestdata, require_projectid=True, require_userid=True, require_metadata=True)

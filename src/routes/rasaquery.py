@@ -7,7 +7,8 @@ from utils import *
 ##########################################################################################
 
 # Summary if no data found in the database
-no_data_summary = "Regrettably, the requested data is not available at the moment. Kindly pose another question, and I'll be happy to assist you further."
+no_data_summary = """Regrettably, the requested data is not available at the moment. 
+                     Kindly pose another question, and I'll be happy to assist you further."""
 
 
 # Mapping for returned data type
@@ -68,7 +69,7 @@ class DataPreparation:
         chartType = kwargs.get("chartType", [])
         displayLegend = kwargs.get("displayLegend", "false")
 
-        if chartType == ["pie", "doughnut"] or ["doughnut"]:
+        if chartType in ["doughnut"]:
             data = {
                 "title": xtitle,
                 "labels": labels,
@@ -159,41 +160,41 @@ def list_of_users(requestdata, client, getClientName):
         # fetch required data from request
         projectid = requestdata["projectid"]
 
-        # Values for the response
+        # Collection name for the pipeline
         collection_name = "users"
-        title = "Total users"
-        labels = "User Count"
-        color = "#147524"
-        charttype = ["pie", "doughnut"]
+        summary = "Here is the list of users assigned to the same project, along with their respective roles."
 
         # Data processing
-        data_pipeline = pipelines.fetch_users(projectid=projectid)
-
         try:
-            table_result = DataPreparation.process_table_data(dbsession=dbsession, 
-                                                              collectionname=collection_name, 
-                                                              pipeline=data_pipeline)
+            data_pipeline = pipelines.fetch_users(projectid=projectid)
+            table_result = DataPreparation.process_table_data(dbsession=dbsession, collectionname=collection_name, pipeline=data_pipeline)  
         except Exception as e:
             table_result = None
 
-        chart_result = None  # Initialize chart_result to None
+        # Check if table_result is None
+        if table_result is None:
+            summary = no_data_summary
+            chart_result = None
 
-        if table_result:
-            # Pass values to process_final_chart_data and generate final chart data
+        else:
+            # Arguments for the chart data
+            x_title = ""
+            color = "#147524"
+            charttype = "doughnut"
+            labels = "Users Count"
+            chartdata = len(table_result)
+            chart_result = None
+
             chart_result = DataPreparation.process_final_chart_data(
-                x_title=title,
+                x_title=x_title,
                 labels=labels,
                 backgroundColor=color,
-                chartsData=len(table_result),
+                chartsData=chartdata,
                 chartType=charttype,
                 displayLegend="true"
             )
-            datatype = data_type["table/chart"]
-            summary = "Here is the list of users assigned to the same project, along with their respective roles."
-        else:
-            datatype = data_type["text"]
-            summary = "No data found for the requested query"
-
+        
+        datatype = data_type["table/chart"] if table_result else data_type["text"]
         result = DataPreparation.merge_table_and_chart_data(tabledata=table_result, chartdata=chart_result)
         return datatype, summary, result
 
