@@ -5,6 +5,13 @@
 from utils import *
 from datetime import datetime
 from pymongo import InsertOne
+from ftplib import FTP
+import os
+import shutil
+import base64
+from document_modules.generateAI_module import UserDocument,UserTestcases,AI_Testcases
+import requests
+from datetime import datetime
 
 
 def LoadServices(app, redissession, client ,getClientName):
@@ -969,6 +976,232 @@ def LoadServices(app, redissession, client ,getClientName):
         except Exception as getreportstatusexc:
             servicesException("reportStatusScenarios_ICE",getreportstatusexc)
         return jsonify(res)
+    
+    def save_file(file_content,target_folder,filename,request_data):
+        try:
+            pdf_binary_data = bytes(file_content['buffer']['data'])
+            if not os.path.exists(target_folder):
+                os.makedirs(target_folder)
+            destination_path = os.path.join(target_folder,filename)
+            
+            with open(destination_path, 'wb') as pdf_file:
+                pdf_file.write(pdf_binary_data)
+                
+            app.logger.info(f"Stored file '{filename}' in folder '{target_folder}'")
+            addr = 'https://avogenerativeai.avoautomation.com'
+            test_url = addr + '/send_text'
+            # files = request_data['file']
+            files = {'file': (filename, open(destination_path, 'rb'))}
+            data={'instancename':request_data['organization'],'projectname':request_data['project'],'type':request_data['type'],'username':request_data['name']}
+            
+            response = requests.post(test_url,data=data,files=files,verify = False)
+            if response.status_code == 200:
+                app.logger.info('generate AI file sent successfully')
+                return True
+            elif response.status_code == 400:
+                app.logger.error('Bad Request')
+                return False
+            elif response.status_code == 401:
+                app.logger.error('Unauthorized user')
+                return False
+            elif response.status_code == 403:
+                app.logger.error('user does not have the necessary permissions to access')
+                return False
+            elif response.status_code == 404 :
+                app.logger.error('Source not found')
+                return False
+            elif response.status_code == 500 :
+                app.logger.error('Internal Server Error')
+                return False
+            return True        
+        except Exception as e:
+            app.logger.error(f"Error saving file: {str(e)}")
+            return False
+            
+    @app.route('/upload/generateAIfile', methods=['POST'])
+    def upload_file():
+        try:
+            request_data = request.get_json()
 
+            if 'file' not in request_data or 'originalname' not in request_data['file']:
+                return jsonify({'error': 'Invalid request data'}), 400
+            
+            
+                
+            filename = request_data['file']['originalname']
+            project_name = request_data['project']
+            organization_name = request_data['organization']
+            base_dir = 'D:/GenerateAI_temp'
+            target_folder = f'{base_dir}/{organization_name}/{project_name}'
+
+            if save_file(request_data['file'], target_folder, filename,request_data):
+                client_name = getClientName(request_data)
+                dbsession = client[client_name]
+
+                document_data = UserDocument(
+                    project=project_name,
+                    orgname=organization_name,
+                    name=request_data['name'],
+                    # path=os.path.join(target_folder, filename),
+                    path=f'{target_folder}/{filename}',
+                    uploadedBy=request_data['email'],
+                    input_type=request_data['type'],
+                    version="1.0"
+                )
+
+                data_to_insert = document_data.to_dict()
+                insert_result = dbsession.generateAI_temp.insert_one(data_to_insert)
+
+                if insert_result.acknowledged:
+                    return jsonify({'rows':'success', 'message': 'File uploaded successfully'}), 200
+                else:
+                    return jsonify({'rows':'fail','error': 'Data insertion failed'}), 500
+            else:
+                return jsonify({'rows':'fail','error': 'File upload failed'}), 500
+
+        except Exception as e:
+            app.logger.error(f"Error: {str(e)}")
+            return jsonify({'rows':'fail','error': 'Internal server error'}), 500
+    
+    @app.route('/upload/getallUploadFiles', methods=['POST'])
+    def getallfiles():
+        try:
+            request_data = request.get_json()
+
+            if 'email' not in request_data:
+                return jsonify({'error': 'Invalid request data'}), 400
+            client_name = getClientName(request_data)
+            dbsession = client[client_name]
+            fetch_result = list(dbsession.generateAI_temp.find({"uploadedBy":request_data['email']}))
+
+            if len(fetch_result):
+                return jsonify({'rows':fetch_result, 'message': 'records found'}), 200
+            else:
+                return jsonify({'rows':[],'message': 'no records found'}), 200
+
+        except Exception as e:
+            app.logger.error(f"Error: {str(e)}")
+            return jsonify({'rows':'fail','error': 'Internal server error'}), 500
+    
+    @app.route('/generate/testcase', methods=['POST'])
+    def generateTestcase():
+        try:
+            request_data = request.get_json()
+            required_fields = ['email', 'name', 'projectname', 'organization', 'generateType']
+            if all(field not in request_data and ('generateType' not in request_data or 'typename' not in request_data['generateType']) for field in required_fields):
+                return jsonify({'error': 'Invalid request data'}), 400
+            headers = {
+                'Accept': 'application/json',
+                'Content-Type':'application/json'
+            }
+            addr = 'https://avogenerativeai.avoautomation.com'
+            test_url = addr + '/generate_testcase'
+           
+            data={'generate_type':request_data['generateType'], 'instancename':request_data['organization'],'projectname':request_data['project'],'email':request_data['email'],'username':request_data['name']}
+            json_data = json.dumps(data)
+            response = requests.post(test_url,headers=headers,data=json_data,verify = False)
+            if response.status_code == 200:
+                JsonObject = response.json()
+                app.logger.info('testcase generated successfully')
+                return jsonify({'rows':JsonObject, 'message': 'records found'}), 200
+            elif response.status_code == 400:
+                app.logger.error('Bad Request')
+                return jsonify({'rows':"fail", 'message': 'Bad Request'}), 400
+            elif response.status_code == 401:
+                app.logger.error('Unauthorized user')
+                return jsonify({'rows':"fail", 'message': 'Unauthorized user'}), 401
+            elif response.status_code == 403:
+                app.logger.error('user does not have the necessary permissions to access')
+                return jsonify({'rows':"fail", 'message': 'user does not have the necessary permissions to access'}), 403
+            elif response.status_code == 404 :
+                app.logger.error('Source not found')
+                return jsonify({'rows':"fail", 'message': 'Source not found'}), 404
+            elif response.status_code == 500 :
+                app.logger.error('Internal Server Error')
+                return jsonify({'rows':"fail", 'message': 'Internal Server Error'}), 500
+            elif response.status_code == 504 :
+                app.logger.error('Gateway Time-out')
+                return jsonify({'rows':"fail", 'message': 'Gateway Time-out'}), 504
+
+        except Exception as e:
+            app.logger.error(f"Error: {str(e)}")
+            return jsonify({'rows':'fail','error': 'Internal server error'}), 500          
+
+    @app.route('/JSON/userstory', methods=['POST'])
+    def getuserstories():
+        try:
+            request_data = request.get_json()
+            required_fields = ['email', 'name','organization']
+            if all(field not in request_data for field in required_fields):
+                return jsonify({'error': 'Invalid request data'}), 400
+            client_name = getClientName(request_data)
+            dbsession = client[client_name]
+            query = {
+                "uploadedBy": request_data['email'],
+                "name": request_data['name'],
+                "organization": request_data['organization'],
+                "uploadedTime": {'$exists': True},
+                "type":"userstories"
+            }
+            fetch_result = list(dbsession.generateAI_temp.find(query).sort("uploadedTime",-1).limit(1))
+
+            if len(fetch_result):
+                json_file_path = fetch_result[0]['path']
+                with open(json_file_path,'r') as file:
+                    json_data = file.read()
+                return jsonify({'rows':eval(json_data), 'message': 'records found'}), 200
+            else:
+                return jsonify({'rows':[],'message': 'no records found'}), 200
+
+        except Exception as e:
+            app.logger.error(f"Error: {str(e)}")
+            return jsonify({'rows':'fail','error': 'Internal server error'}), 500
+    
+    @app.route('/Save/testcases', methods=['POST'])
+    def saveTestcases():
+        try:
+            request_data = request.get_json()
+            required_fields = ['email', 'name','organization','projectname','testcase','type']
+            if all(field not in request_data for field in required_fields):
+                return jsonify({'error': 'Invalid request data'}), 400
+            client_name = getClientName(request_data)
+            dbsession = client[client_name]
+            
+            document_testcase = AI_Testcases(
+                testcase = request_data['testcase']
+            )
+
+            testcase_to_insert = document_testcase.to_dict()
+            insert_result = dbsession.AI_Testcases.insert_one(testcase_to_insert)
+
+            if insert_result.acknowledged:
+                query = {
+                "email": request_data['email'],
+                "name": request_data['name'],
+                "organization": request_data['organization'],
+                "project": request_data['projectname']
+                }
+                update = {
+                    "$push": {
+                    "testcases": {
+                        "testcase": insert_result.inserted_id,
+                        "testcasetype": request_data['type'],
+                        "createdAt": datetime.now(),
+                        "updatedAt": datetime.now()
+                    }
+                }
+                }
+                insert_user_testcase = dbsession.UserTestcases.update_one(query,update,upsert=True)
+                if insert_user_testcase.acknowledged:
+                   return jsonify({'rows':'success', 'message': 'user and AI testcase saved successfully'}), 200
+                    
+                else:
+                    return jsonify({'rows':'fail','error': 'failed to save user testcase'}), 500
+            else:
+                return jsonify({'rows':'fail','error': 'Data save or update failed'}), 500
+
+        except Exception as e:
+            app.logger.error(f"Error: {str(e)}")
+            return jsonify({'rows':'fail','error': 'Internal server error'}), 500    
 
 # END OF REPORTS
