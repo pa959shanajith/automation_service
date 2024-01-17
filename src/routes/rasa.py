@@ -13,14 +13,13 @@ def LoadServices(app, redissession, client,getClientName):
     ##########################################################################################
     
     # Function for request validation
-    def validate_request(data, require_projectid=False, require_userid=False, require_roleid=False, require_metadata=False):
+    def validate_request(data, require_projectid=False, require_userid=False, require_metadata=False):
         """
         Validate incoming request data
         Parameters:
             data (dict): Request data
             require_projectid (bool): Whether projectid is required
             require_userid (bool): Whether userid is required
-            require_roleid (bool): Whether roleid is required 
             require_metadata (bool): Whether metadata is required 
         Returns:
             dict: Validation result  
@@ -28,7 +27,6 @@ def LoadServices(app, redissession, client,getClientName):
 
         projectid = data.get("projectid")
         userid = data.get("sender")
-        roleid = data.get("roleid")
         message = data.get("message")
         metadata = data.get("metadata")
         start_time = data.get("starttime")
@@ -58,10 +56,6 @@ def LoadServices(app, redissession, client,getClientName):
         if require_userid and not userid:
             return {"error": "sender is required"}
         
-        # Check whether "roleid" is present or not
-        if require_roleid and not roleid:
-            return {"error": "roleid is required"}
-        
         # Check whether "metadata" is present or not
         if require_metadata and not metadata:
             return {"error": "metadata is required"}
@@ -69,7 +63,6 @@ def LoadServices(app, redissession, client,getClientName):
         return {
             "projectid": projectid,
             "userid": userid,
-            "roleid": roleid,
             "message": message,
             "metadata": metadata,
             "start_time": start_time,
@@ -82,7 +75,6 @@ def LoadServices(app, redissession, client,getClientName):
         payload = {
             "projectid": data["projectid"],
             "sender": data["userid"],
-            "roleid": data["roleid"],
             "message": data["message"],
             "metadata": data["metadata"],
             "starttime": data["start_time"],
@@ -126,8 +118,8 @@ def LoadServices(app, redissession, client,getClientName):
     ################################## RASA SERVER ENDPOINT ##################################
     ##########################################################################################
 
-    rasa_server_endpoint = "https://avoaiapidev.avoautomation.com/rasa_model"
-    # rasa_server_endpoint = "http://127.0.0.1:5001/rasa_model"
+    # rasa_server_endpoint = "https://avoaiapidev.avoautomation.com/rasa_model" #enable it to use for production
+    rasa_server_endpoint = "http://127.0.0.1:5001/rasa_model"
 
 
     ##########################################################################################
@@ -153,7 +145,7 @@ def LoadServices(app, redissession, client,getClientName):
                 return jsonify({"data":"Please Ask a Question...!!!", "status": HTTPStatus.OK}), HTTPStatus.OK
             
             # Check for validating data of incoming request
-            request_data = validate_request(requestdata, require_projectid=True, require_userid=True, require_roleid=True, require_metadata=True)
+            request_data = validate_request(requestdata, require_projectid=True, require_userid=True, require_metadata=True)
 
             if "error" in request_data:
                 return jsonify({"data": request_data["error"], "status": HTTPStatus.BAD_REQUEST}), HTTPStatus.BAD_REQUEST

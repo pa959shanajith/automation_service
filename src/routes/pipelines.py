@@ -107,7 +107,7 @@ def pipeline_count_module_executed(tokens, start_datetime, end_datetime):
     pipeline = [
         {
             "$match": {
-                "configurekey":{"$in": tokens},
+                "configurekey": {"$in": tokens},
                 "starttime": {"$gte": start_datetime, "$lte": end_datetime}
             }
         },
@@ -145,5 +145,97 @@ def pipeline_count_module_executed(tokens, start_datetime, end_datetime):
 ##################################### DEFECT #######################################
 ####################################################################################
 
-def pipeline_project_having_more_defects():
-    pass
+def pipeline_module_level_defects_trend_analysis(tokens, start_datetime, end_datetime):
+    pipeline = [
+        {
+            "$match": {
+                "configurekey": {"$in": tokens},
+                "status": {"$in":["Fail","fail"]},
+                "starttime": {"$gte": start_datetime, "$lte": end_datetime}
+            }
+        },
+        {
+            "$group": {
+                "_id": "$parent",
+                "status_count": {"$sum": 1}
+            }
+        },
+        {
+            "$lookup": {
+                "from": "testsuites",
+                "localField": "_id",
+                "foreignField": "_id",
+                "as": "moduledata"
+            }
+        },
+        {
+            "$project": {
+                "Module Name": {"$arrayElemAt": ["$moduledata.name",0]},
+                "Fail Count": "$status_count",
+                "_id":0
+            }
+        },
+        {
+            "$sort": {
+                "Fail Count": -1
+            }
+        }
+    ]
+    return pipeline
+
+
+def pipeline_module_with_more_defects(tokens, start_datetime, end_datetime):
+    pipeline = [
+        {
+            "$match": {
+                "configurekey": {"$in": tokens}, 
+                "status": {"$in": ["Fail","fail"]}, 
+                "starttime": {"$gte": start_datetime, "$lte": end_datetime}}
+        },
+        {
+            "$project": {
+                "parent": "$parent",
+                "status": "$status"
+            }
+        },
+        {
+            "$lookup": {
+                "from": "testsuites",
+                "localField": "parent",
+                "foreignField": "_id",
+                "as": "moduledata"
+            }
+        },
+        {
+            "$group": {
+                "_id": "$parent",
+                "module_name": {"$first": "$moduledata.name"},
+                "fail_count": {"$sum": {"$cond": {"if": {"$eq": ["$status", "fail"]}, "then": 1, "else": 0}}},
+                "total_count": {
+                    "$sum": {
+                        "$cond": {
+                            "if": {"$in": ["$status", ["pass", "fail"]]},
+                            "then": 1,
+                            "else": 0
+                        }
+                    }
+                }
+            }
+        },
+        {
+            "$project": {
+                "module_name": "$module_name", 
+                "defect_count": "$fail_count",
+                "_id": 0
+            }
+        },
+        {
+            "$sort": {"defect_count": -1}
+        },
+        {
+            "$limit": 5
+        }
+    ]
+    return pipeline
+
+
