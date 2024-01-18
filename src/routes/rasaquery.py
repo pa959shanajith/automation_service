@@ -784,6 +784,221 @@ def profile_with_less_defects(requestdata, client, getClientName):
         return e
 
 
+# Function to fetch execution environment level defect trend analysis for all the profiles in a project
+def execution_environment_defects_trend_analysis(requestdata, client, getClientName):
+    try:
+        dbsession = mongo_connection(requestdata, client, getClientName)
+
+        # fetch required data from request
+        projectid = requestdata["projectid"]
+        userid = requestdata["sender"]
+
+        # fetch and convert the date format
+        starttime, endtime = date_conversion(request=requestdata)
+
+        # Values for the response
+        collection_name = "executions"
+
+        # Data processing
+        project_name = list(dbsession.projects.find({"_id": ObjectId(projectid)}))[0]["name"]
+        token_pipeline = pipelines.fetch_tokens(projectid=projectid, userid=userid)
+        token_values = list(dbsession.configurekeys.aggregate(token_pipeline))
+        tokens = [tokens["token"] for tokens in token_values]
+        summary = (
+            "The data showing the test steps fail count for each execution environment under "
+            f"'{project_name}' project between {starttime.strftime('%d/%m/%Y')} and {endtime.strftime('%d/%m/%Y')}. "
+        )
+
+        try:
+            data_pipeline = pipelines.pipeline_execution_environment_defects_trend_analysis(tokens=tokens, start_datetime=starttime, end_datetime=endtime)
+            table_result = DataPreparation.process_table_data(dbsession=dbsession, collectionname=collection_name, pipeline=data_pipeline)
+
+            # Check if table_result is None
+            if not table_result:
+                summary = no_data_summary
+                table_result = None
+                chart_result = None
+
+            else:
+                x_title = "Browser"
+                y_title = "Fail Count"
+                color = "#BEAD0B"
+                charttype = ["bar", "line"]
+                labels = []
+                chartdata = []
+                chart_result = None
+
+                for d in table_result:
+                    labels.append(d['Browser'])
+                    chartdata.append(d['Fail Count'])
+
+                # Generating Chart Data
+                chart_result = DataPreparation.process_final_chart_data(
+                        x_title=x_title,
+                        y_title=y_title,
+                        labels=labels,
+                        backgroundColor=color,
+                        chartsData=chartdata,
+                        chartType=charttype,
+                        displayLegend="true"
+                    )
+
+        except Exception as e:
+            table_result = None
+            chart_result = None
+            summary = exeception_summary
+
+        datatype = data_type["table/chart"] if table_result else data_type["text"]
+        result = DataPreparation.merge_table_and_chart_data(tabledata=table_result, chartdata=chart_result)
+        return datatype, summary, result
+    
+    except Exception as e:
+        return e
+
+
+# Function to fetch execution environment with more fail count for all the profiles in a project
+def execution_environment_with_more_defects(requestdata, client, getClientName):
+    try:
+        dbsession = mongo_connection(requestdata, client, getClientName)
+
+        # fetch required data from request
+        projectid = requestdata["projectid"]
+        userid = requestdata["sender"]
+
+        # fetch and convert the date format
+        starttime, endtime = date_conversion(request=requestdata)
+        collection_name = "executions"
+
+        # Data processing
+        project_name = list(dbsession.projects.find({"_id": ObjectId(projectid)}))[0]["name"]
+        token_pipeline = pipelines.fetch_tokens(projectid=projectid, userid=userid)
+        token_values = list(dbsession.configurekeys.aggregate(token_pipeline))
+        tokens = [tokens["token"] for tokens in token_values]
+        summary = (
+            "The data showing the top five execution environment with maximum test steps fail count under "
+            f"'{project_name}' project between {starttime.strftime('%d/%m/%Y')} and {endtime.strftime('%d/%m/%Y')}. "
+        )
+
+        try:
+            data_pipeline = pipelines.pipeline_execution_environment_with_more_defects(tokens=tokens, start_datetime=starttime, end_datetime=endtime)
+            table_result = DataPreparation.process_table_data(dbsession=dbsession, collectionname=collection_name, pipeline=data_pipeline)
+
+            # Check if table_result is None
+            if not table_result:
+                summary = no_data_summary
+                table_result = None
+                chart_result = None
+
+            else:
+                x_title = "Browser"
+                y_title = "Fail Count"
+                color = "#BEAD0B"
+                charttype = ["bar", "line"]
+                labels = []
+                chartdata = []
+                chart_result = None
+
+                for d in table_result:
+                    labels.append(d['Browser'])
+                    chartdata.append(d['Fail Count'])
+
+                # Generating Chart Data
+                chart_result = DataPreparation.process_final_chart_data(
+                        x_title=x_title,
+                        y_title=y_title,
+                        labels=labels,
+                        backgroundColor=color,
+                        chartsData=chartdata,
+                        chartType=charttype,
+                        displayLegend="true"
+                    )
+
+        except Exception as e:
+            table_result = None
+            chart_result = None
+            summary = exeception_summary
+
+        datatype = data_type["table/chart"] if table_result else data_type["text"]
+        result = DataPreparation.merge_table_and_chart_data(tabledata=table_result, chartdata=chart_result)
+        return datatype, summary, result
+    
+    except Exception as e:
+        return e
+
+
+# Function to fetch execution environment with less fail count for all the profiles in a project
+def execution_environment_with_less_defects(requestdata, client, getClientName):
+    try:
+        dbsession = mongo_connection(requestdata, client, getClientName)
+
+        # fetch required data from request
+        projectid = requestdata["projectid"]
+        userid = requestdata["sender"]
+
+        # fetch and convert the date format
+        starttime, endtime = date_conversion(request=requestdata)
+        collection_name = "executions"
+
+        # Data processing
+        project_name = list(dbsession.projects.find({"_id": ObjectId(projectid)}))[0]["name"]
+        token_pipeline = pipelines.fetch_tokens(projectid=projectid, userid=userid)
+        token_values = list(dbsession.configurekeys.aggregate(token_pipeline))
+        tokens = [tokens["token"] for tokens in token_values]
+        summary = (
+            "The data showing the top five execution environment with minimum test steps fail count under "
+            f"'{project_name}' project between {starttime.strftime('%d/%m/%Y')} and {endtime.strftime('%d/%m/%Y')}. "
+        )
+
+        try:
+            data_pipeline = pipelines.pipeline_execution_environment_with_less_defects(tokens=tokens, start_datetime=starttime, end_datetime=endtime)
+            table_result = DataPreparation.process_table_data(dbsession=dbsession, collectionname=collection_name, pipeline=data_pipeline)
+
+            # Check if table_result is None
+            if not table_result:
+                summary = no_data_summary
+                table_result = None
+                chart_result = None
+
+            else:
+                x_title = "Browser"
+                y_title = "Fail Count"
+                color = "#BEAD0B"
+                charttype = ["bar", "line"]
+                labels = []
+                chartdata = []
+                chart_result = None
+
+                for d in table_result:
+                    labels.append(d['Browser'])
+                    chartdata.append(d['Fail Count'])
+
+                # Generating Chart Data
+                chart_result = DataPreparation.process_final_chart_data(
+                        x_title=x_title,
+                        y_title=y_title,
+                        labels=labels,
+                        backgroundColor=color,
+                        chartsData=chartdata,
+                        chartType=charttype,
+                        displayLegend="true"
+                    )
+
+        except Exception as e:
+            table_result = None
+            chart_result = None
+            summary = exeception_summary
+
+        datatype = data_type["table/chart"] if table_result else data_type["text"]
+        result = DataPreparation.merge_table_and_chart_data(tabledata=table_result, chartdata=chart_result)
+        return datatype, summary, result
+    
+    except Exception as e:
+        return e
+
+
+
+
+
 ##########################################################################################
 ################################### DEFAULT FUNCTIONS ####################################
 ##########################################################################################

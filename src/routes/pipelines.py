@@ -425,3 +425,128 @@ def pipeline_profile_with_less_defects(projectid, userid, start_datetime, end_da
     return pipeline
 
 
+def pipeline_execution_environment_defects_trend_analysis(tokens, start_datetime, end_datetime):
+    pipeline = [
+        {
+            "$match": {
+                "configurekey": {"$in": tokens},
+                "status": {"$in": ["Fail", "fail"]},
+                "starttime": {"$gte": start_datetime, "$lte":end_datetime}
+            }
+        },
+        {
+            "$lookup": {
+                "from": "reports",
+                "localField": "_id",
+                "foreignField": "executionid",
+                "as": "reportdata"
+            }
+        },
+        {
+            "$unwind": "$reportdata"
+        },
+        {
+            "$group": {
+                "_id": "$reportdata.executedon",
+                "Fail Count": {"$sum": 1}
+            }
+        },
+        {
+            "$project": {
+                "Browser": "$_id",
+                "Fail Count": "$Fail Count",
+                "_id":0
+            }
+        }
+    ]
+    return pipeline
+
+
+def pipeline_execution_environment_with_more_defects(tokens, start_datetime, end_datetime):
+    pipeline = [
+        {
+            "$match": {
+                "configurekey": {"$in": tokens}, 
+                "status": {"$in": ["Fail", "fail"]}, 
+                "starttime": {"$gte": start_datetime, "$lte":end_datetime}
+                }
+        },
+        {
+            "$lookup": {
+                "from": "reports",
+                "localField": "_id",
+                "foreignField": "executionid",
+                "as": "reportdata"
+            }
+        },
+        {
+            "$unwind": "$reportdata"
+        },
+        {
+            "$group": {
+                "_id": "$reportdata.executedon",
+                "Fail Count": {"$sum": 1}
+            }
+        },
+        {
+            "$project": {
+                "Browser": "$_id",
+                "Fail Count": "$Fail Count",
+                "_id":0
+            }
+        },
+        {
+            "$sort": {
+                "Fail Count": -1 
+            }
+        },
+        {
+            "$limit": 5
+        }
+    ]
+    return pipeline
+
+
+def pipeline_execution_environment_with_less_defects(tokens, start_datetime, end_datetime):
+    pipeline = [
+        {
+            "$match": {
+                "configurekey": {"$in": tokens}, 
+                "status": {"$in": ["Fail", "fail"]}, 
+                "starttime": {"$gte": start_datetime, "$lte":end_datetime}
+                }
+        },
+        {
+            "$lookup": {
+                "from": "reports",
+                "localField": "_id",
+                "foreignField": "executionid",
+                "as": "reportdata"
+            }
+        },
+        {
+            "$unwind": "$reportdata"
+        },
+        {
+            "$group": {
+                "_id": "$reportdata.executedon",
+                "Fail Count": {"$sum": 1}
+            }
+        },
+        {
+            "$project": {
+                "Browser": "$_id",
+                "Fail Count": "$Fail Count",
+                "_id":0
+            }
+        },
+        {
+            "$sort": {
+                "Fail Count": 1 
+            }
+        },
+        {
+            "$limit": 5
+        }
+    ]
+    return pipeline
