@@ -56,8 +56,8 @@ def fetch_projects(userid):
                 }},
             {"$project": {
                 "_id":0,
-                "projectName": 1,
-                "rolename": {"$arrayElemAt": ["$rolename.name",0]}
+                "Project Name": "$projectName",
+                "Role Name": {"$arrayElemAt": ["$rolename.name",0]}
                 }}
         ]
     return pipeline

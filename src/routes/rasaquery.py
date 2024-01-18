@@ -7,8 +7,8 @@ from utils import *
 ##########################################################################################
 
 # Summary if no data found in the database
-no_data_summary = """Regrettably, the requested data is not available at the moment. 
-                     Kindly pose another question, and I'll be happy to assist you further."""
+no_data_summary = "No Data Found for requested query."
+exeception_summary = """Regrettably, the requested data is not available at the moment. Kindly pose another question, and I'll be happy to assist you further."""
 
 
 # Mapping for returned data type
@@ -117,32 +117,35 @@ def list_of_projects(requestdata, client, getClientName):
         # Data processing
         try:
             data_pipeline = pipelines.fetch_projects(userid=userid)
-            table_result = DataPreparation.process_table_data(dbsession=dbsession, collectionname=collection_name, pipeline=data_pipeline)  
+            table_result = DataPreparation.process_table_data(dbsession=dbsession, collectionname=collection_name, pipeline=data_pipeline)
+
+            # Check if table_result is None
+            if not table_result:
+                summary = no_data_summary
+                table_result = None
+                chart_result = None
+            else:
+                # Arguments for the chart data
+                x_title = ""
+                color = "#36a2eb"
+                charttype = "doughnut"
+                labels = "Total Projects"
+                chartdata = len(table_result)
+                chart_result = None
+
+                chart_result = DataPreparation.process_final_chart_data(
+                    x_title=x_title,
+                    labels=labels,
+                    backgroundColor=color,
+                    chartsData=chartdata,
+                    chartType=charttype,
+                    displayLegend="true"
+                )
+
         except Exception as e:
             table_result = None
-
-        # Check if table_result is None
-        if table_result is None:
-            summary = no_data_summary
             chart_result = None
-
-        else:
-            # Arguments for the chart data
-            x_title = ""
-            color = "#36a2eb"
-            charttype = "doughnut"
-            labels = "Total Projects"
-            chartdata = len(table_result)
-            chart_result = None
-
-            chart_result = DataPreparation.process_final_chart_data(
-                x_title=x_title,
-                labels=labels,
-                backgroundColor=color,
-                chartsData=chartdata,
-                chartType=charttype,
-                displayLegend="true"
-            )
+            summary = exeception_summary
 
         datatype = data_type["table/chart"] if table_result else data_type["text"]
         result = DataPreparation.merge_table_and_chart_data(tabledata=table_result, chartdata=chart_result)
@@ -167,33 +170,36 @@ def list_of_users(requestdata, client, getClientName):
         # Data processing
         try:
             data_pipeline = pipelines.fetch_users(projectid=projectid)
-            table_result = DataPreparation.process_table_data(dbsession=dbsession, collectionname=collection_name, pipeline=data_pipeline)  
+            table_result = DataPreparation.process_table_data(dbsession=dbsession, collectionname=collection_name, pipeline=data_pipeline)
+
+            # Check if table_result is None
+            if not table_result:
+                summary = no_data_summary
+                table_result = None
+                chart_result = None
+            else:
+                # Arguments for the chart data
+                x_title = ""
+                color = "#147524"
+                charttype = "doughnut"
+                labels = "Users Count"
+                chartdata = len(table_result)
+                chart_result = None
+
+                chart_result = DataPreparation.process_final_chart_data(
+                    x_title=x_title,
+                    labels=labels,
+                    backgroundColor=color,
+                    chartsData=chartdata,
+                    chartType=charttype,
+                    displayLegend="true"
+                )
+
         except Exception as e:
             table_result = None
-
-        # Check if table_result is None
-        if table_result is None:
-            summary = no_data_summary
             chart_result = None
-
-        else:
-            # Arguments for the chart data
-            x_title = ""
-            color = "#147524"
-            charttype = "doughnut"
-            labels = "Users Count"
-            chartdata = len(table_result)
-            chart_result = None
-
-            chart_result = DataPreparation.process_final_chart_data(
-                x_title=x_title,
-                labels=labels,
-                backgroundColor=color,
-                chartsData=chartdata,
-                chartType=charttype,
-                displayLegend="true"
-            )
-        
+            summary = exeception_summary
+ 
         datatype = data_type["table/chart"] if table_result else data_type["text"]
         result = DataPreparation.merge_table_and_chart_data(tabledata=table_result, chartdata=chart_result)
         return datatype, summary, result
@@ -217,10 +223,6 @@ def list_module_executed(requestdata, client, getClientName):
 
         # Values for the response
         collection_name = "executions"
-        title = "Count of modules"
-        labels = "Modules Count"
-        color = "#754e14"
-        charttype = ["pie", "doughnut"]
 
         if profileid:
             profile_name = list(dbsession.configurekeys.find({"token": profileid}))[0]["executionData"]["configurename"]
@@ -236,23 +238,37 @@ def list_module_executed(requestdata, client, getClientName):
         try:
             data_pipeline = pipelines.pipeline_list_module_executed(tokens=tokens, start_datetime=starttime, end_datetime=endtime)
             table_result = DataPreparation.process_table_data(dbsession=dbsession, collectionname=collection_name, pipeline=data_pipeline)
+
+            # Check if table_result is None
+            if not table_result:
+                summary = no_data_summary
+                table_result = None
+                chart_result = None
+
+            else:
+                x_title = ""
+                color = "#754e14"
+                charttype = "doughnut"
+                labels = "Count of modules"
+                chartdata = len(table_result)
+                chart_result = None
+
+                chart_result = DataPreparation.process_final_chart_data(
+                    x_title=x_title,
+                    labels=labels,
+                    backgroundColor=color,
+                    chartsData=len(table_result),
+                    chartType=charttype,
+                    displayLegend="true"
+                )
+
         except Exception as e:
             table_result = None
-
-        chart_result = None
-        if table_result:
-            chart_result = DataPreparation.process_final_chart_data(
-                x_title=title,
-                labels=labels,
-                backgroundColor=color,
-                chartsData=len(table_result),
-                chartType=charttype,
-                displayLegend="true"
-            )
+            chart_result = None
+            summary = exeception_summary
 
         datatype = data_type["table/chart"] if table_result else data_type["text"]
         result = DataPreparation.merge_table_and_chart_data(tabledata=table_result, chartdata=chart_result)
-
         return datatype, summary, result
     
     except Exception as e:
@@ -293,49 +309,48 @@ def count_module_executed(requestdata, client, getClientName):
         try:
             data_pipeline = pipelines.pipeline_count_module_executed(tokens=tokens, start_datetime=starttime, end_datetime=endtime)
             table_result = DataPreparation.process_table_data(dbsession=dbsession, collectionname=collection_name, pipeline=data_pipeline)
+
+            # Check if table_result is None
+            if not table_result:
+                summary = no_data_summary
+                table_result = None
+                chart_result = None
+
+            else:
+                x_title = "Module Names"
+                y_title = "Times Executed"
+                color = "#754e14"
+                charttype = "bar"
+                labels = []
+                chartdata = []
+                chart_result = None
+
+                for d in table_result:
+                    labels.append(d['Module Name'])
+                    chartdata.append(d['Count'])
+
+                # Generating Chart Data
+                chart_result = DataPreparation.process_final_chart_data(
+                        x_title=x_title,
+                        y_title=y_title,
+                        labels=labels,
+                        backgroundColor=color,
+                        chartsData=chartdata,
+                        chartType=charttype,
+                        displayLegend="true"
+                    )
+
         except Exception as e:
             table_result = None
-
-        # Check if table_result is None
-        if table_result is None:
-            summary = "Regrettably, the requested data is not available at the moment. Kindly pose another question, and I'll be happy to assist you further."
             chart_result = None
-
-        else:
-            # Arguments for the chart data
-            xtitle = "Module Names"
-            ytitle = "Times Executed"
-            color = "#754e14"
-            charttype = "bar"
-            labels = []
-            chartdata = []
-            chart_result = None
-
-            for d in table_result:
-                labels.append(d['Module Name'])
-                chartdata.append(d['Count'])
-
-            # Generating Chart Data
-            chart_result = DataPreparation.process_final_chart_data(
-                    x_title=xtitle,
-                    y_title=ytitle,
-                    labels=labels,
-                    backgroundColor=color,
-                    chartsData=chartdata,
-                    chartType=charttype,
-                    displayLegend="true"
-                )
+            summary = exeception_summary
 
         datatype = data_type["table/chart"] if table_result else data_type["text"]
         result = DataPreparation.merge_table_and_chart_data(tabledata=table_result, chartdata=chart_result)
-
         return datatype, summary, result
     
     except Exception as e:
         return e
-
-
-
 
 
 ##########################################################################################
@@ -370,37 +385,41 @@ def module_level_defects_trend_analysis(requestdata, client, getClientName):
         try:
             data_pipeline = pipelines.pipeline_module_level_defects_trend_analysis(tokens=tokens, start_datetime=starttime, end_datetime=endtime)
             table_result = DataPreparation.process_table_data(dbsession=dbsession, collectionname=collection_name, pipeline=data_pipeline)
+
+            # Check if table_result is None
+            if not table_result:
+                summary = no_data_summary
+                table_result = None
+                chart_result = None
+
+            else:
+                x_title = "Module Names"
+                y_title = "Fail Count"
+                color = "#BEAD0B"
+                charttype = ["bar", "line"]
+                labels = []
+                chartdata = []
+                chart_result = None
+
+                for d in table_result:
+                    labels.append(d['Module Name'])
+                    chartdata.append(d['Fail Count'])
+
+                # Generating Chart Data
+                chart_result = DataPreparation.process_final_chart_data(
+                        x_title=x_title,
+                        y_title=y_title,
+                        labels=labels,
+                        backgroundColor=color,
+                        chartsData=chartdata,
+                        chartType=charttype,
+                        displayLegend="true"
+                    )
+
         except Exception as e:
             table_result = None
-
-        # Check if table_result is None
-        if table_result is None:
-            summary = "Regrettably, the requested data is not available at the moment. Kindly pose another question, and I'll be happy to assist you further."
             chart_result = None
-
-        else:
-            # Arguments for the chart data
-            x_title = "Module Names"
-            y_title = "Fail Count"
-            color = "#BEAD0B"
-            charttype = ["bar", "line"]
-            labels = []
-            chartdata = []
-            chart_result = None
-
-            for d in table_result:
-                labels.append(d['Module Name'])
-                chartdata.append(d['Fail Count'])
-
-            chart_result = DataPreparation.process_final_chart_data(
-                x_title=x_title,
-                y_title=y_title,
-                labels=labels,
-                backgroundColor=color,
-                chartsData=chartdata,
-                chartType=charttype,
-                displayLegend="true"
-            )
+            summary = exeception_summary
 
         datatype = data_type["table/chart"] if table_result else data_type["text"]
         result = DataPreparation.merge_table_and_chart_data(tabledata=table_result, chartdata=chart_result)
