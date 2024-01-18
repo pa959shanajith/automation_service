@@ -1,6 +1,7 @@
 import requests
 import rasaquery as rasafunctions
 from http import HTTPStatus
+from flask import Response
 
 from utils import *
 
@@ -111,7 +112,7 @@ def LoadServices(app, redissession, client,getClientName):
 
         # Store the result in the cache for 60 seconds
         # cache.set(function_name, transformed_data, timeout=60)
-        return jsonify(transformed_data), HTTPStatus.OK
+        return Response(json.dumps(transformed_data)), HTTPStatus.OK
 
 
     ##########################################################################################

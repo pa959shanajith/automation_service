@@ -356,7 +356,8 @@ def count_module_executed(requestdata, client, getClientName):
 ##########################################################################################
 ################################### DEFECT FUNCTIONS #####################################
 ##########################################################################################
-    
+
+# Function to fetch modules with fail counts for all the profiles in a project
 def module_level_defects_trend_analysis(requestdata, client, getClientName):
     try:
         dbsession = mongo_connection(requestdata, client, getClientName)
@@ -429,7 +430,7 @@ def module_level_defects_trend_analysis(requestdata, client, getClientName):
         return e
 
 
-# Function to fetch module fail count for all the profiles in a project
+# Function to fetch top five modules with more fail count for all the profiles in a project
 def module_with_more_defects(requestdata, client, getClientName):
     try:
         dbsession = mongo_connection(requestdata, client, getClientName)
@@ -450,9 +451,9 @@ def module_with_more_defects(requestdata, client, getClientName):
         token_values = list(dbsession.configurekeys.aggregate(token_pipeline))
         tokens = [tokens["token"] for tokens in token_values]
         summary = (
-            "Presented herein is the comprehensive module-level defect trend analysis for the "
+            "Presented herein is the summary of modules with more defects for "
             f"'{project_name}' project between {starttime.strftime('%d/%m/%Y')} and {endtime.strftime('%d/%m/%Y')}. "
-            "This data shows how many times a module is failing in the mentioned time period in a project."
+            "This data shows what modules are failing more number of times in the mentioned time period in a project."
         )
 
         try:
@@ -502,7 +503,285 @@ def module_with_more_defects(requestdata, client, getClientName):
         return e
 
 
+# Function to fetch top 5 modules with less fail count for all the profiles in a project
+def module_with_less_defects(requestdata, client, getClientName):
+    try:
+        dbsession = mongo_connection(requestdata, client, getClientName)
 
+        # fetch required data from request
+        projectid = requestdata["projectid"]
+        userid = requestdata["sender"]
+
+        # fetch and convert the date format
+        starttime, endtime = date_conversion(request=requestdata)
+
+        # Values for the response
+        collection_name = "executions"
+
+        # Data processing
+        project_name = list(dbsession.projects.find({"_id": ObjectId(projectid)}))[0]["name"]
+        token_pipeline = pipelines.fetch_tokens(projectid=projectid, userid=userid)
+        token_values = list(dbsession.configurekeys.aggregate(token_pipeline))
+        tokens = [tokens["token"] for tokens in token_values]
+        summary = (
+            "Presented herein is the summary of modules with less defects for "
+            f"'{project_name}' project between {starttime.strftime('%d/%m/%Y')} and {endtime.strftime('%d/%m/%Y')}. "
+            "This data shows what modules are failing less number of times in the mentioned time period in a project."
+        )
+
+        try:
+            data_pipeline = pipelines.pipeline_module_with_less_defects(tokens=tokens, start_datetime=starttime, end_datetime=endtime)
+            table_result = DataPreparation.process_table_data(dbsession=dbsession, collectionname=collection_name, pipeline=data_pipeline)
+
+            # Check if table_result is None
+            if not table_result:
+                summary = no_data_summary
+                table_result = None
+                chart_result = None
+
+            else:
+                x_title = "Module Names"
+                y_title = "Fail Count"
+                color = "#BEAD0B"
+                charttype = ["bar", "line"]
+                labels = []
+                chartdata = []
+                chart_result = None
+
+                for d in table_result:
+                    labels.append(d['Module Names'])
+                    chartdata.append(d['Fail Count'])
+
+                # Generating Chart Data
+                chart_result = DataPreparation.process_final_chart_data(
+                        x_title=x_title,
+                        y_title=y_title,
+                        labels=labels,
+                        backgroundColor=color,
+                        chartsData=chartdata,
+                        chartType=charttype,
+                        displayLegend="true"
+                    )
+                
+        except Exception as e:
+            table_result = None
+            chart_result = None
+            summary = exeception_summary
+
+        datatype = data_type["table/chart"] if table_result else data_type["text"]
+        result = DataPreparation.merge_table_and_chart_data(tabledata=table_result, chartdata=chart_result)
+        return datatype, summary, result
+
+    except Exception as e:
+        return e
+
+
+# Function to fetch number of failed modules for all the profile in a project
+def profile_level_defects_trend_analysis(requestdata, client, getClientName):
+    try:
+        dbsession = mongo_connection(requestdata, client, getClientName)
+
+        # fetch required data from request
+        projectid = requestdata["projectid"]
+        userid = requestdata["sender"]
+
+        # fetch and convert the date format
+        starttime, endtime = date_conversion(request=requestdata)
+
+        # Values for the response
+        collection_name = "configurekeys"
+
+        # Data processing
+        project_name = list(dbsession.projects.find({"_id": ObjectId(projectid)}))[0]["name"]
+        summary = (
+            "Given below is the summary of profile-level defect trend analysis under "
+            f"'{project_name}' project between {starttime.strftime('%d/%m/%Y')} and {endtime.strftime('%d/%m/%Y')}. "
+            "This data shows the count of failed modules for all profiles in the mentioned time period."
+        )
+
+        try:
+            data_pipeline = pipelines.pipeline_profile_level_defects_trend_analysis(projectid=projectid, userid=userid, start_datetime=starttime, end_datetime=endtime)
+            table_result = DataPreparation.process_table_data(dbsession=dbsession, collectionname=collection_name, pipeline=data_pipeline)
+
+            # Check if table_result is None
+            if not table_result:
+                summary = no_data_summary
+                table_result = None
+                chart_result = None
+
+            else:
+                x_title = "Profile Names"
+                y_title = "Fail Count"
+                color = "#BEAD0B"
+                charttype = ["bar", "line"]
+                labels = []
+                chartdata = []
+                chart_result = None
+
+                for d in table_result:
+                    labels.append(d['Profile Names'])
+                    chartdata.append(d['Failed Modules'])
+
+                # Generating Chart Data
+                chart_result = DataPreparation.process_final_chart_data(
+                        x_title=x_title,
+                        y_title=y_title,
+                        labels=labels,
+                        backgroundColor=color,
+                        chartsData=chartdata,
+                        chartType=charttype,
+                        displayLegend="true"
+                    )
+                
+        except Exception as e:
+            table_result = None
+            chart_result = None
+            summary = exeception_summary
+
+        datatype = data_type["table/chart"] if table_result else data_type["text"]
+        result = DataPreparation.merge_table_and_chart_data(tabledata=table_result, chartdata=chart_result)
+        return datatype, summary, result
+
+    except Exception as e:
+        return e
+
+
+# Function to fetch top 5 profiles with higher number of failed modules in a project
+def profile_with_more_defects(requestdata, client, getClientName):
+    try:
+        dbsession = mongo_connection(requestdata, client, getClientName)
+
+        # fetch required data from request
+        projectid = requestdata["projectid"]
+        userid = requestdata["sender"]
+
+        # fetch and convert the date format
+        starttime, endtime = date_conversion(request=requestdata)
+
+        # Values for the response
+        collection_name = "configurekeys"
+
+        # Data processing
+        project_name = list(dbsession.projects.find({"_id": ObjectId(projectid)}))[0]["name"]
+        summary = (
+            "Given below is the summary of top five profiles with maximum number of failed modules under "
+            f"'{project_name}' project between {starttime.strftime('%d/%m/%Y')} and {endtime.strftime('%d/%m/%Y')}. "
+        )
+
+        try:
+            data_pipeline = pipelines.pipeline_profile_with_more_defects(projectid=projectid, userid=userid, start_datetime=starttime, end_datetime=endtime)
+            table_result = DataPreparation.process_table_data(dbsession=dbsession, collectionname=collection_name, pipeline=data_pipeline)
+
+            # Check if table_result is None
+            if not table_result:
+                summary = no_data_summary
+                table_result = None
+                chart_result = None
+
+            else:
+                x_title = "Profile Names"
+                y_title = "Fail Count"
+                color = "#BEAD0B"
+                charttype = ["bar", "line"]
+                labels = []
+                chartdata = []
+                chart_result = None
+
+                for d in table_result:
+                    labels.append(d['Profile Names'])
+                    chartdata.append(d['Failed Modules'])
+
+                # Generating Chart Data
+                chart_result = DataPreparation.process_final_chart_data(
+                        x_title=x_title,
+                        y_title=y_title,
+                        labels=labels,
+                        backgroundColor=color,
+                        chartsData=chartdata,
+                        chartType=charttype,
+                        displayLegend="true"
+                    )
+                
+        except Exception as e:
+            table_result = None
+            chart_result = None
+            summary = exeception_summary
+
+        datatype = data_type["table/chart"] if table_result else data_type["text"]
+        result = DataPreparation.merge_table_and_chart_data(tabledata=table_result, chartdata=chart_result)
+        return datatype, summary, result
+
+    except Exception as e:
+        return e
+
+
+# Function to fetch top 5 profiles with less number of failed modules in a project
+def profile_with_less_defects(requestdata, client, getClientName):
+    try:
+        dbsession = mongo_connection(requestdata, client, getClientName)
+
+        # fetch required data from request
+        projectid = requestdata["projectid"]
+        userid = requestdata["sender"]
+
+        # fetch and convert the date format
+        starttime, endtime = date_conversion(request=requestdata)
+
+        # Values for the response
+        collection_name = "configurekeys"
+
+        # Data processing
+        project_name = list(dbsession.projects.find({"_id": ObjectId(projectid)}))[0]["name"]
+        summary = (
+            "Given below is the summary of top five profiles with minimum number of failed modules under "
+            f"'{project_name}' project between {starttime.strftime('%d/%m/%Y')} and {endtime.strftime('%d/%m/%Y')}. "
+        )
+
+        try:
+            data_pipeline = pipelines.pipeline_profile_with_less_defects(projectid=projectid, userid=userid, start_datetime=starttime, end_datetime=endtime)
+            table_result = DataPreparation.process_table_data(dbsession=dbsession, collectionname=collection_name, pipeline=data_pipeline)
+
+            # Check if table_result is None
+            if not table_result:
+                summary = no_data_summary
+                table_result = None
+                chart_result = None
+
+            else:
+                x_title = "Profile Names"
+                y_title = "Fail Count"
+                color = "#BEAD0B"
+                charttype = ["bar", "line"]
+                labels = []
+                chartdata = []
+                chart_result = None
+
+                for d in table_result:
+                    labels.append(d['Profile Names'])
+                    chartdata.append(d['Failed Modules'])
+
+                # Generating Chart Data
+                chart_result = DataPreparation.process_final_chart_data(
+                        x_title=x_title,
+                        y_title=y_title,
+                        labels=labels,
+                        backgroundColor=color,
+                        chartsData=chartdata,
+                        chartType=charttype,
+                        displayLegend="true"
+                    )
+                
+        except Exception as e:
+            table_result = None
+            chart_result = None
+            summary = exeception_summary
+
+        datatype = data_type["table/chart"] if table_result else data_type["text"]
+        result = DataPreparation.merge_table_and_chart_data(tabledata=table_result, chartdata=chart_result)
+        return datatype, summary, result
+
+    except Exception as e:
+        return e
 
 
 ##########################################################################################

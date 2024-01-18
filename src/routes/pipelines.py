@@ -234,3 +234,194 @@ def pipeline_module_with_more_defects(tokens, start_datetime, end_datetime):
     return pipeline
 
 
+def pipeline_module_with_less_defects(tokens, start_datetime, end_datetime):
+    pipeline = [
+        {
+            "$match": {
+                "configurekey": {"$in": tokens},
+                "starttime": {"$gte": start_datetime, "$lte": end_datetime}
+                }
+        },
+        {
+            "$lookup": {
+                "from": "testsuites",
+                "localField": "parent",
+                "foreignField": "_id",
+                "as": "moduledata"
+            }
+        },
+        {
+            "$group": {
+                "_id": "$parent",
+                "module_name": {"$first": "$moduledata.name"},
+                "fail_count": {"$sum": {"$cond": {"if": {"$eq": ["$status", "fail"]}, "then": 1, "else": 0}}},
+                "total_count": {
+                    "$sum": {
+                        "$cond": {
+                            "if": {"$in": ["$status", ["pass", "fail", "queued", "terminated"]]},
+                            "then": 1,
+                            "else": 0
+                        }
+                    }
+                }
+            }
+        },
+        {
+            "$project": {
+                "Module Names": {"$arrayElemAt": ["$module_name", 0]} , 
+                "Fail Count": "$fail_count",
+                "Total Executions": "$total_count",
+                "_id": 0
+            }
+        },
+        {
+            "$sort": {"Fail Count": 1}
+        },
+        {
+            "$limit": 5
+        }
+    ]
+    return pipeline
+
+
+def pipeline_profile_level_defects_trend_analysis(projectid, userid, start_datetime, end_datetime):
+    pipeline = [
+        {
+            "$match": {
+                "executionData.batchInfo.projectId": projectid,
+                "session.userid": userid,
+            }
+        },
+        {
+            "$lookup": {
+                "from": "executions",
+                "localField": "executionData.configurekey",
+                "foreignField": "configurekey",
+                "as": "executionDetails"
+            }
+        },
+        {
+            "$unwind": "$executionDetails"
+        },
+        {
+            "$match": {
+                "executionDetails.status": {"$in": ["Fail", "fail"]},
+                "executionDetails.starttime": {"$gte": start_datetime, "$lte": end_datetime}
+            }
+        },
+        {
+            "$group": {
+                "_id": "$executionData.configurename",
+                "Failed Modules": {"$sum": 1}
+            }
+        },
+        {
+            "$project": {
+                "_id": 0,
+                "Profile Names": "$_id",
+                "Failed Modules": "$Failed Modules"
+            }
+        },
+        {
+            "$sort": {"Failed Modules": -1}
+        }
+    ]
+    return pipeline
+
+
+def pipeline_profile_with_more_defects(projectid, userid, start_datetime, end_datetime):
+    pipeline = [
+        {
+            "$match": {
+                "executionData.batchInfo.projectId": projectid,
+                "session.userid": userid,
+            }
+        },
+        {
+            "$lookup": {
+                "from": "executions",
+                "localField": "executionData.configurekey",
+                "foreignField": "configurekey",
+                "as": "executionDetails"
+            }
+        },
+        {
+            "$unwind": "$executionDetails"
+        },
+        {
+            "$match": {
+                "executionDetails.status": {"$in": ["Fail", "fail"]},
+                "executionDetails.starttime": {"$gte": start_datetime, "$lte": end_datetime}
+            }
+        },
+        {
+            "$group": {
+                "_id": "$executionData.configurename",
+                "Failed Modules": {"$sum": 1}
+            }
+        },
+        {
+            "$project": {
+                "_id": 0,
+                "Profile Names": "$_id",
+                "Failed Modules": "$Failed Modules"
+            }
+        },
+        {
+            "$sort": {"Failed Modules": -1}
+        },
+        {
+            "$limit": 5
+        }
+    ]
+    return pipeline
+
+
+def pipeline_profile_with_less_defects(projectid, userid, start_datetime, end_datetime):
+    pipeline = [
+        {
+            "$match": {
+                "executionData.batchInfo.projectId": projectid,
+                "session.userid": userid,
+            }
+        },
+        {
+            "$lookup": {
+                "from": "executions",
+                "localField": "executionData.configurekey",
+                "foreignField": "configurekey",
+                "as": "executionDetails"
+            }
+        },
+        {
+            "$unwind": "$executionDetails"
+        },
+        {
+            "$match": {
+                "executionDetails.status": {"$in": ["Fail", "fail"]},
+                "executionDetails.starttime": {"$gte": start_datetime, "$lte": end_datetime}
+            }
+        },
+        {
+            "$group": {
+                "_id": "$executionData.configurename",
+                "Failed Modules": {"$sum": 1}
+            }
+        },
+        {
+            "$project": {
+                "_id": 0,
+                "Profile Names": "$_id",
+                "Failed Modules": "$Failed Modules"
+            }
+        },
+        {
+            "$sort": {"Failed Modules": 1}
+        },
+        {
+            "$limit": 5
+        }
+    ]
+    return pipeline
+
+
