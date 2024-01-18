@@ -188,15 +188,9 @@ def pipeline_module_with_more_defects(tokens, start_datetime, end_datetime):
     pipeline = [
         {
             "$match": {
-                "configurekey": {"$in": tokens}, 
-                "status": {"$in": ["Fail","fail"]}, 
-                "starttime": {"$gte": start_datetime, "$lte": end_datetime}}
-        },
-        {
-            "$project": {
-                "parent": "$parent",
-                "status": "$status"
-            }
+                "configurekey": {"$in": tokens},
+                "starttime": {"$gte": start_datetime, "$lte": end_datetime}
+                }
         },
         {
             "$lookup": {
@@ -214,7 +208,7 @@ def pipeline_module_with_more_defects(tokens, start_datetime, end_datetime):
                 "total_count": {
                     "$sum": {
                         "$cond": {
-                            "if": {"$in": ["$status", ["pass", "fail"]]},
+                            "if": {"$in": ["$status", ["pass", "fail", "queued", "terminated"]]},
                             "then": 1,
                             "else": 0
                         }
@@ -224,13 +218,14 @@ def pipeline_module_with_more_defects(tokens, start_datetime, end_datetime):
         },
         {
             "$project": {
-                "module_name": "$module_name", 
-                "defect_count": "$fail_count",
+                "Module Names": {"$arrayElemAt": ["$module_name", 0]} , 
+                "Fail Count": "$fail_count",
+                "Total Executions": "$total_count",
                 "_id": 0
             }
         },
         {
-            "$sort": {"defect_count": -1}
+            "$sort": {"Fail Count": -1}
         },
         {
             "$limit": 5

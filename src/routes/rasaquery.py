@@ -458,37 +458,41 @@ def module_with_more_defects(requestdata, client, getClientName):
         try:
             data_pipeline = pipelines.pipeline_module_with_more_defects(tokens=tokens, start_datetime=starttime, end_datetime=endtime)
             table_result = DataPreparation.process_table_data(dbsession=dbsession, collectionname=collection_name, pipeline=data_pipeline)
+
+            # Check if table_result is None
+            if not table_result:
+                summary = no_data_summary
+                table_result = None
+                chart_result = None
+
+            else:
+                x_title = "Module Names"
+                y_title = "Fail Count"
+                color = "#BEAD0B"
+                charttype = ["bar", "line"]
+                labels = []
+                chartdata = []
+                chart_result = None
+
+                for d in table_result:
+                    labels.append(d['Module Names'])
+                    chartdata.append(d['Fail Count'])
+
+                # Generating Chart Data
+                chart_result = DataPreparation.process_final_chart_data(
+                        x_title=x_title,
+                        y_title=y_title,
+                        labels=labels,
+                        backgroundColor=color,
+                        chartsData=chartdata,
+                        chartType=charttype,
+                        displayLegend="true"
+                    )
+                
         except Exception as e:
             table_result = None
-
-        # Check if table_result is None
-        if table_result is None:
-            summary = "Regrettably, the requested data is not available at the moment. Kindly pose another question, and I'll be happy to assist you further."
             chart_result = None
-
-        else:
-            # Arguments for the chart data
-            x_title = "Module Names"
-            y_title = "Fail Count"
-            color = "#BEAD0B"
-            charttype = ["bar", "line"]
-            labels = []
-            chartdata = []
-            chart_result = None
-
-            # for d in table_result:
-            #     labels.append(d['Module Name'])
-            #     chartdata.append(d['Fail Count'])
-
-            # chart_result = DataPreparation.process_final_chart_data(
-            #     x_title=x_title,
-            #     y_title=y_title,
-            #     labels=labels,
-            #     backgroundColor=color,
-            #     chartsData=chartdata,
-            #     chartType=charttype,
-            #     displayLegend="true"
-            # )
+            summary = exeception_summary
 
         datatype = data_type["table/chart"] if table_result else data_type["text"]
         result = DataPreparation.merge_table_and_chart_data(tabledata=table_result, chartdata=chart_result)
