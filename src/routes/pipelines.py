@@ -579,12 +579,6 @@ def pipeline_test_scenario_level_defects_trend_analysis(executionids):
         }
         },
         {
-            "$project": {
-                "testscenarioid": 1,
-                "_id": 0
-            }
-        },
-        {
             "$lookup": {
                 "from": "testscenarios",
                 "localField": "testscenarioid",
@@ -593,14 +587,8 @@ def pipeline_test_scenario_level_defects_trend_analysis(executionids):
             }
         },
         {
-            "$project": {
-                "testscenarioid": {"$arrayElemAt": ["$matchedTestScenarios._id", 0]},
-                "name": {"$arrayElemAt": ["$matchedTestScenarios.name", 0]}
-            }
-        },
-        {
             "$group": {
-                "_id": "$name",
+                "_id": {"$arrayElemAt": ["$matchedTestScenarios.name", 0]},
                 "defect_count": { "$sum": 1 }
             }
         },
@@ -624,12 +612,6 @@ def pipeline_test_scenario_with_more_defects(executionids):
         }
         },
         {
-            "$project": {
-                "testscenarioid": 1,
-                "_id": 0
-            }
-        },
-        {
             "$lookup": {
                 "from": "testscenarios",
                 "localField": "testscenarioid",
@@ -638,14 +620,8 @@ def pipeline_test_scenario_with_more_defects(executionids):
             }
         },
         {
-            "$project": {
-                "testscenarioid": {"$arrayElemAt": ["$matchedTestScenarios._id", 0]},
-                "name": {"$arrayElemAt": ["$matchedTestScenarios.name", 0]}
-            }
-        },
-        {
             "$group": {
-                "_id": "$name",
+                "_id": {"$arrayElemAt": ["$matchedTestScenarios.name", 0]},
                 "defect_count": { "$sum": 1 }
             }
         },
@@ -677,12 +653,6 @@ def pipeline_test_scenario_with_less_defects(executionids):
         }
         },
         {
-            "$project": {
-                "testscenarioid": 1,
-                "_id": 0
-            }
-        },
-        {
             "$lookup": {
                 "from": "testscenarios",
                 "localField": "testscenarioid",
@@ -691,14 +661,8 @@ def pipeline_test_scenario_with_less_defects(executionids):
             }
         },
         {
-            "$project": {
-                "testscenarioid": {"$arrayElemAt": ["$matchedTestScenarios._id", 0]},
-                "name": {"$arrayElemAt": ["$matchedTestScenarios.name", 0]}
-            }
-        },
-        {
             "$group": {
-                "_id": "$name",
+                "_id": {"$arrayElemAt": ["$matchedTestScenarios.name", 0]},
                 "defect_count": { "$sum": 1 }
             }
         },
@@ -707,6 +671,230 @@ def pipeline_test_scenario_with_less_defects(executionids):
                 "_id": 0,
                 "Test Scenario Name": "$_id",
                 "Fail Count": "$defect_count"
+            }
+        },
+        {
+            "$sort": {"Fail Count": 1}
+        },
+        {
+            "$limit": 5
+        }
+    ]
+    return pipeline
+
+
+def pipeline_browser_version_defects_trend_analysis(tokens, start_datetime, end_datetime):
+    pipeline = [
+        {
+            "$match": {
+                "configurekey": {"$in": tokens}, 
+                "status": {"$in": ["Fail", "fail"]},
+                "starttime": {"$gte": start_datetime, "$lte": end_datetime}
+                }
+        },
+        {
+            "$lookup": {
+                "from": "reports",
+                "localField": "_id",
+                "foreignField": "executionid",
+                "as": "reportdata"
+            }
+        },
+        {
+            "$unwind": "$reportdata"
+        },
+        {
+            "$group": {
+                "_id": {
+                    "Browser": "$reportdata.executedon",
+                    "Browser Version": "$reportdata.overallstatus.browserVersion"
+                },
+                "defect_count": {"$sum": 1 }
+            }
+        },
+        {
+            "$project": {
+                "_id": 0,
+                "Browser": "$_id.Browser",
+                "Browser Version": "$_id.Browser Version",
+                "Fail Count": "$defect_count"
+            }
+        }
+    ]
+    return pipeline
+
+
+def pipeline_browser_version_with_more_defects(tokens, start_datetime, end_datetime):
+    pipeline = [
+        {
+            "$match": {
+                "configurekey": {"$in": tokens}, 
+                "status": {"$in": ["Fail", "fail"]},
+                "starttime": {"$gte": start_datetime, "$lte": end_datetime}
+                }
+        },
+        {
+            "$lookup": {
+                "from": "reports",
+                "localField": "_id",
+                "foreignField": "executionid",
+                "as": "reportdata"
+            }
+        },
+        {
+            "$unwind": "$reportdata"
+        },
+        {
+            "$group": {
+                "_id": {
+                    "Browser": "$reportdata.executedon",
+                    "Browser Version": "$reportdata.overallstatus.browserVersion"
+                },
+                "defect_count": {"$sum": 1}
+            }
+        },
+        {
+            "$project": {
+                "_id": 0,
+                "Browser": "$_id.Browser",
+                "Browser Version": "$_id.Browser Version",
+                "Fail Count": "$defect_count"
+            }
+        },
+        {
+            "$sort": {"Fail Count": -1}
+        },
+        {
+            "$limit": 5
+        }
+    ]
+    return pipeline
+    
+
+def pipeline_browser_version_with_less_defects(tokens, start_datetime, end_datetime):
+    pipeline = [
+        {
+            "$match": {
+                "configurekey": {"$in": tokens}, 
+                "status": {"$in": ["Fail", "fail"]},
+                "starttime": {"$gte": start_datetime, "$lte": end_datetime}
+                }
+        },
+        {
+            "$lookup": {
+                "from": "reports",
+                "localField": "_id",
+                "foreignField": "executionid",
+                "as": "reportdata"
+            }
+        },
+        {
+            "$unwind": "$reportdata"
+        },
+        {
+            "$group": {
+                "_id": {
+                    "Browser": "$reportdata.executedon",
+                    "Browser Version": "$reportdata.overallstatus.browserVersion"
+                },
+                "defect_count": {"$sum": 1}
+            }
+        },
+        {
+            "$project": {
+                "_id": 0,
+                "Browser": "$_id.Browser",
+                "Browser Version": "$_id.Browser Version",
+                "Fail Count": "$defect_count"
+            }
+        },
+        {
+            "$sort": {"Fail Count": 1}
+        },
+        {
+            "$limit": 5
+        }
+    ]
+    return pipeline
+
+
+def pipeline_keyword_level_defects_trend_analysis(executionids):
+    pipeline = [
+        {
+            "$match": {
+                "execution_ids": {"$in": executionids},
+                "status": {"$in": ["Fail", "fail"]}
+            }
+        },
+        {
+            "$group": {
+                "_id": "$Keyword",
+                "Fail Count": {"$sum": 1}
+            }
+        },
+        {
+            "$project": {
+                "_id": 0,
+                "Keyword Name": "$_id",
+                "Fail Count": "$Fail Count"
+            }
+        }
+    ]
+    return pipeline
+
+
+def pipeline_keyword_with_more_defects(executionids):
+    pipeline = [
+        {
+            "$match": {
+                "execution_ids": {"$in": executionids},
+                "status": {"$in": ["Fail", "fail"]}
+            }
+        },
+        {
+            "$group": {
+                "_id": "$Keyword",
+                "Fail Count": {"$sum": 1}
+            }
+        },
+        {
+            "$project": {
+                "_id": 0,
+                "Keyword Name": "$_id",
+                "Fail Count": "$Fail Count"
+            }
+        },
+        {
+            "$sort": {
+                "Fail Count": -1
+            }
+        },
+        {
+            "$limit": 5
+        }
+    ]
+    return pipeline
+
+
+def pipeline_keyword_with_less_defects(executionids):
+    pipeline = [
+        {
+            "$match": {
+                "execution_ids": {"$in": executionids},
+                "status": {"$in": ["Fail", "fail"]}
+            }
+        },
+        {
+            "$group": {
+                "_id": "$Keyword",
+                "Fail Count": {"$sum": 1}
+            }
+        },
+        {
+            "$project": {
+                "_id": 0,
+                "Keyword Name": "$_id",
+                "Fail Count": "$Fail Count"
             }
         },
         {
@@ -720,214 +908,3 @@ def pipeline_test_scenario_with_less_defects(executionids):
     ]
     return pipeline
 
-
-def pipeline_keyword_level_defects_trend_analysis(executionids):
-    # Define the aggregation pipeline
-    pipeline = [
-                {
-                    "$match": {
-                        "execution_ids": {"$in": executionids},
-                        "status": {"$in": ["Fail", "fail"]}
-                    }
-                },
-                {
-                    "$group": {
-                        "_id": "$Keyword",
-                        "defect_count": {"$sum": 1}
-                    }
-                }
-            ]
-    return pipeline
-
-
-def pipeline_keyword_with_more_defects(executionids):
-    # Define the aggregation pipeline
-    pipeline = [
-                {
-                    "$match": {
-                        "execution_ids": {"$in": executionids},
-                        "status": {"$in": ["Fail", "fail"]}
-                    }
-                },
-                {
-                    "$group": {
-                        "_id": "$Keyword",
-                        "defect_count": {"$sum": 1}
-                    }
-                },
-                {
-                    "$sort": {
-                        "defect_count": -1
-                    }
-                },
-                {
-                    "$limit": 2
-                }
-            ]
-    return pipeline
-      
-
-def pipeline_keyword_with_less_defects(executionids):
-    # Define the aggregation pipeline
-    pipeline = [
-                {
-                    "$match": {
-                        "execution_ids": {"$in": executionids},
-                        "status": {"$in": ["Fail", "fail"]}
-                    }
-                },
-                {
-                    "$group": {
-                        "_id": "$Keyword",
-                        "defect_count": {"$sum": 1}
-                    }
-                },
-                {
-                    "$sort": {
-                        "defect_count": 1
-                    }
-                },
-                {
-                    "$limit": 2
-                }
-            ]
-    return pipeline
-
-
-def pipeline_browser_version_defects_trend_analysis(token_values, starttime, endtime):
-    # Define the aggregation pipeline
-    pipeline = [
-                {
-                    "$match": {
-                        "configurekey": {"$in": token_values}, 
-                        "status": {"$in": ["Fail", "fail"]}, 
-                        "starttime": {"$gte": starttime, "$lte":endtime}
-                        }
-                },
-                {
-                    "$lookup": {
-                        "from": "reports",
-                        "localField": "_id",
-                        "foreignField": "executionid",
-                        "as": "reportdata"
-                    }
-                },
-                {
-                    "$unwind": "$reportdata"
-                },
-                {
-                    "$group": {
-                    "_id": {
-                        "browserVersion": "$reportdata.overallstatus.browserVersion",
-                    },
-                    "defect_count": { "$sum": 1 }
-                    }
-                },
-                {
-                    "$project": {
-                    "_id": 0,
-                    "browserVersion": "$_id.browserVersion",
-                    "defect_count": 1
-                    }
-                }
-                ]
-                
-    return pipeline
-
-
-def pipeline_browser_version_with_more_defects(token_values, starttime, endtime):
-    # Define the aggregation pipeline
-    pipeline = [
-                {
-                    "$match": {
-                        "configurekey": {"$in": token_values}, 
-                        "status": {"$in": ["Fail", "fail"]}, 
-                        "starttime": {"$gte": starttime, "$lte":endtime}
-                        }
-                },
-                {
-                    "$lookup": {
-                        "from": "reports",
-                        "localField": "_id",
-                        "foreignField": "executionid",
-                        "as": "reportdata"
-                    }
-                },
-                {
-                    "$unwind": "$reportdata"
-                },
-                {
-                    "$group": {
-                    "_id": {
-                        "browserVersion": "$reportdata.overallstatus.browserVersion",
-                    },
-                    "defect_count": { "$sum": 1 }
-                    }
-                },
-                {
-                    "$project": {
-                    "_id": 0,
-                    "browserVersion": "$_id.browserVersion",
-                    "defect_count": 1
-                    }
-                },
-                {
-                    "$sort": {
-                        "defect_count": -1 
-                    }
-                },
-                {
-                    "$limit": 2
-                } 
-                ]
-                
-    return pipeline
-
-
-def pipeline_browser_version_with_less_defects(token_values, starttime, endtime):
-    # Define the aggregation pipeline
-    pipeline = [
-                {
-                    "$match": {
-                        "configurekey": {"$in": token_values}, 
-                        "status": {"$in": ["Fail", "fail"]}, 
-                        "starttime": {"$gte": starttime, "$lte":endtime}
-                        }
-                },
-                {
-                    "$lookup": {
-                        "from": "reports",
-                        "localField": "_id",
-                        "foreignField": "executionid",
-                        "as": "reportdata"
-                    }
-                },
-                {
-                    "$unwind": "$reportdata"
-                },
-                {
-                    "$group": {
-                    "_id": {
-                        "browserVersion": "$reportdata.overallstatus.browserVersion",
-                    },
-                    "defect_count": { "$sum": 1 }
-                    }
-                },
-                {
-                    "$project": {
-                    "_id": 0,
-                    "browserVersion": "$_id.browserVersion",
-                    "defect_count": 1
-                    }
-                },
-                {
-                    "$sort": {
-                        "defect_count": 1 
-                    }
-                },
-                {
-                    "$limit": 2
-                } 
-                ]
-                
-    return pipeline
