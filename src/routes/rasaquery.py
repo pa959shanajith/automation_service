@@ -996,6 +996,435 @@ def execution_environment_with_less_defects(requestdata, client, getClientName):
         return e
 
 
+# Function to fetch TestCase level defect trend analysis for all the profiles in a project
+def test_scenario_level_defects_trend_analysis(requestdata, client, getClientName):
+    try:
+        dbsession = mongo_connection(requestdata, client, getClientName)
+
+        # fetch required data from request
+        projectid = requestdata["projectid"]
+        userid = requestdata["sender"]
+
+        # fetch and convert the date format
+        starttime, endtime = date_conversion(request=requestdata)
+        collection_name = "reports"
+
+        # Data processing
+        project_name = list(dbsession.projects.find({"_id": ObjectId(projectid)}))[0]["name"]
+        token_pipeline = pipelines.fetch_tokens(projectid=projectid, userid=userid)
+        token_values = list(dbsession.configurekeys.aggregate(token_pipeline))
+        tokens = [tokens["token"] for tokens in token_values]
+        summary = (
+            "The data showing the fail count trend analysis for each test step under "
+            f"'{project_name}' project between {starttime.strftime('%d/%m/%Y')} and {endtime.strftime('%d/%m/%Y')}. "
+        )
+
+        try:
+            # Fetching unique execution ids for given configurekeys
+            executionid_pipeline = pipelines.fetch_executionids(tokens=tokens, start_datetime=starttime, end_datetime=endtime)
+            mod_execids = list(dbsession.executions.aggregate(executionid_pipeline))
+            
+            if mod_execids:
+                exe_objids = [exeid['_id'] for exeid in mod_execids]
+                data_pipeline = pipelines.pipeline_test_scenario_level_defects_trend_analysis(executionids=exe_objids)
+                table_result = DataPreparation.process_table_data(dbsession=dbsession, collectionname=collection_name, pipeline=data_pipeline)
+            else:
+                table_result = None
+
+            # Check if table_result is None
+            if not table_result:
+                summary = no_data_summary
+                table_result = None
+                chart_result = None
+
+            else:
+                x_title = "Test Scenarios"
+                y_title = "Fail Count"
+                color = "#BEAD0B"
+                charttype = ["bar", "line"]
+                labels = []
+                chartdata = []
+                chart_result = None
+
+                for d in table_result:
+                    labels.append(d['Test Scenario Name'])
+                    chartdata.append(d['Fail Count'])
+
+                # Generating Chart Data
+                chart_result = DataPreparation.process_final_chart_data(
+                        x_title=x_title,
+                        y_title=y_title,
+                        labels=labels,
+                        backgroundColor=color,
+                        chartsData=chartdata,
+                        chartType=charttype,
+                        displayLegend="true"
+                    )
+
+        except Exception as e:
+            table_result = None
+            chart_result = None
+            summary = exeception_summary
+
+        datatype = data_type["table/chart"] if table_result else data_type["text"]
+        result = DataPreparation.merge_table_and_chart_data(tabledata=table_result, chartdata=chart_result)
+        return datatype, summary, result
+
+    except Exception as e:
+        return e
+
+
+# Function to fetch TestCase with more fail count for all the profiles in a project
+def test_scenario_with_more_defects(requestdata, client, getClientName):
+    try:
+        dbsession = mongo_connection(requestdata, client, getClientName)
+
+        # fetch required data from request
+        projectid = requestdata["projectid"]
+        userid = requestdata["sender"]
+
+        # fetch and convert the date format
+        starttime, endtime = date_conversion(request=requestdata)
+        collection_name = "reports"
+
+        # Data processing
+        project_name = list(dbsession.projects.find({"_id": ObjectId(projectid)}))[0]["name"]
+        token_pipeline = pipelines.fetch_tokens(projectid=projectid, userid=userid)
+        token_values = list(dbsession.configurekeys.aggregate(token_pipeline))
+        tokens = [tokens["token"] for tokens in token_values]
+        summary = (
+            "The data showing the top 5 TestCases with maximum fail count under "
+            f"'{project_name}' project between {starttime.strftime('%d/%m/%Y')} and {endtime.strftime('%d/%m/%Y')}. "
+        )
+
+        try:
+            # Fetching unique execution ids for given configurekeys
+            executionid_pipeline = pipelines.fetch_executionids(tokens=tokens, start_datetime=starttime, end_datetime=endtime)
+            mod_execids = list(dbsession.executions.aggregate(executionid_pipeline))
+            
+            if mod_execids:
+                exe_objids = [exeid['_id'] for exeid in mod_execids]
+                data_pipeline = pipelines.pipeline_test_scenario_with_more_defects(executionids=exe_objids)
+                table_result = DataPreparation.process_table_data(dbsession=dbsession, collectionname=collection_name, pipeline=data_pipeline)
+            else:
+                table_result = None
+
+            # Check if table_result is None
+            if not table_result:
+                summary = no_data_summary
+                table_result = None
+                chart_result = None
+
+            else:
+                x_title = "Test Scenarios"
+                y_title = "Fail Count"
+                color = "#BEAD0B"
+                charttype = ["bar", "line"]
+                labels = []
+                chartdata = []
+                chart_result = None
+
+                for d in table_result:
+                    labels.append(d['Test Scenario Name'])
+                    chartdata.append(d['Fail Count'])
+
+                # Generating Chart Data
+                chart_result = DataPreparation.process_final_chart_data(
+                        x_title=x_title,
+                        y_title=y_title,
+                        labels=labels,
+                        backgroundColor=color,
+                        chartsData=chartdata,
+                        chartType=charttype,
+                        displayLegend="true"
+                    )
+
+        except Exception as e:
+            table_result = None
+            chart_result = None
+            summary = exeception_summary
+
+        datatype = data_type["table/chart"] if table_result else data_type["text"]
+        result = DataPreparation.merge_table_and_chart_data(tabledata=table_result, chartdata=chart_result)
+        return datatype, summary, result
+
+    except Exception as e:
+        return e
+
+
+# Function to fetch TestCase with less fail count for all the profiles in a project
+def test_scenario_with_less_defects(requestdata, client, getClientName):
+    try:
+        dbsession = mongo_connection(requestdata, client, getClientName)
+
+        # fetch required data from request
+        projectid = requestdata["projectid"]
+        userid = requestdata["sender"]
+
+        # fetch and convert the date format
+        starttime, endtime = date_conversion(request=requestdata)
+        collection_name = "reports"
+
+        # Data processing
+        project_name = list(dbsession.projects.find({"_id": ObjectId(projectid)}))[0]["name"]
+        token_pipeline = pipelines.fetch_tokens(projectid=projectid, userid=userid)
+        token_values = list(dbsession.configurekeys.aggregate(token_pipeline))
+        tokens = [tokens["token"] for tokens in token_values]
+        summary = (
+            "The data showing the top 5 TestCases with minimum fail count under "
+            f"'{project_name}' project between {starttime.strftime('%d/%m/%Y')} and {endtime.strftime('%d/%m/%Y')}. "
+        )
+
+        try:
+            # Fetching unique execution ids for given configurekeys
+            executionid_pipeline = pipelines.fetch_executionids(tokens=tokens, start_datetime=starttime, end_datetime=endtime)
+            mod_execids = list(dbsession.executions.aggregate(executionid_pipeline))
+            
+            if mod_execids:
+                exe_objids = [exeid['_id'] for exeid in mod_execids]
+                data_pipeline = pipelines.pipeline_test_scenario_with_less_defects(executionids=exe_objids)
+                table_result = DataPreparation.process_table_data(dbsession=dbsession, collectionname=collection_name, pipeline=data_pipeline)
+            else:
+                table_result = None
+
+            # Check if table_result is None
+            if not table_result:
+                summary = no_data_summary
+                table_result = None
+                chart_result = None
+
+            else:
+                x_title = "Test Scenarios"
+                y_title = "Fail Count"
+                color = "#BEAD0B"
+                charttype = ["bar", "line"]
+                labels = []
+                chartdata = []
+                chart_result = None
+
+                for d in table_result:
+                    labels.append(d['Test Scenario Name'])
+                    chartdata.append(d['Fail Count'])
+
+                # Generating Chart Data
+                chart_result = DataPreparation.process_final_chart_data(
+                        x_title=x_title,
+                        y_title=y_title,
+                        labels=labels,
+                        backgroundColor=color,
+                        chartsData=chartdata,
+                        chartType=charttype,
+                        displayLegend="true"
+                    )
+
+        except Exception as e:
+            table_result = None
+            chart_result = None
+            summary = exeception_summary
+
+        datatype = data_type["table/chart"] if table_result else data_type["text"]
+        result = DataPreparation.merge_table_and_chart_data(tabledata=table_result, chartdata=chart_result)
+        return datatype, summary, result
+
+    except Exception as e:
+        return e
+
+
+###############################################
+def keyword_level_defects_trend_analysis(requestdata, client, getClientName):
+    try:
+        dbsession = mongo_connection(requestdata, client, getClientName)
+
+        # fetch required data from request
+        projectid = requestdata["projectid"]
+        userid = requestdata["sender"]
+
+        # fetch and convert the date format
+        starttime, endtime = date_conversion(request=requestdata)
+
+        # Data Processing
+        token_pipeline = pipelines.fetch_tokens(projectid=projectid, userid=userid)
+        token_values = list(dbsession.configurekeys.aggregate(token_pipeline))
+
+        tokens = [tokens["token"] for tokens in token_values]
+
+        # Fetching unique execution ids for given configurekeys
+        executionid_pipeline = pipelines.fetch_executionids(tokens=tokens, starttime=starttime, endtime=endtime)
+        res = list(dbsession.executions.aggregate(executionid_pipeline))
+
+        exe_ids = res[0]["executionids"]
+
+        keyword_pipeline = pipelines.pipeline_keyword_level_defects_trend_analysis(executionids=exe_ids)
+        result = list(dbsession.reportitems.aggregate(keyword_pipeline))
+
+        if not result:
+            return data_type["text"], "Data not found..!!!"
+        else:
+            return data_type["table"], result
+
+    except Exception as e:
+        return e
+    
+
+def keyword_with_more_defects(requestdata, client, getClientName):
+    try:
+        dbsession = mongo_connection(requestdata, client, getClientName)
+
+        # fetch required data from request
+        projectid = requestdata["projectid"]
+        userid = requestdata["sender"]
+
+        # fetch and convert the date format
+        starttime, endtime = date_conversion(request=requestdata)
+
+        # Data Processing
+        token_pipeline = pipelines.fetch_tokens(projectid=projectid, userid=userid)
+        token_values = list(dbsession.configurekeys.aggregate(token_pipeline))
+
+        tokens = [tokens["token"] for tokens in token_values]
+
+        # Fetching unique execution ids for given configurekeys
+        executionid_pipeline = pipelines.fetch_executionids(tokens=tokens, starttime=starttime, endtime=endtime)
+        res = list(dbsession.executions.aggregate(executionid_pipeline))
+
+        exe_ids = res[0]["executionids"]
+
+        keyword_pipeline = pipelines.pipeline_keyword_with_more_defects(executionids=exe_ids)
+        result = list(dbsession.reportitems.aggregate(keyword_pipeline))
+
+        if not result:
+            return data_type["text"], "Data not found..!!!"
+        else:
+            return data_type["table"], result
+
+    except Exception as e:
+        return e
+    
+
+def keyword_with_less_defects(requestdata, client, getClientName):
+    try:
+        dbsession = mongo_connection(requestdata, client, getClientName)
+
+        # fetch required data from request
+        projectid = requestdata["projectid"]
+        userid = requestdata["sender"]
+
+        # fetch and convert the date format
+        starttime, endtime = date_conversion(request=requestdata)
+
+        # Data Processing
+        token_pipeline = pipelines.fetch_tokens(projectid=projectid, userid=userid)
+        token_values = list(dbsession.configurekeys.aggregate(token_pipeline))
+
+        tokens = [tokens["token"] for tokens in token_values]
+
+        # Fetching unique execution ids for given configurekeys
+        executionid_pipeline = pipelines.fetch_executionids(tokens=tokens, starttime=starttime, endtime=endtime)
+        res = list(dbsession.executions.aggregate(executionid_pipeline))
+
+        exe_ids = res[0]["executionids"]
+
+        keyword_pipeline = pipelines.pipeline_keyword_with_less_defects(executionids=exe_ids)
+        result = list(dbsession.reportitems.aggregate(keyword_pipeline))
+
+        if not result:
+            return data_type["text"], "Data not found..!!!"
+        else:
+            return data_type["table"], result
+
+    except Exception as e:
+        return e
+
+
+def browser_version_defects_trend_analysis(requestdata, client, getClientName):
+    try:
+        dbsession = mongo_connection(requestdata, client, getClientName)
+
+        # fetch required data from request
+        projectid = requestdata["projectid"]
+        userid = requestdata["sender"]
+
+        # fetch and convert the date format
+        starttime, endtime = date_conversion(request=requestdata)
+        primary_pipeline = pipelines.fetch_tokens(projectid=projectid, userid=userid)
+        results = list(dbsession.configurekeys.aggregate(primary_pipeline))
+
+
+        token_values = [d['token'] for d in results]
+
+        modules=[]
+        exec = pipelines.pipeline_browser_version_defects_trend_analysis(token_values=token_values, starttime=starttime, endtime=endtime)
+        result =list(dbsession.executions.aggregate(exec))
+        if result:
+                modules.append(result)
+        if not modules:
+            return data_type["text"], "Data not found..!!!"
+        else:
+            return data_type["table"], modules
+
+    except Exception as e:
+        return e
+
+
+def browser_version_with_more_defects(requestdata, client, getClientName):
+    try:
+        dbsession = mongo_connection(requestdata, client, getClientName)
+
+        # fetch required data from request
+        projectid = requestdata["projectid"]
+        userid = requestdata["sender"]
+
+        # fetch and convert the date format
+        starttime, endtime = date_conversion(request=requestdata)
+        primary_pipeline = pipelines.fetch_tokens(projectid=projectid, userid=userid)
+        results = list(dbsession.configurekeys.aggregate(primary_pipeline))
+
+
+        token_values = [d['token'] for d in results]
+
+        modules=[]
+        exec = pipelines.pipeline_browser_version_with_more_defects(token_values=token_values, starttime=starttime, endtime=endtime)
+        result =list(dbsession.executions.aggregate(exec))
+        if result:
+                modules.append(result)
+        if not modules:
+            return data_type["text"], "Data not found..!!!"
+        else:
+            return data_type["table"], modules
+
+    except Exception as e:
+        return e
+    
+
+def browser_version_with_less_defects(requestdata, client, getClientName):
+    try:
+        dbsession = mongo_connection(requestdata, client, getClientName)
+
+        # fetch required data from request
+        projectid = requestdata["projectid"]
+        userid = requestdata["sender"]
+
+        # fetch and convert the date format
+        starttime, endtime = date_conversion(request=requestdata)
+        primary_pipeline = pipelines.fetch_tokens(projectid=projectid, userid=userid)
+        results = list(dbsession.configurekeys.aggregate(primary_pipeline))
+
+
+        token_values = [d['token'] for d in results]
+
+        modules=[]
+        exec = pipelines.pipeline_browser_version_with_less_defects(token_values=token_values, starttime=starttime, endtime=endtime)
+        result =list(dbsession.executions.aggregate(exec))
+        if result:
+                modules.append(result)
+        if not modules:
+            return data_type["text"], "Data not found..!!!"
+        else:
+            return data_type["table"], modules
+
+    except Exception as e:
+        return e
+
 
 
 
