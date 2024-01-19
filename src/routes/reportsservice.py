@@ -6,6 +6,8 @@ from utils import *
 from datetime import datetime
 from pymongo import InsertOne
 from pymongo import DESCENDING
+from http import HTTPStatus
+
 
 def LoadServices(app, redissession, client ,getClientName):
     setenv(app)
@@ -1053,56 +1055,33 @@ def LoadServices(app, redissession, client ,getClientName):
         app.logger.debug("Inside saveALM_MappedTestcase")
         try:
             request_data = request.get_json()
-            # required_keys = ["sutBaseUrl","project","projectName","process","processName","processGlobalId","testCaseName","testCaseDescription"]
-            # missing_keys = [key for key in required_keys if key not in request_data]
-
-            # if len(missing_keys):
-            #     return jsonify({"error": f"Missing keys: {', '.join(missing_keys)}"}), 400
 
             client_name = getClientName(request_data)
             dbsession = client[client_name]
-            app.logger.debug("testcase details uploading to ALM_testcases")    
-            # create or update the ALM testcases collection
-            # insert_testcase_result = dbsession.ALM_testcases.insert_one(testcase_data)
-            # if insert_testcase_result.acknowledged:
-            #     testcase_id = str(insert_testcase_result.inserted_id)
-            app.logger.debug("testcase details uploaded id : "+request_data["testcaseId"])
-            last_config_profile = dbsession.executionlist.find_one(sort=[('_id',DESCENDING)],projection={"executionData":1})
-            if last_config_profile:
-                print("Last profile:", last_config_profile)
+            app.logger.debug("testcase details uploading to ALM_testcases")  
+            testcases = request_data["testname"]
+            # scenarios = request_data["testscenarioid"]
+            
+            findquerynew = {"type":request_data["type"],"testid":request_data["testid"],"testname":request_data["testname"]}
+            # testcaselist=list(dbsession.thirdpartyintegration.find({"testscenarioid":request_data["testscenarioid"]}))
+            testscenarios=list(dbsession.thirdpartyintegration.find(findquerynew))
+            if len(testcases) == 1 and len(testscenarios) != 0:
+                z_ts=testscenarios[0]['testscenarioid']
+                requestdata_ts = request_data["testscenarioid"]
+                for a in requestdata_ts:
+                    if a not in z_ts:
+                        z_ts.append(a)
+                dbsession.thirdpartyintegration.update_one(findquerynew, {'$set': {"testscenarioid":z_ts,'updatedAt':datetime.now()}})
+                return jsonify({'rows':'success','message': 'doc updated'}), HTTPStatus.OK
             else:
-                print("No records found.")
-            document_id = ObjectId(request_data["testcaseId"])
-            update_query = {'_id':document_id}
-            update_fields = {
-                "mappedTestcase":{
-                "testscenarioid": request_data["testscenarioid"],
-                'projectid': request_data["projectId"],			
-                'projectName': request_data["projectName"],
-                'itemType': request_data["itemType"],
-                'testCaseName': request_data["testCaseName"],
-                'testCaseDescription': request_data["testCaseDescription"],
-                'updatedTime': datetime.now()
-            },
-            "Profile":last_config_profile["executionData"]
-            }
-            app.logger.debug("ALM mapped testcase details  uploading to ALM_testcases")
-            project_result = dbsession.ALM_testcases.update_one(update_query,
-            {'$set':update_fields},upsert=True)
-            print(project_result)
-            if project_result.acknowledged:
-                app.logger.debug("testcase details updated ")
-                return jsonify({'rows':request_data["testcaseId"], 'message': 'mapped testcases details updated successfully'}), 200
-            else:
-                app.logger.warn("failed to update mapped testcase details")
-                return jsonify({'rows':'fail','error': 'failed to update mapped testcase details'}), 500
-            # else:
-            #     app.logger.warn("failed to upload testcase details")
-            #     return jsonify({'rows':'fail','error': 'Testcase Data insertion failed'}), 500
-        # Handle any exceptions with a 500 Internal Server Error response
+                request_data['createdAt'] = datetime.now()
+                request_data['updatedAt'] = datetime.now()
+                dbsession.thirdpartyintegration.insert_one(request_data)
+                return jsonify({'rows':'success','message': 'doc created'}), HTTPStatus.CREATED
+
         except Exception as e:
             app.logger.warn("something went wrong while updating details Error: "+str(e))
-            return jsonify({"data": {"message": str(e)}, "status": 500})
+            return jsonify({"rows": "fail", "error": str(e)}), HTTPStatus.INTERNAL_SERVER_ERROR
         
     # POST API to Fetch the execution Profile
     @app.route("/getALM_TestProfile", methods=["POST"])
