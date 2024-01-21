@@ -101,7 +101,6 @@ def LoadServices(app, redissession, client,getClientName):
             summary = ""
             result = "I'm sorry, I don't have an answer for that right now. I'll learn and improve over time. Please ask another question."
             
-
         transformed_data = {
             "_id": recipient_id,
             "_type": datatype,

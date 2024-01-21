@@ -302,7 +302,7 @@ def pipeline_module_with_less_defects(tokens, start_datetime, end_datetime):
     return pipeline
 
 
-def pipeline_profile_level_defects_trend_analysis(projectid, userid, start_datetime, end_datetime):
+def pipeline_profile_level_defects(projectid, userid, start_datetime, end_datetime, sort_order=None, limit_count=None):
     pipeline = [
         {
             "$match": {
@@ -339,111 +339,19 @@ def pipeline_profile_level_defects_trend_analysis(projectid, userid, start_datet
                 "Profile Names": "$_id",
                 "Failed Modules": "$Failed Modules"
             }
-        },
-        {
-            "$sort": {"Failed Modules": -1}
         }
     ]
+
+    if sort_order is not None:
+        pipeline.append({"$sort": {"Failed Modules": sort_order}})
+
+    if limit_count is not None:
+        pipeline.append({"$limit": limit_count})
+
     return pipeline
 
 
-def pipeline_profile_with_more_defects(projectid, userid, start_datetime, end_datetime):
-    pipeline = [
-        {
-            "$match": {
-                "executionData.batchInfo.projectId": projectid,
-                "session.userid": userid,
-            }
-        },
-        {
-            "$lookup": {
-                "from": "executions",
-                "localField": "executionData.configurekey",
-                "foreignField": "configurekey",
-                "as": "executionDetails"
-            }
-        },
-        {
-            "$unwind": "$executionDetails"
-        },
-        {
-            "$match": {
-                "executionDetails.status": {"$in": ["Fail", "fail"]},
-                "executionDetails.starttime": {"$gte": start_datetime, "$lte": end_datetime}
-            }
-        },
-        {
-            "$group": {
-                "_id": "$executionData.configurename",
-                "Failed Modules": {"$sum": 1}
-            }
-        },
-        {
-            "$project": {
-                "_id": 0,
-                "Profile Names": "$_id",
-                "Failed Modules": "$Failed Modules"
-            }
-        },
-        {
-            "$sort": {"Failed Modules": -1}
-        },
-        {
-            "$limit": 5
-        }
-    ]
-    return pipeline
-
-
-def pipeline_profile_with_less_defects(projectid, userid, start_datetime, end_datetime):
-    pipeline = [
-        {
-            "$match": {
-                "executionData.batchInfo.projectId": projectid,
-                "session.userid": userid,
-            }
-        },
-        {
-            "$lookup": {
-                "from": "executions",
-                "localField": "executionData.configurekey",
-                "foreignField": "configurekey",
-                "as": "executionDetails"
-            }
-        },
-        {
-            "$unwind": "$executionDetails"
-        },
-        {
-            "$match": {
-                "executionDetails.status": {"$in": ["Fail", "fail"]},
-                "executionDetails.starttime": {"$gte": start_datetime, "$lte": end_datetime}
-            }
-        },
-        {
-            "$group": {
-                "_id": "$executionData.configurename",
-                "Failed Modules": {"$sum": 1}
-            }
-        },
-        {
-            "$project": {
-                "_id": 0,
-                "Profile Names": "$_id",
-                "Failed Modules": "$Failed Modules"
-            }
-        },
-        {
-            "$sort": {"Failed Modules": 1}
-        },
-        {
-            "$limit": 5
-        }
-    ]
-    return pipeline
-
-
-def pipeline_execution_environment_defects_trend_analysis(tokens, start_datetime, end_datetime):
+def pipeline_execution_environment_defects(tokens, start_datetime, end_datetime, sort_order=None, limit_count=None):
     pipeline = [
         {
             "$match": {
@@ -477,100 +385,17 @@ def pipeline_execution_environment_defects_trend_analysis(tokens, start_datetime
             }
         }
     ]
+
+    if sort_order is not None:
+        pipeline.append({"$sort": {"Fail Count": sort_order}})
+
+    if limit_count is not None:
+        pipeline.append({"$limit": limit_count})
+
     return pipeline
 
 
-def pipeline_execution_environment_with_more_defects(tokens, start_datetime, end_datetime):
-    pipeline = [
-        {
-            "$match": {
-                "configurekey": {"$in": tokens}, 
-                "status": {"$in": ["Fail", "fail"]}, 
-                "starttime": {"$gte": start_datetime, "$lte":end_datetime}
-                }
-        },
-        {
-            "$lookup": {
-                "from": "reports",
-                "localField": "_id",
-                "foreignField": "executionid",
-                "as": "reportdata"
-            }
-        },
-        {
-            "$unwind": "$reportdata"
-        },
-        {
-            "$group": {
-                "_id": "$reportdata.executedon",
-                "Fail Count": {"$sum": 1}
-            }
-        },
-        {
-            "$project": {
-                "Browser": "$_id",
-                "Fail Count": "$Fail Count",
-                "_id":0
-            }
-        },
-        {
-            "$sort": {
-                "Fail Count": -1 
-            }
-        },
-        {
-            "$limit": 5
-        }
-    ]
-    return pipeline
-
-
-def pipeline_execution_environment_with_less_defects(tokens, start_datetime, end_datetime):
-    pipeline = [
-        {
-            "$match": {
-                "configurekey": {"$in": tokens}, 
-                "status": {"$in": ["Fail", "fail"]}, 
-                "starttime": {"$gte": start_datetime, "$lte":end_datetime}
-                }
-        },
-        {
-            "$lookup": {
-                "from": "reports",
-                "localField": "_id",
-                "foreignField": "executionid",
-                "as": "reportdata"
-            }
-        },
-        {
-            "$unwind": "$reportdata"
-        },
-        {
-            "$group": {
-                "_id": "$reportdata.executedon",
-                "Fail Count": {"$sum": 1}
-            }
-        },
-        {
-            "$project": {
-                "Browser": "$_id",
-                "Fail Count": "$Fail Count",
-                "_id":0
-            }
-        },
-        {
-            "$sort": {
-                "Fail Count": 1 
-            }
-        },
-        {
-            "$limit": 5
-        }
-    ]
-    return pipeline
-
-
-def pipeline_test_scenario_level_defects_trend_analysis(executionids):
+def pipeline_test_scenario_level_defects(executionids, sort_order=None, limit_count=None):
     pipeline = [
         {
             "$match": {
@@ -600,90 +425,17 @@ def pipeline_test_scenario_level_defects_trend_analysis(executionids):
             }
         }
     ]
+
+    if sort_order is not None:
+        pipeline.append({"$sort": {"Fail Count": sort_order}})
+
+    if limit_count is not None:
+        pipeline.append({"$limit": limit_count})
+
     return pipeline
 
 
-def pipeline_test_scenario_with_more_defects(executionids):
-    pipeline = [
-        {
-            "$match": {
-                "status": {"$in": ["Fail", "fail"]},
-                "executionid": { "$in": executionids}
-        }
-        },
-        {
-            "$lookup": {
-                "from": "testscenarios",
-                "localField": "testscenarioid",
-                "foreignField": "_id",
-                "as": "matchedTestScenarios"
-            }
-        },
-        {
-            "$group": {
-                "_id": {"$arrayElemAt": ["$matchedTestScenarios.name", 0]},
-                "defect_count": { "$sum": 1 }
-            }
-        },
-        {
-            "$project": {
-                "_id": 0,
-                "Test Scenario Name": "$_id",
-                "Fail Count": "$defect_count"
-            }
-        },
-        {
-            "$sort": {
-                "Fail Count": -1
-            }
-        },
-        {
-            "$limit": 5
-        }
-    ]
-    return pipeline
-
-
-def pipeline_test_scenario_with_less_defects(executionids):
-    pipeline = [
-        {
-            "$match": {
-                "status": {"$in": ["Fail", "fail"]},
-                "executionid": { "$in": executionids}
-        }
-        },
-        {
-            "$lookup": {
-                "from": "testscenarios",
-                "localField": "testscenarioid",
-                "foreignField": "_id",
-                "as": "matchedTestScenarios"
-            }
-        },
-        {
-            "$group": {
-                "_id": {"$arrayElemAt": ["$matchedTestScenarios.name", 0]},
-                "defect_count": { "$sum": 1 }
-            }
-        },
-        {
-            "$project": {
-                "_id": 0,
-                "Test Scenario Name": "$_id",
-                "Fail Count": "$defect_count"
-            }
-        },
-        {
-            "$sort": {"Fail Count": 1}
-        },
-        {
-            "$limit": 5
-        }
-    ]
-    return pipeline
-
-
-def pipeline_browser_version_defects_trend_analysis(tokens, start_datetime, end_datetime):
+def pipeline_browser_version_defects(tokens, start_datetime, end_datetime, sort_order=None, limit_count=None):
     pipeline = [
         {
             "$match": {
@@ -721,190 +473,223 @@ def pipeline_browser_version_defects_trend_analysis(tokens, start_datetime, end_
             }
         }
     ]
+
+    if sort_order is not None:
+        pipeline.append({"$sort": {"Fail Count": sort_order}})
+
+    if limit_count is not None:
+        pipeline.append({"$limit": limit_count})
+
     return pipeline
 
 
-def pipeline_browser_version_with_more_defects(tokens, start_datetime, end_datetime):
+def pipeline_keyword_level_defects(executionids, sort_order=None, limit_count=None):
     pipeline = [
         {
             "$match": {
-                "configurekey": {"$in": tokens}, 
-                "status": {"$in": ["Fail", "fail"]},
-                "starttime": {"$gte": start_datetime, "$lte": end_datetime}
-                }
-        },
-        {
-            "$lookup": {
-                "from": "reports",
-                "localField": "_id",
-                "foreignField": "executionid",
-                "as": "reportdata"
+                "execution_ids": {"$in": executionids},
+                "status": {"$in": ["Fail", "fail"]}
             }
         },
         {
-            "$unwind": "$reportdata"
+            "$group": {
+                "_id": "$Keyword",
+                "Fail Count": {"$sum": 1}
+            }
+        },
+        {
+            "$project": {
+                "_id": 0,
+                "Keyword Name": "$_id",
+                "Fail Count": "$Fail Count"
+            }
+        }
+    ]
+
+    if sort_order is not None:
+        pipeline.append({"$sort": {"Fail Count": sort_order}})
+
+    if limit_count is not None:
+        pipeline.append({"$limit": limit_count})
+
+    return pipeline
+
+
+def pipeline_app_type_defects(projectid, userid, start_datetime, end_datetime, sort_order=None, limit_count=None):
+    pipeline = [
+        {
+            "$match": {
+                "executionData.batchInfo.projectId": projectid,
+                "session.userid": userid,
+            }
+        },
+        {
+            "$project": {
+                "_id": 0,
+                "appType": {"$arrayElemAt": ["$executionData.batchInfo.appType", 0]}  ,
+                "configkey": "$executionData.configurekey",
+                "profilename": "$executionData.configurename",
+                "defect_count": 1
+            }
+        },
+        {
+            "$lookup": {
+                "from": "executions",
+                "localField": "configkey",
+                "foreignField": "configurekey",
+                "as": "executionDetails"
+            }
+        },
+        {
+            "$unwind": "$executionDetails"
+        },
+        {
+            "$match": {
+                "executionDetails.status": {"$in": ["fail", "Fail"]},
+                "executionDetails.starttime": {"$gte": start_datetime, "$lte": end_datetime}
+            }
         },
         {
             "$group": {
                 "_id": {
-                    "Browser": "$reportdata.executedon",
-                    "Browser Version": "$reportdata.overallstatus.browserVersion"
-                },
-                "defect_count": {"$sum": 1}
+                    "token": "$configkey",
+                    "profilename": "$profilename",
+                    "appType": "$appType"},
+                "count": {"$sum": 1}
+            }
+        },
+        {
+            "$project": {
+                "Profile Name": "$_id.profilename",
+                "appType": "$_id.appType",
+                "Fail Count": "$count",
+                "_id": 0
+            }
+        }
+    ]
+
+    if sort_order is not None:
+        pipeline.append({"$sort": {"Fail Count": sort_order}})
+
+    if limit_count is not None:
+        pipeline.append({"$limit": limit_count})
+
+    return pipeline
+
+
+def pipeline_execution_mode_defects(projectid, userid, start_datetime, end_datetime, sort_order=None, limit_count=None):
+    pipeline = [
+        {
+            "$match": {
+                "executionData.batchInfo.projectId": projectid,
+                "session.userid": userid,
             }
         },
         {
             "$project": {
                 "_id": 0,
-                "Browser": "$_id.Browser",
-                "Browser Version": "$_id.Browser Version",
-                "Fail Count": "$defect_count"
+                "configkey": "$executionData.configurekey",
+                "profilename": "$executionData.configurename",
+                "executionMode": "$executionData.exectionMode",
             }
-        },
-        {
-            "$sort": {"Fail Count": -1}
-        },
-        {
-            "$limit": 5
-        }
-    ]
-    return pipeline
-    
-
-def pipeline_browser_version_with_less_defects(tokens, start_datetime, end_datetime):
-    pipeline = [
-        {
-            "$match": {
-                "configurekey": {"$in": tokens}, 
-                "status": {"$in": ["Fail", "fail"]},
-                "starttime": {"$gte": start_datetime, "$lte": end_datetime}
-                }
         },
         {
             "$lookup": {
-                "from": "reports",
-                "localField": "_id",
-                "foreignField": "executionid",
-                "as": "reportdata"
+                "from": "executions",
+                "localField": "configkey",
+                "foreignField": "configurekey",
+                "as": "executionDetails"
             }
         },
         {
-            "$unwind": "$reportdata"
+            "$unwind": "$executionDetails"
+        },
+        {
+            "$match": {
+                "executionDetails.status": {"$in": ["fail", "Fail"]},
+                "executionDetails.starttime": {"$gte": start_datetime, "$lte": end_datetime}
+            }
         },
         {
             "$group": {
                 "_id": {
-                    "Browser": "$reportdata.executedon",
-                    "Browser Version": "$reportdata.overallstatus.browserVersion"
-                },
-                "defect_count": {"$sum": 1}
+                    "profilename": "$profilename",
+                    "executionMode": "$executionMode"},
+                "count": {"$sum": 1}
+            }
+        },
+        {
+            "$project": {
+                "Profile Name": "$_id.profilename",
+                "Execution Mode": "$_id.executionMode",
+                "Fail Count": "$count",
+                "_id": 0
+            }
+        }
+    ]
+
+    if sort_order is not None:
+        pipeline.append({"$sort": {"Fail Count": sort_order}})
+
+    if limit_count is not None:
+        pipeline.append({"$limit": limit_count})
+
+    return pipeline
+
+
+def pipeline_project_level_defects(projectid, userid, start_datetime, end_datetime, sort_order=None, limit_count=None):
+    pipeline = [
+        {
+            "$match": {
+                "executionData.batchInfo.projectId": projectid,
+                "session.userid": userid,
             }
         },
         {
             "$project": {
                 "_id": 0,
-                "Browser": "$_id.Browser",
-                "Browser Version": "$_id.Browser Version",
-                "Fail Count": "$defect_count"
+                "projectName": {"$arrayElemAt": ["$executionData.batchInfo.projectName", 0]}  ,
+                "configkey": "$executionData.configurekey"
             }
         },
         {
-            "$sort": {"Fail Count": 1}
+            "$lookup": {
+                "from": "executions",
+                "localField": "configkey",
+                "foreignField": "configurekey",
+                "as": "executionDetails"
+            }
         },
         {
-            "$limit": 5
-        }
-    ]
-    return pipeline
-
-
-def pipeline_keyword_level_defects_trend_analysis(executionids):
-    pipeline = [
+            "$unwind": "$executionDetails"
+        },
         {
             "$match": {
-                "execution_ids": {"$in": executionids},
-                "status": {"$in": ["Fail", "fail"]}
+                "executionDetails.status": {"$in": ["fail", "Fail"]},
+                "executionDetails.starttime": {"$gte": start_datetime, "$lte": end_datetime}
             }
         },
         {
             "$group": {
-                "_id": "$Keyword",
-                "Fail Count": {"$sum": 1}
+                "_id": {
+                "projectName": "$projectName"},
+                "count": {"$sum": 1}
             }
         },
         {
             "$project": {
-                "_id": 0,
-                "Keyword Name": "$_id",
-                "Fail Count": "$Fail Count"
+                "Project Name": "$_id.projectName",
+                "Fail Count": "$count",
+                "_id": 0
             }
         }
     ]
-    return pipeline
 
+    if sort_order is not None:
+        pipeline.append({"$sort": {"Fail Count": sort_order}})
 
-def pipeline_keyword_with_more_defects(executionids):
-    pipeline = [
-        {
-            "$match": {
-                "execution_ids": {"$in": executionids},
-                "status": {"$in": ["Fail", "fail"]}
-            }
-        },
-        {
-            "$group": {
-                "_id": "$Keyword",
-                "Fail Count": {"$sum": 1}
-            }
-        },
-        {
-            "$project": {
-                "_id": 0,
-                "Keyword Name": "$_id",
-                "Fail Count": "$Fail Count"
-            }
-        },
-        {
-            "$sort": {
-                "Fail Count": -1
-            }
-        },
-        {
-            "$limit": 5
-        }
-    ]
-    return pipeline
+    if limit_count is not None:
+        pipeline.append({"$limit": limit_count})
 
-
-def pipeline_keyword_with_less_defects(executionids):
-    pipeline = [
-        {
-            "$match": {
-                "execution_ids": {"$in": executionids},
-                "status": {"$in": ["Fail", "fail"]}
-            }
-        },
-        {
-            "$group": {
-                "_id": "$Keyword",
-                "Fail Count": {"$sum": 1}
-            }
-        },
-        {
-            "$project": {
-                "_id": 0,
-                "Keyword Name": "$_id",
-                "Fail Count": "$Fail Count"
-            }
-        },
-        {
-            "$sort": {
-                "Fail Count": 1
-            }
-        },
-        {
-            "$limit": 5
-        }
-    ]
     return pipeline
 

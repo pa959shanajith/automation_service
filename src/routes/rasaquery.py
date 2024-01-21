@@ -353,6 +353,8 @@ def count_module_executed(requestdata, client, getClientName):
         return e
 
 
+
+
 ##########################################################################################
 ################################### DEFECT FUNCTIONS #####################################
 ##########################################################################################
@@ -600,7 +602,7 @@ def profile_level_defects_trend_analysis(requestdata, client, getClientName):
         )
 
         try:
-            data_pipeline = pipelines.pipeline_profile_level_defects_trend_analysis(projectid=projectid, userid=userid, start_datetime=starttime, end_datetime=endtime)
+            data_pipeline = pipelines.pipeline_profile_level_defects(projectid=projectid, userid=userid, start_datetime=starttime, end_datetime=endtime)
             table_result = DataPreparation.process_table_data(dbsession=dbsession, collectionname=collection_name, pipeline=data_pipeline)
 
             # Check if table_result is None
@@ -669,7 +671,7 @@ def profile_with_more_defects(requestdata, client, getClientName):
         )
 
         try:
-            data_pipeline = pipelines.pipeline_profile_with_more_defects(projectid=projectid, userid=userid, start_datetime=starttime, end_datetime=endtime)
+            data_pipeline = pipelines.pipeline_profile_level_defects(projectid=projectid, userid=userid, start_datetime=starttime, end_datetime=endtime, sort_order=-1, limit_count=5)
             table_result = DataPreparation.process_table_data(dbsession=dbsession, collectionname=collection_name, pipeline=data_pipeline)
 
             # Check if table_result is None
@@ -738,7 +740,7 @@ def profile_with_less_defects(requestdata, client, getClientName):
         )
 
         try:
-            data_pipeline = pipelines.pipeline_profile_with_less_defects(projectid=projectid, userid=userid, start_datetime=starttime, end_datetime=endtime)
+            data_pipeline = pipelines.pipeline_profile_level_defects(projectid=projectid, userid=userid, start_datetime=starttime, end_datetime=endtime, sort_order=1, limit_count=5)
             table_result = DataPreparation.process_table_data(dbsession=dbsession, collectionname=collection_name, pipeline=data_pipeline)
 
             # Check if table_result is None
@@ -810,7 +812,7 @@ def execution_environment_defects_trend_analysis(requestdata, client, getClientN
         )
 
         try:
-            data_pipeline = pipelines.pipeline_execution_environment_defects_trend_analysis(tokens=tokens, start_datetime=starttime, end_datetime=endtime)
+            data_pipeline = pipelines.pipeline_execution_environment_defects(tokens=tokens, start_datetime=starttime, end_datetime=endtime)
             table_result = DataPreparation.process_table_data(dbsession=dbsession, collectionname=collection_name, pipeline=data_pipeline)
 
             # Check if table_result is None
@@ -880,7 +882,7 @@ def execution_environment_with_more_defects(requestdata, client, getClientName):
         )
 
         try:
-            data_pipeline = pipelines.pipeline_execution_environment_with_more_defects(tokens=tokens, start_datetime=starttime, end_datetime=endtime)
+            data_pipeline = pipelines.pipeline_execution_environment_defects(tokens=tokens, start_datetime=starttime, end_datetime=endtime, sort_order=-1, limit_count=5)
             table_result = DataPreparation.process_table_data(dbsession=dbsession, collectionname=collection_name, pipeline=data_pipeline)
 
             # Check if table_result is None
@@ -950,7 +952,7 @@ def execution_environment_with_less_defects(requestdata, client, getClientName):
         )
 
         try:
-            data_pipeline = pipelines.pipeline_execution_environment_with_less_defects(tokens=tokens, start_datetime=starttime, end_datetime=endtime)
+            data_pipeline = pipelines.pipeline_execution_environment_defects(tokens=tokens, start_datetime=starttime, end_datetime=endtime, sort_order=1, limit_count=5)
             table_result = DataPreparation.process_table_data(dbsession=dbsession, collectionname=collection_name, pipeline=data_pipeline)
 
             # Check if table_result is None
@@ -1026,7 +1028,7 @@ def test_scenario_level_defects_trend_analysis(requestdata, client, getClientNam
             
             if mod_execids:
                 exe_objids = [exeid['_id'] for exeid in mod_execids]
-                data_pipeline = pipelines.pipeline_test_scenario_level_defects_trend_analysis(executionids=exe_objids)
+                data_pipeline = pipelines.pipeline_test_scenario_level_defects(executionids=exe_objids)
                 table_result = DataPreparation.process_table_data(dbsession=dbsession, collectionname=collection_name, pipeline=data_pipeline)
             else:
                 table_result = None
@@ -1104,7 +1106,7 @@ def test_scenario_with_more_defects(requestdata, client, getClientName):
             
             if mod_execids:
                 exe_objids = [exeid['_id'] for exeid in mod_execids]
-                data_pipeline = pipelines.pipeline_test_scenario_with_more_defects(executionids=exe_objids)
+                data_pipeline = pipelines.pipeline_test_scenario_level_defects(executionids=exe_objids, sort_order=-1, limit_count=5)
                 table_result = DataPreparation.process_table_data(dbsession=dbsession, collectionname=collection_name, pipeline=data_pipeline)
             else:
                 table_result = None
@@ -1182,7 +1184,7 @@ def test_scenario_with_less_defects(requestdata, client, getClientName):
             
             if mod_execids:
                 exe_objids = [exeid['_id'] for exeid in mod_execids]
-                data_pipeline = pipelines.pipeline_test_scenario_with_less_defects(executionids=exe_objids)
+                data_pipeline = pipelines.pipeline_test_scenario_level_defects(executionids=exe_objids, sort_order=1, limit_count=5)
                 table_result = DataPreparation.process_table_data(dbsession=dbsession, collectionname=collection_name, pipeline=data_pipeline)
             else:
                 table_result = None
@@ -1254,7 +1256,7 @@ def browser_version_defects_trend_analysis(requestdata, client, getClientName):
         )
 
         try:
-            data_pipeline = pipelines.pipeline_browser_version_defects_trend_analysis(tokens=tokens, start_datetime=starttime, end_datetime=endtime)
+            data_pipeline = pipelines.pipeline_browser_version_defects(tokens=tokens, start_datetime=starttime, end_datetime=endtime)
             table_result = DataPreparation.process_table_data(dbsession=dbsession, collectionname=collection_name, pipeline=data_pipeline)
 
             # Check if table_result is None
@@ -1303,7 +1305,7 @@ def browser_version_with_more_defects(requestdata, client, getClientName):
         )
 
         try:
-            data_pipeline = pipelines.pipeline_browser_version_with_more_defects(tokens=tokens, start_datetime=starttime, end_datetime=endtime)
+            data_pipeline = pipelines.pipeline_browser_version_defects(tokens=tokens, start_datetime=starttime, end_datetime=endtime, sort_order=-1, limit_count=5)
             table_result = DataPreparation.process_table_data(dbsession=dbsession, collectionname=collection_name, pipeline=data_pipeline)
 
             # Check if table_result is None
@@ -1352,7 +1354,7 @@ def browser_version_with_less_defects(requestdata, client, getClientName):
         )
 
         try:
-            data_pipeline = pipelines.pipeline_browser_version_with_less_defects(tokens=tokens, start_datetime=starttime, end_datetime=endtime)
+            data_pipeline = pipelines.pipeline_browser_version_defects(tokens=tokens, start_datetime=starttime, end_datetime=endtime, sort_order=1, limit_count=5)
             table_result = DataPreparation.process_table_data(dbsession=dbsession, collectionname=collection_name, pipeline=data_pipeline)
 
             # Check if table_result is None
@@ -1407,7 +1409,7 @@ def keyword_level_defects_trend_analysis(requestdata, client, getClientName):
             
             if mod_execids:
                 exe_objids = [str(exeid['_id']) for exeid in mod_execids]
-                data_pipeline = pipelines.pipeline_keyword_level_defects_trend_analysis(executionids=exe_objids)
+                data_pipeline = pipelines.pipeline_keyword_level_defects(executionids=exe_objids)
                 table_result = DataPreparation.process_table_data(dbsession=dbsession, collectionname=collection_name, pipeline=data_pipeline)
             else:
                 table_result = None
@@ -1486,7 +1488,7 @@ def keyword_with_more_defects(requestdata, client, getClientName):
             
             if mod_execids:
                 exe_objids = [str(exeid['_id']) for exeid in mod_execids]
-                data_pipeline = pipelines.pipeline_keyword_with_more_defects(executionids=exe_objids)
+                data_pipeline = pipelines.pipeline_keyword_level_defects(executionids=exe_objids, sort_order=-1, limit_count=5)
                 table_result = DataPreparation.process_table_data(dbsession=dbsession, collectionname=collection_name, pipeline=data_pipeline)
             else:
                 table_result = None
@@ -1545,7 +1547,6 @@ def keyword_with_less_defects(requestdata, client, getClientName):
 
         # fetch and convert the date format
         starttime, endtime = date_conversion(request=requestdata)
-
         collection_name = "reportitems"
 
         # Data processing
@@ -1565,7 +1566,7 @@ def keyword_with_less_defects(requestdata, client, getClientName):
             
             if mod_execids:
                 exe_objids = [str(exeid['_id']) for exeid in mod_execids]
-                data_pipeline = pipelines.pipeline_keyword_with_less_defects(executionids=exe_objids)
+                data_pipeline = pipelines.pipeline_keyword_level_defects(executionids=exe_objids, sort_order=1, limit_count=5)
                 table_result = DataPreparation.process_table_data(dbsession=dbsession, collectionname=collection_name, pipeline=data_pipeline)
             else:
                 table_result = None
@@ -1609,6 +1610,505 @@ def keyword_with_less_defects(requestdata, client, getClientName):
         result = DataPreparation.merge_table_and_chart_data(tabledata=table_result, chartdata=chart_result)
         return datatype, summary, result
 
+    except Exception as e:
+        return e
+
+
+# Function to fetch app type level fail count and profile names trend analysis in a project
+def app_type_defects_trend_analysis(requestdata, client, getClientName):
+    try:
+        dbsession = mongo_connection(requestdata, client, getClientName)
+
+        # fetch required data from request
+        projectid = requestdata["projectid"]
+        userid = requestdata["sender"]
+
+        # fetch and convert the date format
+        starttime, endtime = date_conversion(request=requestdata)
+
+        # Values for the response
+        collection_name = "configurekeys"
+
+        # Data processing
+        project_name = list(dbsession.projects.find({"_id": ObjectId(projectid)}))[0]["name"]
+        summary = (
+            "Given below is the summary of app type defect trend analysis under "
+            f"'{project_name}' project between {starttime.strftime('%d/%m/%Y')} and {endtime.strftime('%d/%m/%Y')}. "
+            "This data shows the count of failed app type and profiles in the mentioned time period."
+        )
+
+        try:
+            data_pipeline = pipelines.pipeline_app_type_defects(projectid=projectid, userid=userid, start_datetime=starttime, end_datetime=endtime)
+            table_result = DataPreparation.process_table_data(dbsession=dbsession, collectionname=collection_name, pipeline=data_pipeline)
+
+            # Check if table_result is None
+            if not table_result:
+                summary = no_data_summary
+                table_result = None
+                chart_result = None
+                
+            else:
+                chart_result = None
+                
+        except Exception as e:
+            table_result = None
+            chart_result = None
+            summary = exeception_summary
+
+        datatype = data_type["table"]
+        result = DataPreparation.merge_table_and_chart_data(tabledata=table_result, chartdata=chart_result)
+        return datatype, summary, result
+
+    except Exception as e:
+        return e
+
+
+# Function to fetch app type with top five maximum number of fail counts for all the profiles in a project
+def app_type_with_more_defects(requestdata, client, getClientName):
+    try:
+        dbsession = mongo_connection(requestdata, client, getClientName)
+
+        # fetch required data from request
+        projectid = requestdata["projectid"]
+        userid = requestdata["sender"]
+
+        # fetch and convert the date format
+        starttime, endtime = date_conversion(request=requestdata)
+
+        # Values for the response
+        collection_name = "configurekeys"
+
+        # Data processing
+        project_name = list(dbsession.projects.find({"_id": ObjectId(projectid)}))[0]["name"]
+        summary = (
+            "Given below is the summary of top five app types with maximum number of failed count under "
+            f"'{project_name}' project between {starttime.strftime('%d/%m/%Y')} and {endtime.strftime('%d/%m/%Y')}. "
+            "This data shows the count of failed app type and profiles in the mentioned time period."
+        )
+
+        try:
+            data_pipeline = pipelines.pipeline_app_type_defects(projectid=projectid, userid=userid, start_datetime=starttime, end_datetime=endtime, sort_order=-1, limit_count=5)
+            table_result = DataPreparation.process_table_data(dbsession=dbsession, collectionname=collection_name, pipeline=data_pipeline)
+
+            # Check if table_result is None
+            if not table_result:
+                summary = no_data_summary
+                table_result = None
+                chart_result = None
+                
+            else:
+                chart_result = None
+                
+        except Exception as e:
+            table_result = None
+            chart_result = None
+            summary = exeception_summary
+
+        datatype = data_type["table"]
+        result = DataPreparation.merge_table_and_chart_data(tabledata=table_result, chartdata=chart_result)
+        return datatype, summary, result
+
+    except Exception as e:
+        return e
+    
+
+# Function to fetch app type with top five minimum number of fail counts for all the profiles in a project
+def app_type_with_less_defects(requestdata, client, getClientName):
+    try:
+        dbsession = mongo_connection(requestdata, client, getClientName)
+
+        # fetch required data from request
+        projectid = requestdata["projectid"]
+        userid = requestdata["sender"]
+
+        # fetch and convert the date format
+        starttime, endtime = date_conversion(request=requestdata)
+
+        # Values for the response
+        collection_name = "configurekeys"
+
+        # Data processing
+        project_name = list(dbsession.projects.find({"_id": ObjectId(projectid)}))[0]["name"]
+        summary = (
+            "Given below is the summary of top five app types with minimum number of failed count under "
+            f"'{project_name}' project between {starttime.strftime('%d/%m/%Y')} and {endtime.strftime('%d/%m/%Y')}. "
+            "This data shows the count of failed app type and profiles in the mentioned time period."
+        )
+
+        try:
+            data_pipeline = pipelines.pipeline_app_type_defects(projectid=projectid, userid=userid, start_datetime=starttime, end_datetime=endtime, sort_order=1, limit_count=5)
+            table_result = DataPreparation.process_table_data(dbsession=dbsession, collectionname=collection_name, pipeline=data_pipeline)
+
+            # Check if table_result is None
+            if not table_result:
+                summary = no_data_summary
+                table_result = None
+                chart_result = None
+                
+            else:
+                chart_result = None
+                
+        except Exception as e:
+            table_result = None
+            chart_result = None
+            summary = exeception_summary
+
+        datatype = data_type["table"]
+        result = DataPreparation.merge_table_and_chart_data(tabledata=table_result, chartdata=chart_result)
+        return datatype, summary, result
+
+    except Exception as e:
+        return e
+
+
+# Function to fetch execution mode  level fail count and profile names trend analysis in a project
+def execution_mode_defects_trend_analysis(requestdata, client, getClientName):
+    try:
+        dbsession = mongo_connection(requestdata, client, getClientName)
+
+        # fetch required data from request
+        projectid = requestdata["projectid"]
+        userid = requestdata["sender"]
+
+        # fetch and convert the date format
+        starttime, endtime = date_conversion(request=requestdata)
+
+        # Values for the response
+        collection_name = "configurekeys"
+
+        # Data processing
+        project_name = list(dbsession.projects.find({"_id": ObjectId(projectid)}))[0]["name"]
+        summary = (
+            "Given below is the summary of execution mode defect trend analysis under "
+            f"'{project_name}' project between {starttime.strftime('%d/%m/%Y')} and {endtime.strftime('%d/%m/%Y')}. "
+            "This data shows the count of failed execution mode and profiles in the mentioned time period."
+        )
+
+        try:
+            data_pipeline = pipelines.pipeline_execution_mode_defects(projectid=projectid, userid=userid, start_datetime=starttime, end_datetime=endtime)
+            table_result = DataPreparation.process_table_data(dbsession=dbsession, collectionname=collection_name, pipeline=data_pipeline)
+
+            # Check if table_result is None
+            if not table_result:
+                summary = no_data_summary
+                table_result = None
+                chart_result = None
+                
+            else:
+                chart_result = None
+                
+        except Exception as e:
+            table_result = None
+            chart_result = None
+            summary = exeception_summary
+
+        datatype = data_type["table"]
+        result = DataPreparation.merge_table_and_chart_data(tabledata=table_result, chartdata=chart_result)
+        return datatype, summary, result
+
+    except Exception as e:
+        return e
+
+
+# Function to fetch execution mode with top five maximum number of fail counts for all the profiles in a project
+def execution_mode_with_more_defects(requestdata, client, getClientName):
+    try:
+        dbsession = mongo_connection(requestdata, client, getClientName)
+
+        # fetch required data from request
+        projectid = requestdata["projectid"]
+        userid = requestdata["sender"]
+
+        # fetch and convert the date format
+        starttime, endtime = date_conversion(request=requestdata)
+
+        # Values for the response
+        collection_name = "configurekeys"
+
+        # Data processing
+        project_name = list(dbsession.projects.find({"_id": ObjectId(projectid)}))[0]["name"]
+        summary = (
+            "Given below is the summary of top five execution mode with maximum number of failed count under "
+            f"'{project_name}' project between {starttime.strftime('%d/%m/%Y')} and {endtime.strftime('%d/%m/%Y')}. "
+        )
+
+        try:
+            data_pipeline = pipelines.pipeline_execution_mode_defects(projectid=projectid, userid=userid, start_datetime=starttime, end_datetime=endtime, sort_order=-1, limit_count=5)
+            table_result = DataPreparation.process_table_data(dbsession=dbsession, collectionname=collection_name, pipeline=data_pipeline)
+
+            # Check if table_result is None
+            if not table_result:
+                summary = no_data_summary
+                table_result = None
+                chart_result = None
+                
+            else:
+                chart_result = None
+                
+        except Exception as e:
+            table_result = None
+            chart_result = None
+            summary = exeception_summary
+
+        datatype = data_type["table"]
+        result = DataPreparation.merge_table_and_chart_data(tabledata=table_result, chartdata=chart_result)
+        return datatype, summary, result
+
+    except Exception as e:
+        return e
+    
+
+# Function to fetch execution mode with top five minimum number of fail counts for all the profiles in a project
+def execution_mode_with_less_defects(requestdata, client, getClientName):
+    try:
+        dbsession = mongo_connection(requestdata, client, getClientName)
+
+        # fetch required data from request
+        projectid = requestdata["projectid"]
+        userid = requestdata["sender"]
+
+        # fetch and convert the date format
+        starttime, endtime = date_conversion(request=requestdata)
+
+        # Values for the response
+        collection_name = "configurekeys"
+
+        # Data processing
+        project_name = list(dbsession.projects.find({"_id": ObjectId(projectid)}))[0]["name"]
+        summary = (
+            "Given below is the summary of top five execution mode with minimum number of failed count under "
+            f"'{project_name}' project between {starttime.strftime('%d/%m/%Y')} and {endtime.strftime('%d/%m/%Y')}. "
+        )
+
+        try:
+            data_pipeline = pipelines.pipeline_execution_mode_defects(projectid=projectid, userid=userid, start_datetime=starttime, end_datetime=endtime, sort_order=1, limit_count=5)
+            table_result = DataPreparation.process_table_data(dbsession=dbsession, collectionname=collection_name, pipeline=data_pipeline)
+
+            # Check if table_result is None
+            if not table_result:
+                summary = no_data_summary
+                table_result = None
+                chart_result = None
+                
+            else:
+                chart_result = None
+                
+        except Exception as e:
+            table_result = None
+            chart_result = None
+            summary = exeception_summary
+
+        datatype = data_type["table"]
+        result = DataPreparation.merge_table_and_chart_data(tabledata=table_result, chartdata=chart_result)
+        return datatype, summary, result
+
+    except Exception as e:
+        return e
+
+
+# Function to fetch project level fail counts
+def project_level_defects_trend_analysis(requestdata, client, getClientName):
+    try:
+        dbsession = mongo_connection(requestdata, client, getClientName)
+
+        # fetch required data from request
+        projectid = requestdata["projectid"]
+        userid = requestdata["sender"]
+
+        # fetch and convert the date format
+        starttime, endtime = date_conversion(request=requestdata)
+
+        # Values for the response
+        collection_name = "configurekeys"
+
+        # Data processing
+        project_name = list(dbsession.projects.find({"_id": ObjectId(projectid)}))[0]["name"]
+        summary = (
+            "Given below is the summary of project level defect trend analysis under"
+            f"'{project_name}' project between {starttime.strftime('%d/%m/%Y')} and {endtime.strftime('%d/%m/%Y')}. "
+        )
+
+        try:
+            data_pipeline = pipelines.pipeline_project_level_defects(projectid=projectid, userid=userid, start_datetime=starttime, end_datetime=endtime)
+            table_result = DataPreparation.process_table_data(dbsession=dbsession, collectionname=collection_name, pipeline=data_pipeline)
+
+            # Check if table_result is None
+            if not table_result:
+                summary = no_data_summary
+                table_result = None
+                chart_result = None
+
+            else:
+                x_title = "Project Name"
+                y_title = "Fail Count"
+                color = "#BEAD0B"
+                charttype = ["bar", "line"]
+                labels = []
+                chartdata = []
+                chart_result = None
+
+                for d in table_result:
+                    labels.append(d['Project Name'])
+                    chartdata.append(d['Fail Count'])
+
+                # Generating Chart Data
+                chart_result = DataPreparation.process_final_chart_data(
+                        x_title=x_title,
+                        y_title=y_title,
+                        labels=labels,
+                        backgroundColor=color,
+                        chartsData=chartdata,
+                        chartType=charttype,
+                        displayLegend="true"
+                    )
+
+        except Exception as e:
+            table_result = None
+            chart_result = None
+            summary = exeception_summary
+
+        datatype = data_type["table/chart"] if table_result else data_type["text"]
+        result = DataPreparation.merge_table_and_chart_data(tabledata=table_result, chartdata=chart_result)
+        return datatype, summary, result
+    
+    except Exception as e:
+        return e
+    
+
+# Function to fetch project level fail counts with top five maximum number of fail counts
+def project_with_more_defects(requestdata, client, getClientName):
+    try:
+        dbsession = mongo_connection(requestdata, client, getClientName)
+
+        # fetch required data from request
+        projectid = requestdata["projectid"]
+        userid = requestdata["sender"]
+
+        # fetch and convert the date format
+        starttime, endtime = date_conversion(request=requestdata)
+
+        # Values for the response
+        collection_name = "configurekeys"
+
+        # Data processing
+        project_name = list(dbsession.projects.find({"_id": ObjectId(projectid)}))[0]["name"]
+        summary = (
+            "Given below is the summary of top five projects with maximum number of failed count under"
+            f"'{project_name}' project between {starttime.strftime('%d/%m/%Y')} and {endtime.strftime('%d/%m/%Y')}. "
+        )
+
+        try:
+            data_pipeline = pipelines.pipeline_project_level_defects(projectid=projectid, userid=userid, start_datetime=starttime, end_datetime=endtime, sort_order=-1, limit_count=5)
+            table_result = DataPreparation.process_table_data(dbsession=dbsession, collectionname=collection_name, pipeline=data_pipeline)
+
+            # Check if table_result is None
+            if not table_result:
+                summary = no_data_summary
+                table_result = None
+                chart_result = None
+
+            else:
+                x_title = "Project Name"
+                y_title = "Fail Count"
+                color = "#BEAD0B"
+                charttype = ["bar", "line"]
+                labels = []
+                chartdata = []
+                chart_result = None
+
+                for d in table_result:
+                    labels.append(d['Project Name'])
+                    chartdata.append(d['Fail Count'])
+
+                # Generating Chart Data
+                chart_result = DataPreparation.process_final_chart_data(
+                        x_title=x_title,
+                        y_title=y_title,
+                        labels=labels,
+                        backgroundColor=color,
+                        chartsData=chartdata,
+                        chartType=charttype,
+                        displayLegend="true"
+                    )
+
+        except Exception as e:
+            table_result = None
+            chart_result = None
+            summary = exeception_summary
+
+        datatype = data_type["table/chart"] if table_result else data_type["text"]
+        result = DataPreparation.merge_table_and_chart_data(tabledata=table_result, chartdata=chart_result)
+        return datatype, summary, result
+    
+    except Exception as e:
+        return e
+    
+
+# Function to fetch project level fail counts with top five minimum number of fail counts
+def project_with_less_defects(requestdata, client, getClientName):
+    try:
+        dbsession = mongo_connection(requestdata, client, getClientName)
+
+        # fetch required data from request
+        projectid = requestdata["projectid"]
+        userid = requestdata["sender"]
+
+        # fetch and convert the date format
+        starttime, endtime = date_conversion(request=requestdata)
+
+        # Values for the response
+        collection_name = "configurekeys"
+
+        # Data processing
+        project_name = list(dbsession.projects.find({"_id": ObjectId(projectid)}))[0]["name"]
+        summary = (
+            "Given below is the summary of top five projects with minimum number of failed count under"
+            f"'{project_name}' project between {starttime.strftime('%d/%m/%Y')} and {endtime.strftime('%d/%m/%Y')}. "
+        )
+
+        try:
+            data_pipeline = pipelines.pipeline_project_level_defects(projectid=projectid, userid=userid, start_datetime=starttime, end_datetime=endtime, sort_order=1, limit_count=5)
+            table_result = DataPreparation.process_table_data(dbsession=dbsession, collectionname=collection_name, pipeline=data_pipeline)
+
+            # Check if table_result is None
+            if not table_result:
+                summary = no_data_summary
+                table_result = None
+                chart_result = None
+
+            else:
+                x_title = "Project Name"
+                y_title = "Fail Count"
+                color = "#BEAD0B"
+                charttype = ["bar", "line"]
+                labels = []
+                chartdata = []
+                chart_result = None
+
+                for d in table_result:
+                    labels.append(d['Project Name'])
+                    chartdata.append(d['Fail Count'])
+
+                # Generating Chart Data
+                chart_result = DataPreparation.process_final_chart_data(
+                        x_title=x_title,
+                        y_title=y_title,
+                        labels=labels,
+                        backgroundColor=color,
+                        chartsData=chartdata,
+                        chartType=charttype,
+                        displayLegend="true"
+                    )
+
+        except Exception as e:
+            table_result = None
+            chart_result = None
+            summary = exeception_summary
+
+        datatype = data_type["table/chart"] if table_result else data_type["text"]
+        result = DataPreparation.merge_table_and_chart_data(tabledata=table_result, chartdata=chart_result)
+        return datatype, summary, result
+    
     except Exception as e:
         return e
 
