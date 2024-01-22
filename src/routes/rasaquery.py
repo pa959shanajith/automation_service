@@ -353,6 +353,347 @@ def count_module_executed(requestdata, client, getClientName):
         return e
 
 
+# Function to fetch modules with their execution statuses for all the profiles in a project
+def modules_execution_status(requestdata, client, getClientName):
+    try:
+        dbsession = mongo_connection(requestdata, client, getClientName)
+    
+        # fetch required data from request
+        projectid = requestdata["projectid"]
+        userid = requestdata["sender"]
+        profileid = requestdata["metadata"]["profileid"]
+
+        # fetch and convert the date format
+        starttime, endtime = date_conversion(request=requestdata)
+
+        # Collection name for the pipeline
+        collection_name = "executions"
+
+        if profileid:
+            profile_name = list(dbsession.configurekeys.find({"token": profileid}))[0]["executionData"]["configurename"]
+            tokens = [profileid]
+            summary = f"Given below is the list of modules that have been executed for '{profile_name}' profile between {starttime.strftime('%d/%m/%Y')} and {endtime.strftime('%d/%m/%Y')} time range:"
+        else:
+            project_name = list(dbsession.projects.find({"_id": ObjectId(projectid)}))[0]["name"]
+            token_pipeline = pipelines.fetch_tokens(projectid=projectid, userid=userid)
+            token_values = list(dbsession.configurekeys.aggregate(token_pipeline))
+            tokens = [tokens["token"] for tokens in token_values]
+            summary = f"Given below is the list of modules that have been executed in '{project_name}' project during {starttime.strftime('%d/%m/%Y')} and {endtime.strftime('%d/%m/%Y')} time range:"
+
+        try:
+            data_pipeline = pipelines.pipeline_modules_execution_status(tokens=tokens, start_datetime=starttime, end_datetime=endtime)
+            table_result = DataPreparation.process_table_data(dbsession=dbsession, collectionname=collection_name, pipeline=data_pipeline)
+            
+            # Check if table_result is None
+            if not table_result:
+                summary = no_data_summary
+                table_result = None
+                chart_result = None
+
+            else:
+                x_title = "Statuses"
+                y_title = "Count"
+                charttype = "trend"
+                labels = ["Total", "Pass", "Fail", "Queued", "Inprogress"]
+                datasets = []
+
+                for modules in table_result:
+                    datasets.append({
+                        'label': modules['module_name'],
+                        'data': [modules['total_count'], modules['fail_count'], modules['pass_count'], modules['queued_count'], modules['inprogress_count']],
+                        'fill': False,
+                        'borderColor': f'rgb({np.random.randint(0, 256)}, {np.random.randint(0, 256)}, {np.random.randint(0, 256)})',
+                        'tension': 0.1
+                    })
+
+                chartdata = {'datasets': datasets}
+
+                # Generating Chart Data
+                chart_result = DataPreparation.process_final_chart_data(
+                        x_title=x_title,
+                        y_title=y_title,
+                        labels=labels,
+                        chartsData=chartdata,
+                        chartType=charttype,
+                        displayLegend="true"
+                    )
+
+        except Exception as e:
+            table_result = None
+            chart_result = None
+            summary = exeception_summary
+
+        datatype = data_type["chart"]
+        result = DataPreparation.merge_table_and_chart_data(tabledata=None, chartdata=chart_result)
+        return datatype, summary, result
+    
+    except Exception as e:
+        return e
+    
+
+# Function to fetch each module execution frequency in a project or profile
+def each_module_execution_frequency(requestdata, client, getClientName):
+    try:
+        dbsession = mongo_connection(requestdata, client, getClientName)
+    
+        # fetch required data from request
+        projectid = requestdata["projectid"]
+        userid = requestdata["sender"]
+        profileid = requestdata["metadata"]["profileid"]
+
+        # fetch and convert the date format
+        starttime, endtime = date_conversion(request=requestdata)
+
+        # Collection name for the pipeline
+        collection_name = "executions"
+
+        if profileid:
+            profile_name = list(dbsession.configurekeys.find({"token": profileid}))[0]["executionData"]["configurename"]
+            tokens = [profileid]
+            summary = f"Given below is the list of modules that have been executed for '{profile_name}' profile during {starttime.strftime('%d/%m/%Y')} and {endtime.strftime('%d/%m/%Y')} time range:"
+        else:
+            project_name = list(dbsession.projects.find({"_id": ObjectId(projectid)}))[0]["name"]
+            token_pipeline = pipelines.fetch_tokens(projectid=projectid, userid=userid)
+            token_values = list(dbsession.configurekeys.aggregate(token_pipeline))
+            tokens = [tokens["token"] for tokens in token_values]
+            summary = f"Given below is the list of modules that have been executed in '{project_name}' project during {starttime.strftime('%d/%m/%Y')} and {endtime.strftime('%d/%m/%Y')} time range:"
+
+        try:
+            data_pipeline = pipelines.pipeline_each_module_execution_frequency(tokens=tokens, start_datetime=starttime, end_datetime=endtime)
+            table_result = DataPreparation.process_table_data(dbsession=dbsession, collectionname=collection_name, pipeline=data_pipeline)
+
+            # Check if table_result is None
+            if not table_result:
+                summary = no_data_summary
+                table_result = None
+                chart_result = None
+
+            else:
+                x_title = "Module Names"
+                y_title = "Count"
+                color = "#754e80"
+                charttype = "bar"
+                labels = []
+                chartdata = []
+                chart_result = None
+
+                for d in table_result:
+                    labels.append(d['Module Name'])
+                    chartdata.append(d['Count'])
+
+                # Generating Chart Data
+                chart_result = DataPreparation.process_final_chart_data(
+                        x_title=x_title,
+                        y_title=y_title,
+                        labels=labels,
+                        backgroundColor=color,
+                        chartsData=chartdata,
+                        chartType=charttype,
+                        displayLegend="true"
+                    )
+                
+        except Exception as e:
+            table_result = None
+            chart_result = None
+            summary = exeception_summary
+
+        datatype = data_type["table/chart"] if table_result else data_type["text"]
+        result = DataPreparation.merge_table_and_chart_data(tabledata=table_result, chartdata=chart_result)
+        return datatype, summary, result
+    
+    except Exception as e:
+        return e
+    
+
+# Function to fetch the maximum number of times a module is being executed in a project or profile
+def highest_number_of_module_executions(requestdata, client, getClientName):
+    try:
+        dbsession = mongo_connection(requestdata, client, getClientName)
+    
+        # fetch required data from request
+        projectid = requestdata["projectid"]
+        userid = requestdata["sender"]
+        profileid = requestdata["metadata"]["profileid"]
+
+        # fetch and convert the date format
+        starttime, endtime = date_conversion(request=requestdata)
+
+        # Values for the response
+        collection_name = "executions"
+        title = "Count of modules"
+        color = "#754e14"
+        charttype = "bar"
+
+        if profileid:
+            profile_name = list(dbsession.configurekeys.find({"token": profileid}))[0]["executionData"]["configurename"]
+            tokens = [profileid]
+            summary = f"Given below is the list of modules that have been executed for '{profile_name}' profile during {starttime.strftime('%d/%m/%Y')} and {endtime.strftime('%d/%m/%Y')} time range:"
+        else:
+            project_name = list(dbsession.projects.find({"_id": ObjectId(projectid)}))[0]["name"]
+            token_pipeline = pipelines.fetch_tokens(projectid=projectid, userid=userid)
+            token_values = list(dbsession.configurekeys.aggregate(token_pipeline))
+            tokens = [tokens["token"] for tokens in token_values]
+            summary = f"Given below is the list of modules that have been executed in '{project_name}' project during {starttime.strftime('%d/%m/%Y')} and {endtime.strftime('%d/%m/%Y')} time range:"
+
+        try:
+            data_pipeline = pipelines.pipeline_highest_number_of_module_executions(tokens=tokens, start_datetime=starttime, end_datetime=endtime)
+            table_result = DataPreparation.process_table_data(dbsession=dbsession, collectionname=collection_name, pipeline=data_pipeline)
+            print(table_result)
+        except Exception as e:
+            table_result = None
+
+        labels = []
+        chartdata = []
+        for d in table_result:
+            labels.append(d['Module Name'])
+            chartdata.append(d['Count'])
+
+        chart_result = None
+        if table_result:
+            chart_result = DataPreparation.process_final_chart_data(
+                title=title,
+                labels=labels,
+                backgroundColor=color,
+                chartsData=chartdata,
+                chartType=charttype,
+                displayLegend="true"
+            )
+
+        datatype = data_type["table/chart"] if table_result else data_type["text"]
+        result = DataPreparation.merge_table_and_chart_data(tabledata=table_result, chartdata=chart_result)
+
+        return datatype, summary, result
+    
+    except Exception as e:
+        return e
+    
+
+# Function to fetch the minimum number of times a module is being executed in a project or profile
+def lowest_number_of_module_executions(requestdata, client, getClientName):
+    try:
+        dbsession = mongo_connection(requestdata, client, getClientName)
+    
+        # fetch required data from request
+        projectid = requestdata["projectid"]
+        userid = requestdata["sender"]
+        profileid = requestdata["metadata"]["profileid"]
+
+        # fetch and convert the date format
+        starttime, endtime = date_conversion(request=requestdata)
+
+        # Values for the response
+        collection_name = "executions"
+        title = "Count of modules"
+        color = "#754e14"
+        charttype = "bar"
+
+        if profileid:
+            profile_name = list(dbsession.configurekeys.find({"token": profileid}))[0]["executionData"]["configurename"]
+            tokens = [profileid]
+            summary = f"Given below is the list of modules that have been executed for '{profile_name}' profile during {starttime.strftime('%d/%m/%Y')} and {endtime.strftime('%d/%m/%Y')} time range:"
+        else:
+            project_name = list(dbsession.projects.find({"_id": ObjectId(projectid)}))[0]["name"]
+            token_pipeline = pipelines.fetch_tokens(projectid=projectid, userid=userid)
+            token_values = list(dbsession.configurekeys.aggregate(token_pipeline))
+            tokens = [tokens["token"] for tokens in token_values]
+            summary = f"Given below is the list of modules that have been executed in '{project_name}' project during {starttime.strftime('%d/%m/%Y')} and {endtime.strftime('%d/%m/%Y')} time range:"
+
+        try:
+            data_pipeline = pipelines.pipeline_lowest_number_of_module_executions(tokens=tokens, start_datetime=starttime, end_datetime=endtime)
+            table_result = DataPreparation.process_table_data(dbsession=dbsession, collectionname=collection_name, pipeline=data_pipeline)
+            print(table_result)
+        except Exception as e:
+            table_result = None
+
+        labels = []
+        chartdata = []
+        for d in table_result:
+            labels.append(d['Module Name'])
+            chartdata.append(d['Count'])
+
+        chart_result = None
+        if table_result:
+            chart_result = DataPreparation.process_final_chart_data(
+                title=title,
+                labels=labels,
+                backgroundColor=color,
+                chartsData=chartdata,
+                chartType=charttype,
+                displayLegend="true"
+            )
+
+        datatype = data_type["table/chart"] if table_result else data_type["text"]
+        result = DataPreparation.merge_table_and_chart_data(tabledata=table_result, chartdata=chart_result)
+
+        return datatype, summary, result
+    
+    except Exception as e:
+        return e
+    
+
+# Function fetches the failure rate of module in a project or profile
+def failure_rate_for_module(requestdata, client, getClientName):
+    try:
+        dbsession = mongo_connection(requestdata, client, getClientName)
+    
+        # fetch required data from request
+        projectid = requestdata["projectid"]
+        userid = requestdata["sender"]
+        profileid = requestdata["metadata"]["profileid"]
+
+        # fetch and convert the date format
+        starttime, endtime = date_conversion(request=requestdata)
+
+        # Values for the response
+        collection_name = "executions"
+        title = "Count of modules"
+        color = "#754e14"
+        charttype = "bar"
+
+        if profileid:
+            profile_name = list(dbsession.configurekeys.find({"token": profileid}))[0]["executionData"]["configurename"]
+            tokens = [profileid]
+            summary = f"Given below is the list of modules that have been executed for '{profile_name}' profile during {starttime.strftime('%d/%m/%Y')} and {endtime.strftime('%d/%m/%Y')} time range:"
+        else:
+            project_name = list(dbsession.projects.find({"_id": ObjectId(projectid)}))[0]["name"]
+            token_pipeline = pipelines.fetch_tokens(projectid=projectid, userid=userid)
+            token_values = list(dbsession.configurekeys.aggregate(token_pipeline))
+            tokens = [tokens["token"] for tokens in token_values]
+            summary = f"Given below is the list of modules that have been executed in '{project_name}' project during {starttime.strftime('%d/%m/%Y')} and {endtime.strftime('%d/%m/%Y')} time range:"
+
+        try:
+            data_pipeline = pipelines.pipeline_failure_rate_for_module(tokens=tokens, start_datetime=starttime, end_datetime=endtime)
+            table_result = DataPreparation.process_table_data(dbsession=dbsession, collectionname=collection_name, pipeline=data_pipeline)
+            print(table_result)
+        except Exception as e:
+            table_result = None
+
+        labels = []
+        chartdata = []
+        for d in table_result:
+            labels.append(d['Module Name'])
+            chartdata.append(d['Failure Rate'])
+
+        chart_result = None
+        if table_result:
+            chart_result = DataPreparation.process_final_chart_data(
+                title=title,
+                labels=labels,
+                backgroundColor=color,
+                chartsData=chartdata,
+                chartType=charttype,
+                displayLegend="true"
+            )
+
+        datatype = data_type["table/chart"] if table_result else data_type["text"]
+        result = DataPreparation.merge_table_and_chart_data(tabledata=table_result, chartdata=chart_result)
+
+        return datatype, summary, result
+    
+    except Exception as e:
+        return e
+
+
 
 
 ##########################################################################################
@@ -399,7 +740,7 @@ def module_level_defects_trend_analysis(requestdata, client, getClientName):
                 x_title = "Module Names"
                 y_title = "Fail Count"
                 color = "#BEAD0B"
-                charttype = ["bar", "line"]
+                charttype = "bar"
                 labels = []
                 chartdata = []
                 chart_result = None
@@ -472,7 +813,7 @@ def module_with_more_defects(requestdata, client, getClientName):
                 x_title = "Module Names"
                 y_title = "Fail Count"
                 color = "#BEAD0B"
-                charttype = ["bar", "line"]
+                charttype = "line"
                 labels = []
                 chartdata = []
                 chart_result = None
@@ -545,7 +886,7 @@ def module_with_less_defects(requestdata, client, getClientName):
                 x_title = "Module Names"
                 y_title = "Fail Count"
                 color = "#BEAD0B"
-                charttype = ["bar", "line"]
+                charttype = "bar"
                 labels = []
                 chartdata = []
                 chart_result = None
@@ -615,7 +956,7 @@ def profile_level_defects_trend_analysis(requestdata, client, getClientName):
                 x_title = "Profile Names"
                 y_title = "Fail Count"
                 color = "#BEAD0B"
-                charttype = ["bar", "line"]
+                charttype = "line"
                 labels = []
                 chartdata = []
                 chart_result = None
@@ -684,7 +1025,7 @@ def profile_with_more_defects(requestdata, client, getClientName):
                 x_title = "Profile Names"
                 y_title = "Fail Count"
                 color = "#BEAD0B"
-                charttype = ["bar", "line"]
+                charttype = "bar"
                 labels = []
                 chartdata = []
                 chart_result = None
@@ -753,7 +1094,7 @@ def profile_with_less_defects(requestdata, client, getClientName):
                 x_title = "Profile Names"
                 y_title = "Fail Count"
                 color = "#BEAD0B"
-                charttype = ["bar", "line"]
+                charttype = "line"
                 labels = []
                 chartdata = []
                 chart_result = None
@@ -825,7 +1166,7 @@ def execution_environment_defects_trend_analysis(requestdata, client, getClientN
                 x_title = "Browser"
                 y_title = "Fail Count"
                 color = "#BEAD0B"
-                charttype = ["bar", "line"]
+                charttype = "bar"
                 labels = []
                 chartdata = []
                 chart_result = None
@@ -895,7 +1236,7 @@ def execution_environment_with_more_defects(requestdata, client, getClientName):
                 x_title = "Browser"
                 y_title = "Fail Count"
                 color = "#BEAD0B"
-                charttype = ["bar", "line"]
+                charttype = "line"
                 labels = []
                 chartdata = []
                 chart_result = None
@@ -965,7 +1306,7 @@ def execution_environment_with_less_defects(requestdata, client, getClientName):
                 x_title = "Browser"
                 y_title = "Fail Count"
                 color = "#BEAD0B"
-                charttype = ["bar", "line"]
+                charttype = "bar"
                 labels = []
                 chartdata = []
                 chart_result = None
@@ -1043,7 +1384,7 @@ def test_scenario_level_defects_trend_analysis(requestdata, client, getClientNam
                 x_title = "Test Scenarios"
                 y_title = "Fail Count"
                 color = "#BEAD0B"
-                charttype = ["bar", "line"]
+                charttype = "line"
                 labels = []
                 chartdata = []
                 chart_result = None
@@ -1121,7 +1462,7 @@ def test_scenario_with_more_defects(requestdata, client, getClientName):
                 x_title = "Test Scenarios"
                 y_title = "Fail Count"
                 color = "#BEAD0B"
-                charttype = ["bar", "line"]
+                charttype = "bar"
                 labels = []
                 chartdata = []
                 chart_result = None
@@ -1199,7 +1540,7 @@ def test_scenario_with_less_defects(requestdata, client, getClientName):
                 x_title = "Test Scenarios"
                 y_title = "Fail Count"
                 color = "#BEAD0B"
-                charttype = ["bar", "line"]
+                charttype = "line"
                 labels = []
                 chartdata = []
                 chart_result = None
@@ -1424,7 +1765,7 @@ def keyword_level_defects_trend_analysis(requestdata, client, getClientName):
                 x_title = "Keyword Name"
                 y_title = "Fail Count"
                 color = "#BEAD0B"
-                charttype = ["bar", "line"]
+                charttype = "bar"
                 labels = []
                 chartdata = []
                 chart_result = None
@@ -1503,7 +1844,7 @@ def keyword_with_more_defects(requestdata, client, getClientName):
                 x_title = "Keyword Name"
                 y_title = "Fail Count"
                 color = "#BEAD0B"
-                charttype = ["bar", "line"]
+                charttype = "line"
                 labels = []
                 chartdata = []
                 chart_result = None
@@ -1581,7 +1922,7 @@ def keyword_with_less_defects(requestdata, client, getClientName):
                 x_title = "Keyword Name"
                 y_title = "Fail Count"
                 color = "#BEAD0B"
-                charttype = ["bar", "line"]
+                charttype = "bar"
                 labels = []
                 chartdata = []
                 chart_result = None
@@ -1942,7 +2283,7 @@ def project_level_defects_trend_analysis(requestdata, client, getClientName):
                 x_title = "Project Name"
                 y_title = "Fail Count"
                 color = "#BEAD0B"
-                charttype = ["bar", "line"]
+                charttype = "bar"
                 labels = []
                 chartdata = []
                 chart_result = None
@@ -2011,7 +2352,7 @@ def project_with_more_defects(requestdata, client, getClientName):
                 x_title = "Project Name"
                 y_title = "Fail Count"
                 color = "#BEAD0B"
-                charttype = ["bar", "line"]
+                charttype = "line"
                 labels = []
                 chartdata = []
                 chart_result = None
@@ -2080,7 +2421,7 @@ def project_with_less_defects(requestdata, client, getClientName):
                 x_title = "Project Name"
                 y_title = "Fail Count"
                 color = "#BEAD0B"
-                charttype = ["bar", "line"]
+                charttype = "bar"
                 labels = []
                 chartdata = []
                 chart_result = None

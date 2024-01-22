@@ -159,6 +159,243 @@ def pipeline_count_module_executed(tokens, start_datetime, end_datetime):
     return pipeline
 
 
+def pipeline_modules_execution_status(tokens, start_datetime, end_datetime):
+    pipeline = [
+        {
+            "$match": {
+                "configurekey": {"$in": tokens},
+                "starttime": {"$gte": start_datetime, "$lte": end_datetime}
+            }
+        },
+        {
+            "$lookup": {
+                "from": "testsuites",
+                "localField": "parent",
+                "foreignField": "_id",
+                "as": "moduledata"
+            }
+        },
+        {
+            "$project": {
+                "parent":1,
+                "starttime": 1,
+                "status": 1,
+                "module_name": {"$arrayElemAt": ["$moduledata.name", 0]},
+                "_id": 0
+            }
+        },
+        {
+            "$group": {
+                "_id":"$parent",
+                "module_name": {"$first": "$module_name"},
+                "total_count": {"$sum": 1},
+                "fail_count": {"$sum": {"$cond": [{"$eq": ["$status", "fail"]}, 1, 0]}},
+                "pass_count": {"$sum": {"$cond": [{"$eq": ["$status", "pass"]}, 1, 0]}},
+                "queued_count": {"$sum": {"$cond": [{"$eq": ["$status", "queued"]}, 1, 0]}},
+                "inprogress_count": {"$sum": {"$cond": [{"$eq": ["$status", "inprogress"]}, 1, 0]}}
+            }
+        },
+        {
+            "$project": {
+                "module_name": 1,
+                "total_count": 1,
+                "fail_count": 1,
+                "pass_count": 1,
+                "queued_count": 1,
+                "inprogress_count": 1,
+                "_id": 0
+            }
+        },
+        {
+            "$sort":{
+                "total_count":-1
+            }
+        }
+    ]
+    return pipeline
+
+
+def pipeline_each_module_execution_frequency(tokens, start_datetime, end_datetime):
+    pipeline = [
+        {
+            "$match": {
+                "configurekey":{"$in": tokens},
+                "starttime": {"$gte": start_datetime, "$lte": end_datetime}
+            }
+        },
+        {
+            "$lookup":{
+            "from": "testsuites",
+                "localField": "parent",
+                'foreignField':"_id",
+                'as':"moduledata"
+            }
+        },       
+        {
+            "$group": {
+                "_id": "$parent",
+                "Count": { "$sum": 1 },
+                "module_name": { "$first": "$moduledata.name" }
+            }
+        },
+                
+        {
+            "$project": {
+                "Count": 1,
+                "Module Name": {"$arrayElemAt":["$module_name",0]},
+                "_id": 0
+            }
+        }
+    ]
+    return pipeline
+
+
+def pipeline_highest_number_of_module_executions(tokens, start_datetime, end_datetime):
+    pipeline = [
+                {
+                "$match": {
+                    "configurekey":{"$in": tokens},
+                    "starttime": {"$gte": start_datetime, "$lte": end_datetime}
+                }
+            },
+                {
+                    "$project": {
+                        "parent": "$parent",
+                        "status":"$status"
+                    }
+                },
+                {
+                    "$lookup":{
+                    "from": "testsuites",
+                        "localField": "parent",
+                        'foreignField':"_id",
+                        'as':"moduledata"
+                    }},
+                    
+                    {
+                    "$group": {
+                        "_id": "$parent",
+                        "Count": { "$sum": 1 },
+                        "module_name": { "$first": "$moduledata.name" }
+                    }
+                },
+                
+                {
+                    "$project": {
+                        "Count": 1,
+                        "Module Name": {"$arrayElemAt":["$module_name",0]},
+                        "_id": 0
+                    }
+                },
+                { "$sort": { "Count": -1 } },
+                { "$limit": 5 }
+            ]
+    return pipeline
+
+
+def pipeline_lowest_number_of_module_executions(tokens, start_datetime, end_datetime):
+    pipeline = [
+                {
+                "$match": {
+                    "configurekey":{"$in": tokens},
+                    "starttime": {"$gte": start_datetime, "$lte": end_datetime}
+                }
+            },
+                {
+                    "$project": {
+                        "parent": "$parent",
+                        "status":"$status"
+                    }
+                },
+                {
+                    "$lookup":{
+                    "from": "testsuites",
+                        "localField": "parent",
+                        'foreignField':"_id",
+                        'as':"moduledata"
+                    }},
+                    
+                    {
+                    "$group": {
+                        "_id": "$parent",
+                        "Count": { "$sum": 1 },
+                        "module_name": { "$first": "$moduledata.name" }
+                    }
+                },
+                
+                {
+                    "$project": {
+                        "Count": 1,
+                        "Module Name": {"$arrayElemAt":["$module_name",0]},
+                        "_id": 0
+                    }
+                },
+                { "$sort": { "Count": 1 } },
+                { "$limit": 5 }
+            ]
+    return pipeline
+
+
+def pipeline_failure_rate_for_module(tokens, start_datetime, end_datetime):
+    # Define the aggregation pipeline
+    pipeline = [
+                {
+            "$match": {
+                "configurekey":{"$in": tokens},
+                "starttime": {"$gte": start_datetime, "$lte": end_datetime}
+            }
+        },
+                {
+                    "$project": {
+                        "parent": "$parent",
+                        "status":"$status"
+                    }
+                },
+                {
+                    "$lookup":{
+                    "from": "testsuites",
+                        "localField": "parent",
+                        'foreignField':"_id",
+                        'as':"moduledata"
+                    }},
+                    
+                    {
+                "$group": {
+                    "_id": "$parent",
+                    "module_name": { "$first": "$moduledata.name" },
+                    "fail_count": { "$sum": { "$cond": { "if": { "$eq": ["$status", "fail"] }, "then": 1, "else": 0 } } },
+                    "total_count": {
+                        "$sum": {
+                            "$cond": {
+                                "if": { "$in": ["$status", ["pass", "fail"]] },
+                                "then": 1,
+                                "else": 0
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "$project": {
+                    "Failure Rate": {
+                        "$cond": {
+                            "if": { "$eq": ["$total_count", 0] },
+                            "then": None,
+                            "else": { "$divide": ["$fail_count", "$total_count"] }
+                        }
+                    },
+                    "Module Name": {"$arrayElemAt":["$module_name",0]}, 
+                    "_id": 0
+                }
+            }
+            ]
+    return pipeline
+
+
+
+
+
+
 ####################################################################################
 ##################################### DEFECT #######################################
 ####################################################################################

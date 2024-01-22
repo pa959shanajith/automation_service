@@ -108,6 +108,7 @@ def LoadServices(app, redissession, client,getClientName):
             "data": result,
             "status": HTTPStatus.OK
         }
+        app.logger.debug("rasa_prompt_model returned successful")
 
         # Store the result in the cache for 60 seconds
         # cache.set(function_name, transformed_data, timeout=60)
@@ -158,7 +159,7 @@ def LoadServices(app, redissession, client,getClientName):
             
             # Compose payload to send to Rasa
             payload = compose_payload(request_data)
-            print("Payload: ", json.dumps(payload, indent=2))
+            # print("Payload: ", json.dumps(payload, indent=2))
 
             # Getting RASA response
             response = make_rasa_request(rasa_server_endpoint, payload)
