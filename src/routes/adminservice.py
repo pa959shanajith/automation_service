@@ -1999,7 +1999,10 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
                     else:
                         dbsession.users.update_one({"_id":ObjectId(user["id"])},{"$push":{"projects":ObjectId(requestdata["project_id"]), "projectlevelrole":{"_id":requestdata["project_id"], "assignedrole": str(default_role_id[0]["_id"])}}})
                 for user in newlyUnassignedUsers:
-                    dbsession.users.update_one({"_id":ObjectId(user["_id"])},{"$pull":{"projects":ObjectId(requestdata["project_id"]), "projectlevelrole":{"_id":requestdata["project_id"]}}})    
+                    dbsession.users.update_one({"_id":ObjectId(user["_id"])},{"$pull":{"projects":ObjectId(requestdata["project_id"]), "projectlevelrole":{"_id":requestdata["project_id"]}}})
+                    listofmodules=list(dbsession.mindmaps.find({"currentlyinuse":user['name']}))
+                    for module in listofmodules:
+                        dbsession.mindmaps.update_one({'_id':module['_id']},{"$set":{"currentlyinuse":""}})     
                 res={'rows':'success'}
             else:
                 app.logger.warn('Empty data received. update project.')
