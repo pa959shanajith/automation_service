@@ -317,35 +317,14 @@ def count_module_executed(requestdata, client, getClientName):
                 chart_result = None
 
             else:
-                x_title = "Module Names"
-                y_title = "Times Executed"
-                color = "#754e14"
-                charttype = "bar"
-                labels = []
-                chartdata = []
                 chart_result = None
-
-                for d in table_result:
-                    labels.append(d['Module Name'])
-                    chartdata.append(d['Count'])
-
-                # Generating Chart Data
-                chart_result = DataPreparation.process_final_chart_data(
-                        x_title=x_title,
-                        y_title=y_title,
-                        labels=labels,
-                        backgroundColor=color,
-                        chartsData=chartdata,
-                        chartType=charttype,
-                        displayLegend="true"
-                    )
 
         except Exception as e:
             table_result = None
             chart_result = None
             summary = exeception_summary
 
-        datatype = data_type["table/chart"] if table_result else data_type["text"]
+        datatype = data_type["table"]
         result = DataPreparation.merge_table_and_chart_data(tabledata=table_result, chartdata=chart_result)
         return datatype, summary, result
     
@@ -353,7 +332,7 @@ def count_module_executed(requestdata, client, getClientName):
         return e
 
 
-# Function to fetch modules with their execution statuses for all the profiles in a project
+# Function to fetch modules with their execution statuses for all the profiles in a project -- trend
 def modules_execution_status(requestdata, client, getClientName):
     try:
         dbsession = mongo_connection(requestdata, client, getClientName)
@@ -394,13 +373,13 @@ def modules_execution_status(requestdata, client, getClientName):
                 x_title = "Statuses"
                 y_title = "Count"
                 charttype = "trend"
-                labels = ["Total", "Pass", "Fail", "Queued", "Inprogress"]
+                labels = ["Pass", "Fail", "Queued", "Inprogress"]
                 datasets = []
 
                 for modules in table_result:
                     datasets.append({
-                        'label': modules['module_name'],
-                        'data': [modules['total_count'], modules['fail_count'], modules['pass_count'], modules['queued_count'], modules['inprogress_count']],
+                        'label': modules['Module Name'],
+                        'data': [modules['Pass Count'], modules['Fail Count'], modules['Queued Count'], modules['Inprogress Count']],
                         'fill': False,
                         'borderColor': f'rgb({np.random.randint(0, 256)}, {np.random.randint(0, 256)}, {np.random.randint(0, 256)})',
                         'tension': 0.1
@@ -431,8 +410,8 @@ def modules_execution_status(requestdata, client, getClientName):
         return e
     
 
-# Function to fetch each module execution frequency in a project or profile
-def each_module_execution_frequency(requestdata, client, getClientName):
+# Function to fetch modules with their max, min and avg execution times
+def module_execution_duration(requestdata, client, getClientName):
     try:
         dbsession = mongo_connection(requestdata, client, getClientName)
     
@@ -450,16 +429,80 @@ def each_module_execution_frequency(requestdata, client, getClientName):
         if profileid:
             profile_name = list(dbsession.configurekeys.find({"token": profileid}))[0]["executionData"]["configurename"]
             tokens = [profileid]
-            summary = f"Given below is the list of modules that have been executed for '{profile_name}' profile during {starttime.strftime('%d/%m/%Y')} and {endtime.strftime('%d/%m/%Y')} time range:"
+            summary = (
+               f"Below is a list of modules in the '{profile_name}' profile along with their respective maximum, minimum, and average execution times "
+               f"from {starttime.strftime('%d/%m/%Y')} to {endtime.strftime('%d/%m/%Y')} time range"
+            )
         else:
             project_name = list(dbsession.projects.find({"_id": ObjectId(projectid)}))[0]["name"]
             token_pipeline = pipelines.fetch_tokens(projectid=projectid, userid=userid)
             token_values = list(dbsession.configurekeys.aggregate(token_pipeline))
             tokens = [tokens["token"] for tokens in token_values]
-            summary = f"Given below is the list of modules that have been executed in '{project_name}' project during {starttime.strftime('%d/%m/%Y')} and {endtime.strftime('%d/%m/%Y')} time range:"
+            summary = (
+               f"Below is a list of modules in the '{project_name}' project along with their respective maximum, minimum, and average execution times "
+               f"from {starttime.strftime('%d/%m/%Y')} to {endtime.strftime('%d/%m/%Y')} time range"
+            )
 
         try:
-            data_pipeline = pipelines.pipeline_each_module_execution_frequency(tokens=tokens, start_datetime=starttime, end_datetime=endtime)
+            data_pipeline = pipelines.pipeline_module_execution_duration(tokens=tokens, start_datetime=starttime, end_datetime=endtime)
+            table_result = DataPreparation.process_table_data(dbsession=dbsession, collectionname=collection_name, pipeline=data_pipeline)
+
+            # Check if table_result is None
+            if not table_result:
+                summary = no_data_summary
+                table_result = None
+                chart_result = None
+            
+        except Exception as e:
+            table_result = None
+            chart_result = None
+            summary = exeception_summary
+
+        datatype = data_type["table"] if table_result else data_type["text"]
+        result = DataPreparation.merge_table_and_chart_data(tabledata=table_result, chartdata=None)
+        return datatype, summary, result
+    
+    except Exception as e:
+        return e
+
+
+
+
+
+
+
+
+# ----- below functions in same section are still under code review
+
+# Function to fetch each module execution frequency in a project or profile
+def module_execution_frequency(requestdata, client, getClientName):
+    try:
+        dbsession = mongo_connection(requestdata, client, getClientName)
+    
+        # fetch required data from request
+        projectid = requestdata["projectid"]
+        userid = requestdata["sender"]
+        profileid = requestdata["metadata"]["profileid"]
+
+        # fetch and convert the date format
+        starttime, endtime = date_conversion(request=requestdata)
+
+        # Collection name for the pipeline
+        collection_name = "executions"
+
+        if profileid:
+            profile_name = list(dbsession.configurekeys.find({"token": profileid}))[0]["executionData"]["configurename"]
+            tokens = [profileid]
+            summary = f"Presented data showing the module execution frequency for '{profile_name}' profile during {starttime.strftime('%d/%m/%Y')} and {endtime.strftime('%d/%m/%Y')} time range:"
+        else:
+            project_name = list(dbsession.projects.find({"_id": ObjectId(projectid)}))[0]["name"]
+            token_pipeline = pipelines.fetch_tokens(projectid=projectid, userid=userid)
+            token_values = list(dbsession.configurekeys.aggregate(token_pipeline))
+            tokens = [tokens["token"] for tokens in token_values]
+            summary = f"Presented data showing the module execution frequency for '{project_name}' project during {starttime.strftime('%d/%m/%Y')} and {endtime.strftime('%d/%m/%Y')}."
+
+        try:
+            data_pipeline = pipelines.pipeline_module_execution_frequency(tokens=tokens, start_datetime=starttime, end_datetime=endtime)
             table_result = DataPreparation.process_table_data(dbsession=dbsession, collectionname=collection_name, pipeline=data_pipeline)
 
             # Check if table_result is None
@@ -470,7 +513,7 @@ def each_module_execution_frequency(requestdata, client, getClientName):
 
             else:
                 x_title = "Module Names"
-                y_title = "Count"
+                y_title = "Times executed"
                 color = "#754e80"
                 charttype = "bar"
                 labels = []
@@ -479,7 +522,7 @@ def each_module_execution_frequency(requestdata, client, getClientName):
 
                 for d in table_result:
                     labels.append(d['Module Name'])
-                    chartdata.append(d['Count'])
+                    chartdata.append(d['Times Executed'])
 
                 # Generating Chart Data
                 chart_result = DataPreparation.process_final_chart_data(
@@ -506,7 +549,7 @@ def each_module_execution_frequency(requestdata, client, getClientName):
     
 
 # Function to fetch the maximum number of times a module is being executed in a project or profile
-def highest_number_of_module_executions(requestdata, client, getClientName):
+def highest_module_execution_frequency(requestdata, client, getClientName):
     try:
         dbsession = mongo_connection(requestdata, client, getClientName)
     
@@ -518,50 +561,61 @@ def highest_number_of_module_executions(requestdata, client, getClientName):
         # fetch and convert the date format
         starttime, endtime = date_conversion(request=requestdata)
 
-        # Values for the response
+        # Collection name for the pipeline
         collection_name = "executions"
-        title = "Count of modules"
-        color = "#754e14"
-        charttype = "bar"
 
         if profileid:
             profile_name = list(dbsession.configurekeys.find({"token": profileid}))[0]["executionData"]["configurename"]
             tokens = [profileid]
-            summary = f"Given below is the list of modules that have been executed for '{profile_name}' profile during {starttime.strftime('%d/%m/%Y')} and {endtime.strftime('%d/%m/%Y')} time range:"
+            summary = f"Given below is the list of top five modules that have been executed in '{profile_name}' profile during {starttime.strftime('%d/%m/%Y')} and {endtime.strftime('%d/%m/%Y')} time range:"
         else:
             project_name = list(dbsession.projects.find({"_id": ObjectId(projectid)}))[0]["name"]
             token_pipeline = pipelines.fetch_tokens(projectid=projectid, userid=userid)
             token_values = list(dbsession.configurekeys.aggregate(token_pipeline))
             tokens = [tokens["token"] for tokens in token_values]
-            summary = f"Given below is the list of modules that have been executed in '{project_name}' project during {starttime.strftime('%d/%m/%Y')} and {endtime.strftime('%d/%m/%Y')} time range:"
+            summary = f"Given below is the list of top five modules that have been executed in '{project_name}' project during {starttime.strftime('%d/%m/%Y')} and {endtime.strftime('%d/%m/%Y')} time range:"
 
         try:
-            data_pipeline = pipelines.pipeline_highest_number_of_module_executions(tokens=tokens, start_datetime=starttime, end_datetime=endtime)
+            data_pipeline = pipelines.pipeline_module_execution_frequency(tokens=tokens, start_datetime=starttime, end_datetime=endtime, sort_order=-1, limit_count=5)
             table_result = DataPreparation.process_table_data(dbsession=dbsession, collectionname=collection_name, pipeline=data_pipeline)
-            print(table_result)
+
+            # Check if table_result is None
+            if not table_result:
+                summary = no_data_summary
+                table_result = None
+                chart_result = None
+
+            else:
+                x_title = "Module Names"
+                y_title = "Times executed"
+                color = "#754e80"
+                charttype = "bar"
+                labels = []
+                chartdata = []
+                chart_result = None
+
+                for d in table_result:
+                    labels.append(d['Module Name'])
+                    chartdata.append(d['Times Executed'])
+
+                # Generating Chart Data
+                chart_result = DataPreparation.process_final_chart_data(
+                        x_title=x_title,
+                        y_title=y_title,
+                        labels=labels,
+                        backgroundColor=color,
+                        chartsData=chartdata,
+                        chartType=charttype,
+                        displayLegend="true"
+                    )
+                
         except Exception as e:
             table_result = None
-
-        labels = []
-        chartdata = []
-        for d in table_result:
-            labels.append(d['Module Name'])
-            chartdata.append(d['Count'])
-
-        chart_result = None
-        if table_result:
-            chart_result = DataPreparation.process_final_chart_data(
-                title=title,
-                labels=labels,
-                backgroundColor=color,
-                chartsData=chartdata,
-                chartType=charttype,
-                displayLegend="true"
-            )
+            chart_result = None
+            summary = exeception_summary
 
         datatype = data_type["table/chart"] if table_result else data_type["text"]
         result = DataPreparation.merge_table_and_chart_data(tabledata=table_result, chartdata=chart_result)
-
         return datatype, summary, result
     
     except Exception as e:
@@ -569,7 +623,7 @@ def highest_number_of_module_executions(requestdata, client, getClientName):
     
 
 # Function to fetch the minimum number of times a module is being executed in a project or profile
-def lowest_number_of_module_executions(requestdata, client, getClientName):
+def lowest_module_execution_frequency(requestdata, client, getClientName):
     try:
         dbsession = mongo_connection(requestdata, client, getClientName)
     
@@ -581,16 +635,13 @@ def lowest_number_of_module_executions(requestdata, client, getClientName):
         # fetch and convert the date format
         starttime, endtime = date_conversion(request=requestdata)
 
-        # Values for the response
+        # Collection name for the pipeline
         collection_name = "executions"
-        title = "Count of modules"
-        color = "#754e14"
-        charttype = "bar"
 
         if profileid:
             profile_name = list(dbsession.configurekeys.find({"token": profileid}))[0]["executionData"]["configurename"]
             tokens = [profileid]
-            summary = f"Given below is the list of modules that have been executed for '{profile_name}' profile during {starttime.strftime('%d/%m/%Y')} and {endtime.strftime('%d/%m/%Y')} time range:"
+            summary = f"Given below is the list of modules that have been executed least number of times in '{profile_name}' profile during {starttime.strftime('%d/%m/%Y')} and {endtime.strftime('%d/%m/%Y')} time range:"
         else:
             project_name = list(dbsession.projects.find({"_id": ObjectId(projectid)}))[0]["name"]
             token_pipeline = pipelines.fetch_tokens(projectid=projectid, userid=userid)
@@ -599,32 +650,46 @@ def lowest_number_of_module_executions(requestdata, client, getClientName):
             summary = f"Given below is the list of modules that have been executed in '{project_name}' project during {starttime.strftime('%d/%m/%Y')} and {endtime.strftime('%d/%m/%Y')} time range:"
 
         try:
-            data_pipeline = pipelines.pipeline_lowest_number_of_module_executions(tokens=tokens, start_datetime=starttime, end_datetime=endtime)
+            data_pipeline = pipelines.pipeline_module_execution_frequency(tokens=tokens, start_datetime=starttime, end_datetime=endtime, sort_order=1, limit_count=5)
             table_result = DataPreparation.process_table_data(dbsession=dbsession, collectionname=collection_name, pipeline=data_pipeline)
-            print(table_result)
+
+            # Check if table_result is None
+            if not table_result:
+                summary = no_data_summary
+                table_result = None
+                chart_result = None
+
+            else:
+                x_title = "Module Names"
+                y_title = "Times executed"
+                color = "#754e80"
+                charttype = "bar"
+                labels = []
+                chartdata = []
+                chart_result = None
+
+                for d in table_result:
+                    labels.append(d['Module Name'])
+                    chartdata.append(d['Times Executed'])
+
+                # Generating Chart Data
+                chart_result = DataPreparation.process_final_chart_data(
+                        x_title=x_title,
+                        y_title=y_title,
+                        labels=labels,
+                        backgroundColor=color,
+                        chartsData=chartdata,
+                        chartType=charttype,
+                        displayLegend="true"
+                    )
+                
         except Exception as e:
             table_result = None
-
-        labels = []
-        chartdata = []
-        for d in table_result:
-            labels.append(d['Module Name'])
-            chartdata.append(d['Count'])
-
-        chart_result = None
-        if table_result:
-            chart_result = DataPreparation.process_final_chart_data(
-                title=title,
-                labels=labels,
-                backgroundColor=color,
-                chartsData=chartdata,
-                chartType=charttype,
-                displayLegend="true"
-            )
+            chart_result = None
+            summary = exeception_summary
 
         datatype = data_type["table/chart"] if table_result else data_type["text"]
         result = DataPreparation.merge_table_and_chart_data(tabledata=table_result, chartdata=chart_result)
-
         return datatype, summary, result
     
     except Exception as e:
