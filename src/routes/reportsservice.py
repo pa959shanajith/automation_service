@@ -160,7 +160,8 @@ def LoadServices(app, redissession, client ,getClientName):
                 for ids in queryresult:
                     ids['moduleName'] = dictForTestSuiteIdAndName[ids['parent'][0]]
                 
-                res = queryresult if 'executionListId' in requestdata['data'] else {"modules": testSuiteNames}
+                # res = queryresult if 'executionListId' in requestdata['data'] else {"modules": testSuiteNames}
+                res = {"modules": testSuiteNames}
 
             # else:
             #     app.logger.warn('Empty data received. report suites details.')
