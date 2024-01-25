@@ -2544,7 +2544,7 @@ def project_with_more_defects(requestdata, client, getClientName):
                 x_title = "Project Name"
                 y_title = "Fail Count"
                 color = "#BEAD0B"
-                charttype = "line"
+                charttype = "bar"
                 labels = []
                 chartdata = []
                 chart_result = None
