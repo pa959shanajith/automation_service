@@ -466,14 +466,6 @@ def module_execution_duration(requestdata, client, getClientName):
         return e
 
 
-
-
-
-
-
-
-# ----- below functions in same section are still under code review
-
 # Function to fetch each module execution frequency in a project or profile
 def module_execution_frequency(requestdata, client, getClientName):
     try:
@@ -502,7 +494,7 @@ def module_execution_frequency(requestdata, client, getClientName):
             summary = f"Presented data showing the module execution frequency for '{project_name}' project during {starttime.strftime('%d/%m/%Y')} and {endtime.strftime('%d/%m/%Y')}."
 
         try:
-            data_pipeline = pipelines.pipeline_module_execution_frequency(tokens=tokens, start_datetime=starttime, end_datetime=endtime)
+            data_pipeline = pipelines.pipeline_module_execution_frequency(tokens=tokens, start_datetime=starttime, end_datetime=endtime, sort_order=-1)
             table_result = DataPreparation.process_table_data(dbsession=dbsession, collectionname=collection_name, pipeline=data_pipeline)
 
             # Check if table_result is None
@@ -546,7 +538,7 @@ def module_execution_frequency(requestdata, client, getClientName):
     
     except Exception as e:
         return e
-    
+
 
 # Function to fetch the maximum number of times a module is being executed in a project or profile
 def highest_module_execution_frequency(requestdata, client, getClientName):
@@ -567,13 +559,19 @@ def highest_module_execution_frequency(requestdata, client, getClientName):
         if profileid:
             profile_name = list(dbsession.configurekeys.find({"token": profileid}))[0]["executionData"]["configurename"]
             tokens = [profileid]
-            summary = f"Given below is the list of top five modules that have been executed in '{profile_name}' profile during {starttime.strftime('%d/%m/%Y')} and {endtime.strftime('%d/%m/%Y')} time range:"
+            summary = (
+                f"Given below is the list of top five modules that have been executed maximum number of times "
+                f"during testing in '{profile_name}' profile between {starttime.strftime('%d/%m/%Y')} and {endtime.strftime('%d/%m/%Y')}."
+            )
         else:
             project_name = list(dbsession.projects.find({"_id": ObjectId(projectid)}))[0]["name"]
             token_pipeline = pipelines.fetch_tokens(projectid=projectid, userid=userid)
             token_values = list(dbsession.configurekeys.aggregate(token_pipeline))
             tokens = [tokens["token"] for tokens in token_values]
-            summary = f"Given below is the list of top five modules that have been executed in '{project_name}' project during {starttime.strftime('%d/%m/%Y')} and {endtime.strftime('%d/%m/%Y')} time range:"
+            summary = (
+                f"Given below is the list of top five modules that have been executed maximum number of times "
+                f"during testing in '{project_name}' project between {starttime.strftime('%d/%m/%Y')} and {endtime.strftime('%d/%m/%Y')}."
+            )
 
         try:
             data_pipeline = pipelines.pipeline_module_execution_frequency(tokens=tokens, start_datetime=starttime, end_datetime=endtime, sort_order=-1, limit_count=5)
@@ -620,7 +618,7 @@ def highest_module_execution_frequency(requestdata, client, getClientName):
     
     except Exception as e:
         return e
-    
+
 
 # Function to fetch the minimum number of times a module is being executed in a project or profile
 def lowest_module_execution_frequency(requestdata, client, getClientName):
@@ -641,13 +639,19 @@ def lowest_module_execution_frequency(requestdata, client, getClientName):
         if profileid:
             profile_name = list(dbsession.configurekeys.find({"token": profileid}))[0]["executionData"]["configurename"]
             tokens = [profileid]
-            summary = f"Given below is the list of modules that have been executed least number of times in '{profile_name}' profile during {starttime.strftime('%d/%m/%Y')} and {endtime.strftime('%d/%m/%Y')} time range:"
+            summary = (
+                f"Given below is the list of top five modules that have been executed least number of times "
+                f"during testing in '{profile_name}' profile between {starttime.strftime('%d/%m/%Y')} and {endtime.strftime('%d/%m/%Y')}."
+            )
         else:
             project_name = list(dbsession.projects.find({"_id": ObjectId(projectid)}))[0]["name"]
             token_pipeline = pipelines.fetch_tokens(projectid=projectid, userid=userid)
             token_values = list(dbsession.configurekeys.aggregate(token_pipeline))
             tokens = [tokens["token"] for tokens in token_values]
-            summary = f"Given below is the list of modules that have been executed in '{project_name}' project during {starttime.strftime('%d/%m/%Y')} and {endtime.strftime('%d/%m/%Y')} time range:"
+            summary = (
+                f"Given below is the list of top five modules that have been executed minimum number of times "
+                f"during testing in '{project_name}' project between {starttime.strftime('%d/%m/%Y')} and {endtime.strftime('%d/%m/%Y')}."
+            )
 
         try:
             data_pipeline = pipelines.pipeline_module_execution_frequency(tokens=tokens, start_datetime=starttime, end_datetime=endtime, sort_order=1, limit_count=5)
@@ -694,7 +698,130 @@ def lowest_module_execution_frequency(requestdata, client, getClientName):
     
     except Exception as e:
         return e
+
+
+# Function fetches the complete execution history for the specified Testsuite.
+def module_execution_history(requestdata, client, getClientName):
+    try:
+        dbsession = mongo_connection(requestdata, client, getClientName)
+
+        # fetch required data from request
+        projectid = requestdata["projectid"]
+        userid = requestdata["sender"]
+        profileid = requestdata["metadata"]["profileid"]
+        moduleid= ObjectId(requestdata["metadata"]["moduleid"])
+        # fetch and convert the date format
+        starttime, endtime = date_conversion(request=requestdata)
+
+        # Values for the response
+        collection_name = "executions"
+        
+        profile_details = list(dbsession.configurekeys.find({"token": profileid}))
+        profile_name=profile_details[0]["executionData"]["configurename"]
+        testsuite_id=dbsession.testsuites.find_one({"mindmapid":moduleid},{"_id":1,"name":1})
+        tokens = [profileid]
+        testsuite_name=testsuite_id["name"]
+        summary = f"Given below is the execution history for the '{testsuite_name}' Testsuite executed through the '{profile_name}' profile during {starttime.strftime('%d/%m/%Y')} and {endtime.strftime('%d/%m/%Y')} time range:"
+
+        try:
+            data_pipeline = pipelines.pipeline_module_execution_history(tokens=tokens, start_datetime=starttime, end_datetime=endtime, testsuite_id=testsuite_id["_id"],testsuite_name=testsuite_name)
+            min_max_values=DataPreparation.process_table_data(dbsession=dbsession, collectionname=collection_name, pipeline=data_pipeline)
+            table_result=pipelines.pipeline_module_execution_history_2(min_max_values=min_max_values)           
+
+
+            # Check if table_result is None
+            if not table_result:
+                summary = no_data_summary
+                table_result = None
+                chart_result = None
+
+            else:
+                x_title = ""
+                color = "#754e14"
+                charttype = "doughnut"
+                labels = "Count of modules"
+                chartdata = len(table_result)
+                chart_result = None
+
+                chart_result = DataPreparation.process_final_chart_data(
+                    x_title=x_title,
+                    labels=labels,
+                    backgroundColor=color,
+                    chartsData=len(table_result),
+                    chartType=charttype,
+                    displayLegend="true"
+                )
+
+        except Exception as e:
+            table_result = None
+            chart_result = None
+            summary = exeception_summary
+
+        datatype = data_type["table/chart"] if table_result else data_type["text"]
+        result = DataPreparation.merge_table_and_chart_data(tabledata=table_result, chartdata=chart_result)
+        return datatype, summary, result
     
+    except Exception as e:
+        return e
+
+
+# Function fetches the number of time the profile has been executed
+def No_of_times_profile_executed(requestdata, client, getClientName):
+    try:
+        dbsession = mongo_connection(requestdata, client, getClientName)
+
+        # fetch required data from request
+        projectid = requestdata["projectid"]
+        userid = requestdata["sender"]
+        profileid = requestdata["metadata"]["profileid"]
+
+        # fetch and convert the date format
+        starttime, endtime = date_conversion(request=requestdata)
+
+        # Values for the response
+        collection_name = "executionlist"
+        
+        profile_name = list(dbsession.configurekeys.find({"token": profileid}))[0]["executionData"]["configurename"]
+        tokens = [profileid]
+        summary = f"Given below is the number of the times '{profile_name}' profile  executed during {starttime.strftime('%d/%m/%Y')} and {endtime.strftime('%d/%m/%Y')} time range:"
+        try:
+            table_result=dbsession.executionlist.count_documents({"configkey":profileid})
+
+            # Check if table_result is None
+            if not table_result:
+                summary = no_data_summary
+                table_result = None
+                chart_result = None
+
+            else:
+                x_title = ""
+                color = "#754e14"
+                charttype = "doughnut"
+                labels = "Count of modules"
+                chartdata = table_result
+                chart_result = None
+
+                chart_result = DataPreparation.process_final_chart_data(
+                    x_title=x_title,
+                    labels=labels,
+                    backgroundColor=color,
+                    chartsData=table_result,
+                    chartType=charttype,
+                    displayLegend="true"
+                )
+
+        except Exception as e:
+            table_result = None
+            chart_result = None
+            summary = exeception_summary
+
+        datatype = data_type["table/chart"] if table_result else data_type["text"]
+        result = DataPreparation.merge_table_and_chart_data(tabledata=table_result, chartdata=chart_result)
+        return datatype, summary, result
+    
+    except Exception as e:
+        return e
+
 
 # Function fetches the failure rate of module in a project or profile
 def failure_rate_for_module(requestdata, client, getClientName):

@@ -1,4 +1,6 @@
 from bson import ObjectId
+from utils import *
+from collections import Counter
 
 ####################################################################################
 ##################################### COMMON #######################################
@@ -259,11 +261,6 @@ def pipeline_module_execution_duration(tokens, start_datetime, end_datetime):
     return pipeline
 
 
-
-
-
-
-
 def pipeline_module_execution_frequency(tokens, start_datetime, end_datetime, sort_order=None, limit_count=None):
     pipeline = [
         {
@@ -282,14 +279,13 @@ def pipeline_module_execution_frequency(tokens, start_datetime, end_datetime, so
         },
         {
             "$group": {
-                "_id": "$parent",
-                "Count": { "$sum": 1 },
-                "module_name": { "$first": "$moduledata.name" }
+                "_id": {"$arrayElemAt": ["$moduledata.name", 0]},
+                "Count": { "$sum": 1 }
             }
         },
         {
             "$project": {
-                "Module Name": {"$arrayElemAt":["$module_name",0]},
+                "Module Name": "$_id",
                 "Times Executed": "$Count",
                 "_id": 0
             }
@@ -305,8 +301,72 @@ def pipeline_module_execution_frequency(tokens, start_datetime, end_datetime, so
     return pipeline
 
 
+def pipeline_module_execution_history(tokens, start_datetime, end_datetime, testsuite_id, testsuite_name):
+    pipeline = [
+        {
+            "$match": {
+                "configurekey": {"$in": tokens},
+                "parent":testsuite_id,
+                "starttime": {"$gte": start_datetime, "$lte": end_datetime}
+            }
+        },
+        {
+            "$set": {                
+                "elapsedtime": {
+                    "$dateToString": {
+                        "format": "%H:%M:%S.%LZ", 
+                        "date": {
+                            "$add": [datetime.utcfromtimestamp(0), { "$multiply": [{
+                                "$divide": [{"$subtract": ["$endtime", "$starttime"]},86400000]}, 24 * 60 * 60 * 1000] }]                            
+                        }
+                    }
+                }
+            }
+        },
+        {
+            "$group":{
+                "_id":None,
+                "No of times executed":{"$sum":1},"status":{"$push":"$status"},
+                "min time":{"$min":"$elapsedtime"},"max time":{"$max":"$elapsedtime"},
+                "diff": {
+                    "$avg": {
+                    "$subtract": ["$endtime","$starttime"]}
+                }
+            }
+        },
+        {
+            "$set": {
+            "Module name":testsuite_name,
+            "avg time": {
+                "$dateToString": {"date": {"$toDate": "$diff"}, "format": "%H:%M:%S.%LZ"}
+                }
+            }
+        },
+        {
+            "$project": {
+                "_id":0,
+                "Module name":1,
+                "No of times executed":"$No of times executed",
+                "min time":"$min time",
+                "max time":"$max time",
+                "avg time":"$avg time",
+                "status":"$status",
+            }
+        }
+    ]
+    return pipeline
+
+
+def pipeline_module_execution_history_2(min_max_values):
+    min_max_values.append(Counter(min_max_values[0]["status"]))    
+    del min_max_values[0]["status"]
+    res = {}
+    for d in min_max_values:
+        res.update(d)
+    return res
+
+
 def pipeline_failure_rate_for_module(tokens, start_datetime, end_datetime):
-    # Define the aggregation pipeline
     pipeline = [
                 {
             "$match": {
