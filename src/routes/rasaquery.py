@@ -459,7 +459,7 @@ def module_execution_duration(requestdata, client, getClientName):
             summary = exeception_summary
 
         datatype = data_type["table"] if table_result else data_type["text"]
-        result = DataPreparation.merge_table_and_chart_data(tabledata=table_result, chartdata=None)
+        result = DataPreparation.merge_table_and_chart_data(tabledata=table_result, chartdata=chart_result)
         return datatype, summary, result
     
     except Exception as e:

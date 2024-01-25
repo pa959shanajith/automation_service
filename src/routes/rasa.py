@@ -112,7 +112,7 @@ def LoadServices(app, redissession, client,getClientName):
 
         # Store the result in the cache for 60 seconds
         # cache.set(function_name, transformed_data, timeout=60)
-        return Response(json.dumps(transformed_data)), HTTPStatus.OK
+        return jsonify({"rows":json.dumps(transformed_data)}), HTTPStatus.OK
 
 
     ##########################################################################################
