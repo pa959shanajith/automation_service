@@ -1993,8 +1993,8 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
                             if project["_id"] == requestdata["project_id"]:
                                 project["assignedrole"] =str(default_role_id[0]["_id"])
                                 projectlevelroles.append(project)
-                                break
-                            else:projectlevelroles.append(project)
+                            else:
+                                projectlevelroles.append(project)
                         dbsession.users.update_one({"_id":ObjectId(user["id"])},{"$set":{"projectlevelrole":projectlevelroles}})
                     else:
                         dbsession.users.update_one({"_id":ObjectId(user["id"])},{"$push":{"projects":ObjectId(requestdata["project_id"]), "projectlevelrole":{"_id":requestdata["project_id"], "assignedrole": str(default_role_id[0]["_id"])}}})
