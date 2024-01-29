@@ -60,6 +60,50 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
             servicesException("getAvailablePlugins", getallusersexc, True)
             return jsonify(res)
 
+    def createUser(dbsession,requestdata,lsData):
+        result=dbsession.users.find_one({"$or":[ {"name":requestdata['name']}, {"email":requestdata["email"]}]},{"name":1,"email":1})
+        if result!=None:
+            res={"rows":"exists"}
+        else:
+            requestdata["defaultrole"]=ObjectId(requestdata["defaultrole"])
+            requestdata["createdby"]=ObjectId(requestdata["createdby"])
+            requestdata["createdbyrole"]=ObjectId(requestdata["createdbyrole"])
+            requestdata["modifiedby"]=ObjectId(requestdata["createdby"])
+            requestdata["modifiedbyrole"]=ObjectId(requestdata["createdbyrole"])
+            requestdata["createdon"]=datetime.now()
+            requestdata["modifiedon"]=datetime.now()
+            requestdata["deactivated"]="false"
+            requestdata["addroles"]=[]
+            result=list(dbsession.projects.find({"name":"Sample Project"},{"_id":1}))
+            if result:
+                requestdata["projects"]=[result[0]["_id"]]
+                requestdata["projectlevelrole"] = [{"_id":str(result[0]["_id"]), "assignedrole":str(requestdata["defaultrole"])}]
+            else:
+                requestdata["projects"]=[]
+            requestdata["welcomeStepNo"] = 0
+            if "Trial" in lsData["LicenseTypes"]:
+                requestdata["firstTimeLogin"] = True
+            if requestdata["auth"]["type"] in ["inhouse", "ldap"]:
+                requestdata["invalidCredCount"]=0
+                requestdata["auth"]["passwordhistory"]=[]
+                requestdata["auth"]["defaultpasstime"]=""
+                requestdata["auth"]["defaultpassword"]=""
+                requestdata["auth"]["verificationpasstime"]=""
+                requestdata["auth"]["verificationpassword"]=""
+            if (requestdata["defaultrole"] == ObjectId("5db0022cf87fdec084ae49ab") and "isadminuser" in requestdata and requestdata["isadminuser"]==True):
+                dbsession.users.insert_one(requestdata)
+            else:
+                if "isadminuser" in requestdata :
+                    del requestdata["isadminuser"]
+                dbsession.users.insert_one(requestdata)
+            userData = {
+                "uid":requestdata["_id"],
+                "email":requestdata["email"],
+                "username": requestdata["name"],
+                "firstname":requestdata["firstname"],
+                "lastname":requestdata["lastname"]
+            }
+            res={"rows":{"status":"success", "userData":userData}}
 
     # Service to create/edit/delete users in Avo Assure
     @app.route('/admin/manageUserDetails',methods=['POST'])
@@ -95,49 +139,7 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
                     dbsession.tasks.update_many({"reviewer":ObjectId(requestdata["userid"]),"status":{"$ne":'complete'}},{"$set":{"status":"inprogress","reviewer":""}})
                     res={"rows":"success"}
                 elif(action=="create"):
-                    result=dbsession.users.find_one({"$or":[ {"name":requestdata['name']}, {"email":requestdata["email"]}]},{"name":1,"email":1})
-                    if result!=None:
-                        res={"rows":"exists"}
-                    else:
-                        requestdata["defaultrole"]=ObjectId(requestdata["defaultrole"])
-                        requestdata["createdby"]=ObjectId(requestdata["createdby"])
-                        requestdata["createdbyrole"]=ObjectId(requestdata["createdbyrole"])
-                        requestdata["modifiedby"]=ObjectId(requestdata["createdby"])
-                        requestdata["modifiedbyrole"]=ObjectId(requestdata["createdbyrole"])
-                        requestdata["createdon"]=datetime.now()
-                        requestdata["modifiedon"]=datetime.now()
-                        requestdata["deactivated"]="false"
-                        requestdata["addroles"]=[]
-                        result=list(dbsession.projects.find({"name":"Sample Project"},{"_id":1}))
-                        if result:
-                            requestdata["projects"]=[result[0]["_id"]]
-                            requestdata["projectlevelrole"] = [{"_id":str(result[0]["_id"]), "assignedrole":str(requestdata["defaultrole"])}]
-                        else:
-                            requestdata["projects"]=[]
-                        requestdata["welcomeStepNo"] = 0
-                        if "Trial" in lsData["LicenseTypes"]:
-                            requestdata["firstTimeLogin"] = True
-                        if requestdata["auth"]["type"] in ["inhouse", "ldap"]:
-                            requestdata["invalidCredCount"]=0
-                            requestdata["auth"]["passwordhistory"]=[]
-                            requestdata["auth"]["defaultpasstime"]=""
-                            requestdata["auth"]["defaultpassword"]=""
-                            requestdata["auth"]["verificationpasstime"]=""
-                            requestdata["auth"]["verificationpassword"]=""
-                        if (requestdata["defaultrole"] == ObjectId("5db0022cf87fdec084ae49ab") and "isadminuser" in requestdata and requestdata["isadminuser"]==True):
-                            dbsession.users.insert_one(requestdata)
-                        else:
-                            if "isadminuser" in requestdata :
-                                del requestdata["isadminuser"]
-                            dbsession.users.insert_one(requestdata)
-                        userData = {
-                            "uid":requestdata["_id"],
-                            "email":requestdata["email"],
-                            "username": requestdata["name"],
-                            "firstname":requestdata["firstname"],
-                            "lastname":requestdata["lastname"]
-                        }
-                        res={"rows":{"status":"success", "userData":userData}}
+                    res = createUser(dbsession,requestdata,lsData)
                 elif (action=="update"):
                     checkuser=list(dbsession.users.find({"email":requestdata["email"]},{"name":1,"email":1}))
                     if checkuser!=None and ((len(checkuser) == 1 and checkuser[0]["name"] != requestdata["name"]) or len(checkuser) > 1):
@@ -203,6 +205,13 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
                     update_query["welcomeStepNo"]= requestdata["user"]["welcomeStepNo"]
                     dbsession.users.update_one({"_id":result["_id"]},{"$set":update_query})
                     res={"rows":"success"}
+
+                elif(action == "createMultipleLdapUsers"):
+                    for users in requestdata['users']:
+                        if(users == 'InvalidUser'):
+                            res['usersData'].append(users)
+                            continue
+                        res["usersData"].append(createUser(dbsession,users,lsData))
             else:
                 app.logger.warn('Empty data received. manage users.')
         except Exception as e:
