@@ -900,6 +900,48 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
             servicesException("fetchICE", fetchICEexc, True)
         return jsonify(res)
 
+    @app.route('/admin/multipleProvisionICE',methods=['POST'])
+    def multipleiceprovisions():
+        app.logger.debug("Inside multipleiceprovisions")
+        res={'rows':['fail']}
+        try:
+            requestdata=json.loads(request.data)
+            if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)             
+                dbsession=client[clientName]
+                app.logger.debug("Inside multipleProvisionICE. Query: "+'multipleIceProvision')
+                
+                res['rows'] = []
+                for data in requestdata['tokensInfo']:
+                    if data == 'invalidUsername':
+                        res["rows"].append("invalidUsername")
+                        continue
+                    token=str(uuid.uuid4())
+                    token_query={"icename": data["icename"], "icetype": data["icetype"]}
+                    token_exists = len(list(dbsession.icetokens.find(token_query, {"icename":1})))!=0
+                    data["token"]=token
+                    data["status"]=PROVISION_STATUS
+                    data["poolid"] = "None"
+                    data[PROVISION_STATUS+"on"]=datetime.now()
+                    #user_notexists = True
+                    #To restrict multiple ICE provsioning for the same user
+                    if data["icetype"]=="normal":
+                        data["provisionedto"]=ObjectId(data["provisionedto"])
+                        #user_notexists = len(list(dbsession.icetokens.find({"provisionedto":data["provisionedto"]},{"provisionedto":1})))==0
+                    if not token_exists: # and user_notexists
+                        #currently only icetype and user combination is unique
+                        dbsession.icetokens.insert_one(data)
+                        enc_token=wrap(token+'@'+data["icetype"]+'@'+data["icename"],ice_das_key)
+                        res["rows"].append({'generatedToken':enc_token,'tokeninfo':data})
+                    else:
+                        res["rows"].append("DuplicateIceName")
+            else:
+                app.logger.warn('Empty data received. multipleiceprovisions - Admin.')
+        except Exception as multipleProvisionICEexc:
+            servicesException("multipleProvisionICE", multipleProvisionICEexc, True)
+            res['rows'].append('fail')
+        return jsonify(res)
+
     @app.route('/admin/provisionICE',methods=['POST'])
     def iceprovisions():
         app.logger.debug("Inside provisions")
