@@ -63,7 +63,7 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
     def createUser(dbsession,requestdata,lsData):
         result=dbsession.users.find_one({"$or":[ {"name":requestdata['name']}, {"email":requestdata["email"]}]},{"name":1,"email":1})
         if result!=None:
-            res={"rows":"exists"}
+            return {"rows":"exists"}
         else:
             requestdata["defaultrole"]=ObjectId(requestdata["defaultrole"])
             requestdata["createdby"]=ObjectId(requestdata["createdby"])
@@ -103,7 +103,7 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
                 "firstname":requestdata["firstname"],
                 "lastname":requestdata["lastname"]
             }
-            res={"rows":{"status":"success", "userData":userData}}
+            return {"rows":{"status":"success", "userData":userData}}
 
     # Service to create/edit/delete users in Avo Assure
     @app.route('/admin/manageUserDetails',methods=['POST'])
