@@ -301,6 +301,7 @@ def LoadServices(app, redissession, client ,getClientName):
                                     insertedObjIds = dbsession.dataobjects.insert(data_push)
                                     dbsession.dataobjects.update_many({"_id":{"$in":insertedObjIds}},
                                     {"$set":{"identifier":[{"id":1,"identifier":'xpath'},{"id":2,"identifier":'id' },{"id":3, "identifier":'rxpath' },{ "id":4,"identifier":'name' },{"id":5,"identifier":'classname'},{"id":6,"identifier":'cssselector'},{"id":7,"identifier":'href'},{"id":8,"identifier":'label'}]}})
+                                    break
                                     
                             for index in range(len(orderList)):
                                 if (orderList[index] in tempOrderId_index_dict):
