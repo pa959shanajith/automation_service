@@ -461,11 +461,12 @@ def LoadServices(app, redissession, client ,getClientName):
                     finaldata["taskexists"] = moduledata[mindmapdata["_id"]
                                                         ]["taskexists"] if mindmapdata["_id"] in moduledata and 'taskexists' in moduledata[mindmapdata["_id"]] else None
 
-                    
+                    projectid = mindmapdata["projectid"]
+
                     # Preparing final data in format needed
                     if len(mindmapdata["testscenarios"]) == 0:
                         finaldata["completeFlow"] = False
-                    i = 1 
+                    i = 1                    
                     if "testscenarios" in mindmapdata:
                         for ts in mindmapdata["testscenarios"]:
                             if ts:
@@ -788,10 +789,47 @@ def LoadServices(app, redissession, client ,getClientName):
         "modifiedbyrole":ObjectId(createdbyrole),
         "modifiedon":createdon,
         "screenshot":"",
-        "scrapedurl":""
+        "scrapedurl":"",
+        "orderlist" : []
         }
         queryresult=dbsession.screens.insert_one(data).inserted_id
         return queryresult
+    @app.route('/design/insertScreen', methods=['POST'])
+    def insertScreen():
+        try:
+            requestdata=json.loads(request.data)
+            clientName=getClientName(requestdata)
+            dbsession=client[clientName]
+            createdon = datetime.now()
+ 
+            if requestdata['param']=="create":
+            # app.logger.debug("Inside insertScreen. Query: "+str(requestdata["query"]))
+                data={
+                    "projectid":ObjectId(requestdata['projectid']),
+                    "name":requestdata['name'],
+                    "versionnumber":requestdata['versionnumber'],
+                    # "parent":[ObjectId(requestdata['scenarioid'])],
+                    "createdby":ObjectId(requestdata['createdby']),
+                    "createdbyrole":ObjectId(requestdata['createdbyrole']),
+                    "createdon":createdon,
+                    "deleted":False,
+                    "parent" : [],
+                    "modifiedby":ObjectId(requestdata['createdby']),
+                    "modifiedbyrole":ObjectId(requestdata['createdbyrole']),
+                    "modifiedon":createdon,
+                    "screenshot":"",
+                    "scrapedurl":"",
+                    "orderlist":[],
+                    }
+                dbsession.screens.insert_one(data).inserted_id
+                res = {"rows":"Success"}
+            elif requestdata['param']=="update":
+                dbsession.screens.update({"_id":ObjectId(requestdata['screenid'])},{"$set":{"name":requestdata['name'],"modifiedby":ObjectId(requestdata['userId']),"modifedon":createdon,"modifiedbyrole":ObjectId(requestdata["roleId"])}})
+                res={"rows":"Success"}
+        
+        except Exception as e:
+            servicesException("insertScreen",e, True)
+        return jsonify(res)
 
     def saveTestcase(dbsession,screenid,testcasename,versionnumber,createdby,createdbyrole):
         app.logger.debug("Inside saveTestcase.")
@@ -823,6 +861,7 @@ def LoadServices(app, redissession, client ,getClientName):
             requestdata=json.loads(request.data)
             clientName=getClientName(requestdata)             
             dbsession=client[clientName]
+            migration=requestdata['migration']
             requestdata=requestdata["data"]
             projectid=requestdata['projectid']
             # testcasename = "Tc_"+projectid
@@ -884,7 +923,10 @@ def LoadServices(app, redissession, client ,getClientName):
                             iddata1["screens"].append(iddata2)
                         idsforModule.append(iddata1)
                         updateTestcaseIDsInScenario(dbsession,currentscenarioid,testcaseidsforscenario)
-                    updateTestScenariosInModule(dbsession,currentmoduleid,idsforModule)
+                        if (migration == False):
+                            updateTestScenariosInModule(dbsession,currentmoduleid,idsforModule)
+                        else:
+                            updateTestScenariosInModuleMigration(dbsession,currentmoduleid,idsforModule)
                 scenarioInfo = []
                 for node in requestdata['deletednodes']:
                     if node[1] == "scenarios":
@@ -962,6 +1004,7 @@ def LoadServices(app, redissession, client ,getClientName):
         "modifiedon":createdon,
         "screenshot":"",
         "scrapedurl":args[0] if len(args) > 0 else "",
+        "orderlist" : []
         }
         if(len(args) > 1 and args[1] != ""):
             data["scrapeinfo"]=args[1]
@@ -1478,6 +1521,18 @@ def LoadServices(app, redissession, client ,getClientName):
     def updateTestScenariosInModule(dbsession,currentmoduleid,idsforModule):
         dbsession.mindmaps.update_one({"_id":ObjectId(currentmoduleid)},{'$set':{'testscenarios':idsforModule}})
         return
+    
+    def updateTestScenariosInModuleMigration(dbsession,currentmoduleid,idsforModule):
+        testCaseId = idsforModule[0]["_id"]
+        testScreens = idsforModule[0]["screens"]
+        dbsession.mindmaps.update_one({
+            "_id": ObjectId(currentmoduleid),
+            "testscenarios._id": testCaseId
+        },
+        {
+            '$push': {'testscenarios.$.screens': {"$each": testScreens}}
+        })
+        return
 
     def updateScreenAndTestcase(dbsession,screenid,createdby,createdbyrole):
         createdon = datetime.now()
@@ -1495,10 +1550,45 @@ def LoadServices(app, redissession, client ,getClientName):
                 clientName=getClientName(requestdata)             
                 dbsession=client[clientName]
                 projectid=ObjectId(requestdata["projectid"])
-                screendetails=list(dbsession.screens.find({"projectid":projectid},{"_id":1,"name":1,"parent":1,"statusCode":1}))                
+                screendetails=list(dbsession.screens.aggregate([{'$match': {"projectid": projectid}},{
+                                                                        '$lookup': {
+                                                                            'from': "dataobjects",
+                                                                            'localField': "_id", 
+                                                                            'foreignField': "parent", 
+                                                                            'as': "related_dataobjects"}},{
+                                                                        '$project': {
+                                                                            '_id': 1,
+                                                                            'name': 1,
+                                                                            'parent': 1,
+                                                                            'statusCode': 1,
+                                                                            'orderlist': 1,
+                                                                            'related_dataobjects': 1 }}]))                             
                 screenids = [scr["_id"] for scr in screendetails]
-                testcasedetails=list(dbsession.testcases.find({"screenid":{"$in":screenids}},{"_id":1,"name":1,"parent":1,"screenid":1}))
-                res={'rows':{'screenList':screendetails,'testCaseList':testcasedetails}}
+                testcasedetails=list(dbsession.testcases.find({"screenid":{"$in":screenids}},{"_id":1,"name":1,"parent":1,"screenid":1}))                
+                if 'param' in requestdata:
+                    if requestdata['param'] == 'globalRepo':
+                        scrn_det=[]
+                        for screenid in screendetails:
+                            if 'orderlist' in screenid:
+                                for orderlist in screenid['orderlist']:
+                                    if isinstance(orderlist, dict):
+                                        if '_id' in orderlist:
+                                            dataobjectsParent  = dbsession.dataobjects.find_one({'_id':ObjectId(orderlist["_id"])},{'parent':1})                                            
+                                    else:
+                                        dataobjectsParent  = dbsession.dataobjects.find_one({'_id':ObjectId(orderlist)},{'parent':1})                                    
+                                    if dataobjectsParent != None:
+                                        if len(dataobjectsParent['parent']) > 1:
+                                            for i, value in enumerate(screenid['orderlist']):
+                                                if value == orderlist:
+                                                    screenid['orderlist'][i] = {'_id': value, 'flag': True}
+                                scrn_det.append(screenid)                              
+ 
+                            else:
+                                screenid["orderlist"]=[]
+                                scrn_det.append(screenid)
+                        res={'rows':{'screenList':scrn_det,'testCaseList':testcasedetails}}
+                else:
+                    res={'rows':{'screenList':screendetails,'testCaseList':testcasedetails}}
             else:
                 app.logger.warn("Empty data received. getScreens")
         except Exception as e:
