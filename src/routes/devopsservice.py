@@ -278,11 +278,18 @@ def LoadServices(app, redissession, client ,getClientName):
                     
                     scenarioids = []
                     for ts in mindmapdata["testscenarios"]:
-                        scenarioids.append({
-                                '_id': ts['_id'],
-                                'name': requiredScenarioDict[ts['_id']]
-                            })
-
+                        if "tag" in ts:
+                            scenarioids.append({
+                                    '_id': ts['_id'],
+                                    'name': requiredScenarioDict[ts['_id']],
+                                    'tag' : ts['tag']
+                                })
+                        else:
+                            scenarioids.append({
+                                    '_id': ts['_id'],
+                                    'name': requiredScenarioDict[ts['_id']],
+                                    # 'tag' : ts['tag']
+                                })
                     
                     processedData[processedDataIndex]['scenarios'] = scenarioids
                     processedDataIndex+=1
