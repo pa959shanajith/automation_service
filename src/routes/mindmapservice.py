@@ -308,8 +308,9 @@ def LoadServices(app, redissession, client ,getClientName):
             app.logger.debug("Inside getModules. Query: " +
                              str(requestdata["name"]))
             if "query" in requestdata and requestdata["query"]=="modLength":
-                queryresult=list(dbsession.mindmaps.find({'projectid':ObjectId(requestdata["projectid"])}))
-            if 'moduleid' in requestdata and requestdata['moduleid'] != None:
+                queryresult=list(dbsession.mindmaps.find({'projectid':ObjectId(requestdata["projectid"])},{"_id":1}))
+                res = {'rows': queryresult}
+            elif 'moduleid' in requestdata and requestdata['moduleid'] != None:
                 moduleMap = []
                 for modId in requestdata["moduleid"]:
                     if type(requestdata["moduleid"]) == str:
