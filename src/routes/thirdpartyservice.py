@@ -325,6 +325,31 @@ def LoadServices(app, redissession, client ,getClientName, *args):
                             else:
                                 result=[]
                     res= {"rows":result}
+                elif(requestdata["query"] == 'almdetails'):
+                    result = []
+                    projectlist=list(dbsession.users.find({"_id":ObjectId(requestdata["userid"])},{"projects":1}))
+                    if len(projectlist) > 0:
+                        projects = projectlist[0]['projects']
+                        scenariolist=list(dbsession.testscenarios.find({"projectid":{'$in':projects},"deleted":False,"$where":"this.parent.length>0"},{"name":1,"_id":1}))
+                        if len(scenariolist) > 0:
+                            scenarios = {str(i['_id']):i['name'] for i in scenariolist}
+                            scn_keys = list(scenarios.keys())
+                            temp_result=list(dbsession.thirdpartyintegration.find({"type":"CALM","testscenarioid":{'$in':list(scenarios.keys())}}))
+                            if len(temp_result) > 0:
+                                for mapping in temp_result:
+                                    mapping['testscenarioname']=[]
+                                    scenarioId=mapping['testscenarioid']
+                                    if scenarioId in scn_keys:
+                                        mapping['testscenarioname'].append(scenarios[scenarioId])
+                                result.extend(temp_result)
+                    if 'scenarioName' in requestdata:
+                        for i in result:
+                            if requestdata['scenarioName']==i['testscenarioname'][0]:
+                                result=i
+                                break
+                            else:
+                                result=[]
+                    res= {"rows":result}    
                 elif(requestdata["query"] == 'azuredetails'):
                     result = []
                     if "testscenarioid" in requestdata:
