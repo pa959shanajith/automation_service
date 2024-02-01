@@ -259,6 +259,18 @@ def LoadServices(app, redissession, client ,getClientName):
                         if cname in custnames: cid = custnames[cname]["_id"]
                         if ("objectid" in so) and (ObjectId(so["objectid"]) in updated_objects):
                             cid = updated_objects[ObjectId(so["objectid"])]
+                        if cname == '@Generic':
+                            keywordlist = list(dbsession.projecttypekeywords.find({'name':'Generic'},{'keywordsmap':1}))
+                        else:
+                            keywordlist = list(dbsession.projecttypekeywords.find({'name':'Web'},{'keywordsmap':1}))
+                        for objtype in keywordlist[0]['keywordsmap']:
+                            if so["keywordVal"] in objtype['keywords']:
+                                if "code" in objtype['keywords'][so["keywordVal"]]:
+                                    code = objtype['keywords'][so["keywordVal"]]['code']
+                                    language = objtype['keywords'][so["keywordVal"]]['language']
+                                else:
+                                    code = ""
+                                    language = ""
                         steps.append({
                             "stepNo": so["stepNo"],
                             "custname": cid,
@@ -268,7 +280,9 @@ def LoadServices(app, redissession, client ,getClientName):
                             "appType": so["appType"],
                             "remarks": so["remarks"] if ("remarks" in so) else "",
                             "addDetails": so["addTestCaseDetailsInfo"] if ("addTestCaseDetailsInfo" in so) else "",
-                            "cord": so["cord"] if ("cord" in so) else ""
+                            "cord": so["cord"] if ("cord" in so) else "",
+                            "code": code,
+                            "language": language
                         })
                     del requestdata['testcasesteps']
                 else:
@@ -658,4 +672,43 @@ def LoadServices(app, redissession, client ,getClientName):
                 app.logger.warn('Empty data received. reading Testcase')
         except Exception as readtestcaseexc:
             servicesException('readTestCase_ICE', readtestcaseexc, True)
+        return jsonify(res)
+
+
+
+    @app.route('/design/createKeyword',methods=['POST'])
+    def createKeyword():
+        res={'rows':'fail'}
+        try:
+            requestdata=json.loads(request.data)
+            app.logger.debug('Inside createKeyword')
+            clientName=getClientName(requestdata)        
+            dbsession=client[clientName]
+            query = {'name': 'Generic' if requestdata['objecttype'] == 'defaultList' else requestdata['apptype']}
+            keywordlist = list(dbsession.projecttypekeywords.find(query,{'keywordsmap':1}))
+            index = 0
+            for objtype in keywordlist[0]['keywordsmap']:
+                if objtype['objecttype'] == requestdata['objecttype']:
+                    objtype['keywords'][requestdata['name']] =  {
+                            "outputval" : [ 
+                                "<Dynamic Variable>(Optional);<Dynamic Variable>(Optional)"
+                            ],
+                            "inputval" : [ 
+                                "N/A"
+                            ],
+                            "inputtype" : [ 
+                                "N/A"
+                            ],
+                            "tooltip" : requestdata['tooltip'],
+                            "description" : requestdata['name'],
+                            'code': requestdata['code'],
+                            'language':requestdata['language'],
+                            "ranking" : len(objtype['keywords'])+1
+                        }
+                    break
+                index+=1
+
+            dbsession.projecttypekeywords.update(query,{'$set':{'keywordsmap': keywordlist[0]['keywordsmap']}})
+        except Exception as e:
+            servicesException('createKeyword', e, True)
         return jsonify(res)
