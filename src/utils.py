@@ -238,7 +238,8 @@ ecodeServices = {
     "getScrapeDataScenarioLevel_ICE":"474",
     "updateScenarioComparisionStatus":"475",
     "updateTestSuiteInUseBy":"476",
-    "createKeyword": "477"
+    "createKeyword": "477",
+    "multipleProvisionICE":"478"
 }
 
 
