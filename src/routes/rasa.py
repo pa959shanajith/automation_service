@@ -1,12 +1,11 @@
 import requests
 import rasaquery as rasafunctions
 from http import HTTPStatus
-from flask import Response
 
 from utils import *
 
 
-def LoadServices(app, redissession, client,getClientName):
+def LoadServices(app, redissession, client, getClientName):
     setenv(app)
 
     ##########################################################################################
@@ -90,11 +89,14 @@ def LoadServices(app, redissession, client,getClientName):
     
 
     # Function for dynamic function calling
-    def handle_rasa_response(recipient_id, function_name, payload, client, getClientName):
+    def handle_rasa_response(recipient_id, function_name, payload, dbsession):
         # This code dynamically checks if a function with a specific name exists in the 'rasafunctions' module
         if function_name in rasafunctions.__dict__ and callable(rasafunctions.__dict__[function_name]):
             function_to_call = rasafunctions.__dict__[function_name]
-            datatype, summary, result = function_to_call(payload, client, getClientName)
+
+            # Create a list of arguments
+            arguments = [payload, dbsession]
+            datatype, summary, result = function_to_call(*arguments)
 
         else:
             datatype = "text"
@@ -110,9 +112,8 @@ def LoadServices(app, redissession, client,getClientName):
         }
         app.logger.debug("rasa_prompt_model returned successful")
 
-        # Store the result in the cache for 60 seconds
-        # cache.set(function_name, transformed_data, timeout=60)
         return jsonify({"rows":json.dumps(transformed_data)}), HTTPStatus.OK
+        # return Response(json.dumps(transformed_data)), HTTPStatus.OK
 
 
     ##########################################################################################
@@ -137,7 +138,13 @@ def LoadServices(app, redissession, client,getClientName):
     def rasa_prompt_model():
         app.logger.debug("Inside rasa_prompt_model")
         try:
-            requestdata = request.get_json()
+            # requestdata = request.get_json()
+            requestdata=json.loads(request.data)
+
+            # Creating dbsession
+            clientName = getClientName(requestdata)
+            dbsession = client[clientName]
+
             if not requestdata:
                 return jsonify({"data":"Invalid Request Format", "status": HTTPStatus.BAD_REQUEST}), HTTPStatus.BAD_REQUEST
             
@@ -159,17 +166,14 @@ def LoadServices(app, redissession, client,getClientName):
             
             # Compose payload to send to Rasa
             payload = compose_payload(request_data)
-            # print("Payload: ", json.dumps(payload, indent=2))
-
-            # Getting RASA response
             response = make_rasa_request(rasa_server_endpoint, payload)
+            model_response = response.json()
 
-            # fetch required data from RASA response
-            output = response.json()[0]
-            recipient_id = output["recipient_id"]
-            function_name = output["custom"]["function_name"]
-            
-            return handle_rasa_response(recipient_id, function_name, payload, client, getClientName)
+            if model_response["status"] == 200:
+                # fetch required data from RASA response
+                recipient_id = model_response["data"]["recipient_id"]
+                function_name = model_response["data"]["function_name"]
+                return handle_rasa_response(recipient_id, function_name, payload, dbsession)
         
         except Exception as e:
-            return jsonify({"message": str(e), "status": "error"}), HTTPStatus.INTERNAL_SERVER_ERROR
+            return jsonify({"error": "SERVER not running", "status": HTTPStatus.INTERNAL_SERVER_ERROR}), HTTPStatus.INTERNAL_SERVER_ERROR

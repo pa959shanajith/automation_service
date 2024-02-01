@@ -22,19 +22,10 @@ data_type = {
 
 # Mapping for chart type
 chart_type = {
-    "category1": ["bar", "pie", "doughnut"],
-    "category2": ["line"]
+    "category1": ["pie", "doughnut"],
+    "category2": ["bar", "line"],
+    "category3": ["trend"]
 }
-
-
-# Function for database connection
-def mongo_connection(requestdata, client, getClientName):
-    try:
-        clientName = getClientName(requestdata)
-        dbsession = client[clientName]
-        return dbsession
-    except Exception as e:
-        return e
     
 
 # Function to convert dates in mongo comparable format
@@ -103,9 +94,10 @@ class DataPreparation:
 ##########################################################################################
 
 # Function fetches all the projects the user is assigned to along with their role names
-def list_of_projects(requestdata, client, getClientName):
+def list_of_projects(*args):
     try:
-        dbsession = mongo_connection(requestdata, client, getClientName)
+        requestdata = args[0]
+        dbsession = args[1]
 
         # fetch required data from request
         userid = requestdata["sender"]
@@ -128,7 +120,7 @@ def list_of_projects(requestdata, client, getClientName):
                 # Arguments for the chart data
                 x_title = ""
                 color = "#36a2eb"
-                charttype = "doughnut"
+                charttype = chart_type["category1"]
                 labels = "Total Projects"
                 chartdata = len(table_result)
                 chart_result = None
@@ -156,9 +148,10 @@ def list_of_projects(requestdata, client, getClientName):
 
 
 # Function to fetch the users assigned in a specific project with their roles
-def list_of_users(requestdata, client, getClientName):
+def list_of_users(*args):
     try:
-        dbsession = mongo_connection(requestdata, client, getClientName)
+        requestdata = args[0]
+        dbsession = args[1]
     
         # fetch required data from request
         projectid = requestdata["projectid"]
@@ -181,7 +174,7 @@ def list_of_users(requestdata, client, getClientName):
                 # Arguments for the chart data
                 x_title = ""
                 color = "#147524"
-                charttype = "doughnut"
+                charttype = chart_type["category1"]
                 labels = "Users Count"
                 chartdata = len(table_result)
                 chart_result = None
@@ -209,9 +202,10 @@ def list_of_users(requestdata, client, getClientName):
 
 
 # Function to fetch the list of modules executed in a project or profile
-def list_module_executed(requestdata, client, getClientName):
+def list_module_executed(*args):
     try:
-        dbsession = mongo_connection(requestdata, client, getClientName)
+        requestdata = args[0]
+        dbsession = args[1]
 
         # fetch required data from request
         projectid = requestdata["projectid"]
@@ -248,7 +242,7 @@ def list_module_executed(requestdata, client, getClientName):
             else:
                 x_title = ""
                 color = "#754e14"
-                charttype = "doughnut"
+                charttype = chart_type["category1"]
                 labels = "Count of modules"
                 chartdata = len(table_result)
                 chart_result = None
@@ -276,9 +270,10 @@ def list_module_executed(requestdata, client, getClientName):
 
 
 # Function to fetch the count of modules executed in a project or profile
-def count_module_executed(requestdata, client, getClientName):
+def count_module_executed(*args):
     try:
-        dbsession = mongo_connection(requestdata, client, getClientName)
+        requestdata = args[0]
+        dbsession = args[1]
     
         # fetch required data from request
         projectid = requestdata["projectid"]
@@ -333,9 +328,10 @@ def count_module_executed(requestdata, client, getClientName):
 
 
 # Function to fetch modules with their execution statuses for all the profiles in a project -- trend
-def modules_execution_status(requestdata, client, getClientName):
+def modules_execution_status(*args):
     try:
-        dbsession = mongo_connection(requestdata, client, getClientName)
+        requestdata = args[0]
+        dbsession = args[1]
     
         # fetch required data from request
         projectid = requestdata["projectid"]
@@ -372,7 +368,7 @@ def modules_execution_status(requestdata, client, getClientName):
             else:
                 x_title = "Statuses"
                 y_title = "Count"
-                charttype = "trend"
+                charttype = chart_type["category3"]
                 labels = ["Pass", "Fail", "Queued", "Inprogress"]
                 datasets = []
 
@@ -411,9 +407,10 @@ def modules_execution_status(requestdata, client, getClientName):
     
 
 # Function to fetch modules with their max, min and avg execution times
-def module_execution_duration(requestdata, client, getClientName):
+def module_execution_duration(*args):
     try:
-        dbsession = mongo_connection(requestdata, client, getClientName)
+        requestdata = args[0]
+        dbsession = args[1]
     
         # fetch required data from request
         projectid = requestdata["projectid"]
@@ -452,6 +449,9 @@ def module_execution_duration(requestdata, client, getClientName):
                 summary = no_data_summary
                 table_result = None
                 chart_result = None
+
+            else:
+                chart_result = None
             
         except Exception as e:
             table_result = None
@@ -467,9 +467,10 @@ def module_execution_duration(requestdata, client, getClientName):
 
 
 # Function to fetch each module execution frequency in a project or profile
-def module_execution_frequency(requestdata, client, getClientName):
+def module_execution_frequency(*args):
     try:
-        dbsession = mongo_connection(requestdata, client, getClientName)
+        requestdata = args[0]
+        dbsession = args[1]
     
         # fetch required data from request
         projectid = requestdata["projectid"]
@@ -507,7 +508,7 @@ def module_execution_frequency(requestdata, client, getClientName):
                 x_title = "Module Names"
                 y_title = "Times executed"
                 color = "#754e80"
-                charttype = "bar"
+                charttype = chart_type["category2"]
                 labels = []
                 chartdata = []
                 chart_result = None
@@ -541,9 +542,10 @@ def module_execution_frequency(requestdata, client, getClientName):
 
 
 # Function to fetch the maximum number of times a module is being executed in a project or profile
-def highest_module_execution_frequency(requestdata, client, getClientName):
+def highest_module_execution_frequency(*args):
     try:
-        dbsession = mongo_connection(requestdata, client, getClientName)
+        requestdata = args[0]
+        dbsession = args[1]
     
         # fetch required data from request
         projectid = requestdata["projectid"]
@@ -587,7 +589,7 @@ def highest_module_execution_frequency(requestdata, client, getClientName):
                 x_title = "Module Names"
                 y_title = "Times executed"
                 color = "#754e80"
-                charttype = "bar"
+                charttype = chart_type["category2"]
                 labels = []
                 chartdata = []
                 chart_result = None
@@ -621,9 +623,10 @@ def highest_module_execution_frequency(requestdata, client, getClientName):
 
 
 # Function to fetch the minimum number of times a module is being executed in a project or profile
-def lowest_module_execution_frequency(requestdata, client, getClientName):
+def lowest_module_execution_frequency(*args):
     try:
-        dbsession = mongo_connection(requestdata, client, getClientName)
+        requestdata = args[0]
+        dbsession = args[1]
     
         # fetch required data from request
         projectid = requestdata["projectid"]
@@ -667,7 +670,7 @@ def lowest_module_execution_frequency(requestdata, client, getClientName):
                 x_title = "Module Names"
                 y_title = "Times executed"
                 color = "#754e80"
-                charttype = "bar"
+                charttype = chart_type["category2"]
                 labels = []
                 chartdata = []
                 chart_result = None
@@ -701,9 +704,10 @@ def lowest_module_execution_frequency(requestdata, client, getClientName):
 
 
 # Function fetches the complete execution history for the specified Testsuite.
-def module_execution_history(requestdata, client, getClientName):
+def module_execution_history(*args):
     try:
-        dbsession = mongo_connection(requestdata, client, getClientName)
+        requestdata = args[0]
+        dbsession = args[1]
 
         # fetch required data from request
         projectid = requestdata["projectid"]
@@ -738,7 +742,7 @@ def module_execution_history(requestdata, client, getClientName):
             else:
                 x_title = ""
                 color = "#754e14"
-                charttype = "doughnut"
+                charttype = chart_type["category1"]
                 labels = "Count of modules"
                 chartdata = len(table_result)
                 chart_result = None
@@ -766,27 +770,35 @@ def module_execution_history(requestdata, client, getClientName):
 
 
 # Function fetches the number of time the profile has been executed
-def No_of_times_profile_executed(requestdata, client, getClientName):
+def No_of_times_profile_executed(*args):
     try:
-        dbsession = mongo_connection(requestdata, client, getClientName)
+        requestdata = args[0]
+        dbsession = args[1]
 
         # fetch required data from request
         projectid = requestdata["projectid"]
         userid = requestdata["sender"]
         profileid = requestdata["metadata"]["profileid"]
 
-        # fetch and convert the date format
-        starttime, endtime = date_conversion(request=requestdata)
+        # Collection name for the pipeline
+        collection_name='executionlist'
 
-        # Values for the response
-        collection_name = "executionlist"
-        
-        profile_name = list(dbsession.configurekeys.find({"token": profileid}))[0]["executionData"]["configurename"]
-        tokens = [profileid]
-        summary = f"Given below is the number of the times '{profile_name}' profile  executed during {starttime.strftime('%d/%m/%Y')} and {endtime.strftime('%d/%m/%Y')} time range:"
+        if profileid: 
+            profile_name = list(dbsession.configurekeys.find({"token": profileid}))[0]["executionData"]["configurename"]
+            tokens = [profileid]
+            summary = f"Given below is the number of the times '{profile_name}' profile  executed untill today:"
+        else:        
+            project_name = list(dbsession.projects.find({"_id": ObjectId(projectid)}))[0]["name"]
+            token_pipeline = pipelines.fetch_tokens(projectid=projectid, userid=userid)
+            token_values = list(dbsession.configurekeys.aggregate(token_pipeline))            
+            tokens = [tokens["token"] for tokens in token_values]
+            summary = f"Given below is the number of the times '{project_name}' project executed untill today:"
+
         try:
-            table_result=dbsession.executionlist.count_documents({"configkey":profileid})
-
+            data_pipeline = pipelines.pipeline_No_of_times_profile_executed(tokens=tokens)
+            table_result=DataPreparation.process_table_data(dbsession=dbsession, collectionname=collection_name, pipeline=data_pipeline)
+            print(table_result)
+             
             # Check if table_result is None
             if not table_result:
                 summary = no_data_summary
@@ -794,18 +806,19 @@ def No_of_times_profile_executed(requestdata, client, getClientName):
                 chart_result = None
 
             else:
-                x_title = ""
-                color = "#754e14"
-                charttype = "doughnut"
-                labels = "Count of modules"
-                chartdata = table_result
+                x_title = "Module Names"
+                y_title = "Fail Count"
+                color = "#28DC0A"
+                charttype = "bar"
+                labels = "Profile name"
+                chartdata = len(table_result)
                 chart_result = None
 
                 chart_result = DataPreparation.process_final_chart_data(
                     x_title=x_title,
                     labels=labels,
                     backgroundColor=color,
-                    chartsData=table_result,
+                    chartsData=len(table_result),
                     chartType=charttype,
                     displayLegend="true"
                 )
@@ -823,79 +836,15 @@ def No_of_times_profile_executed(requestdata, client, getClientName):
         return e
 
 
-# Function fetches the failure rate of module in a project or profile
-def failure_rate_for_module(requestdata, client, getClientName):
-    try:
-        dbsession = mongo_connection(requestdata, client, getClientName)
-    
-        # fetch required data from request
-        projectid = requestdata["projectid"]
-        userid = requestdata["sender"]
-        profileid = requestdata["metadata"]["profileid"]
-
-        # fetch and convert the date format
-        starttime, endtime = date_conversion(request=requestdata)
-
-        # Values for the response
-        collection_name = "executions"
-        title = "Count of modules"
-        color = "#754e14"
-        charttype = "bar"
-
-        if profileid:
-            profile_name = list(dbsession.configurekeys.find({"token": profileid}))[0]["executionData"]["configurename"]
-            tokens = [profileid]
-            summary = f"Given below is the list of modules that have been executed for '{profile_name}' profile during {starttime.strftime('%d/%m/%Y')} and {endtime.strftime('%d/%m/%Y')} time range:"
-        else:
-            project_name = list(dbsession.projects.find({"_id": ObjectId(projectid)}))[0]["name"]
-            token_pipeline = pipelines.fetch_tokens(projectid=projectid, userid=userid)
-            token_values = list(dbsession.configurekeys.aggregate(token_pipeline))
-            tokens = [tokens["token"] for tokens in token_values]
-            summary = f"Given below is the list of modules that have been executed in '{project_name}' project during {starttime.strftime('%d/%m/%Y')} and {endtime.strftime('%d/%m/%Y')} time range:"
-
-        try:
-            data_pipeline = pipelines.pipeline_failure_rate_for_module(tokens=tokens, start_datetime=starttime, end_datetime=endtime)
-            table_result = DataPreparation.process_table_data(dbsession=dbsession, collectionname=collection_name, pipeline=data_pipeline)
-            print(table_result)
-        except Exception as e:
-            table_result = None
-
-        labels = []
-        chartdata = []
-        for d in table_result:
-            labels.append(d['Module Name'])
-            chartdata.append(d['Failure Rate'])
-
-        chart_result = None
-        if table_result:
-            chart_result = DataPreparation.process_final_chart_data(
-                title=title,
-                labels=labels,
-                backgroundColor=color,
-                chartsData=chartdata,
-                chartType=charttype,
-                displayLegend="true"
-            )
-
-        datatype = data_type["table/chart"] if table_result else data_type["text"]
-        result = DataPreparation.merge_table_and_chart_data(tabledata=table_result, chartdata=chart_result)
-
-        return datatype, summary, result
-    
-    except Exception as e:
-        return e
-
-
-
-
 ##########################################################################################
 ################################### DEFECT FUNCTIONS #####################################
 ##########################################################################################
 
 # Function to fetch modules with fail counts for all the profiles in a project
-def module_level_defects_trend_analysis(requestdata, client, getClientName):
+def module_level_defects_trend_analysis(*args):
     try:
-        dbsession = mongo_connection(requestdata, client, getClientName)
+        requestdata = args[0]
+        dbsession = args[1]
 
         # fetch required data from request
         projectid = requestdata["projectid"]
@@ -932,7 +881,7 @@ def module_level_defects_trend_analysis(requestdata, client, getClientName):
                 x_title = "Module Names"
                 y_title = "Fail Count"
                 color = "#BEAD0B"
-                charttype = "bar"
+                charttype = chart_type["category2"]
                 labels = []
                 chartdata = []
                 chart_result = None
@@ -966,9 +915,10 @@ def module_level_defects_trend_analysis(requestdata, client, getClientName):
 
 
 # Function to fetch top five modules with more fail count for all the profiles in a project
-def module_with_more_defects(requestdata, client, getClientName):
+def module_with_more_defects(*args):
     try:
-        dbsession = mongo_connection(requestdata, client, getClientName)
+        requestdata = args[0]
+        dbsession = args[1]
 
         # fetch required data from request
         projectid = requestdata["projectid"]
@@ -1005,7 +955,7 @@ def module_with_more_defects(requestdata, client, getClientName):
                 x_title = "Module Names"
                 y_title = "Fail Count"
                 color = "#BEAD0B"
-                charttype = "line"
+                charttype = chart_type["category2"]
                 labels = []
                 chartdata = []
                 chart_result = None
@@ -1039,9 +989,10 @@ def module_with_more_defects(requestdata, client, getClientName):
 
 
 # Function to fetch top 5 modules with less fail count for all the profiles in a project
-def module_with_less_defects(requestdata, client, getClientName):
+def module_with_less_defects(*args):
     try:
-        dbsession = mongo_connection(requestdata, client, getClientName)
+        requestdata = args[0]
+        dbsession = args[1]
 
         # fetch required data from request
         projectid = requestdata["projectid"]
@@ -1078,7 +1029,7 @@ def module_with_less_defects(requestdata, client, getClientName):
                 x_title = "Module Names"
                 y_title = "Fail Count"
                 color = "#BEAD0B"
-                charttype = "bar"
+                charttype = chart_type["category2"]
                 labels = []
                 chartdata = []
                 chart_result = None
@@ -1112,9 +1063,10 @@ def module_with_less_defects(requestdata, client, getClientName):
 
 
 # Function to fetch number of failed modules for all the profile in a project
-def profile_level_defects_trend_analysis(requestdata, client, getClientName):
+def profile_level_defects_trend_analysis(*args):
     try:
-        dbsession = mongo_connection(requestdata, client, getClientName)
+        requestdata = args[0]
+        dbsession = args[1]
 
         # fetch required data from request
         projectid = requestdata["projectid"]
@@ -1148,7 +1100,7 @@ def profile_level_defects_trend_analysis(requestdata, client, getClientName):
                 x_title = "Profile Names"
                 y_title = "Fail Count"
                 color = "#BEAD0B"
-                charttype = "line"
+                charttype = chart_type["category2"]
                 labels = []
                 chartdata = []
                 chart_result = None
@@ -1182,9 +1134,10 @@ def profile_level_defects_trend_analysis(requestdata, client, getClientName):
 
 
 # Function to fetch top 5 profiles with higher number of failed modules in a project
-def profile_with_more_defects(requestdata, client, getClientName):
+def profile_with_more_defects(*args):
     try:
-        dbsession = mongo_connection(requestdata, client, getClientName)
+        requestdata = args[0]
+        dbsession = args[1]
 
         # fetch required data from request
         projectid = requestdata["projectid"]
@@ -1217,7 +1170,7 @@ def profile_with_more_defects(requestdata, client, getClientName):
                 x_title = "Profile Names"
                 y_title = "Fail Count"
                 color = "#BEAD0B"
-                charttype = "bar"
+                charttype = chart_type["category2"]
                 labels = []
                 chartdata = []
                 chart_result = None
@@ -1251,9 +1204,10 @@ def profile_with_more_defects(requestdata, client, getClientName):
 
 
 # Function to fetch top 5 profiles with less number of failed modules in a project
-def profile_with_less_defects(requestdata, client, getClientName):
+def profile_with_less_defects(*args):
     try:
-        dbsession = mongo_connection(requestdata, client, getClientName)
+        requestdata = args[0]
+        dbsession = args[1]
 
         # fetch required data from request
         projectid = requestdata["projectid"]
@@ -1286,7 +1240,7 @@ def profile_with_less_defects(requestdata, client, getClientName):
                 x_title = "Profile Names"
                 y_title = "Fail Count"
                 color = "#BEAD0B"
-                charttype = "line"
+                charttype = chart_type["category2"]
                 labels = []
                 chartdata = []
                 chart_result = None
@@ -1320,9 +1274,10 @@ def profile_with_less_defects(requestdata, client, getClientName):
 
 
 # Function to fetch execution environment level defect trend analysis for all the profiles in a project
-def execution_environment_defects_trend_analysis(requestdata, client, getClientName):
+def execution_environment_defects_trend_analysis(*args):
     try:
-        dbsession = mongo_connection(requestdata, client, getClientName)
+        requestdata = args[0]
+        dbsession = args[1]
 
         # fetch required data from request
         projectid = requestdata["projectid"]
@@ -1358,7 +1313,7 @@ def execution_environment_defects_trend_analysis(requestdata, client, getClientN
                 x_title = "Browser"
                 y_title = "Fail Count"
                 color = "#BEAD0B"
-                charttype = "bar"
+                charttype = chart_type["category2"]
                 labels = []
                 chartdata = []
                 chart_result = None
@@ -1392,9 +1347,10 @@ def execution_environment_defects_trend_analysis(requestdata, client, getClientN
 
 
 # Function to fetch execution environment with more fail count for all the profiles in a project
-def execution_environment_with_more_defects(requestdata, client, getClientName):
+def execution_environment_with_more_defects(*args):
     try:
-        dbsession = mongo_connection(requestdata, client, getClientName)
+        requestdata = args[0]
+        dbsession = args[1]
 
         # fetch required data from request
         projectid = requestdata["projectid"]
@@ -1428,7 +1384,7 @@ def execution_environment_with_more_defects(requestdata, client, getClientName):
                 x_title = "Browser"
                 y_title = "Fail Count"
                 color = "#BEAD0B"
-                charttype = "line"
+                charttype = chart_type["category2"]
                 labels = []
                 chartdata = []
                 chart_result = None
@@ -1462,9 +1418,10 @@ def execution_environment_with_more_defects(requestdata, client, getClientName):
 
 
 # Function to fetch execution environment with less fail count for all the profiles in a project
-def execution_environment_with_less_defects(requestdata, client, getClientName):
+def execution_environment_with_less_defects(*args):
     try:
-        dbsession = mongo_connection(requestdata, client, getClientName)
+        requestdata = args[0]
+        dbsession = args[1]
 
         # fetch required data from request
         projectid = requestdata["projectid"]
@@ -1498,7 +1455,7 @@ def execution_environment_with_less_defects(requestdata, client, getClientName):
                 x_title = "Browser"
                 y_title = "Fail Count"
                 color = "#BEAD0B"
-                charttype = "bar"
+                charttype = chart_type["category2"]
                 labels = []
                 chartdata = []
                 chart_result = None
@@ -1532,9 +1489,10 @@ def execution_environment_with_less_defects(requestdata, client, getClientName):
 
 
 # Function to fetch TestCase level defect trend analysis for all the profiles in a project
-def test_scenario_level_defects_trend_analysis(requestdata, client, getClientName):
+def test_scenario_level_defects_trend_analysis(*args):
     try:
-        dbsession = mongo_connection(requestdata, client, getClientName)
+        requestdata = args[0]
+        dbsession = args[1]
 
         # fetch required data from request
         projectid = requestdata["projectid"]
@@ -1576,7 +1534,7 @@ def test_scenario_level_defects_trend_analysis(requestdata, client, getClientNam
                 x_title = "Test Scenarios"
                 y_title = "Fail Count"
                 color = "#BEAD0B"
-                charttype = "line"
+                charttype = chart_type["category2"]
                 labels = []
                 chartdata = []
                 chart_result = None
@@ -1610,9 +1568,10 @@ def test_scenario_level_defects_trend_analysis(requestdata, client, getClientNam
 
 
 # Function to fetch TestCase with more fail count for all the profiles in a project
-def test_scenario_with_more_defects(requestdata, client, getClientName):
+def test_scenario_with_more_defects(*args):
     try:
-        dbsession = mongo_connection(requestdata, client, getClientName)
+        requestdata = args[0]
+        dbsession = args[1]
 
         # fetch required data from request
         projectid = requestdata["projectid"]
@@ -1654,7 +1613,7 @@ def test_scenario_with_more_defects(requestdata, client, getClientName):
                 x_title = "Test Scenarios"
                 y_title = "Fail Count"
                 color = "#BEAD0B"
-                charttype = "bar"
+                charttype = chart_type["category2"]
                 labels = []
                 chartdata = []
                 chart_result = None
@@ -1688,9 +1647,10 @@ def test_scenario_with_more_defects(requestdata, client, getClientName):
 
 
 # Function to fetch TestCase with less fail count for all the profiles in a project
-def test_scenario_with_less_defects(requestdata, client, getClientName):
+def test_scenario_with_less_defects(*args):
     try:
-        dbsession = mongo_connection(requestdata, client, getClientName)
+        requestdata = args[0]
+        dbsession = args[1]
 
         # fetch required data from request
         projectid = requestdata["projectid"]
@@ -1732,7 +1692,7 @@ def test_scenario_with_less_defects(requestdata, client, getClientName):
                 x_title = "Test Scenarios"
                 y_title = "Fail Count"
                 color = "#BEAD0B"
-                charttype = "line"
+                charttype = chart_type["category2"]
                 labels = []
                 chartdata = []
                 chart_result = None
@@ -1766,9 +1726,10 @@ def test_scenario_with_less_defects(requestdata, client, getClientName):
 
 
 # Function to fetch Browser Version level defect trend analysis for all the profiles in a project
-def browser_version_defects_trend_analysis(requestdata, client, getClientName):
+def browser_version_defects_trend_analysis(*args):
     try:
-        dbsession = mongo_connection(requestdata, client, getClientName)
+        requestdata = args[0]
+        dbsession = args[1]
 
         # fetch required data from request
         projectid = requestdata["projectid"]
@@ -1815,9 +1776,10 @@ def browser_version_defects_trend_analysis(requestdata, client, getClientName):
 
 
 # Function to fetch Browser Version with more fail count for all the profiles in a project
-def browser_version_with_more_defects(requestdata, client, getClientName):
+def browser_version_with_more_defects(*args):
     try:
-        dbsession = mongo_connection(requestdata, client, getClientName)
+        requestdata = args[0]
+        dbsession = args[1]
 
         # fetch required data from request
         projectid = requestdata["projectid"]
@@ -1864,9 +1826,10 @@ def browser_version_with_more_defects(requestdata, client, getClientName):
     
 
 # Function to fetch Browser Version with less fail count for all the profiles in a project
-def browser_version_with_less_defects(requestdata, client, getClientName):
+def browser_version_with_less_defects(*args):
     try:
-        dbsession = mongo_connection(requestdata, client, getClientName)
+        requestdata = args[0]
+        dbsession = args[1]
 
         # fetch required data from request
         projectid = requestdata["projectid"]
@@ -1913,9 +1876,10 @@ def browser_version_with_less_defects(requestdata, client, getClientName):
 
 
 # Function to fetch keyword level fail count trend analysis for all the profiles in a project
-def keyword_level_defects_trend_analysis(requestdata, client, getClientName):
+def keyword_level_defects_trend_analysis(*args):
     try:
-        dbsession = mongo_connection(requestdata, client, getClientName)
+        requestdata = args[0]
+        dbsession = args[1]
 
         # fetch required data from request
         projectid = requestdata["projectid"]
@@ -1957,7 +1921,7 @@ def keyword_level_defects_trend_analysis(requestdata, client, getClientName):
                 x_title = "Keyword Name"
                 y_title = "Fail Count"
                 color = "#BEAD0B"
-                charttype = "bar"
+                charttype = chart_type["category2"]
                 labels = []
                 chartdata = []
                 chart_result = None
@@ -1991,9 +1955,10 @@ def keyword_level_defects_trend_analysis(requestdata, client, getClientName):
     
 
 # Function to fetch keyword with top five maximum number of fail counts for all the profiles in a project
-def keyword_with_more_defects(requestdata, client, getClientName):
+def keyword_with_more_defects(*args):
     try:
-        dbsession = mongo_connection(requestdata, client, getClientName)
+        requestdata = args[0]
+        dbsession = args[1]
 
         # fetch required data from request
         projectid = requestdata["projectid"]
@@ -2036,7 +2001,7 @@ def keyword_with_more_defects(requestdata, client, getClientName):
                 x_title = "Keyword Name"
                 y_title = "Fail Count"
                 color = "#BEAD0B"
-                charttype = "line"
+                charttype = chart_type["category2"]
                 labels = []
                 chartdata = []
                 chart_result = None
@@ -2070,9 +2035,10 @@ def keyword_with_more_defects(requestdata, client, getClientName):
     
 
 # Function to fetch keyword with top five minimum number of fail counts for all the profiles in a project
-def keyword_with_less_defects(requestdata, client, getClientName):
+def keyword_with_less_defects(*args):
     try:
-        dbsession = mongo_connection(requestdata, client, getClientName)
+        requestdata = args[0]
+        dbsession = args[1]
 
         # fetch required data from request
         projectid = requestdata["projectid"]
@@ -2114,7 +2080,7 @@ def keyword_with_less_defects(requestdata, client, getClientName):
                 x_title = "Keyword Name"
                 y_title = "Fail Count"
                 color = "#BEAD0B"
-                charttype = "bar"
+                charttype = chart_type["category2"]
                 labels = []
                 chartdata = []
                 chart_result = None
@@ -2148,9 +2114,10 @@ def keyword_with_less_defects(requestdata, client, getClientName):
 
 
 # Function to fetch app type level fail count and profile names trend analysis in a project
-def app_type_defects_trend_analysis(requestdata, client, getClientName):
+def app_type_defects_trend_analysis(*args):
     try:
-        dbsession = mongo_connection(requestdata, client, getClientName)
+        requestdata = args[0]
+        dbsession = args[1]
 
         # fetch required data from request
         projectid = requestdata["projectid"]
@@ -2197,9 +2164,10 @@ def app_type_defects_trend_analysis(requestdata, client, getClientName):
 
 
 # Function to fetch app type with top five maximum number of fail counts for all the profiles in a project
-def app_type_with_more_defects(requestdata, client, getClientName):
+def app_type_with_more_defects(*args):
     try:
-        dbsession = mongo_connection(requestdata, client, getClientName)
+        requestdata = args[0]
+        dbsession = args[1]
 
         # fetch required data from request
         projectid = requestdata["projectid"]
@@ -2246,9 +2214,10 @@ def app_type_with_more_defects(requestdata, client, getClientName):
     
 
 # Function to fetch app type with top five minimum number of fail counts for all the profiles in a project
-def app_type_with_less_defects(requestdata, client, getClientName):
+def app_type_with_less_defects(*args):
     try:
-        dbsession = mongo_connection(requestdata, client, getClientName)
+        requestdata = args[0]
+        dbsession = args[1]
 
         # fetch required data from request
         projectid = requestdata["projectid"]
@@ -2295,9 +2264,10 @@ def app_type_with_less_defects(requestdata, client, getClientName):
 
 
 # Function to fetch execution mode  level fail count and profile names trend analysis in a project
-def execution_mode_defects_trend_analysis(requestdata, client, getClientName):
+def execution_mode_defects_trend_analysis(*args):
     try:
-        dbsession = mongo_connection(requestdata, client, getClientName)
+        requestdata = args[0]
+        dbsession = args[1]
 
         # fetch required data from request
         projectid = requestdata["projectid"]
@@ -2344,9 +2314,10 @@ def execution_mode_defects_trend_analysis(requestdata, client, getClientName):
 
 
 # Function to fetch execution mode with top five maximum number of fail counts for all the profiles in a project
-def execution_mode_with_more_defects(requestdata, client, getClientName):
+def execution_mode_with_more_defects(*args):
     try:
-        dbsession = mongo_connection(requestdata, client, getClientName)
+        requestdata = args[0]
+        dbsession = args[1]
 
         # fetch required data from request
         projectid = requestdata["projectid"]
@@ -2392,9 +2363,10 @@ def execution_mode_with_more_defects(requestdata, client, getClientName):
     
 
 # Function to fetch execution mode with top five minimum number of fail counts for all the profiles in a project
-def execution_mode_with_less_defects(requestdata, client, getClientName):
+def execution_mode_with_less_defects(*args):
     try:
-        dbsession = mongo_connection(requestdata, client, getClientName)
+        requestdata = args[0]
+        dbsession = args[1]
 
         # fetch required data from request
         projectid = requestdata["projectid"]
@@ -2440,9 +2412,10 @@ def execution_mode_with_less_defects(requestdata, client, getClientName):
 
 
 # Function to fetch project level fail counts
-def project_level_defects_trend_analysis(requestdata, client, getClientName):
+def project_level_defects_trend_analysis(*args):
     try:
-        dbsession = mongo_connection(requestdata, client, getClientName)
+        requestdata = args[0]
+        dbsession = args[1]
 
         # fetch required data from request
         projectid = requestdata["projectid"]
@@ -2475,7 +2448,7 @@ def project_level_defects_trend_analysis(requestdata, client, getClientName):
                 x_title = "Project Name"
                 y_title = "Fail Count"
                 color = "#BEAD0B"
-                charttype = "bar"
+                charttype = chart_type["category2"]
                 labels = []
                 chartdata = []
                 chart_result = None
@@ -2509,9 +2482,10 @@ def project_level_defects_trend_analysis(requestdata, client, getClientName):
     
 
 # Function to fetch project level fail counts with top five maximum number of fail counts
-def project_with_more_defects(requestdata, client, getClientName):
+def project_with_more_defects(*args):
     try:
-        dbsession = mongo_connection(requestdata, client, getClientName)
+        requestdata = args[0]
+        dbsession = args[1]
 
         # fetch required data from request
         projectid = requestdata["projectid"]
@@ -2544,7 +2518,7 @@ def project_with_more_defects(requestdata, client, getClientName):
                 x_title = "Project Name"
                 y_title = "Fail Count"
                 color = "#BEAD0B"
-                charttype = "bar"
+                charttype = chart_type["category2"]
                 labels = []
                 chartdata = []
                 chart_result = None
@@ -2578,9 +2552,10 @@ def project_with_more_defects(requestdata, client, getClientName):
     
 
 # Function to fetch project level fail counts with top five minimum number of fail counts
-def project_with_less_defects(requestdata, client, getClientName):
+def project_with_less_defects(*args):
     try:
-        dbsession = mongo_connection(requestdata, client, getClientName)
+        requestdata = args[0]
+        dbsession = args[1]
 
         # fetch required data from request
         projectid = requestdata["projectid"]
@@ -2613,7 +2588,7 @@ def project_with_less_defects(requestdata, client, getClientName):
                 x_title = "Project Name"
                 y_title = "Fail Count"
                 color = "#BEAD0B"
-                charttype = "bar"
+                charttype = chart_type["category2"]
                 labels = []
                 chartdata = []
                 chart_result = None
@@ -2651,7 +2626,7 @@ def project_with_less_defects(requestdata, client, getClientName):
 ################################### DEFAULT FUNCTIONS ####################################
 ##########################################################################################
     
-def default_fallback(requestdata, client, getClientName):
+def default_fallback(*args):
     try:
         datatype = data_type["text"]
         table_result = None
