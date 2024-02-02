@@ -1571,11 +1571,13 @@ def LoadServices(app, redissession, client ,getClientName):
                         for screenid in screendetails:
                             if 'orderlist' in screenid:
                                 for orderlist in screenid['orderlist']:
+                                    dataobjectsParent = None
                                     if isinstance(orderlist, dict):
                                         if '_id' in orderlist:
                                             dataobjectsParent  = dbsession.dataobjects.find_one({'_id':ObjectId(orderlist["_id"])},{'parent':1})                                            
                                     else:
-                                        dataobjectsParent  = dbsession.dataobjects.find_one({'_id':ObjectId(orderlist)},{'parent':1})                                    
+                                        if len(orderlist) == 24:
+                                            dataobjectsParent  = dbsession.dataobjects.find_one({'_id':ObjectId(orderlist)},{'parent':1})                                    
                                     if dataobjectsParent != None:
                                         if len(dataobjectsParent['parent']) > 1:
                                             for i, value in enumerate(screenid['orderlist']):
