@@ -997,6 +997,7 @@ def LoadServices(app, redissession, client ,getClientName):
                 'createdAt':datetime.now(),
                 'lastModifiedAt':datetime.now(),
                 'url':request_data['url'],
+                'variants':request_data['variants'],
                 'error':{
                     'errorType':'',
                     'errorCode':'',

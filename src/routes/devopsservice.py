@@ -81,10 +81,12 @@ def LoadServices(app, redissession, client ,getClientName):
 
                 # case-1 key not present
                 if(len(keyAlreadyExist) == 0):
+                    requestdata["createdAt"] = datetime.utcnow()
+                    requestdata["updatedAt"] = datetime.utcnow()
                     dbsession.configurekeys.insert_one(requestdata)
 
                 else: #key is present
-                    dbsession.configurekeys.update({"_id":ObjectId(keyAlreadyExist[0]['_id'])},{'$set':{"executionData":requestdata["executionData"]}})
+                    dbsession.configurekeys.update({"_id":ObjectId(keyAlreadyExist[0]['_id'])},{'$set':{"executionData":requestdata["executionData"],"updatedAt":datetime.utcnow()}})
 
                 res['rows'] = 'success'
 
