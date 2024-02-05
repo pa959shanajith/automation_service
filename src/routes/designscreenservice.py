@@ -61,7 +61,7 @@ def LoadServices(app, redissession, client ,getClientName):
                                         "createdthrough": (screen_query["createdthrough"] if ("createdthrough" in screen_query) else ""),
                                         "scrapedurl": (screen_query["scrapedurl"] if ("scrapedurl" in screen_query) else ""),
                                         "mirror": (screen_query["screenshot"] if ("screenshot" in screen_query) else ""),
-                                        "reuse": True if(len(screen_query["parent"])>1) else False,
+                                        "reuse": True if("parent" in screen_query and len(screen_query["parent"])>1) else False,
                                         "orderlist": (screen_query["orderlist"] if ("orderlist" in screen_query) else [])
                                       }
                         for scraped_obj in res["rows"]["view"]:
@@ -293,10 +293,16 @@ def LoadServices(app, redissession, client ,getClientName):
                             data_push.append(data_obj[i])
                             
                         if (data_push != []):
-                            insertedObjIds = dbsession.dataobjects.insert(data_push)
-                            dbsession.dataobjects.update_many({"_id":{"$in":insertedObjIds}},
-                            {"$set":{"identifier":[{"id":1,"identifier":'xpath'},{"id":2,"identifier":'id' },{"id":3, "identifier":'rxpath' },{ "id":4,"identifier":'name' },{"id":5,"identifier":'classname'},{"id":6,"identifier":'cssselector'},{"id":7,"identifier":'href'},{"id":8,"identifier":'label'}]}})
-
+                            for i in range(len(data_push)):
+                                if "_id" in data_push[i]:
+                                   insertedObjIds = [{ObjectId(data_push[i]["_id"])}]
+                                   dbsession.dataobjects.update({'_id': ObjectId(data_push[i]["_id"])},{"$push":{'parent':screenId}})
+                                else:
+                                    insertedObjIds = dbsession.dataobjects.insert(data_push)
+                                    dbsession.dataobjects.update_many({"_id":{"$in":insertedObjIds}},
+                                    {"$set":{"identifier":[{"id":1,"identifier":'xpath'},{"id":2,"identifier":'id' },{"id":3, "identifier":'rxpath' },{ "id":4,"identifier":'name' },{"id":5,"identifier":'classname'},{"id":6,"identifier":'cssselector'},{"id":7,"identifier":'href'},{"id":8,"identifier":'label'}]}})
+                                    break
+                                    
                             for index in range(len(orderList)):
                                 if (orderList[index] in tempOrderId_index_dict):
                                     addedObjIndex = tempOrderId_index_dict[orderList[index]]
@@ -320,6 +326,32 @@ def LoadServices(app, redissession, client ,getClientName):
 
                     dbsession.screens.update({"_id":screenId},{"$set": payload})
                     res={"rows":"Success"}
+                if data['param'] == 'renameElenemt':
+                    dbsession.dataobjects.update_one({'_id': ObjectId(data['modifiedObj'][0]["id"])},{'$set':{'custname':data['modifiedObj'][0]["custname"]}})
+                    res={"rows":"Success"}
+                if data["param"] == 'screenPaste':
+                    for ordlist in data['orderList']:
+                        existingorderlist=dbsession.screens.find_one({"_id": ObjectId(data["screenId"])},{'orderlist': ordlist})
+                        object_id_hex = str(existingorderlist['_id'])
+                        if ordlist != object_id_hex:
+                            dbsession.screens.update({"_id":ObjectId( data["screenId"])},{'$push':{'orderlist': ordlist}})
+                            dbsession.dataobjects.update({'_id': ObjectId(ordlist)},{"$push":{'parent':ObjectId(data["screenId"])}})
+                            res={"rows": "Success"}
+                        else:
+                            res={"rows":"Element all ready present"}
+                if data['param'] == 'delElement':
+                    dbsession.screens.update({'_id': ObjectId(data['screenId'])},{"$set":{'orderlist' : data["orderList"]}})
+                    for deletedid in data["deletedObj"]:
+                        dbsession.dataobjects.update({'_id': ObjectId(deletedid)},{"$pull":{'parent' : ObjectId(data["screenId"])}})
+                    res= {"rows" : "Success"}
+                if data['param'] == 'delAllElement':                    
+                    for orderlist in data['deletedObj']:
+                        list_order = list(dbsession.screens.find({'orderlist': orderlist},{"_id":1, 'orderlist':1}))
+                        for inOrderlist in list_order:                            
+                            if orderlist in inOrderlist['orderlist']:
+                                dbsession.screens.update({"_id": inOrderlist['_id']}, {'$pull':{'orderlist': orderlist}})
+                                dbsession.dataobjects.delete_one({'_id': ObjectId(orderlist)})
+                    res= {'rows': "Success"}    
                 elif data["param"] == "mapScrapeData":
                     objList = data["objList"]
                     orderList = data['orderList']

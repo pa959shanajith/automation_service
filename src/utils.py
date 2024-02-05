@@ -237,7 +237,9 @@ ecodeServices = {
     "manageAzureDetails":"473",
     "getScrapeDataScenarioLevel_ICE":"474",
     "updateScenarioComparisionStatus":"475",
-    "updateTestSuiteInUseBy":"476"
+    "updateTestSuiteInUseBy":"476",
+    "createKeyword": "477",
+    "multipleProvisionICE":"478"
 }
 
 
