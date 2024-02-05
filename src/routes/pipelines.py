@@ -301,13 +301,19 @@ def pipeline_module_execution_frequency(tokens, start_datetime, end_datetime, so
     return pipeline
 
 
-def pipeline_module_execution_history(tokens, start_datetime, end_datetime, testsuite_id, testsuite_name):
+def pipeline_module_execution_history(tokens, start_datetime, end_datetime):
     pipeline = [
         {
             "$match": {
-                "configurekey": {"$in": tokens},
-                "parent":testsuite_id,
+                "configurekey": {"$in": tokens},                
                 "starttime": {"$gte": start_datetime, "$lte": end_datetime}
+            }
+        },{
+            "$lookup": {
+                "from": "testsuites",
+                "localField": "parent",
+                "foreignField": "_id",
+                "as": "moduledata"
             }
         },
         {
@@ -322,10 +328,9 @@ def pipeline_module_execution_history(tokens, start_datetime, end_datetime, test
                     }
                 }
             }
-        },
-        {
+        },{
             "$group":{
-                "_id":None,
+                "_id":{"$arrayElemAt": ["$moduledata.name", 0]},
                 "No of times executed":{"$sum":1},"status":{"$push":"$status"},
                 "min time":{"$min":"$elapsedtime"},"max time":{"$max":"$elapsedtime"},
                 "diff": {
@@ -333,91 +338,59 @@ def pipeline_module_execution_history(tokens, start_datetime, end_datetime, test
                     "$subtract": ["$endtime","$starttime"]}
                 }
             }
-        },
-        {
+        }
+        ,{
             "$set": {
-            "Module name":testsuite_name,
+            "Module name":"$_id",
             "avg time": {
-                "$dateToString": {"date": {"$toDate": "$diff"}, "format": "%H:%M:%S.%LZ"}
+                "$dateToString": {
+                "date": {
+                    "$toDate": "$diff"
+                },
+                "format": "%H:%M:%S.%LZ"
+                }
                 }
             }
         },
         {
-            "$project": {
-                "_id":0,
-                "Module name":1,
-                "No of times executed":"$No of times executed",
-                "min time":"$min time",
-                "max time":"$max time",
-                "avg time":"$avg time",
-                "status":"$status",
-            }
+            "$project":{
+                        "_id":0,
+                        "Module name":1,
+                        "No of times executed":"$No of times executed",
+                        "min time":"$min time",
+                        "max time":"$max time",
+                        "avg time":"$avg time",
+                        "status":"$status",
+                        }
         }
     ]
     return pipeline
 
 
 def pipeline_module_execution_history_2(min_max_values):
-    min_max_values.append(Counter(min_max_values[0]["status"]))    
-    del min_max_values[0]["status"]
-    res = {}
-    for d in min_max_values:
-        res.update(d)
-    return res
+    for status in min_max_values:
+        status.update(Counter(status["status"]))    
+        del status["status"]
+    return min_max_values
 
 
-def pipeline_failure_rate_for_module(tokens, start_datetime, end_datetime):
+def pipeline_times_profile_executed(tokens):
     pipeline = [
-                {
+        {
             "$match": {
-                "configurekey":{"$in": tokens},
-                "starttime": {"$gte": start_datetime, "$lte": end_datetime}
+                "configkey": {"$in": tokens}   
             }
         },
-                {
-                    "$project": {
-                        "parent": "$parent",
-                        "status":"$status"
-                    }
-                },
-                {
-                    "$lookup":{
-                    "from": "testsuites",
-                        "localField": "parent",
-                        'foreignField':"_id",
-                        'as':"moduledata"
-                    }},
-                    
-                    {
-                "$group": {
-                    "_id": "$parent",
-                    "module_name": { "$first": "$moduledata.name" },
-                    "fail_count": { "$sum": { "$cond": { "if": { "$eq": ["$status", "fail"] }, "then": 1, "else": 0 } } },
-                    "total_count": {
-                        "$sum": {
-                            "$cond": {
-                                "if": { "$in": ["$status", ["pass", "fail"]] },
-                                "then": 1,
-                                "else": 0
-                            }
-                        }
-                    }
-                }
-            },
-            {
-                "$project": {
-                    "Failure Rate": {
-                        "$cond": {
-                            "if": { "$eq": ["$total_count", 0] },
-                            "then": None,
-                            "else": { "$divide": ["$fail_count", "$total_count"] }
-                        }
-                    },
-                    "Module Name": {"$arrayElemAt":["$module_name",0]}, 
-                    "_id": 0
-                }
+        {
+            "$lookup": {
+                "from": "configurekeys",
+                "localField": "configkey",
+                "foreignField": "token",
+                "as": "configdata"
             }
-            ]
+        },
+        {"$group":{"_id":{"$arrayElemAt":["$configdata.executionData.configurename",0]},"No of times profile executed":{"$sum":1}}},
+        {"$project":{"_id":0,"Profile Names":"$_id","No of times profile executed":"$No of times profile executed"}}]       
     return pipeline
 
 

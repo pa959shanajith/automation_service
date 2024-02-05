@@ -713,25 +713,29 @@ def module_execution_history(*args):
         projectid = requestdata["projectid"]
         userid = requestdata["sender"]
         profileid = requestdata["metadata"]["profileid"]
-        moduleid= ObjectId(requestdata["metadata"]["moduleid"])
+        # moduleid= ObjectId(requestdata["metadata"]["moduleid"])
+
         # fetch and convert the date format
         starttime, endtime = date_conversion(request=requestdata)
 
         # Values for the response
         collection_name = "executions"
-        
-        profile_details = list(dbsession.configurekeys.find({"token": profileid}))
-        profile_name=profile_details[0]["executionData"]["configurename"]
-        testsuite_id=dbsession.testsuites.find_one({"mindmapid":moduleid},{"_id":1,"name":1})
-        tokens = [profileid]
-        testsuite_name=testsuite_id["name"]
-        summary = f"Given below is the execution history for the '{testsuite_name}' Testsuite executed through the '{profile_name}' profile during {starttime.strftime('%d/%m/%Y')} and {endtime.strftime('%d/%m/%Y')} time range:"
+        if profileid:
+            profile_name = list(dbsession.configurekeys.find({"token": profileid}))[0]["executionData"]["configurename"]
+            tokens = [profileid]            
+            summary = f"Given below is the execution history for the Testsuites executed through the '{profile_name}' profile during {starttime.strftime('%d/%m/%Y')} and {endtime.strftime('%d/%m/%Y')} time range:"
+
+        else:        
+            project_name = list(dbsession.projects.find({"_id": ObjectId(projectid)}))[0]["name"]
+            token_pipeline = pipelines.fetch_tokens(projectid=projectid, userid=userid)
+            token_values = list(dbsession.configurekeys.aggregate(token_pipeline))            
+            tokens = [tokens["token"] for tokens in token_values]
+            summary = f"Given below is the execution history for the  Testsuites executed through the '{project_name}' project during {starttime.strftime('%d/%m/%Y')} and {endtime.strftime('%d/%m/%Y')} time range:"
 
         try:
-            data_pipeline = pipelines.pipeline_module_execution_history(tokens=tokens, start_datetime=starttime, end_datetime=endtime, testsuite_id=testsuite_id["_id"],testsuite_name=testsuite_name)
-            min_max_values=DataPreparation.process_table_data(dbsession=dbsession, collectionname=collection_name, pipeline=data_pipeline)
-            table_result=pipelines.pipeline_module_execution_history_2(min_max_values=min_max_values)           
-
+            data_pipeline = pipelines.pipeline_module_execution_history(tokens=tokens, start_datetime=starttime, end_datetime=endtime)
+            min_max_values = DataPreparation.process_table_data(dbsession=dbsession, collectionname=collection_name, pipeline=data_pipeline)
+            table_result = pipelines.pipeline_module_execution_history_2(min_max_values=min_max_values)           
 
             # Check if table_result is None
             if not table_result:
@@ -740,28 +744,14 @@ def module_execution_history(*args):
                 chart_result = None
 
             else:
-                x_title = ""
-                color = "#754e14"
-                charttype = chart_type["category1"]
-                labels = "Count of modules"
-                chartdata = len(table_result)
                 chart_result = None
-
-                chart_result = DataPreparation.process_final_chart_data(
-                    x_title=x_title,
-                    labels=labels,
-                    backgroundColor=color,
-                    chartsData=len(table_result),
-                    chartType=charttype,
-                    displayLegend="true"
-                )
 
         except Exception as e:
             table_result = None
             chart_result = None
             summary = exeception_summary
 
-        datatype = data_type["table/chart"] if table_result else data_type["text"]
+        datatype = data_type["table"]
         result = DataPreparation.merge_table_and_chart_data(tabledata=table_result, chartdata=chart_result)
         return datatype, summary, result
     
@@ -770,7 +760,7 @@ def module_execution_history(*args):
 
 
 # Function fetches the number of time the profile has been executed
-def No_of_times_profile_executed(*args):
+def times_profile_executed(*args):
     try:
         requestdata = args[0]
         dbsession = args[1]
@@ -786,16 +776,16 @@ def No_of_times_profile_executed(*args):
         if profileid: 
             profile_name = list(dbsession.configurekeys.find({"token": profileid}))[0]["executionData"]["configurename"]
             tokens = [profileid]
-            summary = f"Given below is the number of the times '{profile_name}' profile  executed untill today:"
+            summary = f"Given below is the number of the times '{profile_name}' profile executed untill today:"
         else:        
             project_name = list(dbsession.projects.find({"_id": ObjectId(projectid)}))[0]["name"]
             token_pipeline = pipelines.fetch_tokens(projectid=projectid, userid=userid)
             token_values = list(dbsession.configurekeys.aggregate(token_pipeline))            
             tokens = [tokens["token"] for tokens in token_values]
-            summary = f"Given below is the number of the times '{project_name}' project executed untill today:"
+            summary = f"Given below is the number of the times profiles executed in '{project_name}' project untill today:"
 
         try:
-            data_pipeline = pipelines.pipeline_No_of_times_profile_executed(tokens=tokens)
+            data_pipeline = pipelines.pipeline_times_profile_executed(tokens=tokens)
             table_result=DataPreparation.process_table_data(dbsession=dbsession, collectionname=collection_name, pipeline=data_pipeline)
             print(table_result)
              
@@ -806,29 +796,14 @@ def No_of_times_profile_executed(*args):
                 chart_result = None
 
             else:
-                x_title = "Module Names"
-                y_title = "Fail Count"
-                color = "#28DC0A"
-                charttype = "bar"
-                labels = "Profile name"
-                chartdata = len(table_result)
                 chart_result = None
-
-                chart_result = DataPreparation.process_final_chart_data(
-                    x_title=x_title,
-                    labels=labels,
-                    backgroundColor=color,
-                    chartsData=len(table_result),
-                    chartType=charttype,
-                    displayLegend="true"
-                )
 
         except Exception as e:
             table_result = None
             chart_result = None
             summary = exeception_summary
 
-        datatype = data_type["table/chart"] if table_result else data_type["text"]
+        datatype = data_type["table"]
         result = DataPreparation.merge_table_and_chart_data(tabledata=table_result, chartdata=chart_result)
         return datatype, summary, result
     
