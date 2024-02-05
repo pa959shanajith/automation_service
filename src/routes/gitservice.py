@@ -604,7 +604,7 @@ def LoadServices(app, redissession, client ,getClientName, *args):
             dbsession.Export_dataobjects_git.drop()
             dbsession.Export_testscenarios_git.drop()
             servicesException("exportToGit", ex, True)
-        remove_dir(git_path)
+        if git_path:remove_dir(git_path)
         return res
 
     def update_steps(steps,dataObjects):
@@ -702,7 +702,7 @@ def LoadServices(app, redissession, client ,getClientName, *args):
     def importGitMindmap():
         app.logger.debug("Inside importGitMindmap")
         res='fail'
-        # git_path=None
+        git_path=None
         try:
             requestdata=json.loads(request.data)
             if not isemptyrequest(requestdata):
@@ -1212,7 +1212,7 @@ def LoadServices(app, redissession, client ,getClientName, *args):
             dbsession.git_Testcase_Import_ids.drop()                    
             dbsession.git_testcase_steps.drop()
             servicesException("importGitMindmap", ex, True)
-        remove_dir(git_path)
+        if git_path:remove_dir(git_path)
         return res
 
     def adddataobjects(dbsession,pid, d):
