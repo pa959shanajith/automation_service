@@ -9,7 +9,7 @@ from ftplib import FTP
 import os
 import shutil
 import base64
-from generateAI_module import UserDocument,UserTestcases,AI_Testcases
+from document_modules.generateAI_module import UserDocument,UserTestcases,AI_Testcases
 import requests
 from datetime import datetime
 
