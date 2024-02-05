@@ -1622,7 +1622,7 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
                 result1 = dbsession.userpreference.find_one({"user":ObjectId(requestdata["userId"]), 'Saucelabs':{'$exists':True, '$ne': None}})
                 if requestdata["action"]=="delete":
                     res1 = "success"
-                    if result==None:
+                    if result==None or result1 == None:
                         res1 = "fail"
                     elif result1!=None:
                         dbsession.userpreference.update_one({"_id":result["_id"]},{"$unset":{ 'Saucelabs':""}})
@@ -1688,7 +1688,7 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
                 result1 = dbsession.userpreference.find_one({"user":ObjectId(requestdata["userId"]), 'Browserstack':{'$exists':True, '$ne': None}})
                 if requestdata["action"]=="delete":
                     res1 = "success"
-                    if result==None:
+                    if result==None  or result1 == None:
                         res1 = "fail"
                     elif result1!=None:
                         dbsession.userpreference.update_one({"_id":result["_id"]},{"$unset":{ 'Browserstack':""}})
@@ -2044,13 +2044,16 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
                             if project["_id"] == requestdata["project_id"]:
                                 project["assignedrole"] =str(default_role_id[0]["_id"])
                                 projectlevelroles.append(project)
-                                break
-                            else:projectlevelroles.append(project)
+                            else:
+                                projectlevelroles.append(project)
                         dbsession.users.update_one({"_id":ObjectId(user["id"])},{"$set":{"projectlevelrole":projectlevelroles}})
                     else:
                         dbsession.users.update_one({"_id":ObjectId(user["id"])},{"$push":{"projects":ObjectId(requestdata["project_id"]), "projectlevelrole":{"_id":requestdata["project_id"], "assignedrole": str(default_role_id[0]["_id"])}}})
                 for user in newlyUnassignedUsers:
-                    dbsession.users.update_one({"_id":ObjectId(user["_id"])},{"$pull":{"projects":ObjectId(requestdata["project_id"]), "projectlevelrole":{"_id":requestdata["project_id"]}}})    
+                    dbsession.users.update_one({"_id":ObjectId(user["_id"])},{"$pull":{"projects":ObjectId(requestdata["project_id"]), "projectlevelrole":{"_id":requestdata["project_id"]}}})
+                    listofmodules=list(dbsession.mindmaps.find({"currentlyinuse":user['name']}))
+                    for module in listofmodules:
+                        dbsession.mindmaps.update_one({'_id':module['_id']},{"$set":{"currentlyinuse":""}})     
                 res={'rows':'success'}
             else:
                 app.logger.warn('Empty data received. update project.')
