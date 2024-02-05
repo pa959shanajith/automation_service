@@ -326,6 +326,9 @@ def LoadServices(app, redissession, client ,getClientName):
 
                     dbsession.screens.update({"_id":screenId},{"$set": payload})
                     res={"rows":"Success"}
+                if data['param'] == 'renameElenemt':
+                    dbsession.dataobjects.update_one({'_id': ObjectId(data['modifiedObj'][0]["id"])},{'$set':{'custname':data['modifiedObj'][0]["custname"]}})
+                    res={"rows":"Success"}
                 if data["param"] == 'screenPaste':
                     for ordlist in data['orderList']:
                         existingorderlist=dbsession.screens.find_one({"_id": ObjectId(data["screenId"])},{'orderlist': ordlist})
