@@ -172,8 +172,8 @@ def addroutes():
     import rasa
     rasa.LoadServices(app, redissession, client,getClientName)
 
-    import promptbasedanalysis
-    promptbasedanalysis.LoadServices(app, redissession, client,getClientName)
+    import constructprompt
+    constructprompt.LoadServices(app, redissession, client,getClientName)
     
     if os.path.exists(gitpath):
         os.environ["GIT_PYTHON_GIT_EXECUTABLE"] = gitpath

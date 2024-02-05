@@ -1,6 +1,5 @@
-import json
-from datetime import datetime, timedelta
 from collections import Counter
+from http import HTTPStatus
 
 from utils import *
 
@@ -12,6 +11,21 @@ def LoadServices(app, redissession, client,getClientName):
     #########################################################################
     ######################### API SUPPORT FUNCTIONS #########################
     #########################################################################
+
+    # MongoDB connection
+    def mongo_connection(requestdata, client, getClientName):
+        try:
+            clientName = getClientName(requestdata)
+            dbsession = client[clientName]
+            return dbsession
+        except Exception as e:
+            return e
+
+
+    # Helper function for date format conversion
+    def convert_date_format(date_str):
+        return datetime.strptime(date_str, "%Y-%m-%d").strftime("%d/%m/%Y")
+
 
     # Function for request validation
     def validate_request(data, require_projectid=False, require_userid=False, require_profileid=False, require_execListid=False, require_executionid=False):
@@ -75,11 +89,7 @@ def LoadServices(app, redissession, client,getClientName):
 
     # Function to generate response data for module level execution status
     def fetch_profilelevel_execution_status(requestdata, projectid, userid, starttime, endtime):
-        try:
-            clientName = getClientName(requestdata)
-            dbsession = client[clientName]
-        except Exception as e:
-            return e
+        dbsession = mongo_connection(requestdata, client, getClientName)
 
         try:
             start_datetime, end_datetime = date_conversion(starttime, endtime)
@@ -137,7 +147,6 @@ def LoadServices(app, redissession, client,getClientName):
             transformed_data = []
 
             for keys in result:
-                temp_dict = {}
                 profileid = keys["token"]
                 profilename = keys["executionData"]["configurename"]
                 
@@ -177,11 +186,7 @@ def LoadServices(app, redissession, client,getClientName):
 
     # Function return module level execution status within a specified time range (for an execution)
     def fetch_modulelevel_execution_status(requestdata, executionlistid):
-        try:
-            clientName = getClientName(requestdata) 
-            dbsession = client[clientName]
-        except Exception as e:
-            return e
+        dbsession = mongo_connection(requestdata, client, getClientName)
 
         try:
             reports = list(dbsession.executions.aggregate([{"$match":{"executionListId":executionlistid}},
@@ -226,41 +231,37 @@ def LoadServices(app, redissession, client,getClientName):
             return e
 
 
-    # Function to fetch test step pass and fail count for a specific module
+    # Function to fetch pass and fail count at teststep level for a specific module
     def fetch_teststep_execution_status(requestdata, executionid):
-        try:
-            clientName = getClientName(requestdata) 
-            dbsession = client[clientName]
-        except Exception as e:
-            return e
+        dbsession = mongo_connection(requestdata, client, getClientName)
         
         try:
             pipeline = [
-                    { "$match": { "executionid": executionid } },
-                    { "$group": {
+                    {"$match": {"executionid": executionid}},
+                    {"$group": {
                         "_id": {  
-                        "executionid": "$executionid",
-                        "reportid": "$reportid",
-                        "scenarioid": "$scenarioid", 
-                        "status": "$status"
-                        },
+                            "executionid": "$executionid",
+                            "reportid": "$reportid",
+                            "scenarioid": "$scenarioid", 
+                            "status": "$status"
+                            },
                         "count": { "$sum": 1 }
                     }},
-                    { "$group": {
+                    {"$group": {
                         "_id": {
-                        "executionid": "$_id.executionid",  
-                        "reportid": "$_id.reportid",
-                        "scenarioid": "$_id.scenarioid"
-                        },
+                            "executionid": "$_id.executionid",  
+                            "reportid": "$_id.reportid",
+                            "scenarioid": "$_id.scenarioid"
+                            },
                         "statusCount": {
-                        "$push": { 
-                            "status": "$_id.status",
-                            "count": "$count"  
-                        }
+                            "$push": { 
+                                "status": "$_id.status",
+                                "count": "$count"  
+                            }
                         }
                     }}
                 ]
-            result = dbsession.reportitems_copy.aggregate(pipeline)
+            result = dbsession.reportitems.aggregate(pipeline)
 
             transformed_data = []
             for entry in result:
@@ -293,11 +294,7 @@ def LoadServices(app, redissession, client,getClientName):
 
     # Function to fetch defect analysis data
     def fetch_defect_data(requestdata, projectid, userid, starttime, endtime):
-        try:
-            clientName = getClientName(requestdata) 
-            dbsession = client[clientName]
-        except Exception as e:
-            return e
+        dbsession = mongo_connection(requestdata, client, getClientName)
 
         try:
             start_datetime, end_datetime = date_conversion(starttime, endtime)
@@ -309,10 +306,12 @@ def LoadServices(app, redissession, client,getClientName):
             # Dictionary to store the transformed data
             transformed_data = []
 
-            # Iterate over each profileid
+            # Iterate over each profileid (configurekey)
             for key in result:
                 profileid = key['token']
                 profilename = key['executionData']['configurename']
+
+                # fetching the executionids for each execution (executionlistID)
                 temp = dbsession.executions.aggregate([{
                                                         "$match": {
                                                             "configurekey": profileid,
@@ -335,9 +334,10 @@ def LoadServices(app, redissession, client,getClientName):
                     execlist_name = "Execution" + str(count)
                     executionid_list = [str(execution['_id']) for execution in value.get('executionids', [])]
 
-                    failcount_result = list(dbsession.reportitems_copy.aggregate([{
+                    # fetching the fail count at step level
+                    failcount_result = list(dbsession.reportitems.aggregate([{
                                                                                 "$match": {
-                                                                                "executionid": {"$in": executionid_list},
+                                                                                "execution_ids": {"$in": executionid_list},
                                                                                 "Keyword": {"$ne": "TestCase Name"}, 
                                                                                 "status": "Fail"}
                                                                             },
@@ -372,27 +372,26 @@ def LoadServices(app, redissession, client,getClientName):
             return e
 
 
-
     #########################################################################
-    ######################### MODULE EXECUTION API ##########################
+    ######################### EXECUTION ANALYSIS API ########################
     #########################################################################
 
     # Status check API
     @app.route("/visual_api_check", methods=["GET"])    
     def das_testing():
-        return jsonify({"data": "Static Visualization API ready...!!!", "status": 200})
+        return jsonify({"data": "Static Visualization API ready...!!!", "status": HTTPStatus.OK}), HTTPStatus.OK
     
 
     # POST API to fetch executions count at module level
     @app.route("/profileLevel_ExecutionStatus", methods=["POST"])
     def api_profilelevel_execution_analysis():
-        app.logger.debug("Inside Profile_Level_Execution_Status")
+        app.logger.debug("Inside profileLevel_ExecutionStatus")
         try:
             requestdata = request.get_json()
             request_data = validate_request(requestdata, require_projectid=True, require_userid=True)
 
             if "error" in request_data:
-                return jsonify({"data": request_data["error"], "status": 400})
+                return jsonify({"data": request_data["error"], "status": HTTPStatus.BAD_REQUEST}), HTTPStatus.BAD_REQUEST
             
             projectid = request_data["projectid"]
             userid = request_data["userid"]
@@ -400,17 +399,17 @@ def LoadServices(app, redissession, client,getClientName):
             end_time = request_data["end_time"]
             
             result = fetch_profilelevel_execution_status(requestdata, projectid, userid, start_time, end_time)
-            print(json.dumps({"data": result, "start_time": start_time, "end_time": end_time, "status": 200}, indent=2))
 
             # Convert the date string to the desired format
-            start_time = datetime.strptime(start_time, "%Y-%m-%d").strftime("%d/%m/%Y")
-            end_time = datetime.strptime(end_time, "%Y-%m-%d").strftime("%d/%m/%Y")
+            start_time = convert_date_format(start_time)
+            end_time = convert_date_format(end_time)
             
-            return jsonify({"data": result, "start_time": start_time, "end_time": end_time, "status": 200})
+            return jsonify({"data": result, "start_time": start_time, "end_time": end_time, "status": HTTPStatus.OK}), HTTPStatus.OK
 
         # Handle any exceptions with a 500 Internal Server Error response
         except Exception as e:
-            return jsonify({"data": {"message": str(e)}, "status": 500})
+            app.logger.error(f"An error occurred in 'profileLevel_ExecutionStatus': {str(e)}")
+            return jsonify({"data": {"message": str(e)}, "status": HTTPStatus.INTERNAL_SERVER_ERROR}), HTTPStatus.INTERNAL_SERVER_ERROR
 
     
     # POST API to fetch executions count at module level
@@ -422,68 +421,69 @@ def LoadServices(app, redissession, client,getClientName):
             request_data = validate_request(requestdata, require_execListid=True)
 
             if "error" in request_data:
-                return jsonify({"data": request_data["error"], "status": 400})
+                return jsonify({"data": request_data["error"], "status": HTTPStatus.BAD_REQUEST}), HTTPStatus.BAD_REQUEST
             
             execListID = request_data["execListID"]
             start_time = request_data["start_time"]
             end_time = request_data["end_time"]
 
             result = fetch_modulelevel_execution_status(requestdata, execListID)
-            print(json.dumps({"data": result, "start_time": start_time, "end_time": end_time, "status": 200}, indent=2))
 
             # Convert the date string to the desired format
-            start_time = datetime.strptime(start_time, "%Y-%m-%d").strftime("%d/%m/%Y")
-            end_time = datetime.strptime(end_time, "%Y-%m-%d").strftime("%d/%m/%Y")
+            start_time = convert_date_format(start_time)
+            end_time = convert_date_format(end_time)
 
-            return jsonify({"data": result, "start_time": start_time, "end_time": end_time, "status": 200})
+            return jsonify({"data": result, "start_time": start_time, "end_time": end_time, "status": HTTPStatus.OK}), HTTPStatus.OK
 
         # Handle any exceptions with a 500 Internal Server Error response
         except Exception as e:
-            return jsonify({"data": {"message": str(e)}, "status": 500})
+            app.logger.error(f"An error occurred in 'moduleLevel_ExecutionStatus': {str(e)}")
+            return jsonify({"data": {"message": str(e)}, "status": HTTPStatus.INTERNAL_SERVER_ERROR}), HTTPStatus.INTERNAL_SERVER_ERROR
         
     
-    # POST API to fetch test steps level executions status
+    # POST API to fetch teststeps level executions status
     @app.route("/teststepLevel_ExecutionStatus", methods=["POST"])
     def teststep_execution_analysis():
         app.logger.debug("Inside TestStep_Level_Execution_Status")
         try:
             requestdata = request.get_json()
             request_data = validate_request(requestdata, require_executionid=True)
+
             if "error" in request_data:
-                return jsonify({"data": request_data["error"], "status": 400})
+                return jsonify({"data": request_data["error"], "status": HTTPStatus.BAD_REQUEST}), HTTPStatus.BAD_REQUEST
             
             executionid = request_data["executionid"]
             start_time = request_data["start_time"]
             end_time = request_data["end_time"]
 
             result = fetch_teststep_execution_status(requestdata, executionid)
-            print(json.dumps({"data": result, "start_time": start_time, "end_time": end_time, "status": 200}, indent=2))
 
             # Convert the date string to the desired format
-            start_time = datetime.strptime(start_time, "%Y-%m-%d").strftime("%d/%m/%Y")
-            end_time = datetime.strptime(end_time, "%Y-%m-%d").strftime("%d/%m/%Y")
+            start_time = convert_date_format(start_time)
+            end_time = convert_date_format(end_time)
         
-            return jsonify({"data": result, "start_time": start_time, "end_time": end_time, "status": 200})
+            return jsonify({"data": result, "start_time": start_time, "end_time": end_time, "status": HTTPStatus.OK}), HTTPStatus.OK
 
         # Handle any exceptions with a 500 Internal Server Error response
         except Exception as e:
-            return jsonify({"data": {"message": str(e)}, "status": 500})
+            app.logger.error(f"An error occurred in 'teststepLevel_ExecutionStatus': {str(e)}")
+            return jsonify({"data": {"message": str(e)}, "status": HTTPStatus.INTERNAL_SERVER_ERROR}), HTTPStatus.INTERNAL_SERVER_ERROR
 
 
     #########################################################################
     ########################## DEFECT ANALYSIS API ##########################
     #########################################################################
 
-    # POST API to fetch defect executions
+    # POST API to fetch defect data
     @app.route("/defect_analysis", methods=["POST"])
     def api_defect_execution_analysis():
-        app.logger.debug("Inside Defect Analysis")
+        app.logger.debug("Inside defect_analysis")
         try:
             requestdata = request.get_json()
             request_data = validate_request(requestdata, require_projectid=True, require_userid=True)
 
             if "error" in request_data:
-                return jsonify({"data": request_data["error"], "status": 400})
+                return jsonify({"data": request_data["error"], "status": HTTPStatus.BAD_REQUEST}), HTTPStatus.BAD_REQUEST
             
             projectid = request_data["projectid"]
             userid = request_data["userid"]
@@ -491,14 +491,14 @@ def LoadServices(app, redissession, client,getClientName):
             end_time = request_data["end_time"]
 
             result = fetch_defect_data(requestdata, projectid, userid, start_time, end_time)
-            print(json.dumps({"data": result, "start_time": start_time, "end_time": end_time, "status": 200}, indent=2))
 
             # Convert the date string to the desired format
-            start_time = datetime.strptime(start_time, "%Y-%m-%d").strftime("%d/%m/%Y")
-            end_time = datetime.strptime(end_time, "%Y-%m-%d").strftime("%d/%m/%Y")
+            start_time = convert_date_format(start_time)
+            end_time = convert_date_format(end_time)
         
-            return jsonify({"data": result, "start_time": start_time, "end_time": end_time, "status": 200})
+            return jsonify({"data": result, "start_time": start_time, "end_time": end_time, "status": HTTPStatus.OK}), HTTPStatus.OK
         
         # Handle any exceptions with a 500 Internal Server Error response
         except Exception as e:
-            return jsonify({"data": {"message": str(e)}, "status": 500})
+            app.logger.error(f"An error occurred in 'defect_analysis': {str(e)}")
+            return jsonify({"data": {"message": str(e)}, "status": HTTPStatus.INTERNAL_SERVER_ERROR}), HTTPStatus.INTERNAL_SERVER_ERROR
