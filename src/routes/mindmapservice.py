@@ -2026,7 +2026,7 @@ def LoadServices(app, redissession, client ,getClientName):
                             if tsId["_id"]==j["old_id"]:
                                 currentscenarioid=j["_id"]
                                 break
-                        iddata1={"_id":currentscenarioid,"screens":[]}
+                        iddata1={"_id":currentscenarioid,"screens":[],"tag":[]}
                         if "screens" in tsId:
                             for screens in tsId["screens"]:                                
                                 if "_id" in screens:
@@ -2045,6 +2045,8 @@ def LoadServices(app, redissession, client ,getClientName):
                                                             break                                                           
                                                 iddata2["testcases"].append(currenttestcaseid)
                                     iddata1["screens"].append(iddata2)
+                        if "tag" in tsId:
+                            iddata1["tag"]=tsId["tag"]
                         idsforModule.append(iddata1)
             array2["testscenarios"].append(idsforModule)
             array2["testscenarios"]=array2["testscenarios"][0]
@@ -2466,7 +2468,7 @@ def LoadServices(app, redissession, client ,getClientName):
                             data["_id"]=mm["_id"]
                             if "testscenarionames" in mm:
                                 for tsname in mm["testscenarionames"]:
-                                    data1={"_id":"","screens":[]}
+                                    data1={"_id":"","screens":[], "tag":[]}
                                     for ts in tsIds:                                        
                                         if tsname["name"]==ts["name"]:
                                             data1["_id"]=ts["_id"]
@@ -2486,6 +2488,8 @@ def LoadServices(app, redissession, client ,getClientName):
                                                                 data2["testcases"].append(tc["_id"])
                                                                 break
                                             data1["screens"].append(data2)
+                                    if "tag" in tsname: 
+                                        data1["tag"]=tsname["tag"]
                                     data["testscenarios"].append(data1)
                             mmmappings.append(data)
                     
