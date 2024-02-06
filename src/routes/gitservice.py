@@ -725,12 +725,10 @@ def LoadServices(app, redissession, client ,getClientName, *args):
                     #     res = {'rows': "No entries"}                        
                     # else:
                     res={'rows': "empty"}
-                else:
-                    result = dbsession.gitexpimpdetails.find_one({'gittask':'push',"projectid":expProj,"version":gitVersionName})
-                                        
+                else:                    
+                    result = dbsession.gitexpimpdetails.find_one({"projectid":expProj,"version":gitVersionName})                                 
                     if not result:
-                        res = {'rows': "Invalid inputs"}                  
-                        
+                        res = {'rows': "Invalid inputs"}                    
                     else:
                         git_path=currdir+os.sep+'exportGit'+os.sep+str(userid)
                         final_path=os.path.normpath(git_path)+os.sep+result["branchname"]                               
@@ -1175,7 +1173,7 @@ def LoadServices(app, redissession, client ,getClientName, *args):
                                         impdata={}
                                         if queryresult:
                                             impdata["userid"] = userid
-                                            impdata["exportgitid"] = result["_id"]
+                                            impdata["exportgitid"] = result["exportgitid"] if result["gittask"]=="pull" else  result["_id"]
                                             impdata["projectid"]=projectid
                                             impdata["gittask"]="pull"
                                             impdata["branchname"] = result["branchname"]
