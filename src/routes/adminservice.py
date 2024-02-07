@@ -1390,6 +1390,9 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
             clientName=getClientName(requestdata)             
             dbsession=client[clientName]
             #check whether the git configuration name is unique
+            check_gitbranch=list(dbsession.gitconfiguration.find({"gitbranch":{"$exists":False}}))
+            if len(check_gitbranch)>0:
+                dbsession.gitconfiguration.update_many({},{"$set":{"gitbranch":"main"}})
             chk_gitname = dbsession.gitconfiguration.find_one({"name":requestdata["gitConfigName"]},{"name":1})
             if chk_gitname!=None and requestdata["action"]=='create':
                 res={"rows":"GitConfig exists"}
@@ -1411,6 +1414,7 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
                     data['giturl']= requestdata["gitUrl"]
                     data['gitusername']=requestdata["gitUsername"]
                     data['gituseremail']=requestdata["gitEmail"]
+                    data['gitbranch']=requestdata["gitbranch"]
                     dbsession.gitconfiguration.insert_one(data)
                     res1 = "success"
             elif requestdata["action"]=='update':
@@ -1420,6 +1424,7 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
                 data['giturl']= requestdata["gitUrl"]
                 data['gituseremail']=requestdata["gitEmail"]
                 data['gitusername']=requestdata["gitUsername"]
+                data['gitbranch']=requestdata["gitbranch"]
                 dbsession.gitconfiguration.update_one({"_id":ObjectId(result["_id"])},{"$set":data})
                 res1 = "success"
             elif requestdata["action"]=="delete":
@@ -1442,7 +1447,10 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
             if not isemptyrequest(requestdata):
                 clientName=getClientName(requestdata)            
                 dbsession=client[clientName]
-                result=dbsession.gitconfiguration.find_one({"gituser":ObjectId(requestdata["userId"]),"projectid":ObjectId(requestdata["projectId"])},{'name':1, 'gitaccesstoken':1, 'giturl':1, 'gitusername':1,'gituseremail':1, '_id':0})
+                check_gitbranch=list(dbsession.gitconfiguration.find({"gitbranch":{"$exists":False}}))
+                if len(check_gitbranch)>0:
+                    dbsession.gitconfiguration.update_many({},{"$set":{"gitbranch":"main"}})
+                result=dbsession.gitconfiguration.find_one({"gituser":ObjectId(requestdata["userId"]),"projectid":ObjectId(requestdata["projectId"])},{'name':1, 'gitaccesstoken':1, 'giturl':1, 'gitusername':1,'gituseremail':1, 'gitbranch':1,'_id':0})
                 if result:
                     result['gitaccesstoken'] = unwrap(result['gitaccesstoken'],ldap_key)
                     res={'rows':result}
