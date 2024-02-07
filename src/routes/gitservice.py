@@ -73,7 +73,7 @@ def LoadServices(app, redissession, client ,getClientName, *args):
                 if not gitconfig_data:
                     result ={'rows':'empty'}
                     return result
-                commitId = dbsession.gitexportdetails.find_one({'branchname':gitbranch,'folderpath':moduleName,'version':versionName, "parent":gitconfig_data['_id']},{"commitid":1})
+                commitId = dbsession.gitexpimpdetails.find_one({'gittask':'push','branchname':gitbranch,'folderpath':moduleName,'version':versionName, "parent":gitconfig_data['_id']},{"commitid":1})
                 if not commitId:
                     result ={'rows':'empty'}
                     return result
@@ -263,18 +263,167 @@ def LoadServices(app, redissession, client ,getClientName, *args):
         exportImportpath=conf['exportImportpath']
         return mongo_client_path,DB_IP, DB_PORT,exportImportpath,mongo_user,mongo_pass,authDB
 
+    def create_new_repo(repo_name,api_url,headers,projectName):
+        try:
+            data = {
+                "name": repo_name,
+                "description":projectName ,
+                "private": True
+            }
+            new_repo_response = requests.post(f"{api_url}/user/repos", headers=headers, json=data)
+            if not new_repo_response.status_code == 201:
+                if new_repo_response.status_code == 401:
+                    res =  "Invalid token"
+                    return new_repo_response,res
+                else:
+                    app.logger.error(new_repo_response.status_code)                         
+                    res="Unable to connect GIT"
+                    return new_repo_response,res
+            else:
+                res="success"
+                return new_repo_response,res
+        except Exception as e:
+           raise ValueError("Error occurred in create_new_repo",e)
+
+    def create_main_branch(projectName,owner,repo_name,api_url,access_token) :       
+        try: 
+            file_path = "README.md"
+            commit_message = "Add README.md file"
+            date=datetime.now()
+            readme_content = projectName+ " was created"
+
+            file_content = base64.b64encode(readme_content.encode("utf-8")).decode("utf-8")
+            data = {
+                "message": commit_message,
+                "content": file_content
+            }
+
+            url = f"{api_url}/repos/{owner}/{repo_name}/contents/{file_path}"
+            headers = {
+                "Authorization": f"Bearer {access_token}",
+                "Accept": "application/vnd.github.v3+json"
+            }
+            main_branch_response = requests.put(url, headers=headers, json=data)       
+            if not main_branch_response.status_code == 201:
+                if main_branch_response.status_code == 401:
+                    res =  "Invalid token"
+                    return res
+                else:
+                    app.logger.error(main_branch_response.status_code)
+                    res="Unable to connect GIT"
+                    return res
+            else:
+                res="success"
+                return res
+        except Exception as e:
+           raise ValueError("Error occurred in create_main_branch",e)
+
+    def create_requested_branch(origin,repo,export_branch):
+        try:
+            commit=""
+            for i in range(len(origin.refs)):
+                if(origin.refs[i].remote_head=="main"):
+                    commit = origin.refs[i].commit.hexsha
+                    break
+            new_branch =repo.create_head(export_branch, commit=commit)
+            # Checkout the newly created branch
+            repo.git.checkout(new_branch)
+            repo.git.fetch('origin')
+            upstream_branch = 'origin/main'         
+            repo.git.branch(f"--set-upstream-to={upstream_branch}", export_branch)  
+            try:
+                repo.git.pull(ff=True)
+            except Exception as e:
+                app.logger.error(e)
+                res ={"rows":"Unable to connect GIT"}
+                return res
+            return repo
+        except Exception as e:
+           raise ValueError("Error occurred in create_requested_branch",e)
+
+    def get_repo_details(headers):
+        try:
+            response = requests.get('https://api.github.com/user/repos', headers=headers, verify=False)                    
+            repos=[]
+            if not response.status_code == 200:
+                if response.status_code == 401:
+                    res = "Invalid token"
+                    return repos,response,res
+                else:
+                    app.logger.error("error occured while fetching the repositories from GITHUB ",response.status_code)                         
+                    res="Unable to connect GIT"
+                    return repos,response,res
+            else:                       
+                repositories = response.json()                        
+                for repo in repositories:
+                    repos.append(repo["name"])
+                res="success"
+                return repos,response,res
+        except Exception as e:
+           raise ValueError("Error occurred in get_repo_details",e)
+
+    def get_branch_name(owner,repo_name,api_url,headers):
+        try:
+            if owner:                           
+                branch_response = requests.get(f"{api_url}/repos/{owner}/{repo_name}/branches", headers=headers)
+                if not branch_response.status_code == 200:
+                    if branch_response.status_code == 401:
+                        res = "Invalid token"
+                        branch_names=[]
+                        return res,branch_names
+                    else:
+                        app.logger.error(branch_response)                         
+                        res="Unable to connect GIT"
+                        branch_names=[]
+                        return res,branch_names
+            
+                else:                
+                    branches = branch_response.json()  # Parse the response as JSON
+                    branch_names = [branch['name'] for branch in branches]
+                    res="success"
+                    return res,branch_names
+            
+            else:
+                res=200
+                branch_names=[] 
+                return res,branch_names
+        except Exception as e:
+           raise ValueError("Error occurred in get_branch_name",e)
+
+    def get_owner_info(response,repo_name):
+        try:
+            repository_info = response.json()
+            owner=""
+            if isinstance(repository_info, list):
+                for name in  repository_info:
+                    if name["name"] == repo_name: 
+                        owner = name["owner"]["login"]
+                        break
+            else:
+                if repository_info["name"]==repo_name:
+                    owner = repository_info["owner"]["login"]    
+            return owner
+        except Exception as e:
+           raise ValueError("Error occurred in get_owner_info",e)
+    
     #Export mindmap to git repository
     @app.route('/git/exportToGit',methods=['POST'])
     def exportToGit():
         app.logger.debug("Inside exportToGit")
         res={'rows':'fail'}
-        try:
+        git_path=None
+        try:            
             requestdata=json.loads(request.data)
             if not isemptyrequest(requestdata):
                 clientName=getClientName(requestdata)       
                 dbsession=client[clientName]
                 del_flag = False
-                git_details = dbsession.gitconfiguration.find_one({"gituser":ObjectId(requestdata["userid"]),"projectid":ObjectId(requestdata["projectId"])},{"giturl":1,"gitaccesstoken":1,"gitusername":1,"gituseremail":1})
+                check_gitbranch=list(dbsession.gitconfiguration.find({"gitbranch":{"$exists":False}}))
+                if len(check_gitbranch)>0:
+                    dbsession.gitconfiguration.update_many({},{"$set":{"gitbranch":"main"}})
+                git_details = dbsession.gitconfiguration.find_one({"gituser":ObjectId(requestdata["userid"]),"projectid":ObjectId(requestdata["projectId"])},{"giturl":1,"gitaccesstoken":1,"gitusername":1,"gituseremail":1,
+                "gitbranch":1
+                })
                 if not git_details:
                     res={'rows':'empty'}
                     return res
@@ -283,117 +432,75 @@ def LoadServices(app, redissession, client ,getClientName, *args):
                 # if not git_details:
                 #     res={'rows':'Invalid config name'}
                 #     return res
-
-                proj_details = dbsession.gitexportdetails.find({"projectid":ObjectId(requestdata["projectId"])}).count()
-                repo_name = requestdata["projectName"]
-                branch_name ="main"
-                if proj_details <= 0:
-                    api_url = "https://api.github.com"
-                    access_token = unwrap(git_details['gitaccesstoken'], ldap_key)
-                    headers = {
-                        "Authorization": f"Bearer {access_token}",
-                        "Accept": "application/vnd.github.v3+json"
-                    }
-
-                    response = requests.get('https://api.github.com/user/repos', headers=headers)                    
-                    repos=[]
-                    if not response.status_code == 200:
-                        if response.status_code == 401:
-                            res = {'rows': "Invalid credentials"}
-                            return res
-                        else:
-                            res={"rows":"Unable to fetch Repos"}
-                            return res
-                    repositories = response.json()                        
-                    for repo in repositories:
-                        repos.append(repo["name"])
-                    if repo_name not in repos:
-                        data = {
-                            "name": repo_name,
-                            "description": repo_name,
-                            "private": True
-                        }
-
-                        response1 = requests.post(f"{api_url}/user/repos", headers=headers, json=data)
-
-                        if not response1.status_code == 201:
-                            if response.status_code == 401:
-                                res = {'rows': "Invalid credentials"}
+                proj_details = dbsession.gitexpimpdetails.find_one({"gittask":"push","projectid":ObjectId(requestdata["projectId"])},{"repoName":1})
+                projectName=requestdata["projectName"]
+                export_branch=git_details["gitbranch"]
+                api_url = "https://api.github.com"
+                access_token = unwrap(git_details["gitaccesstoken"], ldap_key)
+               
+                headers = {
+                    "Authorization": f"Bearer {access_token}",
+                    "Accept": "application/vnd.github.v3+json"
+                }
+                repos,repo_response,msg=get_repo_details(headers)
+                if msg in ["Invalid token","Unable to connect GIT"]:
+                    res={"rows":msg}
+                    return res
+                if proj_details:
+                    repo_name=proj_details["repoName"]
+                else:
+                    repo_name= str(requestdata["projectId"])
+                owner=get_owner_info(repo_response,repo_name)
+                branch_msg,branch_names=get_branch_name(owner,repo_name,api_url,headers)
+                if branch_msg in ["Invalid token","Unable to connect GIT"]:
+                    res={"rows":branch_msg}
+                    return res
+                
+                if not proj_details:
+                    if repo_name in repos:                                              
+                        if 'main' not in branch_names:                            
+                            main_branch_response=create_main_branch(projectName,owner,repo_name,api_url,access_token)                            
+                            if main_branch_response in ["Invalid token","Unable to connect GIT"]:
+                                res={"rows":main_branch_response}
                                 return res
-                            else:                         
-                                res={'rows':"Error creating repository"}
-                                return res
-                            
-                        repository_info = response1.json()  
-                        owner =repository_info["owner"]["login"]
-                        file_path = "README.md"
-                        commit_message = "Add README.md file"
-                        date=datetime.now()
-                        readme_content = requestdata["projectName"]+ " was created"
-
-                        file_content = base64.b64encode(readme_content.encode("utf-8")).decode("utf-8")
-                        data = {
-                            "message": commit_message,
-                            "content": file_content
-                        }
-
-                        url = f"{api_url}/repos/{owner}/{repo_name}/contents/{file_path}"
-                        headers = {
-                            "Authorization": f"Bearer {access_token}",
-                            "Accept": "application/vnd.github.v3+json"
-                        }
-                        response2 = requests.put(url, headers=headers, json=data)
-
-                        if not response2.status_code == 201:
-                            if response.status_code == 401:
-                                res = {'rows': "Invalid credentials"}
-                                return res
-                            else:
-                                return res
+                            branch_names.append("main")       
                     else:
-                        repository_info = response.json()
-                        for name in  repository_info:
-                            if name["name"] == repo_name: 
-                                owner = name["owner"]["login"]
-                                break                   
-                        response3 = requests.get(f"{api_url}/repos/{owner}/{repo_name}/branches", headers=headers)
-
-                        # Check if the request was successful (status code 200)
-                        if not response3.status_code == 200:
-                            if response.status_code == 401:
-                                res = {'rows': "Invalid credentials"}
+                        new_repo_response,new_repo_msg=create_new_repo(repo_name,api_url,headers,projectName)
+                        if new_repo_msg in ["Invalid token","Unable to connect GIT"]:
+                            res={"rows":new_repo_msg}
+                            return res
+                        
+                        owner=get_owner_info(new_repo_response,repo_name)
+                        main_branch_response=create_main_branch(projectName,owner,repo_name,api_url,access_token)
+                        if main_branch_response in ["Invalid token","Unable to connect GIT"]:
+                                res={"rows":main_branch_response}
                                 return res
-                            else:
-                                 return res
-                        branches = response3.json()  # Parse the response as JSON
-                        branch_names = [branch['name'] for branch in branches]
-                        if not 'main' in branch_names:
-                            file_path = "README.md"
-                            commit_message = "Add README.md file"
-                            date=datetime.now()
-                            readme_content = requestdata["projectName"]+ " was created"
+                        branch_names.append("main")
+                        
+                else:
+                    if repo_name in repos:                        
+                        if 'main' not in branch_names:                            
+                            main_branch_response=create_main_branch(projectName,owner,repo_name,api_url,access_token)
+                            if main_branch_response in ["Invalid token","Unable to connect GIT"]:
+                                res={"rows":main_branch_response}
+                                return res
+                            branch_names.append("main")
+                            
+                            
+                    else:
+                        new_repo_response,new_repo_msg=create_new_repo(repo_name,api_url,headers,projectName)
+                        if new_repo_msg in ["Invalid token","Unable to connect GIT"]:
+                            res={"rows":new_repo_msg}
+                            return res
+                        
+                        owner=get_owner_info(new_repo_response,repo_name)
+                        main_branch_response=create_main_branch(projectName,owner,repo_name,api_url,access_token)
+                        if main_branch_response in ["Invalid token","Unable to connect GIT"]:
+                                res={"rows":main_branch_response}
+                                return res
+                        
 
-                            file_content = base64.b64encode(readme_content.encode("utf-8")).decode("utf-8")
-                            data = {
-                                "message": commit_message,
-                                "content": file_content
-                            }
-
-                            url = f"{api_url}/repos/{owner}/{repo_name}/contents/{file_path}"
-                            headers = {
-                                "Authorization": f"Bearer {access_token}",
-                                "Accept": "application/vnd.github.v3+json"
-                            }
-                            response4 = requests.put(url, headers=headers, json=data)
-
-                            if not response4.status_code == 201:
-                                if response.status_code == 401:
-                                    res = {'rows': "Invalid credentials"}
-                                    return res
-                                else:
-                                    return res
-                 
-                url=git_details["giturl"].split('://')                
+                url=git_details["giturl"].split('://')              
                 url=url[0]+'://'+unwrap(git_details['gitaccesstoken'], ldap_key)+':x-oauth-basic@'+url[1]+"/"+ repo_name+".git"
                 
                 #check whether cred is valid
@@ -408,24 +515,26 @@ def LoadServices(app, redissession, client ,getClientName, *args):
                     origin.fetch()
                 except Exception as e:
                     app.logger.error(e)
-                    res ={"rows":"unable to connect GIT"}
+                    res ={"rows":"Unable to connect GIT"}
                     return res
-                repo.git.checkout(branch_name)
-                try:
-                    repo.git.pull(ff=True)
-                except Exception as e:
-                    app.logger.error(e)
-                    res ={"rows":"unable to connect GIT"}
-                    return res
-
-                result = dbsession.gitexportdetails.find({"parent":git_details["_id"],"version":requestdata["gitVersion"]})
+                if export_branch not in branch_names :
+                    repo=create_requested_branch(origin,repo,export_branch)
+                else:
+                    repo.git.checkout(export_branch)
+                    try:
+                        repo.git.pull(ff=True)
+                    except Exception as e:
+                        app.logger.error(e)
+                        res ={"rows":"Unable to connect GIT"}
+                        return res
+                result = dbsession.gitexpimpdetails.find({'gittask':'push',"parent":git_details["_id"],"version":requestdata["gitVersion"]})
                 index = result.count() - 1
                 result=None
                 if index >= 0:
                     res={'rows':'commit exists'}
                     return res
                 elif result == None or result.count() == 0:
-                    path=currdir+os.sep+"mindmapGit"+os.sep+requestdata["userid"]+os.sep+"main"
+                    path=currdir+os.sep+"mindmapGit"+os.sep+requestdata["userid"]+os.sep+export_branch
                     path=os.path.normpath(path)+os.sep
 
                     if(os.path.exists(path)): shutil.rmtree(path)
@@ -473,7 +582,7 @@ def LoadServices(app, redissession, client ,getClientName, *args):
                             dbsession.Export_dataobjects_git.drop()
                             dbsession.Export_testscenarios_git.drop()
 
-                            res = exportdataToGit(dbsession,path, requestdata, origin, repo, repo_name)
+                            res = exportdataToGit(dbsession,path, requestdata, origin, repo, repo_name,export_branch, projectName)
                         else:
                             app.logger.warn('Empty data received.')
                     else:
@@ -495,7 +604,7 @@ def LoadServices(app, redissession, client ,getClientName, *args):
             dbsession.Export_dataobjects_git.drop()
             dbsession.Export_testscenarios_git.drop()
             servicesException("exportToGit", ex, True)
-        remove_dir(git_path)
+        if git_path:remove_dir(git_path)
         return res
 
     def update_steps(steps,dataObjects):
@@ -526,7 +635,7 @@ def LoadServices(app, redissession, client ,getClientName, *args):
             servicesException('exportProject', e, True)
         return del_flag
 
-    def exportdataToGit(dbsession,dirpath, result, origin, repo,repo_name):
+    def exportdataToGit(dbsession,dirpath, result, origin, repo,repo_name,export_branch,projectName):
         app.logger.debug("Inside exportdataToGit")
         res={'rows':'fail'}
         delpath=None
@@ -539,7 +648,7 @@ def LoadServices(app, redissession, client ,getClientName, *args):
                 git_details = dbsession.gitconfiguration.find_one({"gituser":ObjectId(module_data["userid"]),"projectid":ObjectId(module_data["projectId"])},{"_id":1})
 
                 git_path=currdir+os.sep+'exportGit'+os.sep+module_data["userid"]
-                final_path=os.path.normpath(git_path+os.sep+"main")
+                final_path=os.path.normpath(git_path+os.sep+export_branch)
 
                 if(os.path.exists(final_path)):
                     if os.path.exists(dirpath):
@@ -550,27 +659,31 @@ def LoadServices(app, redissession, client ,getClientName, *args):
                 repo.git.add(final_path)
                 repo.index.commit(module_data["gitVersion"])
                 try:
-                    repo.git.push()
+                    repo.git.push('origin', export_branch)
                 except Exception as e:
                     app.logger.error(e)
-                    res ={"rows":"unable to connect GIT"}
+                    res ={"rows":"Unable to connect GIT"}
                     return res
                 # get the commit id and save it in gitexportdetails
                 for i in range(len(origin.refs)):
-                    if(origin.refs[i].remote_head=="main"):
+                    if(origin.refs[i].remote_head==export_branch):
                         commit_id = origin.refs[i].commit.hexsha
                         break
 
                 data["userid"] = ObjectId(module_data["userid"])
                 data["projectid"] = ObjectId(module_data["projectId"])
-                data["branchname"] = "main"
-                data["folderpath"] = "main"
+                data["gittask"]="push"
+                data["branchname"] = export_branch
+                data["folderpath"] = export_branch
                 data["version"] = module_data["gitVersion"]
                 data["parent"] = git_details["_id"]
                 data["commitid"] = commit_id
                 data["commitmessage"] = module_data["gitComMsgRef"]
-                data["projectname"] = repo_name
-                dbsession.gitexportdetails.insert(data)
+                data["projectname"] = projectName
+                data["modifiedon"]=datetime.now()
+                data["repoName"]=repo_name
+                data["exportgitid"] = None
+                dbsession.gitexpimpdetails.insert(data)
                 
                 res={'rows':'Success'}
             else:
@@ -595,38 +708,42 @@ def LoadServices(app, redissession, client ,getClientName, *args):
             if not isemptyrequest(requestdata):
                 clientName=getClientName(requestdata)        
                 dbsession=client[clientName]
-                expProj=ObjectId(requestdata["expProj"])
-                projectid=ObjectId(requestdata["projectid"])
-                # gitname = requestdata["gitname"]
-                # gitBranch = requestdata["gitbranch"]
-                gitVersionName = requestdata["gitversion"]
-                # gitFolderPath = requestdata["gitfolderpath"]
-                role = requestdata["roleid"]
-                userid = requestdata["userid"]
+                expProj=ObjectId(requestdata["expProj"])                
+                projectid=ObjectId(requestdata["projectId"])
+                gitVersionName = requestdata["gitVersion"]               
+                role = ObjectId(requestdata["roleid"])
+                userid =ObjectId(requestdata["userid"])
                 appType=requestdata["appType"]
                 projectName=requestdata["projectName"]
-                
-                git_data = dbsession.gitconfiguration.find_one({"projectid":projectid},{"gituser":1,"giturl":1,"gitaccesstoken":1})
+                check_gitbranch=list(dbsession.gitconfiguration.find({"gitbranch":{"$exists":False}}))
+                if len(check_gitbranch)>0:
+                    dbsession.gitconfiguration.update_many({},{"$set":{"gitbranch":"main"}})
+                git_data = dbsession.gitconfiguration.find_one({"projectid":projectid},{"gituser":1,"giturl":1,"gitaccesstoken":1,"gitbranch":1})
                 if not git_data:
                     # git_data = list(dbsession.gitconfiguration.find({"name":gitname},{"_id":1}))
                     # if len(git_data) > 0:
                     #     res = {'rows': "No entries"}                        
                     # else:
-                    res={'rows': "empty"}                        
-                else:    
-                    result = dbsession.gitexportdetails.find_one({"projectid":expProj,"version":gitVersionName},{"commitid":1,"projectname":1})
+                    res={'rows': "empty"}
+                else:                    
+                    result = dbsession.gitexpimpdetails.find_one({"projectid":expProj,"version":gitVersionName})                                 
                     if not result:
-                        res = {'rows': "Invalid inputs"}                   
-                        
+                        res = {'rows': "Invalid inputs"}                    
                     else:
                         git_path=currdir+os.sep+'exportGit'+os.sep+str(userid)
-                        final_path=os.path.normpath(git_path)+os.sep+"main"                                    
+                        final_path=os.path.normpath(git_path)+os.sep+result["branchname"]                               
                         if(os.path.isdir(git_path)): remove_dir(git_path)
                         url=git_data["giturl"].split('://')
-                        url=url[0]+'://'+unwrap(git_data["gitaccesstoken"], ldap_key)+':x-oauth-basic@'+url[1]+"/"+result["projectname"]+".git"                       
+                        repo_name=result["repoName"]
+                        url=url[0]+'://'+unwrap(git_data["gitaccesstoken"], ldap_key)+':x-oauth-basic@'+url[1]+"/"+repo_name+".git"                       
                         repo = git.Repo.clone_from(url, git_path,no_checkout=True)
-                        repo.git.checkout(result['commitid'])
-
+                        try:
+                            repo.git.checkout(result['commitid'])
+                        except Exception as e:
+                            app.logger.error(e)                           
+                            res="Unable to find the given commit in GIT repository."
+                            return res
+                        
                         importMindmapcheck= dbsession.git_Module_Import.find({}).count()
                         if importMindmapcheck==0:                    
                             dbsession.git_Screen_Import.drop()
@@ -1052,10 +1169,24 @@ def LoadServices(app, redissession, client ,getClientName, *args):
                                         dbsession.git_Screen_Import_ids.drop()
                                         dbsession.git_Testcase_Import_ids.drop()                    
                                         dbsession.git_testcase_steps.drop()
-                                            
-                                        
+
+                                        impdata={}
                                         if queryresult:
-                                                res={'rows':queryresult}                
+                                            impdata["userid"] = userid
+                                            impdata["exportgitid"] = result["exportgitid"] if result["gittask"]=="pull" else  result["_id"]
+                                            impdata["projectid"]=projectid
+                                            impdata["gittask"]="pull"
+                                            impdata["branchname"] = result["branchname"]
+                                            impdata["folderpath"] = result["folderpath"]
+                                            impdata["version"] = result["version"]
+                                            impdata["parent"] = result["parent"]
+                                            impdata["commitid"] = result["commitid"]
+                                            impdata["commitmessage"] = result["commitmessage"]
+                                            impdata["modifiedon"] = datetime.now()
+                                            impdata["repoName"]=repo_name
+                                            impdata["projectname"]=result["projectname"]
+                                            dbsession.gitexpimpdetails.insert(impdata)
+                                            res={'rows':queryresult}                
                 
                         else:
                             res={'rows': "InProgress"}
@@ -1079,7 +1210,7 @@ def LoadServices(app, redissession, client ,getClientName, *args):
             dbsession.git_Testcase_Import_ids.drop()                    
             dbsession.git_testcase_steps.drop()
             servicesException("importGitMindmap", ex, True)
-        remove_dir(git_path)
+        if git_path:remove_dir(git_path)
         return res
 
     def adddataobjects(dbsession,pid, d):
@@ -1167,23 +1298,76 @@ def LoadServices(app, redissession, client ,getClientName, *args):
         
     @app.route('/git/checkExportVer',methods=['POST'])
     def checkExportVer():
-            res={'rows':'fail'}
-            try:
-                requestdata=json.loads(request.data)
-                app.logger.debug("Inside checkExportVer.")
-                if not isemptyrequest(requestdata):
-                    clientName=getClientName(requestdata)         
-                    dbsession=client[clientName]                
-                    expName=list(dbsession.gitexportdetails.find({"projectid":ObjectId(requestdata["projectId"])},{"commitmessage":1,"version":1,"_id":0}))
-                    if requestdata["query"] =="exportgit":
-                        ver=[]
-                        for version in expName:
-                            ver.append(version["version"])                
-                        res={"rows":ver}
-                    else:
-                        res={"rows": expName}
+        res={'rows':'fail'}
+        try:
+            requestdata=json.loads(request.data)
+            app.logger.debug("Inside checkExportVer.")
+            if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)                 
+                dbsession=client[clientName]
+                check_gitbranch=list(dbsession.gitconfiguration.find({"gitbranch":{"$exists":False}}))
+                if len(check_gitbranch)>0:
+                    dbsession.gitconfiguration.update_many({},{"$set":{"gitbranch":"main"}})
+                git_exp_imp_collec_check= dbsession.gitexpimpdetails.find({}).count()
+                if  git_exp_imp_collec_check ==0:
+                    git_export_det_check=dbsession.gitexportdetails.find({}).count()
+                    if git_export_det_check >0:
+                        dbsession.gitexportdetails.aggregate([{
+                                    "$addFields": {
+                                        "repoName":"$projectname",
+                                        "modifiedon": {"$toDate":{"$add": [
+                                            { "$toDate": "$_id" },
+                                            { "$multiply": [5.5 * 60 * 60 * 1000, 1] } 
+                                        ]}},"gittask":"push","exportgitid":None
+                                    }
+                                },{"$out":"gitexpimpdetails"}])               
+                expName=list(dbsession.gitexpimpdetails.find({"projectid":ObjectId(requestdata["projectId"]),"gittask":"push"},{"commitmessage":1,"version":1,"_id":0}))
+                if requestdata["query"] =="exportgit":
+                    ver=[]
+                    for version in expName:
+                        ver.append(version["version"])                
+                    res={"rows":ver}
                 else:
-                    app.logger.warn('Empty data received while importing mindmap')
-            except Exception as checkExportVerexc:
-                servicesException("checkExportVer",checkExportVerexc, True)
-            return jsonify(res)
+                    res={"rows": expName}
+            else:
+                app.logger.warn('Empty data received while importing mindmap')
+        except Exception as checkExportVerexc:
+            servicesException("checkExportVer",checkExportVerexc, True)
+        return jsonify(res)
+    
+
+    @app.route('/git/fetch_git_exp_details',methods=['POST'])
+    def fetch_git_exp_details():
+        res={'rows':'fail'}
+        try:
+            requestdata=json.loads(request.data)
+            app.logger.debug("Inside fetch_git_exp_details.")
+            if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)         
+                dbsession=client[clientName]
+                check_gitbranch=list(dbsession.gitconfiguration.find({"gitbranch":{"$exists":False}}))
+                if len(check_gitbranch)>0:
+                    dbsession.gitconfiguration.update_many({},{"$set":{"gitbranch":"main"}})
+                git_exp_imp_collec_check= dbsession.gitexpimpdetails.find({}).count()
+                if  git_exp_imp_collec_check ==0:
+                    git_export_det_check=dbsession.gitexportdetails.find({}).count()
+                    if git_export_det_check >0:
+                        dbsession.gitexportdetails.aggregate([{
+                                    "$addFields": {
+                                        "repoName":"$projectname",
+                                        "modifiedon": {"$toDate":{"$add": [
+                                            { "$toDate": "$_id" },
+                                            { "$multiply": [5.5 * 60 * 60 * 1000, 1] } 
+                                        ]}},"gittask":"push","exportgitid":None
+                                    }
+                                },{"$out":"gitexpimpdetails"}])             
+                exp_data=list(dbsession.gitexpimpdetails.find({"projectid":ObjectId(requestdata["projectId"])}).sort("modifiedon",-1))               
+                res={"rows":exp_data}
+                return res                                
+            else:
+                app.logger.warn('Empty data received while importing mindmap')
+        except Exception as fetch_git_exp_detailsexc:
+            servicesException("fetch_git_exp_details",fetch_git_exp_detailsexc, True)
+        return jsonify(res)
+    
+    
