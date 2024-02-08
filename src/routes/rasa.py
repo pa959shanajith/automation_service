@@ -155,8 +155,8 @@ def LoadServices(app, redissession, client, getClientName):
                     "data": {"table_data": None, "chart_data": None},
                     "status": HTTPStatus.OK
                 }
-                return jsonify(transformed_data), HTTPStatus.OK
-            
+                return jsonify({"rows":json.dumps(transformed_data)}), HTTPStatus.OK
+             
             # Check for validating data of incoming request
             request_data = validate_request(requestdata, require_projectid=True, require_userid=True, require_metadata=True)
 
