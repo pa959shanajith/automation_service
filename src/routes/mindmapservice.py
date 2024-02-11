@@ -17,6 +17,7 @@ import shutil
 import os
 import sys
 import platform
+import pymongo  
 
 
 def LoadServices(app, redissession, client ,getClientName):
@@ -528,8 +529,11 @@ def LoadServices(app, redissession, client ,getClientName):
                 findquery = {"projectid": ObjectId(requestdata["projectid"])}
                 if tab == "tabCreate":
                     findquery["type"] = "basic"
-                queryresult = list(dbsession.mindmaps.find(
-                    findquery, {"name": 1, "_id": 1, "type": 1}))
+                query = dbsession.mindmaps.find(
+                    findquery, {"name": 1, "_id": 1, "type": 1, "createdon":1})
+                
+                queryresult = list(query.sort([('createdon', pymongo.DESCENDING),('name', pymongo.ASCENDING)]))
+            
                 res = {'rows': queryresult}
         except Exception as e:
             servicesException("getModules", e, True)
@@ -612,6 +616,7 @@ def LoadServices(app, redissession, client ,getClientName):
             versionnumber=requestdata['versionnumber']
             createdthrough=requestdata['createdthrough']
             module_type="basic"
+            createdon = datetime.now()
             error=checkReuse(dbsession,requestdata)
             currentmoduleid=None
             if error is None:
@@ -681,6 +686,7 @@ def LoadServices(app, redissession, client ,getClientName):
                     res = {'rows' : {"currentmoduleid" : currentmoduleid , "scenarioInfo" :scenarioInfo}}
                 else:
                     res={'rows':currentmoduleid}
+                dbsession.projects.update_one({"_id":ObjectId(projectid), }, {"$set":{"modifiedon": createdon} })
             else:
                 res={'rows':'reuseerror',"error":error}
         except Exception as e:

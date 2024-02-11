@@ -246,9 +246,10 @@ def LoadServices(app, redissession, client,getClientName,licensedata):
                         # {"$unwind":"$reportitem"}  #As now repor times are stored in different documents
                         ]))
                     
-                    for step in reportitems["reportitem"]:
-                        if "Step" in step:
-                            totalSteps= totalSteps + 1
+                    for reportitem in reportitems:
+                        for step in reportitem["reportitem"]:
+                            if "Step" in step:
+                                totalSteps= totalSteps + 1 
                 for exec in requestdata["executionData"]["batchInfo"]:
                     suites=exec["suiteDetails"]
                     scenarioIds=list(map(lambda suite:suite["scenarioId"],suites))

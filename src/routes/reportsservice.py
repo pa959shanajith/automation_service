@@ -32,115 +32,141 @@ def LoadServices(app, redissession, client ,getClientName):
         try:
             requestdata=json.loads(request.data)
             app.logger.debug("Inside getAllSuites_ICE. Query: "+str(requestdata["query"]))
-            if not isemptyrequest(requestdata):
-                clientName=getClientName(requestdata)        
-                dbsession=client[clientName]
-                if(requestdata["query"] == 'projects'):
-                    queryresult1=dbsession.users.find_one({"_id": ObjectId(requestdata["userid"])},{"projects":1,"_id":0})
-                    queryresult=list(dbsession.projects.find({"_id":{"$in":queryresult1["projects"]}},{"name":1,"releases":1,"type":1,"modifiedby":1,"progressStep":1, 'projectlevelrole':1}))
-                    modifiedby_ids=[]
-                    for modifiedId in queryresult:
-                        modifiedby_ids.append(ObjectId(modifiedId["modifiedby"]))
-                    modifiedby_ids=list(set(modifiedby_ids))                  
-                    queryresult2=list(dbsession.users.find({"_id":ObjectId(requestdata['userid'])},{"firstname":1,"lastname":1,"_id":1,"projectlevelrole":1}))                    
-                    modifieduser=list(dbsession.users.find({"_id":{"$in":modifiedby_ids}},{"firstname":1,"lastname":1,"_id":1}))                    
-                    for projectDetails in queryresult:
-                        for userDetails in queryresult2:
-                            if "projectlevelrole" in userDetails:
-                                for role in userDetails['projectlevelrole']:
-                                    if role["_id"] == str(projectDetails['_id']):
-                                        projectDetails['projectlevelrole']= role
-                                        break
-                            # if userDetails["_id"] == projectDetails["modifiedby"]:
-                            #     projectDetails["firstname"]=userDetails["firstname"]
-                            #     projectDetails["lastname"]=userDetails["lastname"]
-                            #     break
-                    for user in queryresult:
-                        for modifiedrole in modifieduser:
-                            if modifiedrole["_id"] == user['modifiedby']:
-                                user['firstname'] = modifiedrole['firstname']
-                                user['lastname'] = modifiedrole['lastname']
-                                break
-                    
-                    for ids in queryresult: 
-                        list_of_modules = list(dbsession.mindmaps.find({"projectid":ids["_id"]}))
-                        listofmodules=[]
-                        for prj_ids in list_of_modules:
-                            listofmodules.append(prj_ids["_id"])
-                        if len(list_of_modules) == 0 :
-                            progressStep = 0
-                        keyDetails =dbsession.configurekeys.find({"executionData.batchInfo.projectId":ids["_id"]}).count()
-                        if len(list_of_modules) > 0 and keyDetails == 0 :
-                            progressStep = 1
-                        executionList=list(dbsession.testsuites.find({"mindmapid":{"$in":listofmodules}},{"_id":1}))
-                        if len(list_of_modules) > 0 and keyDetails > 0 and len(executionList) == 0 :
-                                progressStep = 2
-                        elif len(executionList) > 0:
-                                progressStep = 3
-                        ids["progressStep"]=progressStep
+            # if not isemptyrequest(requestdata):
+            clientName=getClientName(requestdata)        
+            dbsession=client[clientName]
+            if(requestdata["query"] == 'projects'):
+                queryresult1=dbsession.users.find_one({"_id": ObjectId(requestdata["userid"])},{"projects":1,"_id":0})
+                queryresult=list(dbsession.projects.find({"_id":{"$in":queryresult1["projects"]}},{"name":1,"releases":1,"type":1,"modifiedby":1,"progressStep":1, 'projectlevelrole':1, "modifiedon":1}))
+                modifiedby_ids=[]
+                for modifiedId in queryresult:
+                    modifiedby_ids.append(ObjectId(modifiedId["modifiedby"]))
+                modifiedby_ids=list(set(modifiedby_ids))                  
+                queryresult2=list(dbsession.users.find({"_id":{"$in":modifiedby_ids}},{"firstname":1,"lastname":1,"_id":1,"projectlevelrole":1}))                    
+                for username in queryresult:
+                    for modifiedname in queryresult2:
+                        if "projectlevelrole" in modifiedname:
+                            for role in modifiedname['projectlevelrole']:
+                                if role["_id"] == str(username['_id']):
+                                    username['projectlevelrole']= role
+                        if modifiedname["_id"] == username["modifiedby"]:
+                            username["firstname"]=modifiedname["firstname"]
+                            username["lastname"]=modifiedname["lastname"]
+                            break
                 
-                    res= {"rows":queryresult}
-                elif(requestdata["query"] == 'getAlltestSuites'):
-                    queryresult=list(dbsession.testsuites.aggregate([
-                        {'$match':{
-                            'cycleid':ObjectId(requestdata["id"])
-                            }
-                        },
-                        {'$lookup':{
-                            'from':"mindmaps",
-                            'localField':"mindmapid",
-                            'foreignField':"_id",
-                            'as':"arr"
-                            }
-                        },
-                        {'$project':{
-                            '_id':1,
-                            'name':1,
-                            'type':{"$arrayElemAt":["$arr.type",0]}
-                        }},
-                        {'$lookup':{
-                            'from':"executions",
-                            'localField':"_id",
-                            'foreignField':"parent",
-                            'as':"check"
-                            }
-                        },
-                        {'$project':{
-                            '_id':1,
-                            'name':1,
-                            'type':1,
-                            'executionCount':{'$size':'$check'},
-                            'lastExecutedtime':{ "$max": "$check.starttime"}
-                        }}
-                    ]))
-                    batchresult=list(dbsession.executions.distinct('batchname',{'parent':{'$in':[i['_id'] for i in queryresult]}}))
-                    res= {"rows":{"modules":queryresult,"batch":batchresult}}
-                elif(requestdata["query"] == 'getAlltestSuitesDevops'):
-                    queryresult = ''
-                    if('executionListId' in requestdata['data']):
-                        queryresult = list(dbsession.executions.find({
-                            'configurekey': requestdata['data']['configurekey'],
-                            'executionListId': requestdata['data']['executionListId']
-                            },{'parent':1,'_id': 1,'starttime':1,'endtime':1}))
-                    else:
-                        queryresult = list(dbsession.executions.find({'configurekey': requestdata['data']['configurekey']},{'parent':1}))
+                for ids in queryresult: 
+                    list_of_modules = list(dbsession.mindmaps.find({"projectid":ids["_id"]}))
+                    listofmodules=[]
+                    for prj_ids in list_of_modules:
+                        listofmodules.append(prj_ids["_id"])
+                    if len(list_of_modules) == 0 :
+                        progressStep = 0
+                    keyDetails =dbsession.configurekeys.find({"executionData.batchInfo.projectId":ids["_id"]}).count()
+                    if len(list_of_modules) > 0 and keyDetails == 0 :
+                        progressStep = 1
+                    executionList=list(dbsession.testsuites.find({"mindmapid":{"$in":listofmodules}},{"_id":1}))
+                    if len(list_of_modules) > 0 and keyDetails > 0 and len(executionList) == 0 :
+                            progressStep = 2
+                    elif len(executionList) > 0:
+                            progressStep = 3
+                    ids["progressStep"]=progressStep
+            
+                res= {"rows":queryresult}
+            elif(requestdata["query"] == 'getAlltestSuites'):
+                queryresult=list(dbsession.testsuites.aggregate([
+                    {'$match':{
+                        'cycleid':ObjectId(requestdata["id"])
+                        }
+                    },
+                    {'$lookup':{
+                        'from':"mindmaps",
+                        'localField':"mindmapid",
+                        'foreignField':"_id",
+                        'as':"arr"
+                        }
+                    },
+                    {'$project':{
+                        '_id':1,
+                        'name':1,
+                        'type':{"$arrayElemAt":["$arr.type",0]}
+                    }},
+                    {'$lookup':{
+                        'from':"executions",
+                        'localField':"_id",
+                        'foreignField':"parent",
+                        'as':"check"
+                        }
+                    },
+                    {'$project':{
+                        '_id':1,
+                        'name':1,
+                        'type':1,
+                        'executionCount':{'$size':'$check'},
+                        'lastExecutedtime':{ "$max": "$check.starttime"}
+                    }}
+                ]))
+                # Pagination
+                search_key = requestdata['searchKey']
+                if search_key:
+                    # Perform search within 'configurename' field
+                    matching_items = [item for item in queryresult if search_key in item.get('name', '')]
+                    total_count = len(matching_items)
+                    items_to_paginate = matching_items
+                else:
+                    # No search term provided, use the entire dataset
+                    total_count = len(queryresult)
+                    items_to_paginate = queryresult
+                pagecount= requestdata['page']
+                limit = 10
+                startindex = (pagecount - 1) * limit
+                end_index = startindex + limit
+                pagination_data = items_to_paginate[startindex:end_index]
+                total_count = len(items_to_paginate)  
+                response = {
+                    "data" :pagination_data,
+                    "pagination" : {
+                        "page" : pagecount,
+                        'limit' : limit,
+                        'totalcount' : total_count
+                    }
+                }
+                batchresult=list(dbsession.executions.distinct('batchname',{'parent':{'$in':[i['_id'] for i in response['data']]}}))
+                batch_data = batchresult[startindex:end_index]
+                totalBahtch_count = len(batchresult)  
+                batch_response = {
+                    "data" :batch_data,
+                    "pagination" : {
+                        "page" : pagecount,
+                        'limit' : limit,
+                        'totalcount' : totalBahtch_count
+                    }
+                }
+                res= {"rows":{"modules":response,"batch":batch_response}}
+            elif(requestdata["query"] == 'getAlltestSuitesDevops'):
+                queryresult = ''
+                if('executionListId' in requestdata['data']):
+                    queryresult = list(dbsession.executions.find({
+                        'configurekey': requestdata['data']['configurekey'],
+                        'executionListId': requestdata['data']['executionListId']
+                        },{'parent':1,'_id': 1,'starttime':1,'endtime':1}))
+                else:
+                    queryresult = list(dbsession.executions.find({'configurekey': requestdata['data']['configurekey']},{'parent':1}))
+                testSuiteNames = []
+                for ids in queryresult:
+                    testSuiteNames.append(ids['parent'][0])
+                testSuiteNames = list(dbsession.testsuites.find({'_id': {'$in': testSuiteNames}},{'name': 1,'_id':1}))
+                dictForTestSuiteIdAndName = {}
+                for result in testSuiteNames:
+                    dictForTestSuiteIdAndName[result['_id']] = result['name']
+                
+                for ids in queryresult:
+                    ids['moduleName'] = dictForTestSuiteIdAndName[ids['parent'][0]]
+                
+                # res = queryresult if 'executionListId' in requestdata['data'] else {"modules": testSuiteNames}
+                res = {"modules": testSuiteNames}
 
-                    testSuiteNames = []
-                    for ids in queryresult:
-                        testSuiteNames.append(ids['parent'][0])
-
-                    testSuiteNames = list(dbsession.testsuites.find({'_id': {'$in': testSuiteNames}},{'name': 1,'_id':1}))
-                    dictForTestSuiteIdAndName = {}
-                    for result in testSuiteNames:
-                        dictForTestSuiteIdAndName[result['_id']] = result['name']
-                    
-                    for ids in queryresult:
-                        ids['moduleName'] = dictForTestSuiteIdAndName[ids['parent'][0]]
-                    
-                    res = queryresult if 'executionListId' in requestdata['data'] else {"modules": testSuiteNames}
-
-            else:
-                app.logger.warn('Empty data received. report suites details.')
+            # else:
+            #     app.logger.warn('Empty data received. report suites details.')
         except Exception as getAllSuitesexc:
             servicesException("getAllSuites_ICE",getAllSuitesexc)
         return jsonify(res)
@@ -183,7 +209,7 @@ def LoadServices(app, redissession, client ,getClientName):
                 dbsession=client[clientName]
                 if(requestdata["query"] == 'executiondetails'):
                     queryresult = list(dbsession.reports.aggregate([
-                    {'$match':{"executionid":{'$in':[ObjectId(i)for i in requestdata["executionid"]]}}},
+                    {'$match':{"executionid":ObjectId(requestdata["executionid"]) }},
                     {'$lookup':{
                         'from':"testscenarios",
                         'localField':"testscenarioid",
@@ -625,13 +651,13 @@ def LoadServices(app, redissession, client ,getClientName):
                 if("scenarioIds" in requestdata):
                     scenarioIds = dbsession.reports.distinct("testscenarioid", filter1)
                     for scenId in requestdata["scenarioIds"]:
-                        if len(scenId.strip())==0:
+                        if len(scenId['testscenarioid'].strip())==0:
                             continue
                         try:
-                            if ObjectId(scenId) not in scenarioIds:
-                                errIds.append(str(scenId))
+                            if ObjectId(scenId['testscenarioid']) not in scenarioIds:
+                                errIds.append(str(scenId['testscenarioid']))
                             else:
-                                correctScenarios.append(ObjectId(scenId))
+                                correctScenarios.append(ObjectId(scenId['testscenarioid']))
                         except:
                             errIds.append(str(scenId))
                     if len(correctScenarios) != 0 or len(errIds) != 0:
