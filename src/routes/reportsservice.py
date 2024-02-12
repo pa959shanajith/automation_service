@@ -1009,6 +1009,7 @@ def LoadServices(app, redissession, client ,getClientName):
             testcase_data = {
                 'project': request_data["project"],
                 'projectName': request_data["projectName"],
+                'scope': request_data['scope'],
                 'name':request_data["testCaseName"],
                 'description':request_data["testCaseDescription"],
                 'language':request_data["countryVersion"],
@@ -1131,13 +1132,16 @@ def LoadServices(app, redissession, client ,getClientName):
             #     testcase_id = str(insert_testcase_result.inserted_id)
             document_id = ObjectId(request_data["testcaseId"])
             find_query = {'_id':document_id}
-            projection = {"Profile":1}
+            # projection = {"Profile":1}
             app.logger.debug("ALM mapped testcase details  uploading to ALM_testcases")
-            profile_result = dbsession.ALM_testcases.find_one(find_query,projection)
+            profile_result = dbsession.ALM_testcases.find_one(find_query)
             print(profile_result)
             if profile_result is not None:
                 app.logger.debug("testcase details updated ")
-                return jsonify({'rows':profile_result, 'message': 'mapped testcases details updated successfully'}), 200
+                find_execprofile_query = {'executionData.testcaseRefId': request_data["testcaseId"] }
+                profile_projection = {"executionData":1}
+                find_execution_profile = dbsession.configurekeys.find_one(find_execprofile_query,profile_projection)
+                return jsonify({'rows':find_execution_profile, 'message': 'mapped testcases details updated successfully'}), 200
             else:
                 app.logger.debug("no test profile found")
                 return jsonify({'rows':[],'error': 'no test profile found'}), 200
@@ -1147,5 +1151,55 @@ def LoadServices(app, redissession, client ,getClientName):
         # Handle any exceptions with a 500 Internal Server Error response
         except Exception as e:
             app.logger.warn("something went wrong while updating details Error: "+str(e))
-            return jsonify({"data": {"message": str(e)}, "status": 500})            
+            return jsonify({"data": {"message": str(e)}, "status": 500})
+        
+    @app.route("/getJOB_ID", methods=["POST"])
+    def getJOB_ID():
+        app.logger.debug("Inside getJOB_ID")
+        try:
+            request_data = request.get_json()
+
+            client_name = getClientName(request_data)
+            dbsession = client[client_name]
+            app.logger.debug("fetching execution details")
+            
+            find_query = {'executionData.testcaseRefId':request_data["testcaseId"],"configkey":request_data["configkey"]}
+            projection = {"executionListId":1,"executionData":1}
+            execution_result = dbsession.executionlist.find_one(find_query,projection,sort=[('_id', -1)])
+            # print(execution_result)
+            if execution_result is not None:
+                app.logger.debug("execution list details found ")
+                return jsonify({'rows':execution_result, 'message': 'found execution list profile'}), 200
+            else:
+                app.logger.debug("no execution list details found")
+                return jsonify({'rows':[],'error': 'execution list details found'}), 200
+        # Handle any exceptions with a 500 Internal Server Error response
+        except Exception as e:
+            app.logger.warn("something went wrong while fetching execution profile: "+str(e))
+            return jsonify({"data": {"message": str(e)}, "status": 500})
+        
+    @app.route("/getExecutionJob", methods=["POST"])
+    def getExecutionJob():
+        app.logger.debug("Inside getJOB_ID")
+        try:
+            request_data = request.get_json()
+
+            client_name = getClientName(request_data)
+            dbsession = client[client_name]
+            app.logger.debug("fetching execution details")
+            
+            find_query = {'executionListId': { '$in' : request_data["executionListIds"]}}
+            projection = {"executionListId":1,"configkey":1,'executionData':1}
+            execution_result = list(dbsession.executionlist.find(find_query,projection))
+            # print(execution_result)
+            if execution_result is not None:
+                app.logger.debug("execution list details found ")
+                return jsonify({'rows':execution_result, 'message': 'found execution list profile'}), 200
+            else:
+                app.logger.debug("no execution list details found")
+                return jsonify({'rows':[],'error': 'execution list details found'}), 200
+        # Handle any exceptions with a 500 Internal Server Error response
+        except Exception as e:
+            app.logger.warn("something went wrong while fetching execution profile: "+str(e))
+            return jsonify({"data": {"message": str(e)}, "status": 500})                      
 # END OF REPORTS
