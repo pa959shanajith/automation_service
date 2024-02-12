@@ -981,8 +981,8 @@ def LoadServices(app, redissession, client ,getClientName):
             app.logger.debug("Inside fetchALM_Testcases. Query: "+str(requestdata["query"]))
             clientName=getClientName(requestdata)         
             dbsession=client[clientName]
-            projection = {"_id":1,"name":1,"description":1,"project":1,"projectName":1}
-            result = list(dbsession.ALM_testcases.find({},projection))
+            projection = {"_id":1,"name":1,"description":1,"project":1,"projectName":1,"createdAt":1}
+            result = list(dbsession.ALM_testcases.find({},projection).sort([("createdAt", -1)]))
             if len(result):
                 app.logger.debug("ALM Testcases found ")
                 return jsonify({'rows':result, 'message': str(len(result)) +' testcases found '}), 200  
