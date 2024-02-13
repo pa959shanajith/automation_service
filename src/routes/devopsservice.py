@@ -305,6 +305,7 @@ def LoadServices(app, redissession, client ,getClientName):
             clientName=getClientName(requestdata)        
             dbsession=client[clientName]
             queryresult = list(dbsession.configurekeys.find({'executionData.batchInfo.projectId': requestdata['projectid'] ,
+                                                             'executionData.type':{'$ne':'CALM'},
                                                              '$or': [{"executionData.isExecuteNow":False},{"executionData.isExecuteNow": {'$exists':False}}]}))
             responseData = []
             for elements in queryresult:
