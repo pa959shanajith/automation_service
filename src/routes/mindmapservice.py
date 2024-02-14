@@ -864,7 +864,10 @@ def LoadServices(app, redissession, client ,getClientName):
             requestdata=json.loads(request.data)
             clientName=getClientName(requestdata)             
             dbsession=client[clientName]
-            migration=requestdata['migration']
+            if 'migration' in requestdata:
+                migration=requestdata['migration']
+            else:
+                migration = False
             requestdata=requestdata["data"]
             projectid=requestdata['projectid']
             # testcasename = "Tc_"+projectid
