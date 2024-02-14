@@ -256,6 +256,8 @@ def LoadServices(app, redissession, client ,getClientName):
                         adddataobjects(dbsession,query_screen['screenid'],addNew)
                     for so in requestdata['testcasesteps']:
                         cid = cname = so["custname"].strip()
+                        code = ""
+                        language = ""
                         if cname in custnames: cid = custnames[cname]["_id"]
                         if ("objectid" in so) and (ObjectId(so["objectid"]) in updated_objects):
                             cid = updated_objects[ObjectId(so["objectid"])]
