@@ -57,6 +57,11 @@ def LoadServices(app, redissession, client ,getClientName):
                         dataobj_query = list(dbsession.dataobjects.find({"parent" :screen_id}))
                         if "scrapeinfo" in screen_query and 'header' in screen_query["scrapeinfo"]:
                             dataobj_query = [screen_query["scrapeinfo"]]
+                        for data in dataobj_query:
+                            if len(data["parent"]) > 1:
+                                data["reused"] = True
+                            else:
+                                data["reused"] = False
                         res["rows"] = { "view": dataobj_query, "name":screen_query["name"],
                                         "createdthrough": (screen_query["createdthrough"] if ("createdthrough" in screen_query) else ""),
                                         "scrapedurl": (screen_query["scrapedurl"] if ("scrapedurl" in screen_query) else ""),
@@ -329,6 +334,73 @@ def LoadServices(app, redissession, client ,getClientName):
                 if data['param'] == 'renameElenemt':
                     dbsession.dataobjects.update_one({'_id': ObjectId(data['modifiedObj'][0]["id"])},{'$set':{'custname':data['modifiedObj'][0]["custname"]}})
                     res={"rows":"Success"}
+                if data["param"] == 'updateMindmapTestcaseScreen':
+                    updateteststeps = None
+                    mindmapdata=dbsession.mindmaps.find_one({"_id": ObjectId(data["moduleID"]),"projectid": ObjectId(data["projectID"])})
+                    for testscenario in mindmapdata['testscenarios']:
+                        if testscenario["_id"] == ObjectId(data['parent']):
+                            for screen in testscenario['screens']:
+                                if screen["_id"] == ObjectId(data['currentScreen']):
+                                    if(len(screen['testcases']) >0):
+                                        updateteststeps = screen['testcases'][0]
+                                        updatescreen = screen["_id"]
+                                        res={"row":updateteststeps}
+                                        break
+                            
+                            if(updateteststeps != None):
+                                for screen in testscenario['screens']:
+                                    if screen["_id"] == ObjectId(data['updateScreen']):
+                                        dbsession.mindmaps.update_one(   {
+                                                "_id": mindmapdata["_id"],
+                                                "testscenarios._id": ObjectId(data['parent']),
+                                                "testscenarios.screens._id": ObjectId(data["updateScreen"])
+                                            },
+                                            {
+                                                "$push": {
+                                                    "testscenarios.$.screens.$[screen].testcases": updateteststeps
+                                                }
+                                            },
+                                            array_filters=[{"screen._id": ObjectId(data["updateScreen"])}]
+                                        )
+                                        dbsession.mindmaps.update_one(
+                                            {
+                                                "_id": mindmapdata["_id"],
+                                                "testscenarios._id": ObjectId(data['parent'])
+                                            },
+                                            {
+                                                "$pull": {
+                                                    "testscenarios.$[scenario].screens": {"_id": ObjectId(data["currentScreen"])}
+                                                }
+                                            },
+                                            array_filters=[{"scenario._id": ObjectId(data['parent'])}]
+                                        )
+                                        dbsession.testcases.update({"_id":updateteststeps,"screenid":updatescreen},{"$set":{"screenid":ObjectId(data['updateScreen'])}})
+                                        break
+                            for screen in testscenario['screens']:
+                                screen_ids = []
+                                screen_ids.append(screen["_id"])
+                                    # Check if all elements in screen_ids are not equal to ObjectId(data['updateScreen'])
+                                if all(item != ObjectId(data['updateScreen']) for item in screen_ids):
+                                    dbsession.mindmaps.update_one(
+                                        {
+                                            "_id": mindmapdata["_id"],
+                                            "testscenarios._id": ObjectId(data['parent']),
+                                            "testscenarios.screens._id": ObjectId(data["currentScreen"])
+                                        },
+                                        {
+                                            "$set": {
+                                                "testscenarios.$[scenario].screens.$[screen]._id": ObjectId(data["updateScreen"])
+                                            }
+                                        },
+                                        array_filters=[
+                                            {"scenario._id": ObjectId(data['parent'])},
+                                            {"screen._id": ObjectId(data["currentScreen"])}
+                                        ]
+                                    )
+                                    if updateteststeps != None:
+                                        dbsession.testcases.update({"_id":updateteststeps,"screenid":updatescreen},{"$set":{"screenid":ObjectId(data['updateScreen'])}})
+                            dbsession.screens.update({"_id":ObjectId( data["updateScreen"])},{'$push':{'parent': ObjectId(data['parent'])}})
+                    res={"rows":data['moduleID']}
                 if data["param"] == 'screenPaste':
                     for ordlist in data['orderList']:
                         existingorderlist=dbsession.screens.find_one({"_id": ObjectId(data["screenId"])},{'orderlist': ordlist})
