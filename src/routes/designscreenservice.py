@@ -155,91 +155,101 @@ def LoadServices(app, redissession, client ,getClientName):
 
 
     # Creating a function to update steps if webservice screen is saved
-    def updateTestStep(dbsession,to_update_teststep,screen_detail):
-         steps = [ 
-                        {
-                            "stepNo" : 1,
-                            "custname" : "WebService List",
-                            "keywordVal" : "setEndPointURL",
-                            "inputVal" : [ 
-                                screen_detail['endPointURL'] if 'endPointURL' in screen_detail else ""
-                            ],
-                            "outputVal" : "",
-                            "appType" : "Webservice",
-                            "remarks" : "",
-                            "addDetails" : "",
-                            "cord" : ""
-                        }, 
-                        {
-                            "stepNo" : 2,
-                            "custname" : "WebService List",
-                            "keywordVal" : "setMethods",
-                            "inputVal" : [ 
-                                screen_detail['method'] if 'method' in screen_detail else ""
-                            ],
-                            "outputVal" : "",
-                            "appType" : "Webservice",
-                            "remarks" : "",
-                            "addDetails" : "",
-                            "cord" : ""
-                        }]
-         if(screen_detail['header']):
-             steps.append({
-                            "stepNo" : len(steps)+1,
-                            "custname" : "WebService List",
-                            "keywordVal" : "setHeader",
-                            "inputVal" : [ 
-                                screen_detail['header'] if 'header' in screen_detail else ""
-                            ],
-                            "outputVal" : "",
-                            "appType" : "Webservice",
-                            "remarks" : "",
-                            "addDetails" : "",
-                            "cord" : ""
-                        })
-         if(screen_detail['body']):
-             steps.append({
-                            "stepNo" : len(steps)+1,
-                            "custname" : "WebService List",
-                            "keywordVal" : "setWholeBody",
-                            "inputVal" : [ 
-                                screen_detail['body'] if 'body' in screen_detail else ""
-                            ],
-                            "outputVal" : "",
-                            "appType" : "Webservice",
-                            "remarks" : "",
-                            "addDetails" : "",
-                            "cord" : ""
-                        })
+    def updateTestStep(dbsession,to_update_teststep,screen_detail,changed_parameters):
+         steps = to_update_teststep['steps']
+         if len(steps) == 0:
+            steps = [ 
+                            {
+                                "stepNo" : 1,
+                                "custname" : "WebService List",
+                                "keywordVal" : "setEndPointURL",
+                                "inputVal" : [ 
+                                    screen_detail['endPointURL'] if 'endPointURL' in screen_detail else ""
+                                ],
+                                "outputVal" : "",
+                                "appType" : "Webservice",
+                                "remarks" : "",
+                                "addDetails" : "",
+                                "cord" : ""
+                            }, 
+                            {
+                                "stepNo" : 2,
+                                "custname" : "WebService List",
+                                "keywordVal" : "setMethods",
+                                "inputVal" : [ 
+                                    screen_detail['method'] if 'method' in screen_detail else ""
+                                ],
+                                "outputVal" : "",
+                                "appType" : "Webservice",
+                                "remarks" : "",
+                                "addDetails" : "",
+                                "cord" : ""
+                            }]
+            if(screen_detail['header']):
+                steps.append({
+                                "stepNo" : len(steps)+1,
+                                "custname" : "WebService List",
+                                "keywordVal" : "setHeaderTemplate",
+                                "inputVal" : [ 
+                                    screen_detail['header'] if 'header' in screen_detail else ""
+                                ],
+                                "outputVal" : "",
+                                "appType" : "Webservice",
+                                "remarks" : "",
+                                "addDetails" : "",
+                                "cord" : ""
+                            })
+            if(screen_detail['body']):
+                steps.append({
+                                "stepNo" : len(steps)+1,
+                                "custname" : "WebService List",
+                                "keywordVal" : "setWholeBody",
+                                "inputVal" : [ 
+                                    screen_detail['body'] if 'body' in screen_detail else ""
+                                ],
+                                "outputVal" : "",
+                                "appType" : "Webservice",
+                                "remarks" : "",
+                                "addDetails" : "",
+                                "cord" : ""
+                            })
+            if(screen_detail['param']):
+                steps.append({
+                    "stepNo" : len(steps)+1,
+                    "custname" : "WebService List",
+                    "keywordVal" : "setParam",
+                    "inputVal" : [ 
+                        screen_detail['param'].replace("##", "&") if 'param' in screen_detail else ""
+                    ],
+                    "outputVal" : "",
+                    "appType" : "Webservice",
+                    "remarks" : "",
+                    "addDetails" : "",
+                    "cord" : ""
+                }) 
 
-         if(screen_detail['param']):
-             steps.append({
+            steps.append( {
                 "stepNo" : len(steps)+1,
                 "custname" : "WebService List",
-                "keywordVal" : "setParam",
+                "keywordVal" : "executeRequest",
                 "inputVal" : [ 
-                    screen_detail['param'].replace("##", "&") if 'param' in screen_detail else ""
+                    ""
                 ],
                 "outputVal" : "",
                 "appType" : "Webservice",
                 "remarks" : "",
                 "addDetails" : "",
                 "cord" : ""
-            }) 
+            })
+         else:
+             check_for_endpoint_url = False
+             for step in steps:
+                 if step['keywordVal'] == 'setEndPointURL' and step['inputVal'][0] == screen_detail['endPointURL']:
+                     check_for_endpoint_url = True
+                 if check_for_endpoint_url and step['keywordVal'] in changed_parameters:
+                     step['inputVal'][0] = screen_detail[changed_parameters[step['keywordVal']]]
+                     del changed_parameters[step['keywordVal']]
 
-         steps.append( {
-            "stepNo" : len(steps)+1,
-            "custname" : "WebService List",
-            "keywordVal" : "executeRequest",
-            "inputVal" : [ 
-                ""
-            ],
-            "outputVal" : "",
-            "appType" : "Webservice",
-            "remarks" : "",
-            "addDetails" : "",
-            "cord" : ""
-        })
          dbsession.testcases.update_one({'_id':to_update_teststep['_id']},{'$set':{'steps':steps}})
 
     # update/delete/insert opertaions on the screen data
@@ -485,6 +495,18 @@ def LoadServices(app, redissession, client ,getClientName):
                     scrapeinfo = json.loads(data["scrapedata"])
                     modifiedbyrole= data["roleId"]
                     modifiedby = data["userId"]
+                    current_scrape_info =  dbsession.screens.find({"_id":screenId})[0]['scrapeinfo']
+                    changed_parameters = {}
+                    infoToKeyWord =  {
+                            "body" : 'setWholeBody',
+                            "method" : 'setMethods',
+                            "endPointURL" : 'setEndPointURL',
+                            "header" : 'setHeaderTemplate',
+                            "param" : 'setParam'
+                        }
+                    for data in current_scrape_info:
+                        if(current_scrape_info[data] != scrapeinfo[data] and data in infoToKeyWord):
+                            changed_parameters[infoToKeyWord[data]] = data
                     data_obj=[]
                     data_push=[]
                     if "view" in scrapeinfo:
@@ -519,8 +541,9 @@ def LoadServices(app, redissession, client ,getClientName):
                     # Code to add details in the teststeps
                     to_update_teststep =  list(dbsession.testcases.find({"screenid":screenId}))
                     screen_detail = list(dbsession.screens.find({"_id":screenId}))
-                    updateTestStep(dbsession,to_update_teststep[0],screen_detail[0]['scrapeinfo'])
-                    
+
+                    updateTestStep(dbsession,to_update_teststep[0],screen_detail[0]['scrapeinfo'],changed_parameters)
+
 
                     res={"rows":"Success"}
                 elif data["param"] == "importScrapeData":
