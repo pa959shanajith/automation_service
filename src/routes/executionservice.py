@@ -46,13 +46,16 @@ def LoadServices(app, redissession, client ,getClientName):
                 dbsession=client[clientName]
                 app.logger.info("Inside readTestSuite_ICE. Query: " + param)
                 if(param == 'gettestsuite'):
+                    print("gettestsuite if cond inside")
                     mindmapid = ObjectId(requestdata['mindmapid'])
                     cycleid = ObjectId(requestdata['cycleid'])
                     filterquery = {"conditioncheck":1,"getparampaths":1,"donotexecute":1,"testscenarioids":1,"accessibilityParameters":1}
                     testsuite = dbsession.testsuites.find_one({"cycleid":cycleid, "mindmapid":mindmapid, "deleted":query['delete_flag']}, filterquery)
+                    print(testsuite)
                     create_suite = testsuite is None
                     mindmaps = dbsession.mindmaps.find_one({"_id": mindmapid, "deleted":query['delete_flag']})
                     batchinfo = dbsession.tasks.find_one({"nodeid":mindmapid, "cycleid":cycleid},{'batchname': 1,'_id':0})
+                    print(mindmaps)
                     batchname=''
                     if(batchinfo != None and 'batchname' in batchinfo):
                         batchname = batchinfo['batchname']
@@ -70,6 +73,7 @@ def LoadServices(app, redissession, client ,getClientName):
                     querydata["testscenarioids"] = testscenarioids
 
                     if create_suite:
+                        print('inside create suite')
                         querydata["mindmapid"] = mindmaps["_id"]
                         querydata["cycleid"] = cycleid
                         querydata["versionnumber"] = mindmaps["versionnumber"]
@@ -82,7 +86,9 @@ def LoadServices(app, redissession, client ,getClientName):
                         querydata["getparampaths"] = [' '] * tsclen
                         querydata["accessibilityParameters"] = []
                         testsuiteid = dbsession.testsuites.insert(querydata)
+                        print("testsuiteid: {}".format(testsuiteid))
                     else:
+                        print("inside else cond")
                         testsuiteid = testsuite["_id"]
                         testscenariods_ts = testsuite["testscenarioids"]
                         getparampaths_ts = testsuite["getparampaths"]
@@ -111,13 +117,13 @@ def LoadServices(app, redissession, client ,getClientName):
                         querydata["getparampaths"] = getparampaths
                         querydata["accessibilityParameters"] = accessibilityParameters_ts
                         dbsession.testsuites.update_one({"_id": testsuiteid, "deleted": query['delete_flag']}, {'$set': querydata})
-
+                        print("testsuiteid updated ")
                     res['rows'] = {
                         "testsuiteid": testsuiteid, "conditioncheck": querydata["conditioncheck"],
                         "donotexecute": querydata["donotexecute"], "getparampaths": querydata["getparampaths"],
                         "testscenarioids": testscenarioids, "name": querydata["name"], "batchname": querydata["batchname"], "accessibilityParameters": querydata["accessibilityParameters"]
                     }
-
+                    print("res prepared {}".format(res))
                 elif(param == 'gettestscenario'):
                     proj_typ = {}
                     tsc_map = {}
@@ -152,6 +158,7 @@ def LoadServices(app, redissession, client ,getClientName):
             else:
                 app.logger.warn('Empty data received. read testsuite.')
         except Exception as e:
+            print("e : {}".format(e))
             app.logger.info("error : " + e)
             servicesException("readTestSuite_ICE", e, True)
         return jsonify(res)
