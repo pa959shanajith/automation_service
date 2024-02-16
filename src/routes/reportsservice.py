@@ -989,7 +989,16 @@ def LoadServices(app, redissession, client ,getClientName):
                 pdf_file.write(pdf_binary_data)
                 
             app.logger.info(f"Stored file '{filename}' in folder '{target_folder}'")
-            addr = 'https://avogenerativeai.avoautomation.com'
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            # Construct the path to server_config.json
+            config_path = os.path.join(current_dir, '..','..', 'server_config.json')
+            # config_path = currdir + os.sep + "server_config.json"
+            with open(config_path, 'r') as config:
+                # Load the JSON data from the config file
+                conf = json.load(config)
+
+            # Extract the value for "genAIurl" key from the loaded JSON data
+            addr = conf.get("genAIurl", None)
             test_url = addr + '/send_text'
             # files = request_data['file']
             files = {'file': (filename, open(destination_path, 'rb'))}
