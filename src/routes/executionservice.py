@@ -152,6 +152,7 @@ def LoadServices(app, redissession, client ,getClientName):
             else:
                 app.logger.warn('Empty data received. read testsuite.')
         except Exception as e:
+            app.logger.info("error : " + e)
             servicesException("readTestSuite_ICE", e, True)
         return jsonify(res)
 
