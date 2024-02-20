@@ -711,6 +711,7 @@ def LoadServices(app, redissession, client ,getClientName):
                 index+=1
 
             dbsession.projecttypekeywords.update(query,{'$set':{'keywordsmap': keywordlist[0]['keywordsmap']}})
+            res['rows'] = 'pass'
         except Exception as e:
             servicesException('createKeyword', e, True)
         return jsonify(res)
