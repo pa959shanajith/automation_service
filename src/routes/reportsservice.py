@@ -1212,6 +1212,45 @@ def LoadServices(app, redissession, client ,getClientName):
 
         except Exception as e:
             app.logger.error(f"Error: {str(e)}")
-            return jsonify({'rows':'fail','error': 'Internal server error'}), 500    
+            return jsonify({'rows':'fail','error': 'Internal server error'}), 500
+    
+    @app.route('/download/downloadReport', methods=['POST'])
+    def downloadReport():
+        try:
+            requestdata = request.get_json()
+            clientName=getClientName(requestdata)             
+            dbsession=client[clientName]
+            executionListId = requestdata['executionListId']
+            reportdata = dbsession.executions.aggregate([{"$match":{"executionListId":executionListId}},
+                                                                        {"$project":{"parent":1,"status":1, "starttime":1,"endtime":1,"projectId":1,"batchid":1}},{'$lookup':{
+                                                                        'from':"testsuites",
+                                                                        'localField':"parent",
+                                                                        'foreignField':"_id",
+                                                                        'as':"testsuites"
+                                                                            }
+                                                                        },
+                                                                        {
+                                                                        '$addFields': {'projectId': {'$toObjectId': '$projectId'}}
+                                                                        },
+                                                                        {'$lookup':{
+                                                                        'from':"reports",
+                                                                        'localField':"_id",
+                                                                        'foreignField':"executionid",
+                                                                        'as':"reports"
+                                                                        } },
+                                                                        {'$lookup':{
+                                                                            'from' : "projects",
+                                                                            'localField': "projectId",
+                                                                            'foreignField': "_id",
+                                                                            'as': "projectName"
+                                                                        }},
+                                                                        {"$project":{'modulename':{"$arrayElemAt":["$testsuites.name",0]},"projectname" : "$projectName.name","status":1,"scenarioStatus":"$reports.status","overallstatusReport":"$reports.overallstatus","starttime":1,"endtime":1,"batchid":1}}
+                                                                        ])
+            result = list(reportdata)  
+            res = {"rows" :result}    
+            return jsonify(res)        
 
+        except Exception as e:
+            app.logger.error(f"Error: {str(e)}")
+            return jsonify({'rows':'fail','error': 'Internal server error'}), 500
 # END OF REPORTS
