@@ -992,7 +992,6 @@ def LoadServices(app, redissession, client ,getClientName):
             current_dir = os.path.dirname(os.path.abspath(__file__))
             # Construct the path to server_config.json
             config_path = os.path.join(current_dir, '..','..', 'server_config.json')
-            # config_path = currdir + os.sep + "server_config.json"
             with open(config_path, 'r') as config:
                 # Load the JSON data from the config file
                 conf = json.load(config)
@@ -1004,7 +1003,7 @@ def LoadServices(app, redissession, client ,getClientName):
             files = {'file': (filename, open(destination_path, 'rb'))}
             data={'instancename':request_data['organization'],'projectname':request_data['project'],'type':request_data['type'],'username':request_data['name']}
             
-            response = requests.post(test_url,data=data,files=files,verify = False)
+            response = requests.post(test_url,data=data,files=files,verify = False,timeout=None)
             if response.status_code == 200:
                 app.logger.info('generate AI file sent successfully')
                 return True
@@ -1104,12 +1103,20 @@ def LoadServices(app, redissession, client ,getClientName):
                 'Accept': 'application/json',
                 'Content-Type':'application/json'
             }
-            addr = 'https://avogenerativeai.avoautomation.com'
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            # Construct the path to server_config.json
+            config_path = os.path.join(current_dir, '..','..', 'server_config.json')
+            with open(config_path, 'r') as config:
+                # Load the JSON data from the config file
+                conf = json.load(config)
+
+            # Extract the value for "genAIurl" key from the loaded JSON data
+            addr = conf.get("genAIurl", None)
             test_url = addr + '/generate_testcase'
            
             data={'generate_type':request_data['generateType'], 'instancename':request_data['organization'],'projectname':request_data['project'],'email':request_data['email'],'username':request_data['name']}
             json_data = json.dumps(data)
-            response = requests.post(test_url,headers=headers,data=json_data,verify = False)
+            response = requests.post(test_url,headers=headers,data=json_data,verify = False,timeout=None)
             if response.status_code == 200:
                 JsonObject = response.json()
                 app.logger.info('testcase generated successfully')
