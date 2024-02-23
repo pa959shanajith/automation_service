@@ -274,7 +274,8 @@ def LoadServices(app, redissession, client ,getClientName):
                     'domainname': projs[0]["domain"],
                     'projectname': projs[0]["name"],
                     'releasename': projs[0]["releases"][0]["name"],
-                    'cyclename': cyclename
+                    'cyclename': cyclename,
+                    'reportId': requestdata["reportid"]
                 }
                 res= {"rows":query}
             else:
