@@ -1746,6 +1746,27 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
         except Exception as e:
             servicesException("getDetails_Zephyr",e)
         return jsonify(res)
+    
+    #Fetch TestRail data 
+    @app.route('/admin/getDetails_TestRail', methods=['POST'])
+    def getDetails_TestRail():
+        app.logger.info("Inside getDetails_TestRail")
+        res={'rows':'fail'}
+        try:
+            requestdata=json.loads(request.data)
+            if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)             
+                dbsession=client[clientName]
+                result=dbsession.userpreference.find_one({"user":ObjectId(requestdata["userId"])}, {'TestRail':1, '_id':0})
+                if result:
+                    res={'rows':result['TestRail']}
+                else:
+                    res={'rows':"empty"}    
+            else:
+                app.logger.warn('Empty data received in getDetails_TestRail fetch.')
+        except Exception as e:
+            servicesException("getDetails_TestRail",e)
+        return jsonify(res)
 
     #manage ZEPHYR Details
     @app.route('/admin/manageZephyrDetails',methods=['POST'])
@@ -1797,6 +1818,56 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
         except Exception as e:
             app.logger.debug(traceback.format_exc())
             servicesException("manageZephyrDetails",e)
+        return jsonify(res)
+    
+
+    #manage TestRail Details
+    @app.route('/admin/manageTestRailDetails',methods=['POST'])
+    def manageTestRailDetails():
+        app.logger.info("Inside manageTestRailDetails")
+        res={'rows':'fail'}
+        data={}
+        try:
+            requestdata=json.loads(request.data)
+            if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)             
+                dbsession=client[clientName]
+                TestRailObject = {}
+                userObject = dbsession.userpreference.find_one({"user":ObjectId(requestdata["userId"])})
+                if 'TestRailUrl' in requestdata :
+                    TestRailObject["url"] = requestdata["TestRailUrl"]
+                if 'TestRailUsername' in requestdata and 'TestRailToken' in requestdata :
+                    TestRailObject["username"] = requestdata["TestRailUsername"]
+                    TestRailObject["API_Key"] = requestdata["TestRailToken"]
+                if requestdata["action"]=="delete":
+                    if userObject==None:
+                        return jsonify({'rows':'fail'})
+                    elif userObject != None and 'TestRail' in userObject:
+                        dbsession.userpreference.update_one({"_id":userObject["_id"]},{"$unset":{ 'TestRail':""}})
+                elif requestdata["action"]=='create':
+                    if userObject != None and 'TestRail' in userObject:
+                        return jsonify({'rows':'fail'})
+                    else:
+                        if userObject==None:
+                            data['user'] = ObjectId(requestdata["userId"])
+                            data['TestRail'] = TestRailObject
+                            dbsession.userpreference.insert_one(data)
+                        else:
+                            data['TestRail'] = TestRailObject
+                            dbsession.userpreference.update_one({"_id":ObjectId(userObject["_id"])},{"$set":data})
+                elif requestdata["action"]=='update':
+                    if userObject==None:
+                        return jsonify({'rows':'fail'})
+                    else:
+                        data['TestRail'] = TestRailObject
+                        dbsession.userpreference.update_one({"_id":ObjectId(userObject["_id"])},{"$set":data})
+                return jsonify({'rows':'success'})
+            else:
+                return jsonify({'rows':'fail'})
+        except Exception as e:
+            print(e)
+            app.logger.debug(traceback.format_exc())
+            servicesException("manageTestRailDetails",e)
         return jsonify(res)
 
     #service to map avo discover configuration
