@@ -1044,9 +1044,7 @@ def LoadServices(app, redissession, client ,getClientName):
             project_name = request_data['project']
             organization_name = request_data['organization']
             home_directory = Path.home()
-            app.logger.info("Home Directory:", home_directory)
-            base_dir = home_directory + os.sep + 'GenerateAI_temp'
-            app.logger.info("Base Dir : ", base_dir)
+            base_dir = os.path.join(home_directory,'GenerateAI_temp')
             target_folder = f'{base_dir}/{organization_name}/{project_name}'
 
             if save_file(request_data['file'], target_folder, filename,request_data):
