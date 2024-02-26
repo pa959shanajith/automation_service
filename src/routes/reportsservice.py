@@ -990,12 +990,12 @@ def LoadServices(app, redissession, client ,getClientName):
                 pdf_file.write(pdf_binary_data)
                 
             app.logger.info(f"Stored file '{filename}' in folder '{target_folder}'")
-            current_dir = os.path.dirname(os.path.abspath(__file__))
-            # Construct the path to server_config.json
-            config_path = os.path.join(current_dir, '..','..', 'server_config.json')
-            with open(config_path, 'r') as config:
-                # Load the JSON data from the config file
-                conf = json.load(config)
+            # current_dir = os.path.dirname(os.path.abspath(__file__))
+            # # Construct the path to server_config.json
+            # config_path = os.path.join(current_dir, '..','..', 'server_config.json')
+            # with open(config_path, 'r') as config:
+            #     # Load the JSON data from the config file
+            #     conf = json.load(config)
 
             # Extract the value for "genAIurl" key from the loaded JSON data
             # addr = conf.get("genAIurl", None)
@@ -1108,12 +1108,12 @@ def LoadServices(app, redissession, client ,getClientName):
                 'Accept': 'application/json',
                 'Content-Type':'application/json'
             }
-            current_dir = os.path.dirname(os.path.abspath(__file__))
-            # Construct the path to server_config.json
-            config_path = os.path.join(current_dir, '..','..', 'server_config.json')
-            with open(config_path, 'r') as config:
-                # Load the JSON data from the config file
-                conf = json.load(config)
+            # current_dir = os.path.dirname(os.path.abspath(__file__))
+            # # Construct the path to server_config.json
+            # config_path = os.path.join(current_dir, '..','..', 'server_config.json')
+            # with open(config_path, 'r') as config:
+            #     # Load the JSON data from the config file
+            #     conf = json.load(config)
 
             # Extract the value for "genAIurl" key from the loaded JSON data
             # addr = conf.get("genAIurl", None)
