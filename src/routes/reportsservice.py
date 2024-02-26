@@ -998,7 +998,8 @@ def LoadServices(app, redissession, client ,getClientName):
                 conf = json.load(config)
 
             # Extract the value for "genAIurl" key from the loaded JSON data
-            addr = conf.get("genAIurl", None)
+            # addr = conf.get("genAIurl", None)
+            addr = "https://aiapidevtest.avoassurecloud.com"
             test_url = addr + '/send_text'
             # files = request_data['file']
             files = {'file': (filename, open(destination_path, 'rb'))}
@@ -1115,7 +1116,8 @@ def LoadServices(app, redissession, client ,getClientName):
                 conf = json.load(config)
 
             # Extract the value for "genAIurl" key from the loaded JSON data
-            addr = conf.get("genAIurl", None)
+            # addr = conf.get("genAIurl", None)
+            addr = "https://aiapidevtest.avoassurecloud.com"
             test_url = addr + '/generate_testcase'
            
             data={'generate_type':request_data['generateType'], 'instancename':request_data['organization'],'projectname':request_data['project'],'email':request_data['email'],'username':request_data['name']}
