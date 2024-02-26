@@ -12,6 +12,7 @@ import base64
 from document_modules.generateAI_module import UserDocument,UserTestcases,AI_Testcases
 import requests
 from datetime import datetime
+from pathlib import Path
 
 
 def LoadServices(app, redissession, client ,getClientName):
@@ -1040,7 +1041,10 @@ def LoadServices(app, redissession, client ,getClientName):
             filename = request_data['file']['originalname']
             project_name = request_data['project']
             organization_name = request_data['organization']
-            base_dir = 'C:/GenerateAI_temp'
+            home_directory = Path.home()
+            app.logger.info("Home Directory:", home_directory)
+            base_dir = home_directory + os.sep + 'GenerateAI_temp'
+            app.logger.info("Base Dir : ", base_dir)
             target_folder = f'{base_dir}/{organization_name}/{project_name}'
 
             if save_file(request_data['file'], target_folder, filename,request_data):
