@@ -16,5 +16,6 @@
         "url":"https://avolicapi.avoautomation.com/",
         "path":"LS.db"
     },
-    "exportImportpath":"D:\\source_code\\WebServer\\assets"   
+    "exportImportpath":"D:\\source_code\\WebServer\\assets" ,
+    "genAIurl" : "https://aiapidevtest.avoassurecloud.com"
 }
