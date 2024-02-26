@@ -12,6 +12,7 @@ import base64
 from generateAI_module import UserDocument,UserTestcases,AI_Testcases
 import requests
 from datetime import datetime
+from pathlib import Path
 
 
 def LoadServices(app, redissession, client ,getClientName):
@@ -990,15 +991,16 @@ def LoadServices(app, redissession, client ,getClientName):
                 pdf_file.write(pdf_binary_data)
                 
             app.logger.info(f"Stored file '{filename}' in folder '{target_folder}'")
-            current_dir = os.path.dirname(os.path.abspath(__file__))
-            # Construct the path to server_config.json
-            config_path = os.path.join(current_dir, '..','..', 'server_config.json')
-            with open(config_path, 'r') as config:
-                # Load the JSON data from the config file
-                conf = json.load(config)
+            # current_dir = os.path.dirname(os.path.abspath(__file__))
+            # # Construct the path to server_config.json
+            # config_path = os.path.join(current_dir, '..','..', 'server_config.json')
+            # with open(config_path, 'r') as config:
+            #     # Load the JSON data from the config file
+            #     conf = json.load(config)
 
             # Extract the value for "genAIurl" key from the loaded JSON data
-            addr = conf.get("genAIurl", None)
+            # addr = conf.get("genAIurl", None)
+            addr = "https://aiapidevtest.avoassurecloud.com"
             test_url = addr + '/send_text'
             # files = request_data['file']
             files = {'file': (filename, open(destination_path, 'rb'))}
@@ -1041,7 +1043,10 @@ def LoadServices(app, redissession, client ,getClientName):
             filename = request_data['file']['originalname']
             project_name = request_data['project']
             organization_name = request_data['organization']
-            base_dir = 'C:/GenerateAI_temp'
+            home_directory = Path.home()
+            app.logger.info("Home Directory:", home_directory)
+            base_dir = home_directory + os.sep + 'GenerateAI_temp'
+            app.logger.info("Base Dir : ", base_dir)
             target_folder = f'{base_dir}/{organization_name}/{project_name}'
 
             if save_file(request_data['file'], target_folder, filename,request_data):
@@ -1104,15 +1109,16 @@ def LoadServices(app, redissession, client ,getClientName):
                 'Accept': 'application/json',
                 'Content-Type':'application/json'
             }
-            current_dir = os.path.dirname(os.path.abspath(__file__))
-            # Construct the path to server_config.json
-            config_path = os.path.join(current_dir, '..','..', 'server_config.json')
-            with open(config_path, 'r') as config:
-                # Load the JSON data from the config file
-                conf = json.load(config)
+            # current_dir = os.path.dirname(os.path.abspath(__file__))
+            # # Construct the path to server_config.json
+            # config_path = os.path.join(current_dir, '..','..', 'server_config.json')
+            # with open(config_path, 'r') as config:
+            #     # Load the JSON data from the config file
+            #     conf = json.load(config)
 
             # Extract the value for "genAIurl" key from the loaded JSON data
-            addr = conf.get("genAIurl", None)
+            # addr = conf.get("genAIurl", None)
+            addr = "https://aiapidevtest.avoassurecloud.com"
             test_url = addr + '/generate_testcase'
            
             data={'generate_type':request_data['generateType'], 'instancename':request_data['organization'],'projectname':request_data['project'],'email':request_data['email'],'username':request_data['name']}
