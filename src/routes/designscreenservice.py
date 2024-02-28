@@ -196,7 +196,9 @@ def LoadServices(app, redissession, client ,getClientName):
                     else:
                         info = keyword_to_info[step['keywordVal']]
                         if( info == 'authKeyword'):
-                            if old_screen_detail[info] == screen_detail[info] and screen_detail[info] == step['keywordVal']:
+                            if old_screen_detail[info] != screen_detail[info]:
+                                continue
+                            if screen_detail[info] == step['keywordVal']:
                                 info = 'authInput'
                             elif screen_detail[info] != step['keywordVal']:
                                 screen_detail[info]=step['keywordVal']
