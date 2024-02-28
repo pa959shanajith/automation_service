@@ -157,7 +157,7 @@ def LoadServices(app, redissession, client ,getClientName):
     # Creating a function to update steps if webservice screen is saved
     def updateTestStep(dbsession,to_update_teststep,screen_detail,old_screen_detail):
         #  TO-do authinfo add krna hai
-         supported_steps = ["setMethods","setParam","setWholeBody","setHeaderTemplate","setBasicAuth","setBearerToken","setOAuth2.0"]
+         supported_steps = ["setMethods","setParam","setWholeBody","setHeaderTemplate","setBasicAuth","setBearerToken","setOAuth2.0","setBearerToken"]
          keyword_to_info =  {
                             'setEndPointURL': "endPointURL",
                             'setMethods': "method",
@@ -165,7 +165,8 @@ def LoadServices(app, redissession, client ,getClientName):
                             'setParam':"param",
                             'setWholeBody' : "body",
                             'setBasicAuth':'authKeyword',
-                            'setBearerToken': 'authKeyword'
+                            'setOAuth2.0': 'authKeyword',
+                            'setBearerToken':'authKeyword'
                         }
          steps = [
              {
