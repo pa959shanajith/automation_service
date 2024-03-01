@@ -52,7 +52,12 @@ def LoadServices(app, redissession, client ,getClientName):
                 else:
                     screen_id = ObjectId(requestdata['screenid'])
                 if (requestdata['query'] == 'getscrapedata'):
-                    screen_query=dbsession.screens.find_one({"_id":screen_id,"deleted":False})
+                    if(requestdata['params']=="elementRepo"):
+                        screen_query=dbsession.elementrepository.find_one({"_id":screen_id,"deleted":False})
+                    else:
+                        screen_query=dbsession.screens.find_one({"_id":screen_id,"deleted":False})
+
+                      
                     if (screen_query != []):
                         dataobj_query = list(dbsession.dataobjects.find({"parent" :screen_id}))
                         if "scrapeinfo" in screen_query and 'header' in screen_query["scrapeinfo"]:
