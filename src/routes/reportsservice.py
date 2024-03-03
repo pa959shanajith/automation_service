@@ -242,7 +242,10 @@ def LoadServices(app, redissession, client ,getClientName):
             if not isemptyrequest(requestdata):
                 clientName=getClientName(requestdata)         
                 dbsession=client[clientName]
-                reports = list(dbsession.reports.find({"_id":ObjectId(requestdata["reportid"])}))
+                if 'report_type' in requestdata:
+                    reports = list(dbsession.reports.find({"executionid":ObjectId(requestdata["reportid"])}))
+                else:
+                    reports = list(dbsession.reports.find({"_id":ObjectId(requestdata["reportid"])}))
                 # report_items= list(dbsession.reportitems.find({"_id":reports[0]["reportitems"][0]}))
 
                 # Added below query 
@@ -1188,7 +1191,8 @@ def LoadServices(app, redissession, client ,getClientName):
             dbsession = client[client_name]
             app.logger.debug("fetching execution details")
             
-            find_query = {'executionListId': { '$in' : request_data["executionListIds"]}}
+            # find_query = {'executionListId': { '$in' : request_data["executionListIds"]}}
+            find_query = {'executionListId': { '$in' : request_data["executionListIds"]}} if request_data["type"] == "jobId" else {'executionData.testcaseRefId': { '$in' : request_data["testcaseIds"]}}
             projection = {"executionListId":1,"configkey":1,'executionData':1}
             execution_result = list(dbsession.executionlist.find(find_query,projection))
             # print(execution_result)
