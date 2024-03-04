@@ -322,9 +322,16 @@ def LoadServices(app, redissession, client ,getClientName):
                             screenshot = data['addedObj']['mirror']
                             if "scrapedurl" in data['addedObj']:
                                 scrapedurl = data['addedObj']["scrapedurl"]
-                                dbsession.screens.update({"_id":screenId},{"$set":{"screenshot":screenshot,"scrapedurl":scrapedurl}})
+                                if 'elementrepo' in data:
+                                        dbsession.elementrepository.update({"_id":screenId},{"$set":{"screenshot":screenshot,"scrapedurl":scrapedurl}})
+                                else:
+                                        dbsession.screens.update({"_id":screenId},{"$set":{"screenshot":screenshot,"scrapedurl":scrapedurl}})
                             else:
-                                dbsession.screens.update({"_id":screenId},{"$set":{"screenshot":screenshot}})
+                                if 'elementrepo' in data:
+                                    dbsession.elementrepository.update({"_id":screenId},{"$set":{"screenshot":screenshot}})
+                                else:
+                                    dbsession.screens.update({"_id":screenId},{"$set":{"screenshot":screenshot}})
+
                         elif 'scrapeinfo' in data['addedObj']:
                             scrapeinfo=data['addedObj']['scrapeinfo']
                             dbsession.screens.update({"_id":screenId},{"$set":{"scrapedurl":scrapeinfo["endPointURL"], 'scrapeinfo':scrapeinfo}})
@@ -333,8 +340,10 @@ def LoadServices(app, redissession, client ,getClientName):
                     if (len(orderList)<=0):
                         payload['screenshot'] = ""
                         payload['scrapedurl'] = ""
-
-                    dbsession.screens.update({"_id":screenId},{"$set": payload})
+                    if 'elementrepo' in data:
+                        dbsession.elementrepository.update({"_id":screenId},{"$set": payload})
+                    else:
+                        dbsession.screens.update({"_id":screenId},{"$set": payload})
                     res={"rows":"Success"}
                 if data['param'] == 'renameElenemt':
                     dbsession.dataobjects.update_one({'_id': ObjectId(data['modifiedObj'][0]["id"])},{'$set':{'custname':data['modifiedObj'][0]["custname"]}})
@@ -406,6 +415,20 @@ def LoadServices(app, redissession, client ,getClientName):
                                         dbsession.testcases.update({"_id":updateteststeps,"screenid":updatescreen},{"$set":{"screenid":ObjectId(data['updateScreen'])}})
                             dbsession.screens.update({"_id":ObjectId( data["updateScreen"])},{'$push':{'parent': ObjectId(data['parent'])}})
                     res={"rows":data['moduleID']}
+                if data['param'] == 'updateOrderList':
+                    dbsession.screens.update({"_id":ObjectId( data["screenId"])},{'$set':{'orderlist':data["orderList"]}})
+                    for ordId in data['orderList']:
+                        dbsession.dataobjects.update({'_id': ObjectId(ordId)},{"$push":{'parent':ObjectId(data["screenId"])}})
+                    res={"rows": "Success"}
+                if data['param'] =='updateOrderListAndRemoveParentId':
+                    for dataobject in data['orderList']:
+                        # existingparent=dbsession.dataobjects.find_one({"_id":ObjectId(dataobject)})['parent']
+                        dbsession.dataobjects.update({'_id': ObjectId(dataobject)},{"$push":{'parent' : ObjectId(data["screenId"])}})
+                    for dataobject in data['oldOrderList']:
+                        dbsession.dataobjects.update({'_id': ObjectId(dataobject)},{"$pull":{'parent' : ObjectId(data["screenId"])}})
+                        # dbsession.dataobjects.update({"_id":ObjectId(dataobject)},{'$pull':{'parent':ObjectId(data['screenId'])}})
+                    dbsession.screens.update({"_id":ObjectId(data['screenId'])},{"$set":{'orderlist':data['orderList']}})
+                    res={"rows": "Success"}
                 if data["param"] == 'screenPaste':
                     for ordlist in data['orderList']:
                         existingorderlist=dbsession.screens.find_one({"_id": ObjectId(data["screenId"])},{'orderlist': ordlist})
