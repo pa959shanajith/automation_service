@@ -416,7 +416,7 @@ def LoadServices(app, redissession, client ,getClientName):
                             dbsession.screens.update({"_id":ObjectId( data["updateScreen"])},{'$push':{'parent': ObjectId(data['parent'])}})
                     res={"rows":data['moduleID']}
                 if data['param'] == 'updateOrderList':
-                    dbsession.screens.update({"_id":ObjectId( data["screenId"])},{'$set':{'orderlist':data["orderList"]}})
+                    dbsession.screens.update({"_id":ObjectId( data["screenId"])},{'$set':{'orderlist':data["orderList"],'elementrepoused':data['elementrepoid']}})
                     for ordId in data['orderList']:
                         dbsession.dataobjects.update({'_id': ObjectId(ordId)},{"$push":{'parent':ObjectId(data["screenId"])}})
                     res={"rows": "Success"}
@@ -431,10 +431,10 @@ def LoadServices(app, redissession, client ,getClientName):
                     res={"rows": "Success"}
                 if data["param"] == 'screenPaste':
                     for ordlist in data['orderList']:
-                        existingorderlist=dbsession.screens.find_one({"_id": ObjectId(data["screenId"])},{'orderlist': ordlist})
+                        existingorderlist=dbsession.elementrepository.find_one({"_id": ObjectId(data["screenId"])},{'orderlist': ordlist})
                         object_id_hex = str(existingorderlist['_id'])
                         if ordlist != object_id_hex:
-                            dbsession.screens.update({"_id":ObjectId( data["screenId"])},{'$push':{'orderlist': ordlist}})
+                            dbsession.elementrepository.update({"_id":ObjectId( data["screenId"])},{'$push':{'orderlist': ordlist}})
                             dbsession.dataobjects.update({'_id': ObjectId(ordlist)},{"$push":{'parent':ObjectId(data["screenId"])}})
                             res={"rows": "Success"}
                         else:
