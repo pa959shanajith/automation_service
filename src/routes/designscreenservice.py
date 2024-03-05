@@ -416,7 +416,10 @@ def LoadServices(app, redissession, client ,getClientName):
                             dbsession.screens.update({"_id":ObjectId( data["updateScreen"])},{'$push':{'parent': ObjectId(data['parent'])}})
                     res={"rows":data['moduleID']}
                 if data['param'] == 'updateOrderList':
-                    dbsession.screens.update({"_id":ObjectId( data["screenId"])},{'$set':{'orderlist':data["orderList"],'elementrepoused':data['elementrepoid']}})
+                    currentrepository=dbsession.elementrepository.find_one({"_id":ObjectId(data["elementrepoid"])})
+                    scrapedurl=currentrepository['scrapedurl']
+                    screenshot=currentrepository['screenshot']
+                    dbsession.screens.update({"_id":ObjectId( data["screenId"])},{'$set':{'orderlist':data["orderList"],'elementrepoused':data['elementrepoid'],'screenshot':screenshot,'scrapedurl':scrapedurl}})
                     for ordId in data['orderList']:
                         dbsession.dataobjects.update({'_id': ObjectId(ordId)},{"$push":{'parent':ObjectId(data["screenId"])}})
                     res={"rows": "Success"}
