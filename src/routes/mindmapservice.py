@@ -374,6 +374,45 @@ def LoadServices(app, redissession, client ,getClientName):
                         {'$project':{'objLen':{ '$cond': { 'if': { '$isArray': "$orderlist" },
                          'then': { '$size': "$orderlist" }, 'else': 0}} ,'_id': 1 , 'name': 1,'parent':1}}]))
 
+                    # Check for ObjectId in screenids but not in screendetails
+                    for oid in screenids:
+                        if oid not in [item['_id'] for item in screendetails]:
+                            dbsession.mindmaps.update_one(
+                                {
+                                    "_id": mindmapdata["_id"],
+                                    "testscenarios.screens._id": oid
+                                },
+                                {
+                                    "$pull": {
+                                        "testscenarios.$[scenario].screens": {
+                                            "_id": oid
+                                        }
+                                    }
+                                },
+                                array_filters=[
+                                    {"scenario.screens._id": oid}
+                                ]
+                            )
+                        else:
+                            # Check for ObjectId in testcaseids but not in testcasedetails
+                            for oidTest in testcaseids:
+                                if oidTest not in [item['_id'] for item in testcasedetails]:
+                                    if oidTest in sc.get('testcases'):
+                                        dbsession.mindmaps.update_one(
+                                            {
+                                                "_id": mindmapdata["_id"],
+                                                "testscenarios.screens._id": sc["_id"]
+                                            },
+                                            {
+                                                "$pull": {
+                                                            "testscenarios.$[].screens.$[screen].testcases": oidTest
+                                                         }
+                                            },
+                                            array_filters=[
+                                                {"screen._id": sc["_id"]}
+                                            ]
+                                        )
+
                     # screendetails = list(dbsession.screens.find(
                     #     {"_id": {"$in": screenids}}, {"_id": 1, "name": 1, "parent": 1,"orderlist":1}))
                     # testcasedetails = list(dbsession.testcases.find(
@@ -382,7 +421,8 @@ def LoadServices(app, redissession, client ,getClientName):
                     scenariodata = {}
                     screendata = {}
                     testcasedata = {}
-                
+                    mindmapdata = dbsession.mindmaps.find_one({"_id": ObjectId(modId)}, {
+                                                            "testscenarios": 1, "_id": 1, "name": 1, "projectid": 1, "type": 1, "versionnumber": 1,"currentlyinuse":1})
                     data_dict = {'testscenarios': scenariodata,
                                 'screens': screendata,
                                 'testcases': testcasedata,
