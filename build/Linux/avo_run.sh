@@ -8,7 +8,8 @@ then
     VersionNo=(${FullVersionNo//-/ })
     echo ${VersionNo[0]}
     sed -i 's|"version": ""|"version": '"\"$VersionNo"\"'|g'  /home/webapp/server/config/config.json
-else
+elif [[ $IS_PROD = "False" ]]
+then
     FullVersionNo=$(cat "/home/webapp/version.txt")
     sed -i 's|"version": ""|"version": '"\"$VersionNo"\"'|g'  /home/webapp/server/config/config.json
 fi
