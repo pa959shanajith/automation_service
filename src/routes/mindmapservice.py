@@ -1656,7 +1656,10 @@ def LoadServices(app, redissession, client ,getClientName):
                                         if len(dataobjectsParent['parent']) > 1:
                                             for i, value in enumerate(screenid['orderlist']):
                                                 if value == orderlist:
-                                                    screenid['orderlist'][i] = {'_id': value, 'flag': True}
+                                                    if isinstance(value, dict):
+                                                        screenid['orderlist'][i] = {'_id': value['_id'], 'flag': True}
+                                                    else:
+                                                        screenid['orderlist'][i] = {'_id': value, 'flag': True}
                                 scrn_det.append(screenid)                              
  
                             else:

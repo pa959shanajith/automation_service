@@ -443,16 +443,16 @@ def LoadServices(app, redissession, client ,getClientName):
                         else:
                             res={"rows":"Element all ready present"}
                 if data['param'] == 'delElement':
-                    dbsession.screens.update({'_id': ObjectId(data['screenId'])},{"$set":{'orderlist' : data["orderList"]}})
+                    dbsession.elementrepository.update({'_id': ObjectId(data['screenId'])},{"$set":{'orderlist' : data["orderList"]}})
                     for deletedid in data["deletedObj"]:
                         dbsession.dataobjects.update({'_id': ObjectId(deletedid)},{"$pull":{'parent' : ObjectId(data["screenId"])}})
                     res= {"rows" : "Success"}
                 if data['param'] == 'delAllElement':                    
                     for orderlist in data['deletedObj']:
-                        list_order = list(dbsession.screens.find({'orderlist': orderlist},{"_id":1, 'orderlist':1}))
+                        list_order = list(dbsession.elementrepository.find({'orderlist': orderlist},{"_id":1, 'orderlist':1}))
                         for inOrderlist in list_order:                            
                             if orderlist in inOrderlist['orderlist']:
-                                dbsession.screens.update({"_id": inOrderlist['_id']}, {'$pull':{'orderlist': orderlist}})
+                                dbsession.elementrepository.update({"_id": inOrderlist['_id']}, {'$pull':{'orderlist': orderlist}})
                                 dbsession.dataobjects.delete_one({'_id': ObjectId(orderlist)})
                     res= {'rows': "Success"}    
                 elif data["param"] == "mapScrapeData":
