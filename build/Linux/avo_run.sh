@@ -10,7 +10,7 @@ then
     sed -i 's|"version": ""|"version": '"\"$VersionNo"\"'|g'  /home/webapp/server/config/config.json
 elif [[ $IS_PROD = "False" ]]
 then
-    FullVersionNo=$(cat "/home/webapp/version.txt")
+    VersionNo=$(cat "/home/webapp/version.txt")
     sed -i 's|"version": ""|"version": '"\"$VersionNo"\"'|g'  /home/webapp/server/config/config.json
 fi
 ldconfig /usr/local/lib;
