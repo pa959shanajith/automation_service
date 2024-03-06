@@ -412,6 +412,20 @@ def LoadServices(app, redissession, client ,getClientName):
                                                 {"screen._id": sc["_id"]}
                                             ]
                                         )
+                                        for it in ts['screens']:
+                                            if sc["_id"] == it["_id"]:
+                                                if oidTest in it.get('testcases'):
+                                                    dbsession.testscenarios.update_one(
+                                                        {
+                                                            "_id": ts["_id"],
+                                                            "testcaseids": oidTest
+                                                        },
+                                                        {
+                                                            "$pull": {
+                                                                        "testcaseids": oidTest
+                                                                    }
+                                                        },
+                                                    )
 
                     # screendetails = list(dbsession.screens.find(
                     #     {"_id": {"$in": screenids}}, {"_id": 1, "name": 1, "parent": 1,"orderlist":1}))
