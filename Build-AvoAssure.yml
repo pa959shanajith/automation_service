@@ -1,0 +1,40 @@
+name: Build-AvoAssure
+trigger: none
+pool:
+  name: armocipool
+
+variables:
+- group: default_set
+- name: currentDate
+  value: $[format('{0:yyyyMMdd}', pipeline.startTime)]
+- name: counterVar
+  value: $[counter(variables['currentDate'], 1)]
+- name: customBuildNumber
+  value: $(currentDate).$(counterVar)
+
+steps:
+  - script: |
+      set -e
+      BranchName=$(echo $BUILD_SOURCEBRANCH | sed 's|refs/heads/||')
+      echo $BranchName > $(Build.ArtifactStagingDirectory)/BranchName.txt
+      echo "Branch Name: $BranchName"
+    displayName: 'Set Branch Name'
+  
+  - script: |
+      echo "$(Major_Version).$(minor_version_no).$(patch_version)" > $(Build.ArtifactStagingDirectory)/version.txt
+      ls $(Build.ArtifactStagingDirectory)
+    displayName: 'setting version name'
+  
+  - script: echo "$(Major_Version).$(minor_version_no).$(patch_version).$(customBuildNumber)" > $(Build.ArtifactStagingDirectory)/ArtifactsFolder.txt
+    displayName: 'setting folder name in oci '
+  
+  - script: zip -jv $(Build.ArtifactStagingDirectory)/dependencies.zip $(Build.ArtifactStagingDirectory)/*
+    displayName: ' zipping file'
+  
+
+  - task: PublishBuildArtifacts@1
+    inputs:
+      PathtoPublish: '$(Build.ArtifactStagingDirectory)/dependencies.zip'
+      ArtifactName: 'dependencies'
+      publishLocation: 'Container'
+    displayName: 'Publish Artifact'
