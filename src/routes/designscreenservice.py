@@ -424,11 +424,11 @@ def LoadServices(app, redissession, client ,getClientName):
                         dbsession.dataobjects.update({'_id': ObjectId(ordId)},{"$push":{'parent':ObjectId(data["screenId"])}})
                     res={"rows": "Success"}
                 if data['param'] =='updateOrderListAndRemoveParentId':
+                    for dataobject in data['oldOrderList']:
+                        dbsession.dataobjects.update({'_id': ObjectId(dataobject)},{"$pull":{'parent' : ObjectId(data["screenId"])}})
                     for dataobject in data['orderList']:
                         # existingparent=dbsession.dataobjects.find_one({"_id":ObjectId(dataobject)})['parent']
                         dbsession.dataobjects.update({'_id': ObjectId(dataobject)},{"$push":{'parent' : ObjectId(data["screenId"])}})
-                    for dataobject in data['oldOrderList']:
-                        dbsession.dataobjects.update({'_id': ObjectId(dataobject)},{"$pull":{'parent' : ObjectId(data["screenId"])}})
                         # dbsession.dataobjects.update({"_id":ObjectId(dataobject)},{'$pull':{'parent':ObjectId(data['screenId'])}})
                     dbsession.screens.update({"_id":ObjectId(data['screenId'])},{"$set":{'orderlist':data['orderList']}})
                     res={"rows": "Success"}
