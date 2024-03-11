@@ -80,7 +80,8 @@ def LoadServices(app, redissession, client ,getClientName):
                 modeltype = request_data["modeltype"],
                 userinfo = request_data["userinfo"],
                 name = request_data["name"],
-                description = request_data["description"]
+                description = request_data["description"],
+                
             )
             else:    
                 document_LLM_model = OpenAI_LLM_Model(
@@ -90,7 +91,8 @@ def LoadServices(app, redissession, client ,getClientName):
                     openai_api_base = request_data["openai_api_base"],
                     userinfo = request_data["userinfo"],
                     name = request_data["name"],
-                    description = request_data["description"]
+                    description = request_data["description"],
+                    deployment_name = request_data["deployment_name"]
                 )
 
             model_to_insert = document_LLM_model.to_dict()

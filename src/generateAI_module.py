@@ -52,7 +52,7 @@ class AI_Testcases:
         }
 
 class OpenAI_LLM_Model:
-    def __init__(self, openai_api_key, openai_api_type, openai_api_version, openai_api_base,userinfo,name,description):
+    def __init__(self, openai_api_key, openai_api_type, openai_api_version, openai_api_base,userinfo,name,description,deployment_name):
         self.openai_api_key = openai_api_key
         self.openai_api_type = openai_api_type
         self.openai_api_version = openai_api_version
@@ -61,6 +61,7 @@ class OpenAI_LLM_Model:
         self.userinfo = userinfo
         self.name = name
         self.description = description
+        self.deployment_name = deployment_name
         self.createdAt = datetime.now()
 
     def to_dict(self):
@@ -73,7 +74,8 @@ class OpenAI_LLM_Model:
             "createdAt": self.createdAt,
             "userinfo": self.userinfo,
             "name": self.name,
-            "description": self.description
+            "description": self.description,
+            "deployment_name": self.deployment_name
         }
 
 class Other_LLM_Model:
