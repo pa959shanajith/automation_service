@@ -2178,39 +2178,6 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
             servicesException("getUsers_ICE", getUsersexc, True)
         return jsonify(res)
 
-        @app.route('/plugins/getUsers_ICE',methods=['POST'])
-    def getUsers_ICE():
-        res={'rows':'fail'}
-        try:
-            requestdata=json.loads(request.data)
-            clientName=getClientName(requestdata)
-            dbsession=client[clientName]
-            # app.logger.debug("Inside getUsers_ICE. Query: "+str(requestdata["query"]))
-            if not isemptyrequest(requestdata):
-                result=list(dbsession.users.find({"projects":ObjectId(requestdata["project_id"]), "projectlevelrole._id" :requestdata["project_id"]},{"projectlevelrole.$":1, "name":1, "firstname":1, "lastname":1, "defaultrole":1, "email":1,"profileimage":1}))
-                roleDetails=list(dbsession.permissions.find({ }, {"name": 1}))
-                for role in result:
-                    for roleId in roleDetails:
-                        roleName = role["projectlevelrole"][0]["assignedrole"]
-                        if roleId["_id"] == ObjectId(roleName):
-                            role["assignedrole"] = roleId
-                            break
-                    del role["projectlevelrole"]
-                    
-                result1=list(dbsession.users.find({"defaultrole":{"$nin":[ObjectId("5db0022cf87fdec084ae49a9"),ObjectId("5f0ee20fba8ae8b8a603b5b6")]},"projects":{"$nin":[ObjectId(requestdata["project_id"])]}},{"name":1,"_id":1, "firstname":1, "lastname":1, "defaultrole":1, "email":1,"profileimage":1}))
-                for result_1 in result1:
-                    for role_Id in roleDetails:
-                        role_Name = result_1["defaultrole"]
-                        if role_Id["_id"] == role_Name:
-                            result_1["defaultrole"]=role_Id
-                            break                
-                res={'rows':{"assignedUsers":result, "unassignedUsers":result1}}
-            else:
-                app.logger.warn('Empty data received. update project.')
-        except Exception as getUsersexc:
-            servicesException("getUsers_ICE", getUsersexc, True)
-        return jsonify(res)
-    
 
     @app.route('/admin/unLock_TestSuites', methods=['POST'])
     def unLockTestSites():
