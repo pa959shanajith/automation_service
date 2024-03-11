@@ -1465,6 +1465,28 @@ def LoadServices(app, redissession, client ,getClientName):
         except Exception as e:
             servicesException("deleteScenario", e, True)
         return jsonify(res)
+    
+    @app.route('/mindmap/deleteElementRepo',methods=['POST'])
+    def deleteElementRepo():
+        app.logger.debug("Inside deleteElementRepo")
+        res={'rows':'fail'}
+        try:
+            requestdata=json.loads(request.data)
+            clientName=getClientName(requestdata)             
+            dbsession=client[clientName]
+            repoid=requestdata['repoId']
+            elerepo = list(dbsession.elementrepository.find({'_id': ObjectId(repoid)},{"orderlist":1}))
+            if len(elerepo) > 0:
+                if "orderlist" in elerepo[0]["orderlist"]:
+                    for order in elerepo[0]["orderlist"]:
+                        dbsession.dataobjects.delete_one({"_id" : ObjectId(order)})
+            dbsession.elementrepository.delete_one({"_id" : ObjectId(repoid)})
+
+
+            res= {'rows' : 'success'}
+        except Exception as e:
+            servicesException("deleteElementRepo", e, True)
+        return jsonify(res)
 
 
     def updateScenarioMindmap(dbsession,scenarioid,parentid):
