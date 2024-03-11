@@ -3,7 +3,7 @@ import rasaquery as rasafunctions
 from http import HTTPStatus
 
 from utils import *
-from generateAI_module import OpenAI_LLM_Model,Other_LLM_Model
+from generateAI_module import OpenAI_LLM_Model,Other_LLM_Model,Template_Model
 
 def LoadServices(app, redissession, client ,getClientName):
     setenv(app)
@@ -175,3 +175,41 @@ def LoadServices(app, redissession, client ,getClientName):
         except Exception as e:
             app.logger.error(f"Error: {str(e)}")
             return jsonify({'rows':'fail','error': 'Internal server error'}), 500                
+
+    @app.route('/genAI/createTemp', methods=['POST'])
+    def createTemp():
+        try:
+            request_data = request.get_json()
+            required_fields = [ 'name','domain','model_id','test_type','temperature','active','default','userinfo']
+            if all(field not in request_data for field in required_fields):
+                return jsonify({'error': 'Invalid request data'}), 400
+            client_name = getClientName(request_data)
+            dbsession = client[client_name]
+            find_model_details = dbsession.GenAI_Models.find_one({"_id":ObjectId(request_data["model_id"]),"userinfo.userid":request_data["userinfo"]["userid"]},
+                                                                 {"userinfo":0,"createdAt":0,"updatedAt":0})
+            if not find_model_details:
+                return jsonify({'rows':'fail','error': ' document not found '}), 404
+
+            document_Template_model = Template_Model(
+            name = request_data["name"],
+            domain = request_data["domain"],
+            model_details= find_model_details,
+            test_type = request_data["test_type"],
+            temperature = request_data["temperature"],
+            description = request_data["description"],
+            active = request_data["active"],
+            default = request_data["default"],
+            userinfo = request_data['userinfo']
+            )
+
+            template_to_insert = document_Template_model.to_dict()
+            insert_result = dbsession.GenAI_Templates.insert_one(template_to_insert)
+
+            if insert_result.acknowledged:
+                return jsonify({'rows':'success', 'message': 'model saved successfully'}), 200
+            else:
+                return jsonify({'rows':'fail','error': ' failed to save model '}), 500
+
+        except Exception as e:
+            app.logger.error(f"Error: {str(e)}")
+            return jsonify({'rows':'fail','error': 'Internal server error'}), 500    

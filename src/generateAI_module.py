@@ -98,4 +98,31 @@ class Other_LLM_Model:
         data[f"{self.modeltype}_api_key"] = self.api_key
         data[f"{self.modeltype}_model"] = self.model
 
-        return data               
+        return data
+
+class Template_Model:
+    def __init__(self, name, domain, model_details, test_type ,temperature,description,active,default,userinfo):
+        self.name = name
+        self.domain = domain
+        self.model_details = model_details
+        self.test_type = test_type
+        self.temperature = temperature
+        self.description = description
+        self.active = active
+        self.default = default
+        self.userinfo = userinfo
+        self.createdAt = datetime.now()
+
+    def to_dict(self):
+        return {
+            "name": self.name,
+            "domain":self.domain,
+            "model_details": self.model_details,
+            "test_type": self.test_type,
+            "temperature": self.temperature,
+            "createdAt": self.createdAt,
+            "userinfo": self.userinfo,
+            "active": self.active,
+            "description": self.description,
+            "default": self.default
+        }                   
