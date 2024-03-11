@@ -117,7 +117,7 @@ def LoadServices(app, redissession, client ,getClientName):
             fetch_result = list(dbsession.GenAI_Models.find({"userinfo.userid":request_data['userid']},
                                                             {"openai_api_key":1,"openai_api_type":1,"openai_api_version":1,
                                                              "openai_api_base":1,"createdAt":1,"modeltype":1,"cohere_api_key":1,
-                                                             "cohere_model":1,"anthropic_api_key":1,"anthropic_model":1}))
+                                                             "cohere_model":1,"anthropic_api_key":1,"anthropic_model":1,"name":1}))
 
             if len(fetch_result):
                 return jsonify({'rows':fetch_result, 'message': 'records found'}), 200
