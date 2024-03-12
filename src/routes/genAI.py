@@ -139,6 +139,9 @@ def LoadServices(app, redissession, client ,getClientName):
             document = dbsession.GenAI_Models.find_one({"_id":ObjectId(request_data["id"]),"userinfo.userid":request_data["userinfo"]["userid"]})
             if not document:
                 return jsonify({'rows':'fail','error': ' document not found '}), 404
+            if "modeltype" in request_data["items"] and request_data["items"]["modeltype"] != document.get("modeltype", ""):
+                fields_to_keep = ["createdAt","updatedAt", "_id", "userinfo"]
+                document = {k: v for k, v in document.items() if k in fields_to_keep}
             for key,value in request_data["items"].items():
                 document[key] = value
 
@@ -248,9 +251,11 @@ def LoadServices(app, redissession, client ,getClientName):
                 return jsonify({'rows':'fail','error': ' document not found '}), 404
             for key,value in request_data["items"].items():
                 document[key] = value
+            # for key in list(document.keys()):
+            #     if key == "modeltype":    
 
             document["updatedAt"] = datetime.now()
-            update_document =  dbsession.GenAI_Templates.replace_one({"_id":ObjectId(request_data["id"])},document)  
+            update_document =  dbsession.GenAI_Templates.update_one({"_id":ObjectId(request_data["id"])},document)  
             if update_document.acknowledged:
                 return jsonify({'rows':'success', 'message': 'templates updated successfully'}), 200
             else:
