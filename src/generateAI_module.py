@@ -52,7 +52,7 @@ class AI_Testcases:
         }
 
 class OpenAI_LLM_Model:
-    def __init__(self, openai_api_key, openai_api_type, openai_api_version, openai_api_base,userinfo,name,description,deployment_name):
+    def __init__(self, openai_api_key, openai_api_type, openai_api_version, openai_api_base,userinfo,name,deployment_name):
         self.openai_api_key = openai_api_key
         self.openai_api_type = openai_api_type
         self.openai_api_version = openai_api_version
@@ -60,7 +60,6 @@ class OpenAI_LLM_Model:
         self.modeltype = "openAi"
         self.userinfo = userinfo
         self.name = name
-        self.description = description
         self.deployment_name = deployment_name
         self.createdAt = datetime.now()
 
@@ -74,18 +73,16 @@ class OpenAI_LLM_Model:
             "createdAt": self.createdAt,
             "userinfo": self.userinfo,
             "name": self.name,
-            "description": self.description,
-            "deployment_name": self.deployment_name
+            "openai_deployment_name": self.deployment_name
         }
 
 class Other_LLM_Model:
-    def __init__(self, api_key, model, modeltype,userinfo,name,description):
+    def __init__(self, api_key, model, modeltype,userinfo,name):
         self.api_key = api_key
         self.model = model
         self.modeltype = modeltype
         self.userinfo = userinfo
         self.name = name
-        self.description = description
         self.createdAt = datetime.now()
 
     def to_dict(self):
@@ -93,8 +90,7 @@ class Other_LLM_Model:
             "modeltype": self.modeltype,
             "createdAt": self.createdAt,
             "userinfo": self.userinfo,
-            "name": self.name,
-            "description": self.description
+            "name": self.name
 
         }
         data[f"{self.modeltype}_api_key"] = self.api_key

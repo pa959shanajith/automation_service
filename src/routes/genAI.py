@@ -79,8 +79,7 @@ def LoadServices(app, redissession, client ,getClientName):
                 model = request_data["model"],
                 modeltype = request_data["modeltype"],
                 userinfo = request_data["userinfo"],
-                name = request_data["name"],
-                description = request_data["description"],
+                name = request_data["name"]
                 
             )
             else:    
@@ -91,7 +90,6 @@ def LoadServices(app, redissession, client ,getClientName):
                     openai_api_base = request_data["openai_api_base"],
                     userinfo = request_data["userinfo"],
                     name = request_data["name"],
-                    description = request_data["description"],
                     deployment_name = request_data["deployment_name"]
                 )
 
@@ -117,9 +115,7 @@ def LoadServices(app, redissession, client ,getClientName):
             client_name = getClientName(request_data)
             dbsession = client[client_name]
             fetch_result = list(dbsession.GenAI_Models.find({"userinfo.userid":request_data['userid']},
-                                                            {"openai_api_key":1,"openai_api_type":1,"openai_api_version":1,
-                                                             "openai_api_base":1,"createdAt":1,"modeltype":1,"cohere_api_key":1,
-                                                             "cohere_model":1,"anthropic_api_key":1,"anthropic_model":1,"name":1}))
+                                                            {"userinfo":0}))
 
             if len(fetch_result):
                 return jsonify({'rows':fetch_result, 'message': 'records found'}), 200
@@ -214,4 +210,72 @@ def LoadServices(app, redissession, client ,getClientName):
 
         except Exception as e:
             app.logger.error(f"Error: {str(e)}")
-            return jsonify({'rows':'fail','error': 'Internal server error'}), 500    
+            return jsonify({'rows':'fail','error': 'Internal server error'}), 500
+
+    @app.route('/genAI/readTemp', methods=['POST'])
+    def readTemp():
+        try:
+            request_data = request.get_json()
+
+            if 'userid' not in request_data:
+                return jsonify({'error': 'Invalid request data'}), 400
+            client_name = getClientName(request_data)
+            dbsession = client[client_name]
+            fetch_result = list(dbsession.GenAI_Templates.find({"userinfo.userid":request_data['userid']},
+                                                            {"userinfo":0}))
+
+            if len(fetch_result):
+                return jsonify({'rows':fetch_result, 'message': 'records found'}), 200
+            else:
+                return jsonify({'rows':[],'message': 'no records found'}), 200
+
+        except Exception as e:
+            app.logger.error(f"Error: {str(e)}")
+            return jsonify({'rows':'fail','error': 'Internal server error'}), 500
+
+    @app.route('/genAI/editTemp', methods=['POST'])
+    def editTemp():
+        try:
+            request_data = request.get_json()
+            required_fields = ["id","userinfo"]
+            if all(field not in request_data for field in required_fields):
+                return jsonify({'error': 'Invalid request data'}), 400
+            client_name = getClientName(request_data)
+            dbsession = client[client_name]
+
+            document = dbsession.GenAI_Templates.find_one({"_id":ObjectId(request_data["id"]),"userinfo.userid":request_data["userinfo"]["userid"]})
+            if not document:
+                return jsonify({'rows':'fail','error': ' document not found '}), 404
+            for key,value in request_data["items"].items():
+                document[key] = value
+
+            document["updatedAt"] = datetime.now()
+            update_document =  dbsession.GenAI_Templates.replace_one({"_id":ObjectId(request_data["id"])},document)  
+            if update_document.acknowledged:
+                return jsonify({'rows':'success', 'message': 'templates updated successfully'}), 200
+            else:
+                return jsonify({'rows':'fail','error': ' failed to update model '}), 500
+
+        except Exception as e:
+            app.logger.error(f"Error: {str(e)}")
+            return jsonify({'rows':'fail','error': 'Internal server error'}), 500
+
+    @app.route('/genAI/deleteTemp', methods=['POST'])
+    def deleteTemp():
+        try:
+            request_data = request.get_json()
+            required_fields = ["id","userinfo"]
+            if all(field not in request_data for field in required_fields):
+                return jsonify({'error': 'Invalid request data'}), 400
+            client_name = getClientName(request_data)
+            dbsession = client[client_name]
+            doc_id = request_data["id"]
+            deleted_document = dbsession.GenAI_Templates.find_one_and_delete({"_id":ObjectId(doc_id),"userinfo.userid":request_data["userinfo"]["userid"]})
+            if not deleted_document:
+                return jsonify({'rows':'fail','error': ' document not found '}), 404
+              
+            return jsonify({'rows':'success', 'message': f"{doc_id} model deleted"}), 200
+
+        except Exception as e:
+            app.logger.error(f"Error: {str(e)}")
+            return jsonify({'rows':'fail','error': 'Internal server error'}), 500                
