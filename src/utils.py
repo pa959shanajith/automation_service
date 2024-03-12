@@ -239,7 +239,8 @@ ecodeServices = {
     "updateScenarioComparisionStatus":"475",
     "updateTestSuiteInUseBy":"476",
     "createKeyword": "477",
-    "multipleProvisionICE":"478"
+    "multipleProvisionICE":"478",
+    "unLock_TestSuites": "479"
 }
 
 

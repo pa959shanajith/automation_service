@@ -2177,3 +2177,32 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
         except Exception as getUsersexc:
             servicesException("getUsers_ICE", getUsersexc, True)
         return jsonify(res)
+
+
+    @app.route('/admin/unLock_TestSuites', methods=['POST'])
+    def unLockTestSites():
+        app.logger.debug("Inside unlocktestsuites")
+        res={'rows':'fail'}
+        try:
+            requestdata = json.loads(request.data)
+            clientName=getClientName(requestdata)
+            dbsession=client[clientName]
+            if not isemptyrequest(requestdata):
+                if requestdata['qurey'] == "empty":
+                    mindmapData = list(dbsession.mindmaps.find({}, {'_id': 1 , 'name': 1 ,'currentlyinuse': 1, 'type':1 }))
+                    filtered_data = []
+                    for mind in mindmapData:
+                        if mind['currentlyinuse'] != '':
+                            # Perform filtering or processing on the data
+                            # For example, you could append the mind to the filtered_data list
+                            filtered_data.append(mind)
+
+                    res = {'rows': filtered_data}
+                elif requestdata['qurey'] == "unlock":
+                    dbsession.mindmaps.update_one({'_id':ObjectId(requestdata['id'])},{"$set":{"currentlyinuse":""}}) 
+                    res = {'rows': requestdata['name']}
+            else:
+                app.logger.warn('Empty Data received.')
+        except Exception as unlocktestsuitexc:
+            servicesException("unLockTestSites", unlocktestsuitexc, True)
+        return jsonify(res)
