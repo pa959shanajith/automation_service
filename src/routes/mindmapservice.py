@@ -817,6 +817,7 @@ def LoadServices(app, redissession, client ,getClientName):
                     "createdon":createdon,
                     "deleted":False,
                     "parent" : [],
+                    "screenids" : [],
                     "modifiedby":ObjectId(requestdata['createdby']),
                     "modifiedbyrole":ObjectId(requestdata['createdbyrole']),
                     "modifiedon":createdon,
@@ -1481,8 +1482,6 @@ def LoadServices(app, redissession, client ,getClientName):
                     for order in elerepo[0]["orderlist"]:
                         dbsession.dataobjects.delete_one({"_id" : ObjectId(order)})
             dbsession.elementrepository.delete_one({"_id" : ObjectId(repoid)})
-
-
             res= {'rows' : 'success'}
         except Exception as e:
             servicesException("deleteElementRepo", e, True)

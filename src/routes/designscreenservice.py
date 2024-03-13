@@ -342,8 +342,18 @@ def LoadServices(app, redissession, client ,getClientName):
                         payload['scrapedurl'] = ""
                     if 'elementrepo' in data:
                         dbsession.elementrepository.update({"_id":screenId},{"$set": payload})
+                        scrId = dbsession.elementrepository.find_one({"_id":screenId},{"screenids":1})
+                        for screen in scrId["screenids"]:
+                            dbsession.screens.update({"_id":ObjectId(screen)},{"$set": payload})
+                            for order in payload["orderlist"]:
+                                dbsession.dataobjects.update({"_id": ObjectId(order)}, {"$push":{"parent": ObjectId(screen)}})
                     else:
                         dbsession.screens.update({"_id":screenId},{"$set": payload})
+                        elementid = dbsession.screens.find_one({"_id":screenId},{"elementrepoused" : 1})
+                        for orderlst in payload["orderlist"]:
+                            dbsession.dataobjects.update({"_id": ObjectId(orderlst)}, {"$push":{"parent": ObjectId(elementid["elementrepoused"])}})
+                        dbsession.elementrepository.update({"_id":ObjectId(elementid["elementrepoused"])},{"$set": payload})
+
                     res={"rows":"Success"}
                 if data['param'] == 'renameElenemt':
                     dbsession.dataobjects.update_one({'_id': ObjectId(data['modifiedObj'][0]["id"])},{'$set':{'custname':data['modifiedObj'][0]["custname"]}})
@@ -420,6 +430,9 @@ def LoadServices(app, redissession, client ,getClientName):
                     scrapedurl=currentrepository['scrapedurl']
                     screenshot=currentrepository['screenshot']
                     dbsession.screens.update({"_id":ObjectId( data["screenId"])},{'$set':{'orderlist':data["orderList"],'elementrepoused':data['elementrepoid'],'screenshot':screenshot,'scrapedurl':scrapedurl}})
+                    eleid = dbsession.elementrepository.find_one({"_id": ObjectId(data["elementrepoid"])}, {"screenids": 1})
+                    if data["screenId"] not in eleid["screenids"]:
+                        dbsession.elementrepository.update({"_id":ObjectId(data["elementrepoid"])},{'$push':{'screenids':data["screenId"]}})
                     for ordId in data['orderList']:
                         dbsession.dataobjects.update({'_id': ObjectId(ordId)},{"$push":{'parent':ObjectId(data["screenId"])}})
                     res={"rows": "Success"}
