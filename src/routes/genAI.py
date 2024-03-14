@@ -251,11 +251,16 @@ def LoadServices(app, redissession, client ,getClientName):
                 return jsonify({'rows':'fail','error': ' document not found '}), 404
             for key,value in request_data["items"].items():
                 document[key] = value
+            document.pop("model_details", None)
+            find_model_details = dbsession.GenAI_Models.find_one({"_id":ObjectId(request_data["items"]["model_id"]),"userinfo.userid":request_data["userinfo"]["userid"]},
+                                                                 {"userinfo":0,"createdAt":0,"updatedAt":0})
+            if not find_model_details:
+                return jsonify({'rows':'fail','error': ' document not found '}), 404    
             # for key in list(document.keys()):
             #     if key == "modeltype":    
-
+            document["model_details"] = find_model_details
             document["updatedAt"] = datetime.now()
-            update_document =  dbsession.GenAI_Templates.update_one({"_id":ObjectId(request_data["id"])},document)  
+            update_document =  dbsession.GenAI_Templates.replace_one({"_id":ObjectId(request_data["id"])},document)  
             if update_document.acknowledged:
                 return jsonify({'rows':'success', 'message': 'templates updated successfully'}), 200
             else:
