@@ -1001,7 +1001,7 @@ def LoadServices(app, redissession, client ,getClientName):
             # Extract the value for "genAIurl" key from the loaded JSON data
             # addr = conf.get("genAIurl", None)
             addr = "https://avogenerativeai.avoautomation.com"
-            test_url = addr + '/send_pdf'
+            test_url = addr + '/send_text'
             # files = request_data['file']
             files = {'file': (filename, open(destination_path, 'rb'))}
             data={'instancename':request_data['organization'],'projectname':request_data['project'],'type':request_data['type'],'username':request_data['name']}
@@ -1100,7 +1100,7 @@ def LoadServices(app, redissession, client ,getClientName):
     def generateTestcase():
         try:
             request_data = request.get_json()
-            required_fields = ['email', 'name', 'projectname', 'organization', 'generateType']
+            required_fields = ['email', 'name', 'projectname', 'organization', 'generateType','template_id']
             if all(field not in request_data and ('generateType' not in request_data or 'typename' not in request_data['generateType']) for field in required_fields):
                 return jsonify({'error': 'Invalid request data'}), 400
             headers = {
@@ -1116,10 +1116,18 @@ def LoadServices(app, redissession, client ,getClientName):
 
             # Extract the value for "genAIurl" key from the loaded JSON data
             # addr = conf.get("genAIurl", None)
-            addr = "https://aiapidevtest.avoassurecloud.com"
+            client_name = getClientName(request_data)
+            dbsession = client[client_name]
+            tempate_document = dbsession.GenAI_Templates.find_one({"_id":ObjectId(request_data["template_id"])},{"userinfo":0,"createdAt":0,
+                                                                "updatedAt":0,"_id":0,"model_details._id":0,"default":0,"active":0})
+            if not tempate_document:
+                return jsonify({'rows':'fail','error': ' document not found '}), 404
+            
+            addr = "https://avogenerativeai.avoautomation.com"
             test_url = addr + '/generate_testcase'
-           
-            data={'generate_type':request_data['generateType'], 'instancename':request_data['organization'],'projectname':request_data['project'],'email':request_data['email'],'username':request_data['name']}
+            print(tempate_document)
+            data={'generate_type':request_data['generateType'], 'instancename':request_data['organization'],'projectname':request_data['project'],
+                  'email':request_data['email'],'username':request_data['name'],"template_info":tempate_document}
             json_data = json.dumps(data)
             response = requests.post(test_url,headers=headers,data=json_data,verify = False,timeout=None)
             if response.status_code == 200:
