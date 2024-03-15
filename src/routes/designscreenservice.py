@@ -63,7 +63,7 @@ def LoadServices(app, redissession, client ,getClientName):
                         if "scrapeinfo" in screen_query and 'header' in screen_query["scrapeinfo"]:
                             dataobj_query = [screen_query["scrapeinfo"]]
                         for data in dataobj_query:
-                            if len(data["parent"]) > 1:
+                            if len(data["parent"]) > 2:
                                 data["reused"] = True
                             else:
                                 data["reused"] = False
@@ -347,7 +347,7 @@ def LoadServices(app, redissession, client ,getClientName):
                             dbsession.screens.update({"_id":ObjectId(screen)},{"$set": payload})
                             for order in payload["orderlist"]:
                                 dbsession.dataobjects.update({"_id": ObjectId(order)}, {"$push":{"parent": ObjectId(screen)}})
-                    else:
+                    elif len(data["deletedObj"]) == 0:
                         dbsession.screens.update({"_id":screenId},{"$set": payload})
                         elementid = dbsession.screens.find_one({"_id":screenId},{"elementrepoused" : 1})
                         for orderlst in payload["orderlist"]:

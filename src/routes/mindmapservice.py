@@ -1672,15 +1672,49 @@ def LoadServices(app, redissession, client ,getClientName):
                                     else:
                                       if orderlist != None:
                                          if len(orderlist) == 24:
-                                            dataobjectsParent  = dbsession.dataobjects.find_one({'_id':ObjectId(orderlist)},{'parent':1})                                
-                                    if dataobjectsParent != None:
-                                        if len(dataobjectsParent['parent']) > 1:
-                                            for i, value in enumerate(screenid['orderlist']):
+                                            dataobjectsParent  = dbsession.dataobjects.find_one({'_id':ObjectId(orderlist)},{'parent':1}) 
+                                            conuntorderlist = list(dbsession.elementrepository.find({"orderlist": orderlist}) )
+                                    if len(conuntorderlist) > 1 :
+                                        for i, value in enumerate(screenid['orderlist']):
                                                 if value == orderlist:
                                                     if isinstance(value, dict):
                                                         screenid['orderlist'][i] = {'_id': value['_id'], 'flag': True}
                                                     else:
                                                         screenid['orderlist'][i] = {'_id': value, 'flag': True}
+#-----------------------++++code might required for backup++++--------------------------------------------------
+                                    # if dataobjectsParent != None:
+                                    #     if len(dataobjectsParent['parent']) > 2 :
+                                    #         for i, value in enumerate(screenid['orderlist']):
+                                    #             if value == orderlist:
+                                    #                 if isinstance(value, dict):
+                                    #                     screenid['orderlist'][i] = {'_id': value['_id'], 'flag': True}
+                                    #                 else:
+                                    #                     screenid['orderlist'][i] = {'_id': value, 'flag': True}
+                                    #     elif len(dataobjectsParent['parent']) == 2:
+                                    #         reuseElementRepo = 0
+                                    #         reuseScreen = 0
+                                    #         for id in dataobjectsParent["parent"]:
+                                    #             elementId = list(dbsession.elementrepository.find({"_id" : id},{"_id":1}))
+                                    #             screenId=list(dbsession.screens.find({"_id" : id},{"_id":1}))
+                                    #             if elementId:
+                                    #                 reuseElementRepo=reuseElementRepo+1
+                                    #             else:
+                                    #                 reuseScreen=reuseScreen+1
+                                                    
+                                    #             # for elem in elementId:
+                                    #             #     if dataiobject == elem["_id"]:
+                                    #             #         reuse.append(True)
+                                    #             #     else:
+                                    #             #         reuse.append(False)
+                                    #         print (reuseElementRepo)
+                                    #         print (reuseScreen)
+                                    #         if  reuseScreen == 2 or reuseElementRepo == 2:
+                                    #             for i, value in enumerate(screenid['orderlist']):
+                                    #                 if value == orderlist:
+                                    #                     if isinstance(value, dict):
+                                    #                         screenid['orderlist'][i] = {'_id': value['_id'], 'flag': True}
+                                    #                     else:
+                                    #                         screenid['orderlist'][i] = {'_id': value, 'flag': True}
                                 scrn_det.append(screenid)                              
  
                             else:
