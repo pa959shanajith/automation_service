@@ -546,7 +546,7 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
                         if result1: prj_list.append(result1)
                     res={"rows":prj_list}
                 elif requestdata["type"] == "domaindetails":
-                    result=list(dbsession.projects.find({"domain":requestdata["id"]},{"name":1}))
+                    result=list(dbsession.projects.find({"domain":{ '$regex': '^(banking|Banking)$', '$options': 'i' }},{"name":1}))
                     res={"rows":result}
                 elif requestdata["type"] == "projectsdetails":
                     result=dbsession.projects.find_one({"_id":ObjectId(requestdata["id"])},{"releases":1,"domain":1,"name":1,"type":1})
@@ -779,6 +779,29 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
                     for i in requestdata["projectids"]:
                         projects.append(ObjectId(i))
                     result=dbsession.users.update_one({"_id":ObjectId(requestdata["userid"])},{"$set":{"projects":projects}})
+                    if len(requestdata["projectids"])>0:
+                        for i in requestdata["projectids"]:
+                            user = dbsession.users.find_one({"_id":ObjectId(requestdata["userid"])})
+                            default_role_id = list(dbsession.permissions.find({ "_id": user["defaultrole"] }, {"_id": 1}))
+                            project_exists=dbsession.users.find_one({"_id":ObjectId(requestdata["userid"]),"projects":ObjectId(i)})
+                            if project_exists:
+                                projectlevelroles=[]
+                                if len(project_exists['projectlevelrole'])>0:
+                                    for project1 in project_exists['projectlevelrole']:
+                                        if project1["_id"] == i:
+                                            project1["assignedrole"] =str(default_role_id[0]["_id"])
+                                            projectlevelroles.append(project1)
+                                        else:
+                                            projectlevelroles.append(project1)
+                                else:
+                                    for j in requestdata['projectids']:
+                                        project1={}
+                                        project1['_id'] = j
+                                        project1["assignedrole"] =str(default_role_id[0]["_id"])
+                                        projectlevelroles.append(project1)
+                    else:
+                        projectlevelroles=[]
+                    result=dbsession.users.update_one({"_id":ObjectId(requestdata["userid"])},{"$set":{"projectlevelrole":projectlevelroles}})
                     res={'rows':'success'}
                 elif (requestdata['alreadyassigned'] == True):
                     result=[]
@@ -786,18 +809,48 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
                         result.append(ObjectId(i))
                     diff_pro=list(set(assigned_pro) - set(result))
                     remove_pro=[]
-                    for k,v in project.items():
+                    if isinstance(requestdata['domainid'], list):
                         for i in range(0,len(diff_pro)):
-                            if k != requestdata["domainid"] and diff_pro[i] in v:
-                                result.append(diff_pro[i])
-                            elif k == requestdata["domainid"] and diff_pro[i] in v:
-                                remove_pro.append(diff_pro[i])
-                                username=dbsession.users.find_one({'_id':ObjectId(requestdata["userid"])})["name"]
-                                findquery = {"projectid":diff_pro[i],"currentlyinuse":username}
-                                listofmodules=list(dbsession.mindmaps.find(findquery))
-                                for module in listofmodules:
-                                    dbsession.mindmaps.update_one({'_id':module['_id']},{"$set":{"currentlyinuse":""}})
+                            remove_pro.append(diff_pro[i])
+                            username=dbsession.users.find_one({'_id':ObjectId(requestdata["userid"])})["name"]
+                            findquery = {"projectid":diff_pro[i],"currentlyinuse":username}
+                            listofmodules=list(dbsession.mindmaps.find(findquery))
+                            for module in listofmodules:
+                                dbsession.mindmaps.update_one({'_id':module['_id']},{"$set":{"currentlyinuse":""}})
+                    else:
+                        for k,v in project.items():
+                            for i in range(0,len(diff_pro)):
+                                if k != requestdata['domainid'] and diff_pro[i] in v:
+                                    result.append(diff_pro[i])
+                                elif k == requestdata['domainis'] and diff_pro[i] in v:
+                                    remove_pro.append(diff_pro[i])
+                                    username=dbsession.users.find_one({'_id':ObjectId(requestdata["userid"])})["name"]
+                                    findquery = {"projectid":diff_pro[i],"currentlyinuse":username}
+                                    listofmodules=list(dbsession.mindmaps.find(findquery))
+                                    for module in listofmodules:
+                                        dbsession.mindmaps.update_one({'_id':module['_id']},{"$set":{"currentlyinuse":""}})
                     result=dbsession.users.update_one({"_id":ObjectId(requestdata["userid"])},{"$set":{"projects":result}})
+                    if len(requestdata["projectids"])>0:
+                        projectlevelroles=[]
+                        for i in requestdata["projectids"]:
+                            user = dbsession.users.find_one({"_id":ObjectId(requestdata["userid"])})
+                            default_role_id = list(dbsession.permissions.find({ "_id": user["defaultrole"] }, {"_id": 1}))
+                            project_exists=dbsession.users.find_one({"_id":ObjectId(requestdata["userid"]),"projects":ObjectId(i)})
+                            if project_exists:
+                                if i not in [project['_id'] for project in project_exists['projectlevelrole']]:
+                                    project1={}
+                                    project1["_id"] = i
+                                    project1["assignedrole"] =str(default_role_id[0]["_id"])
+                                    projectlevelroles.append(project1)
+                                else:
+                                    for project1 in project_exists['projectlevelrole']:
+                                        if project1["_id"] == i:
+                                            project1["assignedrole"] =str(default_role_id[0]["_id"])
+                                            projectlevelroles.append(project1)
+                                            break
+                    else:
+                        projectlevelroles=[]
+                    result=dbsession.users.update_one({"_id":ObjectId(requestdata["userid"])},{"$set":{"projectlevelrole":projectlevelroles}})
                     dbsession.tasks.delete_many({"projectid":{"$in":remove_pro},"assignedto":ObjectId(requestdata["userid"]),"status":{"$ne":'complete'}})
                     dbsession.tasks.delete_many({"projectid":{"$in":remove_pro},"owner":ObjectId(requestdata["userid"]),"status":{"$ne":'complete'}})
                     dbsession.tasks.update_many({"projectid":{"$in":remove_pro},"reviewer":ObjectId(requestdata["userid"]),"status":{"$ne":'complete'}},{"$set":{"status":"inprogress","reviewer":""}})
@@ -828,7 +881,7 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
                     projectids=[]
                     for i in requestdata["projectid"]:
                         projectids.append(ObjectId(i))
-                    result=list(dbsession.projects.find({"_id":{"$in":projectids},"domain":requestdata["domain"]},{"name":1}))
+                    result=list(dbsession.projects.find({"_id":{"$in":projectids},"domain":{ "$regex": '^(Banking|banking)$', "$options": 'i' }},{"name":1}))
                     res={"rows":result}
                 else:
                     res={'rows':'fail'}
@@ -2177,7 +2230,7 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
         except Exception as getUsersexc:
             servicesException("getUsers_ICE", getUsersexc, True)
         return jsonify(res)
-
+    
 
     @app.route('/admin/unLock_TestSuites', methods=['POST'])
     def unLockTestSites():
@@ -2201,6 +2254,16 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
                 elif requestdata['qurey'] == "unlock":
                     dbsession.mindmaps.update_one({'_id':ObjectId(requestdata['id'])},{"$set":{"currentlyinuse":""}}) 
                     res = {'rows': requestdata['name']}
+                elif requestdata['qurey'] == "projectDomain":
+                    projectDomainName = []
+                    for projectidss in requestdata['projectidss']:
+                        # Assuming dbsession.projects is your collection and you're using MongoDB
+                        # Assuming requestdata['projectidss'] is a list of dictionaries with 'projectid' keys
+                        project_domain = dbsession.projects.find_one({'_id': ObjectId(projectidss['projectid'])}, {"domain": 1})
+                        if project_domain:
+                            projectDomainName.append(project_domain.get("domain", None))
+
+                    res = {'rows': projectDomainName}
             else:
                 app.logger.warn('Empty Data received.')
         except Exception as unlocktestsuitexc:
