@@ -72,7 +72,8 @@ def LoadServices(app, redissession, client ,getClientName):
                                         "scrapedurl": (screen_query["scrapedurl"] if ("scrapedurl" in screen_query) else ""),
                                         "mirror": (screen_query["screenshot"] if ("screenshot" in screen_query) else ""),
                                         "reuse": True if("parent" in screen_query and len(screen_query["parent"])>1) else False,
-                                        "orderlist": (screen_query["orderlist"] if ("orderlist" in screen_query) else [])
+                                        "orderlist": (screen_query["orderlist"] if ("orderlist" in screen_query) else []),
+                                        "elementrepoused" :screen_query["elementrepoused"][0]
                                       }
                         for scraped_obj in res["rows"]["view"]:
                             xpath_string=scraped_obj["xpath"].split(';')
@@ -351,8 +352,8 @@ def LoadServices(app, redissession, client ,getClientName):
                         dbsession.screens.update({"_id":screenId},{"$set": payload})
                         elementid = dbsession.screens.find_one({"_id":screenId},{"elementrepoused" : 1})
                         for orderlst in payload["orderlist"]:
-                            dbsession.dataobjects.update({"_id": ObjectId(orderlst)}, {"$push":{"parent": ObjectId(elementid["elementrepoused"])}})
-                        dbsession.elementrepository.update({"_id":ObjectId(elementid["elementrepoused"])},{"$set": payload})
+                            dbsession.dataobjects.update({"_id": ObjectId(orderlst)}, {"$push":{"parent": ObjectId(elementid["elementrepoused"][0]["_id"])}})
+                        dbsession.elementrepository.update({"_id":ObjectId(elementid["elementrepoused"][0]["_id"])},{"$set": payload})
 
                     res={"rows":"Success"}
                 if data['param'] == 'renameElenemt':
