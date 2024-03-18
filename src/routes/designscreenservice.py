@@ -348,11 +348,17 @@ def LoadServices(app, redissession, client ,getClientName):
                             dbsession.screens.update({"_id":ObjectId(screen)},{"$set": payload})
                             for order in payload["orderlist"]:
                                 dbsession.dataobjects.update({"_id": ObjectId(order)}, {"$push":{"parent": ObjectId(screen)}})
-                    elif len(data["deletedObj"]) == 0:
+                    else:
                         dbsession.screens.update({"_id":screenId},{"$set": payload})
                         elementid = dbsession.screens.find_one({"_id":screenId},{"elementrepoused" : 1})
                         for orderlst in payload["orderlist"]:
-                            dbsession.dataobjects.update({"_id": ObjectId(orderlst)}, {"$push":{"parent": ObjectId(elementid["elementrepoused"][0]["_id"])}})
+                            parentid = dbsession.dataobjects.find_one({"_id":ObjectId(orderlst)},{"parent" : 1})
+                            if ObjectId(elementid["elementrepoused"][0]["_id"]) not in parentid["parent"]:
+                                dbsession.dataobjects.update({"_id": ObjectId(orderlst)}, {"$push":{"parent": ObjectId(elementid["elementrepoused"][0]["_id"])}})
+                            elif data["deletedObj"]:
+                                for parent in data["deletedObj"]:
+                                    dbsession.dataobjects.update_many({"_id": ObjectId(parent),"$and":[{"parent.1":{"$exists":True}},{"parent":ObjectId(elementid["elementrepoused"][0]["_id"])}]},{"$pull":{"parent":ObjectId(elementid["elementrepoused"][0]["_id"])}})
+                                    dbsession.dataobjects.delete_many({"_id":ObjectId(parent),"$and":[{"parent":{"$size": 1}},{"parent":ObjectId(elementid["elementrepoused"][0]["_id"])}]})
                         dbsession.elementrepository.update({"_id":ObjectId(elementid["elementrepoused"][0]["_id"])},{"$set": payload})
 
                     res={"rows":"Success"}
@@ -454,11 +460,20 @@ def LoadServices(app, redissession, client ,getClientName):
                     res={"rows": "Success"}
                 if data["param"] == 'screenPaste':
                     for ordlist in data['orderList']:
-                        existingorderlist=dbsession.elementrepository.find_one({"_id": ObjectId(data["screenId"])},{'orderlist': ordlist})
-                        object_id_hex = str(existingorderlist['_id'])
+                        existingorderlist=dbsession.elementrepository.find_one({"_id": ObjectId(data["screenId"])},{'orderlist': ordlist, "screenids" : 1})
+                        object_id_hex = str(existingorderlist['_id'])        
                         if ordlist != object_id_hex:
                             dbsession.elementrepository.update({"_id":ObjectId( data["screenId"])},{'$push':{'orderlist': ordlist}})
-                            dbsession.dataobjects.update({'_id': ObjectId(ordlist)},{"$push":{'parent':ObjectId(data["screenId"])}})
+                            dataid = dbsession.dataobjects.find_one({'_id': ObjectId(ordlist)},{'parent':1})
+                            if ObjectId(data["screenId"]) not in  dataid["parent"]:
+                                dbsession.dataobjects.update({'_id': ObjectId(ordlist)},{"$push":{'parent':ObjectId(data["screenId"])}})
+                            if existingorderlist["screenids"]:
+                                for orderids in existingorderlist["screenids"]:
+                                    dbsession.screens.update({"_id":ObjectId( orderids)},{'$push':{'orderlist': ordlist}})
+                                    dataid = dbsession.dataobjects.find_one({'_id': ObjectId(ordlist)},{'parent':1})
+                                    if ObjectId(orderids) not in  dataid["parent"]:
+                                        dbsession.dataobjects.update({'_id': ObjectId(ordlist)},{"$push":{'parent':ObjectId(orderids)}})
+
                             res={"rows": "Success"}
                         else:
                             res={"rows":"Element all ready present"}
