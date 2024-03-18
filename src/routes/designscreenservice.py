@@ -73,7 +73,7 @@ def LoadServices(app, redissession, client ,getClientName):
                                         "mirror": (screen_query["screenshot"] if ("screenshot" in screen_query) else ""),
                                         "reuse": True if("parent" in screen_query and len(screen_query["parent"])>1) else False,
                                         "orderlist": (screen_query["orderlist"] if ("orderlist" in screen_query) else []),
-                                        "elementrepoused" :screen_query["elementrepoused"][0]
+                                        "elementrepoused" :screen_query["elementrepoused"][0] if ("elementrepoused" in screen_query) else []
                                       }
                         for scraped_obj in res["rows"]["view"]:
                             xpath_string=scraped_obj["xpath"].split(';')
@@ -441,6 +441,9 @@ def LoadServices(app, redissession, client ,getClientName):
                     currentrepository=dbsession.elementrepository.find_one({"_id":ObjectId(data["elementrepoid"]["id"])})
                     scrapedurl=currentrepository['scrapedurl']
                     screenshot=currentrepository['screenshot']
+                    eleid = dbsession.elementrepository.find_one({"_id": ObjectId(data["elementrepoid"]["id"])}, {"screenids": 1})
+                    if data["screenId"] not in eleid["screenids"]:
+                        dbsession.elementrepository.update({"_id":ObjectId(data["elementrepoid"]["id"])},{'$push':{'screenids':data["screenId"]}})
                     for dataobject in data['oldOrderList']:
                         dbsession.dataobjects.update({'_id': ObjectId(dataobject)},{"$pull":{'parent' : ObjectId(data["screenId"])}})
                     for dataobject in data['orderList']:
