@@ -52,13 +52,18 @@ def LoadServices(app, redissession, client ,getClientName):
                 else:
                     screen_id = ObjectId(requestdata['screenid'])
                 if (requestdata['query'] == 'getscrapedata'):
-                    screen_query=dbsession.screens.find_one({"_id":screen_id,"deleted":False})
+                    if(requestdata['params']=="elementRepo"):
+                        screen_query=dbsession.elementrepository.find_one({"_id":screen_id,"deleted":False})
+                    else:
+                        screen_query=dbsession.screens.find_one({"_id":screen_id,"deleted":False})
+
+                      
                     if (screen_query != []):
                         dataobj_query = list(dbsession.dataobjects.find({"parent" :screen_id}))
                         if "scrapeinfo" in screen_query and 'header' in screen_query["scrapeinfo"]:
                             dataobj_query = [screen_query["scrapeinfo"]]
                         for data in dataobj_query:
-                            if len(data["parent"]) > 1:
+                            if len(data["parent"]) > 2:
                                 data["reused"] = True
                             else:
                                 data["reused"] = False
@@ -67,7 +72,8 @@ def LoadServices(app, redissession, client ,getClientName):
                                         "scrapedurl": (screen_query["scrapedurl"] if ("scrapedurl" in screen_query) else ""),
                                         "mirror": (screen_query["screenshot"] if ("screenshot" in screen_query) else ""),
                                         "reuse": True if("parent" in screen_query and len(screen_query["parent"])>1) else False,
-                                        "orderlist": (screen_query["orderlist"] if ("orderlist" in screen_query) else [])
+                                        "orderlist": (screen_query["orderlist"] if ("orderlist" in screen_query) else []),
+                                        "elementrepoused" :screen_query["elementrepoused"][0] if ("elementrepoused" in screen_query) else []
                                       }
                         for scraped_obj in res["rows"]["view"]:
                             xpath_string=scraped_obj["xpath"].split(';')
@@ -391,9 +397,16 @@ def LoadServices(app, redissession, client ,getClientName):
                             screenshot = data['addedObj']['mirror']
                             if "scrapedurl" in data['addedObj']:
                                 scrapedurl = data['addedObj']["scrapedurl"]
-                                dbsession.screens.update({"_id":screenId},{"$set":{"screenshot":screenshot,"scrapedurl":scrapedurl}})
+                                if 'elementrepo' in data:
+                                        dbsession.elementrepository.update({"_id":screenId},{"$set":{"screenshot":screenshot,"scrapedurl":scrapedurl}})
+                                else:
+                                        dbsession.screens.update({"_id":screenId},{"$set":{"screenshot":screenshot,"scrapedurl":scrapedurl}})
                             else:
-                                dbsession.screens.update({"_id":screenId},{"$set":{"screenshot":screenshot}})
+                                if 'elementrepo' in data:
+                                    dbsession.elementrepository.update({"_id":screenId},{"$set":{"screenshot":screenshot}})
+                                else:
+                                    dbsession.screens.update({"_id":screenId},{"$set":{"screenshot":screenshot}})
+
                         elif 'scrapeinfo' in data['addedObj']:
                             scrapeinfo=data['addedObj']['scrapeinfo']
                             dbsession.screens.update({"_id":screenId},{"$set":{"scrapedurl":scrapeinfo["endPointURL"], 'scrapeinfo':scrapeinfo}})
@@ -402,8 +415,26 @@ def LoadServices(app, redissession, client ,getClientName):
                     if (len(orderList)<=0):
                         payload['screenshot'] = ""
                         payload['scrapedurl'] = ""
+                    if 'elementrepo' in data:
+                        dbsession.elementrepository.update({"_id":screenId},{"$set": payload})
+                        scrId = dbsession.elementrepository.find_one({"_id":screenId},{"screenids":1})
+                        for screen in scrId["screenids"]:
+                            dbsession.screens.update({"_id":ObjectId(screen)},{"$set": payload})
+                            for order in payload["orderlist"]:
+                                dbsession.dataobjects.update({"_id": ObjectId(order)}, {"$push":{"parent": ObjectId(screen)}})
+                    else:
+                        dbsession.screens.update({"_id":screenId},{"$set": payload})
+                        elementid = dbsession.screens.find_one({"_id":screenId},{"elementrepoused" : 1})
+                        for orderlst in payload["orderlist"]:
+                            parentid = dbsession.dataobjects.find_one({"_id":ObjectId(orderlst)},{"parent" : 1})
+                            if ObjectId(elementid["elementrepoused"][0]["_id"]) not in parentid["parent"]:
+                                dbsession.dataobjects.update({"_id": ObjectId(orderlst)}, {"$push":{"parent": ObjectId(elementid["elementrepoused"][0]["_id"])}})
+                            elif data["deletedObj"]:
+                                for parent in data["deletedObj"]:
+                                    dbsession.dataobjects.update_many({"_id": ObjectId(parent),"$and":[{"parent.1":{"$exists":True}},{"parent":ObjectId(elementid["elementrepoused"][0]["_id"])}]},{"$pull":{"parent":ObjectId(elementid["elementrepoused"][0]["_id"])}})
+                                    dbsession.dataobjects.delete_many({"_id":ObjectId(parent),"$and":[{"parent":{"$size": 1}},{"parent":ObjectId(elementid["elementrepoused"][0]["_id"])}]})
+                        dbsession.elementrepository.update({"_id":ObjectId(elementid["elementrepoused"][0]["_id"])},{"$set": payload})
 
-                    dbsession.screens.update({"_id":screenId},{"$set": payload})
                     res={"rows":"Success"}
                 if data['param'] == 'renameElenemt':
                     dbsession.dataobjects.update_one({'_id': ObjectId(data['modifiedObj'][0]["id"])},{'$set':{'custname':data['modifiedObj'][0]["custname"]}})
@@ -475,27 +506,62 @@ def LoadServices(app, redissession, client ,getClientName):
                                         dbsession.testcases.update({"_id":updateteststeps,"screenid":updatescreen},{"$set":{"screenid":ObjectId(data['updateScreen'])}})
                             dbsession.screens.update({"_id":ObjectId( data["updateScreen"])},{'$push':{'parent': ObjectId(data['parent'])}})
                     res={"rows":data['moduleID']}
+                if data['param'] == 'updateOrderList':
+                    currentrepository=dbsession.elementrepository.find_one({"_id":ObjectId(data["elementrepoid"]["id"])})
+                    scrapedurl=currentrepository['scrapedurl']
+                    screenshot=currentrepository['screenshot']
+                    dbsession.screens.update({"_id":ObjectId( data["screenId"])},{'$set':{'orderlist':data["orderList"],'elementrepoused':[{"_id":data["elementrepoid"]['id'], "name":data["elementrepoid"]['name']}],'screenshot':screenshot,'scrapedurl':scrapedurl}})
+                    eleid = dbsession.elementrepository.find_one({"_id": ObjectId(data["elementrepoid"]["id"])}, {"screenids": 1})
+                    if data["screenId"] not in eleid["screenids"]:
+                        dbsession.elementrepository.update({"_id":ObjectId(data["elementrepoid"]["id"])},{'$push':{'screenids':data["screenId"]}})
+                    for ordId in data['orderList']:
+                        dbsession.dataobjects.update({'_id': ObjectId(ordId)},{"$push":{'parent':ObjectId(data["screenId"])}})
+                    res={"rows": "Success"}
+                if data['param'] =='updateOrderListAndRemoveParentId':
+                    currentrepository=dbsession.elementrepository.find_one({"_id":ObjectId(data["elementrepoid"]["id"])})
+                    scrapedurl=currentrepository['scrapedurl']
+                    screenshot=currentrepository['screenshot']
+                    eleid = dbsession.elementrepository.find_one({"_id": ObjectId(data["elementrepoid"]["id"])}, {"screenids": 1})
+                    if data["screenId"] not in eleid["screenids"]:
+                        dbsession.elementrepository.update({"_id":ObjectId(data["elementrepoid"]["id"])},{'$push':{'screenids':data["screenId"]}})
+                    for dataobject in data['oldOrderList']:
+                        dbsession.dataobjects.update({'_id': ObjectId(dataobject)},{"$pull":{'parent' : ObjectId(data["screenId"])}})
+                    for dataobject in data['orderList']:
+                        # existingparent=dbsession.dataobjects.find_one({"_id":ObjectId(dataobject)})['parent']
+                        dbsession.dataobjects.update({'_id': ObjectId(dataobject)},{"$push":{'parent' : ObjectId(data["screenId"])}})
+                        # dbsession.dataobjects.update({"_id":ObjectId(dataobject)},{'$pull':{'parent':ObjectId(data['screenId'])}})
+                    dbsession.screens.update({"_id":ObjectId(data['screenId'])},{"$set":{'orderlist':data['orderList'],'elementrepoused':[{"_id":data["elementrepoid"]['id'], "name":data["elementrepoid"]['name']}], 'screenshot':screenshot,'scrapedurl':scrapedurl}})
+                    res={"rows": "Success"}
                 if data["param"] == 'screenPaste':
                     for ordlist in data['orderList']:
-                        existingorderlist=dbsession.screens.find_one({"_id": ObjectId(data["screenId"])},{'orderlist': ordlist})
-                        object_id_hex = str(existingorderlist['_id'])
+                        existingorderlist=dbsession.elementrepository.find_one({"_id": ObjectId(data["screenId"])},{'orderlist': ordlist, "screenids" : 1})
+                        object_id_hex = str(existingorderlist['_id'])        
                         if ordlist != object_id_hex:
-                            dbsession.screens.update({"_id":ObjectId( data["screenId"])},{'$push':{'orderlist': ordlist}})
-                            dbsession.dataobjects.update({'_id': ObjectId(ordlist)},{"$push":{'parent':ObjectId(data["screenId"])}})
+                            dbsession.elementrepository.update({"_id":ObjectId( data["screenId"])},{'$push':{'orderlist': ordlist}})
+                            dataid = dbsession.dataobjects.find_one({'_id': ObjectId(ordlist)},{'parent':1})
+                            if ObjectId(data["screenId"]) not in  dataid["parent"]:
+                                dbsession.dataobjects.update({'_id': ObjectId(ordlist)},{"$push":{'parent':ObjectId(data["screenId"])}})
+                            if existingorderlist["screenids"]:
+                                for orderids in existingorderlist["screenids"]:
+                                    dbsession.screens.update({"_id":ObjectId( orderids)},{'$push':{'orderlist': ordlist}})
+                                    dataid = dbsession.dataobjects.find_one({'_id': ObjectId(ordlist)},{'parent':1})
+                                    if ObjectId(orderids) not in  dataid["parent"]:
+                                        dbsession.dataobjects.update({'_id': ObjectId(ordlist)},{"$push":{'parent':ObjectId(orderids)}})
+
                             res={"rows": "Success"}
                         else:
                             res={"rows":"Element all ready present"}
                 if data['param'] == 'delElement':
-                    dbsession.screens.update({'_id': ObjectId(data['screenId'])},{"$set":{'orderlist' : data["orderList"]}})
+                    dbsession.elementrepository.update({'_id': ObjectId(data['screenId'])},{"$set":{'orderlist' : data["orderList"]}})
                     for deletedid in data["deletedObj"]:
                         dbsession.dataobjects.update({'_id': ObjectId(deletedid)},{"$pull":{'parent' : ObjectId(data["screenId"])}})
                     res= {"rows" : "Success"}
                 if data['param'] == 'delAllElement':                    
                     for orderlist in data['deletedObj']:
-                        list_order = list(dbsession.screens.find({'orderlist': orderlist},{"_id":1, 'orderlist':1}))
+                        list_order = list(dbsession.elementrepository.find({'orderlist': orderlist},{"_id":1, 'orderlist':1}))
                         for inOrderlist in list_order:                            
                             if orderlist in inOrderlist['orderlist']:
-                                dbsession.screens.update({"_id": inOrderlist['_id']}, {'$pull':{'orderlist': orderlist}})
+                                dbsession.elementrepository.update({"_id": inOrderlist['_id']}, {'$pull':{'orderlist': orderlist}})
                                 dbsession.dataobjects.delete_one({'_id': ObjectId(orderlist)})
                     res= {'rows': "Success"}    
                 elif data["param"] == "mapScrapeData":
