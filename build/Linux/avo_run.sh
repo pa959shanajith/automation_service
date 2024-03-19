@@ -2,6 +2,17 @@
 sed -i 's|^DB_IP=127.0.0.1|DB_IP='"$DB_IP"'|1' /home/webapp/.env;
 sed -i 's|DB_PORT=27017|DB_PORT='"$DB_PORT"'|g' /home/webapp/.env;
 sed -i 's|DB_NAME=avoassure|DB_NAME='"$DB_NAME"'|g' /home/webapp/.env;
+if [[ $IS_PROD = "True" ]]
+then
+    FullVersionNo=$(cat "/home/webapp/version.txt")
+    VersionNo=(${FullVersionNo//-/ })
+    echo ${VersionNo[0]}
+    sed -i 's|"version": ""|"version": '"\"$VersionNo"\"'|g'  /home/webapp/server/config/config.json
+elif [[ $IS_PROD = "False" ]]
+then
+    VersionNo=$(cat "/home/webapp/version.txt")
+    sed -i 's|"version": ""|"version": '"\"$VersionNo"\"'|g'  /home/webapp/server/config/config.json
+fi
 ldconfig /usr/local/lib;
 /usr/bin/redis-server /etc/redis.conf --daemonize yes --supervised systemd >> /home/status.txt 2>&1;
 /usr/sbin/nginx;

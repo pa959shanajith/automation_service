@@ -374,6 +374,59 @@ def LoadServices(app, redissession, client ,getClientName):
                         {'$project':{'objLen':{ '$cond': { 'if': { '$isArray': "$orderlist" },
                          'then': { '$size': "$orderlist" }, 'else': 0}} ,'_id': 1 , 'name': 1,'parent':1}}]))
 
+                    # Check for ObjectId in screenids but not in screendetails
+                    for oid in screenids:
+                        if oid not in [item['_id'] for item in screendetails]:
+                            dbsession.mindmaps.update_one(
+                                {
+                                    "_id": mindmapdata["_id"],
+                                    "testscenarios.screens._id": oid
+                                },
+                                {
+                                    "$pull": {
+                                        "testscenarios.$[scenario].screens": {
+                                            "_id": oid
+                                        }
+                                    }
+                                },
+                                array_filters=[
+                                    {"scenario.screens._id": oid}
+                                ]
+                            )
+                        else:
+                            # Check for ObjectId in testcaseids but not in testcasedetails
+                            for oidTest in testcaseids:
+                                if oidTest not in [item['_id'] for item in testcasedetails]:
+                                    if oidTest in sc.get('testcases'):
+                                        dbsession.mindmaps.update_one(
+                                            {
+                                                "_id": mindmapdata["_id"],
+                                                "testscenarios.screens._id": sc["_id"]
+                                            },
+                                            {
+                                                "$pull": {
+                                                            "testscenarios.$[].screens.$[screen].testcases": oidTest
+                                                         }
+                                            },
+                                            array_filters=[
+                                                {"screen._id": sc["_id"]}
+                                            ]
+                                        )
+                                        for it in ts['screens']:
+                                            if sc["_id"] == it["_id"]:
+                                                if oidTest in it.get('testcases'):
+                                                    dbsession.testscenarios.update_one(
+                                                        {
+                                                            "_id": ts["_id"],
+                                                            "testcaseids": oidTest
+                                                        },
+                                                        {
+                                                            "$pull": {
+                                                                        "testcaseids": oidTest
+                                                                    }
+                                                        },
+                                                    )
+
                     # screendetails = list(dbsession.screens.find(
                     #     {"_id": {"$in": screenids}}, {"_id": 1, "name": 1, "parent": 1,"orderlist":1}))
                     # testcasedetails = list(dbsession.testcases.find(
@@ -382,7 +435,8 @@ def LoadServices(app, redissession, client ,getClientName):
                     scenariodata = {}
                     screendata = {}
                     testcasedata = {}
-                
+                    mindmapdata = dbsession.mindmaps.find_one({"_id": ObjectId(modId)}, {
+                                                            "testscenarios": 1, "_id": 1, "name": 1, "projectid": 1, "type": 1, "versionnumber": 1,"currentlyinuse":1})
                     data_dict = {'testscenarios': scenariodata,
                                 'screens': screendata,
                                 'testcases': testcasedata,
@@ -817,6 +871,7 @@ def LoadServices(app, redissession, client ,getClientName):
                     "createdon":createdon,
                     "deleted":False,
                     "parent" : [],
+                    "screenids" : [],
                     "modifiedby":ObjectId(requestdata['createdby']),
                     "modifiedbyrole":ObjectId(requestdata['createdbyrole']),
                     "modifiedon":createdon,
@@ -824,16 +879,52 @@ def LoadServices(app, redissession, client ,getClientName):
                     "scrapedurl":"",
                     "orderlist":[],
                     }
-                dbsession.screens.insert_one(data).inserted_id
+                dbsession.elementrepository.insert_one(data).inserted_id
                 res = {"rows":"Success"}
             elif requestdata['param']=="update":
-                dbsession.screens.update({"_id":ObjectId(requestdata['screenid'])},{"$set":{"name":requestdata['name'],"modifiedby":ObjectId(requestdata['userId']),"modifedon":createdon,"modifiedbyrole":ObjectId(requestdata["roleId"])}})
+                dbsession.elementrepository.update({"_id":ObjectId(requestdata['screenid'])},{"$set":{"name":requestdata['name'],"modifiedby":ObjectId(requestdata['userId']),"modifedon":createdon,"modifiedbyrole":ObjectId(requestdata["roleId"])}})
                 res={"rows":"Success"}
         
         except Exception as e:
             servicesException("insertScreen",e, True)
         return jsonify(res)
-
+    
+    @app.route('/design/insertRepository', methods=['POST'])
+    def insertRepository():
+        try:
+            requestdata=json.loads(request.data)
+            clientName=getClientName(requestdata)
+            dbsession=client[clientName]
+            createdon = datetime.now()
+ 
+            if requestdata['param']=="create":
+            # app.logger.debug("Inside insertScreen. Query: "+str(requestdata["query"]))
+                data={
+                    "projectid":ObjectId(requestdata['projectid']),
+                    "name":requestdata['name'],
+                    "versionnumber":requestdata['versionnumber'],
+                    # "parent":[ObjectId(requestdata['scenarioid'])],
+                    "createdby":ObjectId(requestdata['createdby']),
+                    "createdbyrole":ObjectId(requestdata['createdbyrole']),
+                    "createdon":createdon,
+                    "deleted":False,
+                    "parent" : [],
+                    "modifiedby":ObjectId(requestdata['createdby']),
+                    "modifiedbyrole":ObjectId(requestdata['createdbyrole']),
+                    "modifiedon":createdon,
+                    "screenshot":"",
+                    "scrapedurl":"",
+                    "orderlist":[],
+                    }
+                dbsession.elementrepository.insert_one(data).inserted_id
+                res = {"rows":"Success"}
+            elif requestdata['param']=="update":
+                dbsession.elementrepository.update({"_id":ObjectId(requestdata['screenid'])},{"$set":{"name":requestdata['name'],"modifiedby":ObjectId(requestdata['userId']),"modifedon":createdon,"modifiedbyrole":ObjectId(requestdata["roleId"])}})
+                res={"rows":"Success"}
+        
+        except Exception as e:
+            servicesException("insertRepository",e, True)
+        return jsonify(res)
     def saveTestcase(dbsession,screenid,testcasename,versionnumber,createdby,createdbyrole):
         app.logger.debug("Inside saveTestcase.")
         createdon = datetime.now()
@@ -1429,6 +1520,26 @@ def LoadServices(app, redissession, client ,getClientName):
         except Exception as e:
             servicesException("deleteScenario", e, True)
         return jsonify(res)
+    
+    @app.route('/mindmap/deleteElementRepo',methods=['POST'])
+    def deleteElementRepo():
+        app.logger.debug("Inside deleteElementRepo")
+        res={'rows':'fail'}
+        try:
+            requestdata=json.loads(request.data)
+            clientName=getClientName(requestdata)             
+            dbsession=client[clientName]
+            repoid=requestdata['repoId']
+            elerepo = list(dbsession.elementrepository.find({'_id': ObjectId(repoid)},{"orderlist":1}))
+            if len(elerepo) > 0:
+                if "orderlist" in elerepo[0]["orderlist"]:
+                    for order in elerepo[0]["orderlist"]:
+                        dbsession.dataobjects.delete_one({"_id" : ObjectId(order)})
+            dbsession.elementrepository.delete_one({"_id" : ObjectId(repoid)})
+            res= {'rows' : 'success'}
+        except Exception as e:
+            servicesException("deleteElementRepo", e, True)
+        return jsonify(res)
 
 
     def updateScenarioMindmap(dbsession,scenarioid,parentid):
@@ -1550,13 +1661,16 @@ def LoadServices(app, redissession, client ,getClientName):
     def getScreens():
         res={'rows':'fail'}
         try:
+            
             requestdata=json.loads(request.data)
             app.logger.debug("Inside getScreens.")
             if not isemptyrequest(requestdata):
                 clientName=getClientName(requestdata)             
                 dbsession=client[clientName]
                 projectid=ObjectId(requestdata["projectid"])
-                screendetails=list(dbsession.screens.aggregate([{'$match': {"projectid": projectid}},{
+                if 'param' in requestdata:
+                    
+                    screendetails=list(dbsession.elementrepository.aggregate([{'$match': {"projectid": projectid}},{
                                                                         '$lookup': {
                                                                             'from': "dataobjects",
                                                                             'localField': "_id", 
@@ -1568,7 +1682,33 @@ def LoadServices(app, redissession, client ,getClientName):
                                                                             'parent': 1,
                                                                             'statusCode': 1,
                                                                             'orderlist': 1,
-                                                                            'related_dataobjects': 1 }}]))                             
+                                                                            'related_dataobjects': 1 }}])) if requestdata['param'] == 'globalRepo'         else    list(dbsession.screens.aggregate([{'$match': {"projectid": projectid}},{
+                                                                        '$lookup': {
+                                                                            'from': "dataobjects",
+                                                                            'localField': "_id", 
+                                                                            'foreignField': "parent", 
+                                                                            'as': "related_dataobjects"}},{
+                                                                        '$project': {
+                                                                            '_id': 1,
+                                                                            'name': 1,
+                                                                            'parent': 1,
+                                                                            'statusCode': 1,
+                                                                            'orderlist': 1,
+                                                                            'related_dataobjects': 1 }}]))     
+                else:
+                    screendetails=list(dbsession.screens.aggregate([{'$match': {"projectid": projectid}},{
+                                                                        '$lookup': {
+                                                                            'from': "dataobjects",
+                                                                            'localField': "_id", 
+                                                                            'foreignField': "parent", 
+                                                                            'as': "related_dataobjects"}},{
+                                                                        '$project': {
+                                                                            '_id': 1,
+                                                                            'name': 1,
+                                                                            'parent': 1,
+                                                                            'statusCode': 1,
+                                                                            'orderlist': 1,
+                                                                            'related_dataobjects': 1 }}]))          
                 screenids = [scr["_id"] for scr in screendetails]
                 testcasedetails=list(dbsession.testcases.find({"screenid":{"$in":screenids}},{"_id":1,"name":1,"parent":1,"screenid":1}))                
                 if 'param' in requestdata:
@@ -1586,12 +1726,49 @@ def LoadServices(app, redissession, client ,getClientName):
                                     else:
                                       if orderlist != None:
                                          if len(orderlist) == 24:
-                                            dataobjectsParent  = dbsession.dataobjects.find_one({'_id':ObjectId(orderlist)},{'parent':1})                                
-                                    if dataobjectsParent != None:
-                                        if len(dataobjectsParent['parent']) > 1:
-                                            for i, value in enumerate(screenid['orderlist']):
+                                            dataobjectsParent  = dbsession.dataobjects.find_one({'_id':ObjectId(orderlist)},{'parent':1}) 
+                                            conuntorderlist = list(dbsession.elementrepository.find({"orderlist": orderlist}) )
+                                    if len(conuntorderlist) > 1 :
+                                        for i, value in enumerate(screenid['orderlist']):
                                                 if value == orderlist:
-                                                    screenid['orderlist'][i] = {'_id': value, 'flag': True}
+                                                    if isinstance(value, dict):
+                                                        screenid['orderlist'][i] = {'_id': value['_id'], 'flag': True}
+                                                    else:
+                                                        screenid['orderlist'][i] = {'_id': value, 'flag': True}
+#-----------------------++++code might required for backup++++--------------------------------------------------
+                                    # if dataobjectsParent != None:
+                                    #     if len(dataobjectsParent['parent']) > 2 :
+                                    #         for i, value in enumerate(screenid['orderlist']):
+                                    #             if value == orderlist:
+                                    #                 if isinstance(value, dict):
+                                    #                     screenid['orderlist'][i] = {'_id': value['_id'], 'flag': True}
+                                    #                 else:
+                                    #                     screenid['orderlist'][i] = {'_id': value, 'flag': True}
+                                    #     elif len(dataobjectsParent['parent']) == 2:
+                                    #         reuseElementRepo = 0
+                                    #         reuseScreen = 0
+                                    #         for id in dataobjectsParent["parent"]:
+                                    #             elementId = list(dbsession.elementrepository.find({"_id" : id},{"_id":1}))
+                                    #             screenId=list(dbsession.screens.find({"_id" : id},{"_id":1}))
+                                    #             if elementId:
+                                    #                 reuseElementRepo=reuseElementRepo+1
+                                    #             else:
+                                    #                 reuseScreen=reuseScreen+1
+                                                    
+                                    #             # for elem in elementId:
+                                    #             #     if dataiobject == elem["_id"]:
+                                    #             #         reuse.append(True)
+                                    #             #     else:
+                                    #             #         reuse.append(False)
+                                    #         print (reuseElementRepo)
+                                    #         print (reuseScreen)
+                                    #         if  reuseScreen == 2 or reuseElementRepo == 2:
+                                    #             for i, value in enumerate(screenid['orderlist']):
+                                    #                 if value == orderlist:
+                                    #                     if isinstance(value, dict):
+                                    #                         screenid['orderlist'][i] = {'_id': value['_id'], 'flag': True}
+                                    #                     else:
+                                    #                         screenid['orderlist'][i] = {'_id': value, 'flag': True}
                                 scrn_det.append(screenid)                              
  
                             else:
