@@ -49,4 +49,78 @@ class AI_Testcases:
         return {
             "testcase": self.testcase,
             "uploadedTime": self.uploadedTime
-        }            
+        }
+
+class OpenAI_LLM_Model:
+    def __init__(self, openai_api_key, openai_api_type, openai_api_version, openai_api_base,userinfo,name,deployment_name):
+        self.openai_api_key = openai_api_key
+        self.openai_api_type = openai_api_type
+        self.openai_api_version = openai_api_version
+        self.openai_api_base = openai_api_base
+        self.modeltype = "openAi"
+        self.userinfo = userinfo
+        self.name = name
+        self.deployment_name = deployment_name
+        self.createdAt = datetime.now()
+
+    def to_dict(self):
+        return {
+            "openai_api_key": self.openai_api_key,
+            "openai_api_type":self.openai_api_type,
+            "openai_api_version": self.openai_api_version,
+            "openai_api_base": self.openai_api_base,
+            "modeltype": self.modeltype,
+            "createdAt": self.createdAt,
+            "userinfo": self.userinfo,
+            "name": self.name,
+            "openai_deployment_name": self.deployment_name
+        }
+
+class Other_LLM_Model:
+    def __init__(self, api_key, model, modeltype,userinfo,name):
+        self.api_key = api_key
+        self.model = model
+        self.modeltype = modeltype
+        self.userinfo = userinfo
+        self.name = name
+        self.createdAt = datetime.now()
+
+    def to_dict(self):
+        data = {
+            "modeltype": self.modeltype,
+            "createdAt": self.createdAt,
+            "userinfo": self.userinfo,
+            "name": self.name
+
+        }
+        data[f"{self.modeltype}_api_key"] = self.api_key
+        data[f"{self.modeltype}_model"] = self.model
+
+        return data
+
+class Template_Model:
+    def __init__(self, name, domain, model_details, test_type ,temperature,description,active,default,userinfo):
+        self.name = name
+        self.domain = domain
+        self.model_details = model_details
+        self.test_type = test_type
+        self.temperature = temperature
+        self.description = description
+        self.active = active
+        self.default = default
+        self.userinfo = userinfo
+        self.createdAt = datetime.now()
+
+    def to_dict(self):
+        return {
+            "name": self.name,
+            "domain":self.domain,
+            "model_details": self.model_details,
+            "test_type": self.test_type,
+            "temperature": self.temperature,
+            "createdAt": self.createdAt,
+            "userinfo": self.userinfo,
+            "active": self.active,
+            "description": self.description,
+            "default": self.default
+        }                   

@@ -195,6 +195,9 @@ def addroutes():
     import reportsservice
     reportsservice.LoadServices(app, redissession, client,getClientName)
 
+    import genAI
+    genAI.LoadServices(app, redissession, client,getClientName)
+
     import utilitiesservice
     utilitiesservice.LoadServices(app, redissession, client,getClientName)
 
