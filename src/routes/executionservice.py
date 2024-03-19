@@ -234,11 +234,14 @@ def LoadServices(app, redissession, client ,getClientName):
                     execids = requestdata['executionids']
                     batchname = '' if 'batchname' not in requestdata else requestdata['batchname']
                     smart = False if 'smart' not in requestdata else requestdata['smart']
+                    actualRun_key_check=dbsession.executions.find_one({"actualRun":{"$exists":True}})
+                    if not actualRun_key_check:
+                        dbsession.executions.update_many({},{"$set":{"actualRun":True}})
                     for tsuid in tsuids:
                         if execids[tsuid] is None:
                             insertquery = {"batchid": batchid,"batchname": batchname,"smart":smart,"parent": [ObjectId(tsuid)],
                                 "configuration": {}, "executedby": ObjectId(requestdata['executedby']),
-                                "status": "queued", "version":requestdata['version'], "endtime": None, "starttime": starttime}
+                                "status": "queued", "version":requestdata['version'], "endtime": None, "starttime": starttime, "actualRun": requestdata["actualRun"]}
                             if('configurekey' in requestdata and requestdata['configurekey']):
                                 insertquery['configurekey'] = requestdata['configurekey']
                                 insertquery['executionListId'] = requestdata['executionListId']
@@ -279,7 +282,10 @@ def LoadServices(app, redissession, client ,getClientName):
                     #     if x>=len(rows):
                     #         break
                     # ritems = dbsession.reportitems.insert_many(reportitems)
-
+                    actualRun_key_check=dbsession.reports.find_one({"actualRun":{"$exists":True}})
+                    if not actualRun_key_check:
+                        dbsession.reports.update_many({},{"$set":{"actualRun":True}})
+                    actualRun_det=dbsession.executions.find_one({"_id":ObjectId(requestdata['executionid'])},{"actualRun":1})
                     querydata = {
                         "executionid": ObjectId(requestdata['executionid']),
                         "testscenarioid": ObjectId(requestdata['testscenarioid']),
@@ -289,9 +295,11 @@ def LoadServices(app, redissession, client ,getClientName):
                         "overallstatus": overallstatus,
                         "modifiedon": modifiedon,
                         "modifiedby": ObjectId(requestdata['modifiedby']),
-                        "modifiedbyrole": ObjectId(requestdata['modifiedbyrole']),
-                        "reportitems": []  #Modified to support latest changes
+                        "modifiedbyrole": ObjectId(requestdata['modifiedbyrole']),                        
+                        "reportitems": [],  #Modified to support latest changes
+                        "actualRun":actualRun_det["actualRun"]
                     }
+                    
                     res["rows"] = str(dbsession.reports.insert(querydata))
 
 
