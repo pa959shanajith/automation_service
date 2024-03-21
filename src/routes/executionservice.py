@@ -105,7 +105,8 @@ def LoadServices(app, redissession, client ,getClientName):
                             if index != -1:
                                 if (getparampaths_ts[index].strip() == ''): getparampaths.append('')
                                 else: getparampaths.append(getparampaths_ts[index])
-                                if conditioncheck_ts is not None: conditioncheck.append(conditioncheck_ts[index])
+                                if conditioncheck_ts is not None and index < len(conditioncheck_ts): conditioncheck.append(conditioncheck_ts[index])
+                                else: conditioncheck.append(0)
                                 if donotexecute_ts is not None: donotexecute.append(donotexecute_ts[index])
                                 testscenariods_ts[index] = -1 # Visited this scenario once already
                             else:
