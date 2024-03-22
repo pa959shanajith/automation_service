@@ -288,4 +288,25 @@ def LoadServices(app, redissession, client ,getClientName):
 
         except Exception as e:
             app.logger.error(f"Error: {str(e)}")
-            return jsonify({'rows':'fail','error': 'Internal server error'}), 500                
+            return jsonify({'rows':'fail','error': 'Internal server error'}), 500
+
+    @app.route('/genAI/deleteUploadFile', methods=['POST'])
+    def deleteUploadFile():
+        try:
+            request_data = request.get_json()
+            required_fields = ["id"]
+            if all(field not in request_data for field in required_fields):
+                return jsonify({'error': 'Invalid request data'}), 400
+            client_name = getClientName(request_data)
+            dbsession = client[client_name]
+            doc_id = request_data["id"]
+            deleted_document = dbsession.generateAI_temp.find_one_and_delete({"_id":ObjectId(doc_id)})
+            if not deleted_document:
+                return jsonify({'rows':'fail','error': ' document not found '}), 404
+            else:
+                # melvis db action should be done here  
+                return jsonify({'rows':'success', 'message': f"{doc_id} model deleted"}), 200
+
+        except Exception as e:
+            app.logger.error(f"Error: {str(e)}")
+            return jsonify({'rows':'fail','error': 'Internal server error'}), 500                    
