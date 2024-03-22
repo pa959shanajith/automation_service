@@ -1003,7 +1003,7 @@ def LoadServices(app, redissession, client ,getClientName):
         try:
             request_data = request.get_json()
             print(request_data)
-            required_keys = ["sutBaseUrl","project","projectName","process","processName","processGlobalId","testCaseName","testCaseDescription"]
+            required_keys = ["sutBaseUrl","project","projectName","process","processName","processGlobalId","testCaseName"]
             missing_keys = [key for key in required_keys if key not in request_data]
 
             if len(missing_keys):
