@@ -318,17 +318,21 @@ def LoadServices(app, redissession, client ,getClientName):
                     mindmapdata = dbsession.mindmaps.find_one({"_id": ObjectId(modId)}, {
                                                             "testscenarios": 1, "_id": 1, "name": 1, "projectid": 1, "type": 1, "versionnumber": 1,"currentlyinuse":1})
                     projectid = mindmapdata["projectid"]
-                    projectlevelTag= list(dbsession.mindmaps.find({'projectid':projectid},{'testscenarios.tag': 1}))
-                    all_tags = []
-                    for entry in projectlevelTag:
-                        if 'testscenarios' in entry:
-                            for scenario in entry['testscenarios']:
-                                if 'tag' in scenario:
-                                    all_tags.extend(scenario['tag'])
+                    # projectlevelTag= list(dbsession.mindmaps.find({'projectid':projectid},{'testscenarios.tag': 1, 'testscenarios.assigneduser': 1}))
+                    # all_tags = []
+                    # allusers = []
+                    # for entry in projectlevelTag:
+                    #     if 'testscenarios' in entry:
+                    #         for scenario in entry['testscenarios']:
+                    #             if 'tag' in scenario :
+                    #                 all_tags.extend(scenario['tag'])
+                    #             if 'assigneduser' in scenario:
+                    #                 allusers.extend(scenario['assigneduser'])
                     mindmaptype = mindmapdata["type"]
                     scenarioids = []
                     screenids = []
                     tag = []
+                    assigneduser = []
                     testcaseids = []
                     taskids = []
                     cycleid = requestdata['cycleid']
@@ -342,6 +346,10 @@ def LoadServices(app, redissession, client ,getClientName):
                                         if "tag" in ts:
                                             if ts["tag"] not in tag:
                                                 tag.append(ts["tag"])
+                                        if "assigneduser" in ts:
+                                            if ts["assigneduser"] not in assigneduser:
+                                                assigneduser.append(ts["assigneduser"])
+                                        
                                     if "screens" in ts:
                                         for sc in ts["screens"]:
                                             if sc:
@@ -355,6 +363,7 @@ def LoadServices(app, redissession, client ,getClientName):
                     # Preparing data for fetching tasks based on nodeid
                     taskids.extend(scenarioids)
                     taskids.extend(tag)
+                    taskids.extend(assigneduser)
                     taskids.extend(screenids)
                     taskids.extend(testcaseids)
                     taskids.append(ObjectId(modId))
@@ -440,9 +449,11 @@ def LoadServices(app, redissession, client ,getClientName):
                     finaldata["name"] = mindmapdata["name"]
                     finaldata["_id"] = mindmapdata["_id"]
                     finaldata["projectID"] = mindmapdata["projectid"]
-                    for tg in mindmapdata["testscenarios"]:
-                        if "tag" in tg:
-                            finaldata["tag"] = all_tags
+                    # for tg in mindmapdata["testscenarios"]:
+                    #     if "tag" in tg:
+                    #         finaldata["tag"] = all_tags
+                    #     if "assigneduser" in tg:
+                    #         finaldata["assignedUser"] = allusers
                     finaldata["type"] = "modules"
                     finaldata["childIndex"] = 0
                     finaldata["state"] = "saved"
@@ -479,6 +490,8 @@ def LoadServices(app, redissession, client ,getClientName):
                                 # for ts in mindmapdata["testscenarios"]:
                                 if "tag" in ts:
                                     finalscenariodata["tag"] = ts['tag']
+                                if "assigneduser" in ts:
+                                    finalscenariodata["assigneduser"] = ts['assigneduser']
                                 # finalscenariodata["tag"] = ts["tag"]
                                 finalscenariodata["childIndex"] = i
                                 finalscenariodata["children"] = []
@@ -551,7 +564,7 @@ def LoadServices(app, redissession, client ,getClientName):
                 if tab == "tabCreate":
                     findquery["type"] = "basic"
                 query = dbsession.mindmaps.find(
-                    findquery, {"name": 1, "_id": 1, "type": 1, "createdon":1})
+                    findquery, {"name": 1, "_id": 1, "type": 1, "createdon":1, "currentlyinuse" : 1 })
                 
                 queryresult = list(query.sort([('createdon', pymongo.DESCENDING),('name', pymongo.ASCENDING)]))
             
@@ -633,6 +646,7 @@ def LoadServices(app, redissession, client ,getClientName):
             requestdata=requestdata["data"]
             projectid=requestdata['projectid']
             createdby=requestdata['userid']
+            username = requestdata['username']
             createdbyrole=requestdata['userroleid']
             versionnumber=requestdata['versionnumber']
             createdthrough=requestdata['createdthrough']
@@ -648,53 +662,68 @@ def LoadServices(app, redissession, client ,getClientName):
                         if moduledata['state']=="renamed":
                             updateModuleName(dbsession,moduledata['testsuiteName'],projectid,moduledata["testsuiteId"],createdby,createdbyrole)
                         currentmoduleid=moduledata['testsuiteId']
-                    idsforModule=[]
+                    idsforModule=[] 
+                    # moduledata["testscenarioDetails"][0]["assigneduser"] = "rakesh_solapure"
                     for scenariodata in moduledata['testscenarioDetails']:
-                        testcaseidsforscenario=[]
-                        if scenariodata['testscenarioid'] is None:
-                            currentscenarioid=saveTestScenario(dbsession,projectid,scenariodata['testscenarioName'],versionnumber,createdby,createdbyrole,currentmoduleid)
-                        else:
-                            if scenariodata['state']=="renamed":
-                                updateScenarioName(dbsession,scenariodata['testscenarioName'],projectid,scenariodata['testscenarioid'],createdby,createdbyrole)
-                            currentscenarioid=scenariodata['testscenarioid']
-                        iddata1={"_id":ObjectId(currentscenarioid),"screens":[],"tag":scenariodata["tag"]}
-                        for screendata in scenariodata['screenDetails']:
-                            if screendata["screenid"] is None:
-                                if "newreuse" in screendata:
-                                    currentscreenid=getScreenID(dbsession,screendata["screenName"],projectid)
-                                    updateparent(dbsession,"screens",currentscreenid,currentscenarioid,"add")
-                                else:
-                                    scrapedurl = screendata['scrapedurl'] if 'scrapedurl' in screendata else ""
-                                    scrapeinfo = screendata['scrapeinfo'] if 'scrapeinfo' in screendata else "" 
-                                    currentscreenid=saveScreen(dbsession,projectid,screendata["screenName"],versionnumber,createdby,createdbyrole,currentscenarioid,scrapedurl,scrapeinfo)
+                        assigneduser=''
+                        if "assigneduser"  in scenariodata :
+                            assigneduser=scenariodata["assigneduser"]
+                        # assigneduser = dbsession.testscenarios.find_one({"_id" : ObjectId(scenariodata["testscenarioid"])},{"assignedUser": 1})
+                        if assigneduser =="" and scenariodata["state"]=="created":
+                            assigneduser=requestdata['username']
+                        # verifyuser = scenariodata["assigneduser"]
+                            
+                        if assigneduser == requestdata['username']:
+                            testcaseidsforscenario=[]
+                            if scenariodata['testscenarioid'] is None:
+                                currentscenarioid=saveTestScenario(dbsession,projectid,scenariodata['testscenarioName'],versionnumber,createdby,createdbyrole,username,currentmoduleid)
                             else:
-                                if screendata["state"]=="renamed":
-                                    updateScreenName(dbsession,screendata['screenName'],projectid,screendata['screenid'],createdby,createdbyrole)
-                                currentscreenid=screendata["screenid"]
-                                if "reuse" in screendata and screendata["reuse"]:
-                                    updateScreenAndTestcase(dbsession,currentscreenid,createdby,createdbyrole)
-                                    updateparent(dbsession,"screens",currentscreenid,currentscenarioid,"add")
-                            iddata2={"_id":ObjectId(currentscreenid),"testcases":[]}
-                            for testcasedata in screendata['testcaseDetails']:
-                                if testcasedata["testcaseid"] is None:
-                                    if "newreuse" in testcasedata:
-                                        currenttestcaseid=getTestcaseID(dbsession,currentscreenid,testcasedata['testcaseName'])
-                                        updateparent(dbsession,"testcases",currenttestcaseid,currentscreenid,"add")
+                                if scenariodata['state']=="renamed":
+                                    updateScenarioName(dbsession,scenariodata['testscenarioName'],projectid,scenariodata['testscenarioid'],createdby,createdbyrole)
+                                currentscenarioid=scenariodata['testscenarioid']
+                            iddata1={"_id":ObjectId(currentscenarioid),"screens":[],"tag":scenariodata["tag"]}
+                            for screendata in scenariodata['screenDetails']:
+                                if screendata["screenid"] is None:
+                                    if "newreuse" in screendata:
+                                        currentscreenid=getScreenID(dbsession,screendata["screenName"],projectid)
+                                        updateparent(dbsession,"screens",currentscreenid,currentscenarioid,"add")
                                     else:
-                                        steps = testcasedata['steps'] if 'steps' in testcasedata else []
-                                        currenttestcaseid=saveTestcase(dbsession,currentscreenid,testcasedata['testcaseName'],versionnumber,createdby,createdbyrole,steps)
+                                        scrapedurl = screendata['scrapedurl'] if 'scrapedurl' in screendata else ""
+                                        scrapeinfo = screendata['scrapeinfo'] if 'scrapeinfo' in screendata else "" 
+                                        currentscreenid=saveScreen(dbsession,projectid,screendata["screenName"],versionnumber,createdby,createdbyrole,currentscenarioid,scrapedurl,scrapeinfo)
                                 else:
-                                    if testcasedata['state']=="renamed":
-                                        updateTestcaseName(dbsession,testcasedata['testcaseName'],projectid,testcasedata['testcaseid'],createdby,createdbyrole)
-                                    currenttestcaseid=testcasedata['testcaseid']
-                                    if "reuse" in testcasedata and testcasedata["reuse"]:
-                                        updateparent(dbsession,"testcases",currenttestcaseid,currentscreenid,"add")
-                                testcaseidsforscenario.append(ObjectId(currenttestcaseid))
-                                iddata2["testcases"].append(ObjectId(currenttestcaseid))
-                            iddata1["screens"].append(iddata2)
-                        idsforModule.append(iddata1)
-                        updateTestcaseIDsInScenario(dbsession,currentscenarioid,testcaseidsforscenario)
-                    updateTestScenariosInModule(dbsession,currentmoduleid,idsforModule)
+                                    if screendata["state"]=="renamed":
+                                        updateScreenName(dbsession,screendata['screenName'],projectid,screendata['screenid'],createdby,createdbyrole)
+                                    currentscreenid=screendata["screenid"]
+                                    if "reuse" in screendata and screendata["reuse"]:
+                                        updateScreenAndTestcase(dbsession,currentscreenid,createdby,createdbyrole)
+                                        updateparent(dbsession,"screens",currentscreenid,currentscenarioid,"add")
+                                iddata2={"_id":ObjectId(currentscreenid),"testcases":[]}
+                                for testcasedata in screendata['testcaseDetails']:
+                                    if testcasedata["testcaseid"] is None:
+                                        if "newreuse" in testcasedata:
+                                            currenttestcaseid=getTestcaseID(dbsession,currentscreenid,testcasedata['testcaseName'])
+                                            updateparent(dbsession,"testcases",currenttestcaseid,currentscreenid,"add")
+                                        else:
+                                            steps = testcasedata['steps'] if 'steps' in testcasedata else []
+                                            currenttestcaseid=saveTestcase(dbsession,currentscreenid,testcasedata['testcaseName'],versionnumber,createdby,createdbyrole,steps)
+                                    else:
+                                        if testcasedata['state']=="renamed":
+                                            updateTestcaseName(dbsession,testcasedata['testcaseName'],projectid,testcasedata['testcaseid'],createdby,createdbyrole)
+                                        currenttestcaseid=testcasedata['testcaseid']
+                                        if "reuse" in testcasedata and testcasedata["reuse"]:
+                                            updateparent(dbsession,"testcases",currenttestcaseid,currentscreenid,"add")
+                                    testcaseidsforscenario.append(ObjectId(currenttestcaseid))
+                                    iddata2["testcases"].append(ObjectId(currenttestcaseid))
+                                iddata1["screens"].append(iddata2)
+                            idsforModule.append(iddata1)
+                            updateTestcaseIDsInScenario(dbsession,currentscenarioid,testcaseidsforscenario)
+                        else:
+                            iddata1=module_data(scenariodata)
+                            for data1 in iddata1:
+                                idsforModule.append(data1)
+                            # updateTestcaseIDsInScenario(dbsession,currentscenarioid,testcaseidsforscenario)
+                    updateTestScenariosInModule(dbsession,currentmoduleid,idsforModule) 
                 scenarioInfo = []
                 for node in requestdata['deletednodes']:
                     if node[1] == "scenarios":
@@ -755,8 +784,22 @@ def LoadServices(app, redissession, client ,getClientName):
         }
         queryresult=dbsession.mindmaps.insert_one(data).inserted_id
         return queryresult
+    
+    def module_data(scenariodata):
+        app.logger.debug("Inside module_data")
+        iddata1 = []
+        screedata = []
+        for screendata in scenariodata['screenDetails']:
+            screen = {}
+            screen["_id"] = ObjectId(screendata['screenid'])
+            screen["testcases"] = []
+            for screenid in screendata["testcaseDetails"]:
+                screen['testcases'].append(ObjectId(screenid['testcaseid']))
+            screedata.append(screen)
+        iddata1.append({"_id":ObjectId(scenariodata["testscenarioid"]),"screens":screedata,"tag":scenariodata["tag"]})
+        return iddata1
 
-    def saveTestScenario(dbsession,projectid,testscenarioname,versionnumber,createdby,createdbyrole,moduleid,testcaseids=[]):
+    def saveTestScenario(dbsession,projectid,testscenarioname,versionnumber,createdby,createdbyrole,username,moduleid,testcaseids=[]):
         app.logger.debug("Inside saveTestScenario.")
         createdon = datetime.now()
         data={
@@ -771,7 +814,8 @@ def LoadServices(app, redissession, client ,getClientName):
             "modifiedby":ObjectId(createdby),
             "modifiedbyrole":ObjectId(createdbyrole),
             "modifiedon":createdon,
-            "testcaseids":testcaseids
+            "testcaseids":testcaseids,
+            "assignedUser" : username
         }
         queryresult=dbsession.testscenarios.insert_one(data).inserted_id
         return queryresult
@@ -973,7 +1017,7 @@ def LoadServices(app, redissession, client ,getClientName):
         queryresult=dbsession.mindmaps.insert_one(data).inserted_id
         return queryresult
 
-    def saveTestScenario(dbsession,projectid,testscenarioname,versionnumber,createdby,createdbyrole,moduleid,testcaseids=[]):
+    def saveTestScenario(dbsession,projectid,testscenarioname,versionnumber,createdby,createdbyrole,username,moduleid,testcaseids=[]):
         app.logger.debug("Inside saveTestScenario.")
         createdon = datetime.now()
         data={
@@ -988,7 +1032,8 @@ def LoadServices(app, redissession, client ,getClientName):
             "modifiedby":ObjectId(createdby),
             "modifiedbyrole":ObjectId(createdbyrole),
             "modifiedon":createdon,
-            "testcaseids":testcaseids
+            "testcaseids":testcaseids,
+            "assignedUser": username
         }
         queryresult=dbsession.testscenarios.insert_one(data).inserted_id
         return queryresult
@@ -3335,4 +3380,28 @@ def LoadServices(app, redissession, client ,getClientName):
                 app.logger.warn('Failed in saving Tag')
         except Exception as saveTag:
             servicesException("saveTag",saveTag, True)
+        return jsonify(res)
+    @app.route('/mindmap/assignedUserMM',methods=['POST'])
+    def assignedUserMM():
+        res={'rows':'fail'}
+        try:
+            requestdata=json.loads(request.data)
+            app.logger.debug("Inside assignedUserMM.")
+            if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)            
+                dbsession=client[clientName]
+                for data in requestdata['data']:
+                    userid = data["assigne_to"]
+                    testCaseID = data["testcaseId"]
+                    # screenid = data["screenId"]                
+                    dbsession.mindmaps.update_one({"testscenarios": {"$elemMatch": {"_id": ObjectId(testCaseID)}}},{"$set": {"testscenarios.$.assigneduser": userid}})
+                    dbsession.testscenarios.update_one({"_id":ObjectId(testCaseID)},{"$set":{"assignedUser":userid}})
+                        # if screenid > 0:
+                        #     for screen in screenid:
+                        #         dbsession.screens.update_one({"_id":screen}, { "$set":{"assignedUser" : userid}})
+                res={"rows":"pass"}
+            else:
+                app.logger.warn('Failed in assignedUserMM')
+        except Exception as assignedUserMM:
+            servicesException("assignedUserMM",assignedUserMM, True)
         return jsonify(res)
