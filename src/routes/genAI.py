@@ -304,9 +304,36 @@ def LoadServices(app, redissession, client ,getClientName):
             if not deleted_document:
                 return jsonify({'rows':'fail','error': ' document not found '}), 404
             else:
-                # melvis db action should be done here  
-                return jsonify({'rows':'success', 'message': f"{doc_id} model deleted"}), 200
-
+                # melvis db action should be done here
+                addr = "https://avogenerativeai.avoautomation.com"
+                test_url = addr + '/remove_text'
+                file_ids = [deleted_document["melvis_file_id"]] if "melvis_file_id" in deleted_document else []
+                json_data = {"file_ids":file_ids}
+                headers = {'Content-Type':'application/json'}
+                melvis_response = requests.post(test_url,headers=headers,data=json.dumps(json_data),verify = False,timeout=None) 
+                if melvis_response.status_code == 200:
+                    app.logger.info('file deleted successfully')
+                    return jsonify({'rows':'success', 'message': f"{doc_id} file deleted"}), 200
+                elif melvis_response.status_code == 400:
+                    app.logger.error('Bad Request')
+                    return jsonify({'rows':"fail", 'message': 'Bad Request'}), 400
+                elif melvis_response.status_code == 401:
+                    app.logger.error('Unauthorized user')
+                    return jsonify({'rows':"fail", 'message': 'Unauthorized token'}), 401
+                elif melvis_response.status_code == 403:
+                    app.logger.error('user does not have the necessary permissions to access')
+                    return jsonify({'rows':"fail", 'message': 'user does not have the necessary permissions to access'}), 403
+                elif melvis_response.status_code == 404 :
+                    app.logger.error('Source not found')
+                    return jsonify({'rows':"fail", 'message': 'Source not found'}), 404
+                elif melvis_response.status_code == 500 :
+                    app.logger.error('Internal Server Error')
+                    return jsonify({'rows':"fail", 'message': 'Internal Server Error'}), 500
+                elif melvis_response.status_code == 504 :
+                    app.logger.error('Gateway Time-out')
+                    return jsonify({'rows':"fail", 'message': 'Gateway Time-out'}), 504
+                app.logger.info('file deleted done on mongodb')
+                return jsonify({'rows':'success', 'message': f"{doc_id} file deleted"}), 200
         except Exception as e:
             app.logger.error(f"Error: {str(e)}")
             return jsonify({'rows':'fail','error': 'Internal server error'}), 500                    

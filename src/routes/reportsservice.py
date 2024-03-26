@@ -1008,8 +1008,9 @@ def LoadServices(app, redissession, client ,getClientName):
             
             response = requests.post(test_url,data=data,files=files,verify = False,timeout=None)
             if response.status_code == 200:
+                JsonObject = response.json()
                 app.logger.info('generate AI file sent successfully')
-                return True
+                return JsonObject
             elif response.status_code == 400:
                 app.logger.error('Bad Request')
                 return False
@@ -1046,8 +1047,8 @@ def LoadServices(app, redissession, client ,getClientName):
             home_directory = Path.home()
             base_dir = os.path.join(home_directory,'GenerateAI_temp')
             target_folder = f'{base_dir}/{organization_name}/{project_name}'
-
-            if save_file(request_data['file'], target_folder, filename,request_data):
+            saved_file_result = save_file(request_data['file'], target_folder, filename,request_data)
+            if isinstance(saved_file_result,dict) and 'file_id' in saved_file_result:
                 client_name = getClientName(request_data)
                 dbsession = client[client_name]
 
@@ -1058,6 +1059,7 @@ def LoadServices(app, redissession, client ,getClientName):
                     # path=os.path.join(target_folder, filename),
                     path=f'{target_folder}/{filename}',
                     uploadedBy=request_data['email'],
+                    melvis_file_id=saved_file_result["file_id"],
                     input_type=request_data['type'],
                     version="1.0"
                 )

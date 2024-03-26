@@ -1,7 +1,7 @@
 from datetime import datetime
 
 class UserDocument:
-    def __init__(self, project, orgname, name, path, uploadedBy, input_type, version='1.0'):
+    def __init__(self, project, orgname, name, path, uploadedBy,melvis_file_id, input_type, version='1.0'):
         self.project = project
         self.orgname = orgname
         self.name = name
@@ -9,7 +9,8 @@ class UserDocument:
         self.uploadedBy = uploadedBy
         self.uploadedTime = datetime.now()
         self.type = input_type
-        self.version = version
+        self.version = version,
+        self.melvis_file_id = melvis_file_id
 
     def to_dict(self):
         return {
@@ -20,7 +21,8 @@ class UserDocument:
             "uploadedBy": self.uploadedBy,
             "uploadedTime": self.uploadedTime,
             "version": self.version,
-            "type": self.type
+            "type": self.type,
+            "melvis_file_id":self.melvis_file_id
         }
 #user level testcase collection
 class UserTestcases:
