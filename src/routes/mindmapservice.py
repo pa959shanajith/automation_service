@@ -316,7 +316,7 @@ def LoadServices(app, redissession, client ,getClientName):
                     if type(requestdata["moduleid"]) == str:
                         modId = requestdata["moduleid"]
                     mindmapdata = dbsession.mindmaps.find_one({"_id": ObjectId(modId)}, {
-                                                            "testscenarios": 1, "_id": 1, "name": 1, "projectid": 1, "type": 1, "versionnumber": 1,"currentlyinuse":1})
+                                                            "testscenarios": 1, "_id": 1, "name": 1, "projectid": 1, "type": 1, "versionnumber": 1,"currentlyinuse":1,"assignedUser": 1 })
                     projectid = mindmapdata["projectid"]
                     # projectlevelTag= list(dbsession.mindmaps.find({'projectid':projectid},{'testscenarios.tag': 1, 'testscenarios.assigneduser': 1}))
                     # all_tags = []
@@ -371,7 +371,7 @@ def LoadServices(app, redissession, client ,getClientName):
                         {"nodeid": {"$in": taskids}}))
 
                     scenariodetails = list(dbsession.testscenarios.find(
-                        {"_id": {"$in": scenarioids}}, {"_id": 1, "name": 1, "parent": 1}))
+                        {"_id": {"$in": scenarioids}}, {"_id": 1, "name": 1, "parent": 1, "assigneduser": 1}))
 
                     testcasedetails = list(dbsession.testcases.aggregate([
                         {'$match': {"_id": {"$in": testcaseids}}},
@@ -735,7 +735,7 @@ def LoadServices(app, redissession, client ,getClientName):
                                 if scenariodata['state']=="renamed":
                                     updateScenarioName(dbsession,scenariodata['testscenarioName'],projectid,scenariodata['testscenarioid'],createdby,createdbyrole)
                                 currentscenarioid=scenariodata['testscenarioid']
-                            iddata1={"_id":ObjectId(currentscenarioid),"screens":[],"tag":scenariodata["tag"]}
+                            iddata1={"_id":ObjectId(currentscenarioid),"screens":[],"tag":scenariodata["tag"], "assignedUser" : assigneduser}
                             for screendata in scenariodata['screenDetails']:
                                 if screendata["screenid"] is None:
                                     if "newreuse" in screendata:
@@ -803,6 +803,10 @@ def LoadServices(app, redissession, client ,getClientName):
             requestdata=json.loads(request.data)
             clientName=getClientName(requestdata)
             dbsession=client[clientName]
+            testsuitedetail=dbsession.mindmaps.find_one({'_id':ObjectId(requestdata['testsuiteId'])})
+            currentlyinuseby=testsuitedetail['currentlyinuse']
+            if(currentlyinuseby is not None and requestdata['testsuiteId']==requestdata["oldTestSuiteId"]):
+                return
             app.logger.debug("Inside updateTestSuiteInUseBy. Query: "+str(requestdata["query"]))
             if not isemptyrequest(requestdata):
             
@@ -850,7 +854,7 @@ def LoadServices(app, redissession, client ,getClientName):
             for screenid in screendata["testcaseDetails"]:
                 screen['testcases'].append(ObjectId(screenid['testcaseid']))
             screedata.append(screen)
-        iddata1.append({"_id":ObjectId(scenariodata["testscenarioid"]),"screens":screedata,"tag":scenariodata["tag"]})
+        iddata1.append({"_id":ObjectId(scenariodata["testscenarioid"]),"screens":screedata,"tag":scenariodata["tag"],"assigneduser":scenariodata["assigneduser"] })
         return iddata1
 
     def saveTestScenario(dbsession,projectid,testscenarioname,versionnumber,createdby,createdbyrole,username,moduleid,testcaseids=[]):
