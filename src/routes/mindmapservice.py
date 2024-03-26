@@ -723,7 +723,7 @@ def LoadServices(app, redissession, client ,getClientName):
                         if "assigneduser"  in scenariodata :
                             assigneduser=scenariodata["assigneduser"]
                         # assigneduser = dbsession.testscenarios.find_one({"_id" : ObjectId(scenariodata["testscenarioid"])},{"assignedUser": 1})
-                        if assigneduser =="" and scenariodata["state"]=="created":
+                        if assigneduser =="":
                             assigneduser=requestdata['username']
                         # verifyuser = scenariodata["assigneduser"]
                             
