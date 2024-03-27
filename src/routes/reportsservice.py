@@ -13,6 +13,8 @@ from generateAI_module import UserDocument,UserTestcases,AI_Testcases
 import requests
 from datetime import datetime
 from pathlib import Path
+from Crypto.Cipher import AES
+from Crypto.Util.Padding import unpad
 
 
 def LoadServices(app, redissession, client ,getClientName):
@@ -1098,6 +1100,12 @@ def LoadServices(app, redissession, client ,getClientName):
             app.logger.error(f"Error: {str(e)}")
             return jsonify({'rows':'fail','error': 'Internal server error'}), 500
     
+    def decrypt_AES(text, key): 
+        cipher = AES.new(key, AES.MODE_ECB)
+        decoded_ciphertext = base64.b64decode(text)
+        plaintext = unpad(cipher.decrypt(decoded_ciphertext), AES.block_size, style='pkcs7').decode('utf-8')
+        return plaintext
+
     @app.route('/generate/testcase', methods=['POST'])
     def generateTestcase():
         try:
@@ -1135,6 +1143,23 @@ def LoadServices(app, redissession, client ,getClientName):
             #     }
             # else:
             #     modified_template_document = tempate_document
+
+            if 'openai_api_key' in tempate_document['model_details']:
+                encrypted_api_key = tempate_document['model_details']['openai_api_key']
+                key_used = 'openai_api_key'
+            elif 'cohere_api_key' in tempate_document['model_details']:
+                encrypted_api_key = tempate_document['model_details']['cohere_api_key']
+                key_used = 'cohere_api_key'
+            elif 'anthropic_api_key' in tempate_document['model_details']:
+                encrypted_api_key = tempate_document['model_details']['anthropic_api_key']
+                key_used = 'anthropic_api_key'
+            else:
+                encrypted_api_key = None  
+                app.logger.info("API key are not Available")
+            key = b'thisIsASecretKey'
+            decrypted_api_key = decrypt_AES(encrypted_api_key,key)
+            tempate_document['model_details'][key_used] = decrypted_api_key
+
             modified_template_document = {}
             for field in ['domain', 'test_type', 'temperature']:
                 if request_data.get(field) and request_data[field] not in ['', None]:
