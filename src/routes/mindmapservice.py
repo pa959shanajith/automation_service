@@ -316,7 +316,7 @@ def LoadServices(app, redissession, client ,getClientName):
                     if type(requestdata["moduleid"]) == str:
                         modId = requestdata["moduleid"]
                     mindmapdata = dbsession.mindmaps.find_one({"_id": ObjectId(modId)}, {
-                                                            "testscenarios": 1, "_id": 1, "name": 1, "projectid": 1, "type": 1, "versionnumber": 1,"currentlyinuse":1,"assignedUser": 1 })
+                                                            "testscenarios": 1, "_id": 1, "name": 1, "projectid": 1, "type": 1, "versionnumber": 1,"currentlyinuse":1,"assigneduser": 1 })
                     projectid = mindmapdata["projectid"]
                     # projectlevelTag= list(dbsession.mindmaps.find({'projectid':projectid},{'testscenarios.tag': 1, 'testscenarios.assigneduser': 1}))
                     # all_tags = []
@@ -735,7 +735,7 @@ def LoadServices(app, redissession, client ,getClientName):
                                 if scenariodata['state']=="renamed":
                                     updateScenarioName(dbsession,scenariodata['testscenarioName'],projectid,scenariodata['testscenarioid'],createdby,createdbyrole)
                                 currentscenarioid=scenariodata['testscenarioid']
-                            iddata1={"_id":ObjectId(currentscenarioid),"screens":[],"tag":scenariodata["tag"], "assignedUser" : assigneduser}
+                            iddata1={"_id":ObjectId(currentscenarioid),"screens":[],"tag":scenariodata["tag"], "assigneduser" : assigneduser}
                             for screendata in scenariodata['screenDetails']:
                                 if screendata["screenid"] is None:
                                     if "newreuse" in screendata:
@@ -873,7 +873,7 @@ def LoadServices(app, redissession, client ,getClientName):
             "modifiedbyrole":ObjectId(createdbyrole),
             "modifiedon":createdon,
             "testcaseids":testcaseids,
-            "assignedUser" : username
+            "assigneduser" : username
         }
         queryresult=dbsession.testscenarios.insert_one(data).inserted_id
         return queryresult
@@ -1128,7 +1128,7 @@ def LoadServices(app, redissession, client ,getClientName):
             "modifiedbyrole":ObjectId(createdbyrole),
             "modifiedon":createdon,
             "testcaseids":testcaseids,
-            "assignedUser": username
+            "assigneduser": username
         }
         queryresult=dbsession.testscenarios.insert_one(data).inserted_id
         return queryresult
@@ -3576,7 +3576,7 @@ def LoadServices(app, redissession, client ,getClientName):
                     testCaseID = data["testcaseId"]
                     # screenid = data["screenId"]                
                     dbsession.mindmaps.update_one({"testscenarios": {"$elemMatch": {"_id": ObjectId(testCaseID)}}},{"$set": {"testscenarios.$.assigneduser": userid}})
-                    dbsession.testscenarios.update_one({"_id":ObjectId(testCaseID)},{"$set":{"assignedUser":userid}})
+                    dbsession.testscenarios.update_one({"_id":ObjectId(testCaseID)},{"$set":{"assigneduser":userid}})
                         # if screenid > 0:
                         #     for screen in screenid:
                         #         dbsession.screens.update_one({"_id":screen}, { "$set":{"assignedUser" : userid}})
