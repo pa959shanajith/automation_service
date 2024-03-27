@@ -316,7 +316,7 @@ def LoadServices(app, redissession, client ,getClientName):
                     if type(requestdata["moduleid"]) == str:
                         modId = requestdata["moduleid"]
                     mindmapdata = dbsession.mindmaps.find_one({"_id": ObjectId(modId)}, {
-                                                            "testscenarios": 1, "_id": 1, "name": 1, "projectid": 1, "type": 1, "versionnumber": 1,"currentlyinuse":1,"assignedUser": 1 })
+                                                            "testscenarios": 1, "_id": 1, "name": 1, "projectid": 1, "type": 1, "versionnumber": 1,"currentlyinuse":1,"assigneduser": 1 })
                     projectid = mindmapdata["projectid"]
                     # projectlevelTag= list(dbsession.mindmaps.find({'projectid':projectid},{'testscenarios.tag': 1, 'testscenarios.assigneduser': 1}))
                     # all_tags = []
