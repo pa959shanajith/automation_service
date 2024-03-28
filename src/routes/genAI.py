@@ -114,8 +114,10 @@ def LoadServices(app, redissession, client ,getClientName):
                 return jsonify({'error': 'Invalid request data'}), 400
             client_name = getClientName(request_data)
             dbsession = client[client_name]
-            fetch_result = list(dbsession.GenAI_Models.find({"userinfo.userid":request_data['userid']},
-                                                            {"userinfo":0}))
+            # fetch_result = list(dbsession.GenAI_Models.find({"userinfo.userid":request_data['userid']},
+            #                                                 {"userinfo":0}))
+            # {"$or":[{ "userinfo.defaultRole": { "$in": ["Quality Lead", "Quality Manager", "Quality Engineer"] } },{ "userinfo.activeRole": { "$in": ["Quality Lead", "Quality Manager", "Quality Engineer"] } }]}
+            fetch_result = list(dbsession.GenAI_Models.find({},{"userinfo":0}))
 
             if len(fetch_result):
                 return jsonify({'rows':fetch_result, 'message': 'records found'}), 200
@@ -136,7 +138,7 @@ def LoadServices(app, redissession, client ,getClientName):
             client_name = getClientName(request_data)
             dbsession = client[client_name]
 
-            document = dbsession.GenAI_Models.find_one({"_id":ObjectId(request_data["id"]),"userinfo.userid":request_data["userinfo"]["userid"]})
+            document = dbsession.GenAI_Models.find_one({"_id":ObjectId(request_data["id"])})
             if not document:
                 return jsonify({'rows':'fail','error': ' document not found '}), 404
             if "modeltype" in request_data["items"] and request_data["items"]["modeltype"] != document.get("modeltype", ""):
@@ -167,7 +169,7 @@ def LoadServices(app, redissession, client ,getClientName):
             client_name = getClientName(request_data)
             dbsession = client[client_name]
             doc_id = request_data["id"]
-            deleted_document = dbsession.GenAI_Models.find_one_and_delete({"_id":ObjectId(doc_id),"userinfo.userid":request_data["userinfo"]["userid"]})
+            deleted_document = dbsession.GenAI_Models.find_one_and_delete({"_id":ObjectId(doc_id)})
             if not deleted_document:
                 return jsonify({'rows':'fail','error': ' document not found '}), 404
               
@@ -224,8 +226,7 @@ def LoadServices(app, redissession, client ,getClientName):
                 return jsonify({'error': 'Invalid request data'}), 400
             client_name = getClientName(request_data)
             dbsession = client[client_name]
-            fetch_result = list(dbsession.GenAI_Templates.find({"userinfo.userid":request_data['userid']},
-                                                            {"userinfo":0}))
+            fetch_result = list(dbsession.GenAI_Templates.find({},{"userinfo":0}))
 
             if len(fetch_result):
                 return jsonify({'rows':fetch_result, 'message': 'records found'}), 200
@@ -246,13 +247,13 @@ def LoadServices(app, redissession, client ,getClientName):
             client_name = getClientName(request_data)
             dbsession = client[client_name]
 
-            document = dbsession.GenAI_Templates.find_one({"_id":ObjectId(request_data["id"]),"userinfo.userid":request_data["userinfo"]["userid"]})
+            document = dbsession.GenAI_Templates.find_one({"_id":ObjectId(request_data["id"])})
             if not document:
                 return jsonify({'rows':'fail','error': ' document not found '}), 404
             for key,value in request_data["items"].items():
                 document[key] = value
             document.pop("model_details", None)
-            find_model_details = dbsession.GenAI_Models.find_one({"_id":ObjectId(request_data["items"]["model_id"]),"userinfo.userid":request_data["userinfo"]["userid"]},
+            find_model_details = dbsession.GenAI_Models.find_one({"_id":ObjectId(request_data["items"]["model_id"])},
                                                                  {"userinfo":0,"createdAt":0,"updatedAt":0})
             if not find_model_details:
                 return jsonify({'rows':'fail','error': ' document not found '}), 404    
@@ -280,7 +281,7 @@ def LoadServices(app, redissession, client ,getClientName):
             client_name = getClientName(request_data)
             dbsession = client[client_name]
             doc_id = request_data["id"]
-            deleted_document = dbsession.GenAI_Templates.find_one_and_delete({"_id":ObjectId(doc_id),"userinfo.userid":request_data["userinfo"]["userid"]})
+            deleted_document = dbsession.GenAI_Templates.find_one_and_delete({"_id":ObjectId(doc_id)})
             if not deleted_document:
                 return jsonify({'rows':'fail','error': ' document not found '}), 404
               
