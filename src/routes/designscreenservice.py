@@ -351,6 +351,10 @@ def LoadServices(app, redissession, client ,getClientName):
                     else:
                         dbsession.screens.update({"_id":screenId},{"$set": payload})
                         elementid = dbsession.screens.find_one({"_id":screenId},{"elementrepoused" : 1})
+                        del_parentrid = list(dbsession.dataobjects.find({"parent" : ObjectId(elementid["elementrepoused"][0]["_id"]) }))
+                        for parent in del_parentrid:
+                            dbsession.dataobjects.update_many({"_id": ObjectId(parent["_id"]),"$and":[{"parent.1":{"$exists":True}},{"parent":ObjectId(elementid["elementrepoused"][0]["_id"])}]},{"$pull":{"parent":ObjectId(elementid["elementrepoused"][0]["_id"])}})
+                            dbsession.dataobjects.delete_many({"_id":ObjectId(parent["_id"]),"$and":[{"parent":{"$size": 1}},{"parent":ObjectId(elementid["elementrepoused"][0]["_id"])}]})
                         for orderlst in payload["orderlist"]:
                             parentid = dbsession.dataobjects.find_one({"_id":ObjectId(orderlst)},{"parent" : 1})
                             if ObjectId(elementid["elementrepoused"][0]["_id"]) not in parentid["parent"]:
