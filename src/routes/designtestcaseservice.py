@@ -691,7 +691,7 @@ def LoadServices(app, redissession, client ,getClientName):
             index = 0
             for objtype in keywordlist[0]['keywordsmap']:
                 if objtype['objecttype'] == requestdata['objecttype']:
-                    objtype['keywords'][requestdata['name']] =  {
+                    objtype['keywords'][requestdata['name']] = {
                             "outputval" : [ 
                                 "<Dynamic Variable>(Optional);<Dynamic Variable>(Optional)"
                             ],
@@ -705,7 +705,7 @@ def LoadServices(app, redissession, client ,getClientName):
                             "description" : requestdata['name'],
                             'code': requestdata['code'],
                             'language':requestdata['language'],
-                            "ranking" : len(objtype['keywords'])+1
+                            "ranking" : len(objtype['keywords'])+1 if requestdata['action'] == 'created' else objtype['keywords'][requestdata['name']]['ranking']
                         }
                     break
                 index+=1
