@@ -251,10 +251,38 @@ def LoadServices(app, redissession, client ,getClientName):
                 clientName=getClientName(requestdata)         
                 dbsession=client[clientName]
                 reports = list(dbsession.reports.find({"_id":ObjectId(requestdata["reportid"])}))
-                # report_items= list(dbsession.reportitems.find({"_id":reports[0]["reportitems"][0]}))
-
-                # Added below query 
-                report_items= list(dbsession.reportitems.find({'reportid':reports[0]['_id']}))
+                rt_det=dbsession.reportitems.find_one({"reportid":ObjectId(requestdata["reportid"])})
+                if not rt_det:
+                    rt_coll=dbsession.list_collection_names(filter={"name": {"$regex": "^reportitems_"}})
+                    for coll in rt_coll:
+                        collection = dbsession[coll]
+                        rt_data=list(collection.find({"_id":{"$in":reports[0]["reportitems"]}},{"_id":1}))
+                        if len(rt_data)>0:
+                            report_items= list(collection.aggregate([
+                                {"$match": {'_id':{"$in":reports[0]["reportitems"]}}},
+                                {"$unwind": '$rows'},
+                                {"$set": {
+                                        "id" : '$rows.id',
+                                        "Keyword" : '$rows.Keyword',
+                                        "parentId" : '$rows.parentId',
+                                        "status" : '$rows.status',
+                                        "Step" :{"$cond": [{ "$not": ["$rows.Step "] }, "$rows.Step", "$rows.Step "] },
+                                        "Comments" : '$rows.Comments',
+                                        "StepDescription" : '$rows.StepDescription',
+                                        "screenshot_path" : '$rows.screenshot_path',
+                                        "EllapsedTime" : '$rows.EllapsedTime',
+                                        "Remark" : '$rows.Remark',
+                                        "testcase_details" : '$rows.testcase_details',
+                                        "execution_ids":str(reports[0]['executionid']),
+                                        "scenario_id":str(reports[0]['testscenarioid']),
+                                        "reportid":reports[0]['_id']
+                                    }},
+                                {"$unset": ['rows','_id','index']}
+                            ]))
+                            break
+                         
+                else:
+                    report_items= list(dbsession.reportitems.find({'reportid':reports[0]['_id']}))
                 scenarios = list(dbsession.testscenarios.find({"_id":reports[0]["testscenarioid"]}))
                 execs = list(dbsession.executions.find({"_id":reports[0]["executionid"]}))
                 testsuites = list(dbsession.testsuites.find({"_id":execs[0]["parent"][0]}))
@@ -797,50 +825,233 @@ def LoadServices(app, redissession, client ,getClientName):
                         testsuiteids=list(dbsession.testsuites.aggregate([{"$match":{"testscenarioids": {"$in":testsecnarioids[0]["testscenarioids"]}}},
                         {"$group":{"_id":"null","testsuiteids":{"$push":"$_id"}}}]))
                         if len(testsuiteids)>0:
+                            actualRun_key_check_rep=dbsession.reports.find_one({"actualRun":{"$exists":True}})
+                            if not actualRun_key_check_rep:
+                                dbsession.reports.update_many({},{"$set":{"actualRun":True}})
+                            actualRun_key_check_exe=dbsession.executions.find_one({"actualRun":{"$exists":True}})
+                            if not actualRun_key_check_exe:
+                                dbsession.executions.update_many({},{"$set":{"actualRun":True}})
                             executionids=list(dbsession.executions.aggregate([{"$match":{"starttime": {"$gte":startdate,"$lte": enddate},
-                            "parent":{"$in":testsuiteids[0]["testsuiteids"]}}},
-                            {"$group":{"_id":"null","executionids":{"$push":"$_id"}}}]))
+                            "parent":{"$in":testsuiteids[0]["testsuiteids"]},"$and":[{"actualRun":{"$exists":True}},{"actualRun":requestdata["actualRun"]}]}},
+                            {"$group":{"_id":"null","executionids":{"$push":"$_id"},"exceutionids_str":{"$push":{"$toString":"$_id"}}}}]))                                                        
                             if len(executionids)>0:
+                                reportids_rt_archive=list(dbsession.reports.aggregate([{"$match":{"executionid": {"$in":executionids[0]["executionids"]},"$and":[{"actualRun":{"$exists":True}},{"actualRun":requestdata["actualRun"]}],"reportitems":{"$not":{"$size":0}}}},{"$unwind":"$reportitems"},
+                                {"$group":{"_id":"null","reportids":{"$push":"$_id"},"reportitems_ids":{"$push":"$reportitems"}}}]))
+                                reportids_rt=list(dbsession.reports.aggregate([{"$match":{"executionid": {"$in":executionids[0]["executionids"]},"reportitems":{"$size":0}}},
+                                {"$group":{"_id":"null","reportids":{"$push":"$_id"}}}]))
                                 count=dbsession.reports.find({"executionid": {"$in":executionids[0]["executionids"]}}).count()
-                                if count <= 5000:
-                                    dbsession.reports.aggregate([{"$match":{"executionid": {"$in":executionids[0]["executionids"]
-                                            }}},{"$lookup":{
-                                            'from': "testscenarios",
-                                            'localField': "testscenarioid",
-                                            'foreignField': "_id",
-                                            'as': "scenario"}},{"$unwind":"$scenario"},{"$project":{"_id":0,"scenarioid":"$scenario._id","Scenario_Name":"$scenario.name",
-                                            "status":"$overallstatus.overallstatus","StartTime":"$overallstatus.StartTime","EndTime":"$overallstatus.EndTime",
-                                            "BrowserType":"$overallstatus.browserType"}},{"$out":"scen_exe"}])
-                                    dbsession.scen_exe.aggregate([{"$lookup":{
-                                            'from': "mindmaps",
-                                            'localField': "scenarioid",
-                                            'foreignField': "testscenarios._id",
-                                            'as': "mindmaps"}},{"$unwind":"$mindmaps"},
-                                            {"$group":{"_id":"$mindmaps.name","projectid":{"$first":"$mindmaps.projectid"},"Testscenarios_details":{"$push":
-                                            {"Scenario_Name":"$Scenario_Name",
-                                            "status":"$status","StartTime":"$StartTime","EndTime":"$EndTime",
-                                            "BrowserType":"$BrowserType"}},"passcount":{ "$sum": { "$cond": [ { "$eq": [ "$status", 'Pass' ] }, 1, 0 ] } }}},
-                                            {"$project":{"name":"$_id","_id":0,"projectid":1,"passcount":1,"Testscenarios_details":1,"Totalcount":{"$size":"$Testscenarios_details"}}},{"$out":"mod_exe"}
+                                if len(reportids_rt_archive)>0 or len(reportids_rt)>0:
+                                    if count <= 5000:
+                                        if "reporttype" in requestdata and requestdata["reporttype"]=="Detailed":
+                                            dbsession.reportitems_exe.drop()                                        
+                                            if len(reportids_rt)>0:
+                                                dbsession.reportitems.aggregate([
+                                                    {"$match":{"reportid":{"$in":reportids_rt[0]["reportids"]}}},
+                                                    {"$project":{"reportid":1,"Step":1,"Comments":1,"StepDescription":1,"Keyword":1,"status":1}},{"$out":"reportitems_exe"}
+                                                    ])
+                                            if len(reportids_rt_archive)>0:
+                                                rt_coll=dbsession.list_collection_names(filter={"name": {"$regex": "^reportitems_"}})
+                                                for coll in rt_coll:
+                                                    collection = dbsession[coll]
+                                                    rt_data=list(collection.find_one({"_id":{"$in":reportids_rt_archive[0]["reportitems_ids"]}},{"_id":1}))
+                                                    if len(rt_data)>0:
+                                                        dbsession.reportitems_archive.aggregate([
+                                                            {"$match":{"_id":{"$in":reportids_rt_archive[0]["reportitems_ids"]}}},
+                                                            {"$lookup":{
+                                                                'from': "reports",
+                                                                'localField': "_id",
+                                                                'foreignField': "reportitems",
+                                                                'as': "reports"}},
+                                                            {"$unwind": '$rows'},
+                                                            {"$set": {                                            
+                                                                    "Keyword" : '$rows.Keyword',                                           
+                                                                    "status" : '$rows.status',
+                                                                    "Step" : '$rows.Step ',
+                                                                    "Comments" : '$rows.Comments',
+                                                                    "StepDescription" : '$rows.StepDescription',
+                                                                    "reportitemid":"$_id"
+                                                                }},
+                                                            {"$unset": ['rows','_id','index']},                                                        
+                                                            {"$project":{"reportid":{"$arrayElemAt":["$reports._id",0]},"Step":1,"Comments":1,"StepDescription":1,"Keyword":1,"status":1}},
+                                                            {"$merge":{"into":"reportitems_exe","on":"_id","whenNotMatched":"insert"}}
+                                                            ])
+                                                        break   
+                                            dbsession.reports.aggregate([
+                                                {"$match":{"executionid": {"$in":executionids[0]["executionids"]}}},
+                                                { "$unwind": { "path": "$reportitems", "preserveNullAndEmptyArrays": True } },
+                                                {"$lookup":{
+                                                    'from': "testscenarios",
+                                                    'localField': "testscenarioid",
+                                                    'foreignField': "_id",
+                                                    'as': "scenario"}},
+                                                # {"$lookup":{
+                                                #     'from': "reportitems_exe",
+                                                #     'localField': "_id",
+                                                #     'foreignField': "reportid",
+                                                #     'as': "Teststepdata"}},
+                                                {"$unwind":"$scenario"},
+                                                {"$project":{"_id":0,"scenarioid":"$scenario._id","Scenario_Name":"$scenario.name","rep_reportid":"$_id",
+                                                    "status":"$overallstatus.overallstatus","StartTime":"$overallstatus.StartTime","EndTime":"$overallstatus.EndTime",
+                                                    "BrowserType":"$overallstatus.browserType","executionid":1,"projectid":"$scenario.projectid",
+                                                    # "Teststepdata":1
+                                                    }},
+                                                {"$out":"scen_exe"}
                                             ])
-                                    dbsession.projects.aggregate([{"$match":{"_id": { "$in":projId[0]["projectids"]}}},{"$lookup":{
-                                            'from': "projecttypekeywords",
-                                            'localField': "type",
-                                            'foreignField': "_id",
-                                            'as': "apptype"}},{"$unwind":"$apptype"},
-                                            {"$project":{"projName":"$name","appType":"$apptype.name"}},{"$out":"proj_exe"}
-                                            ])
-                                    data=list(dbsession.proj_exe.aggregate([{"$lookup":{
-                                            'from': "mod_exe",
-                                            'localField': "_id",
-                                            'foreignField': "projectid",
-                                            'as': "Testsuite_Details"}},{"$project":{"_id":0,"Testsuite_Details._id":0,"Testsuite_Details.projectid":0}}]))
-                                    dbsession.proj_exe.drop()
-                                    dbsession.scen_exe.drop()
-                                    dbsession.mod_exe.drop()
-                                    if data:
-                                            res={'rows':data}
+                                            dbsession.executions.aggregate([
+                                                {"$match":{"_id": {"$in":executionids[0]["executionids"] }}},                                           
+                                                {"$lookup":{
+                                                    'from': "testsuites",
+                                                    'localField': "parent",
+                                                    'foreignField': "_id",
+                                                    'as': "testsuites"}},                                        
+                                                {'$lookup': {
+                                                    'from': "configurekeys",
+                                                    'localField': "configurekey",
+                                                    'foreignField': "token",
+                                                    'as': "config"
+                                                }},
+                                                {"$set":{"TestsuiteName":{"$arrayElemAt":["$testsuites.name",0]},"mindmapid":{"$arrayElemAt":["$testsuites.mindmapid",0]},                                            
+                                                    "ProfileName":{"$arrayElemAt":["$config.executionData.configurename",0]}}},
+                                                {"$project":{"status":1,"TestsuiteName":1,"mindmapid":1,"ProfileName":1,"configurekey":1,"executionListId":1}},
+                                                {"$out":"exe_data"}
+                                                ])
+                                            dbsession.scen_exe.aggregate([
+                                                {"$lookup":{
+                                                    'from': "exe_data",
+                                                    'localField': "executionid",
+                                                    'foreignField': "_id",
+                                                    'as': "execution"}},
+                                                {"$unwind":"$execution"},
+                                                {"$group":{"_id":{"_id1":"$execution.executionListId","_id2":"$execution.mindmapid",
+                                                    "TestsuiteName":"$execution.TestsuiteName","TestsuiteStatus":"$execution.status"},
+                                                    "ProfileName":{"$first":"$execution.ProfileName"},
+                                                    "configurekey":{"$first":"$execution.configurekey"},
+                                                    "projectid":{"$first":"$projectid"},
+                                                    "Testcase_details":{"$push":
+                                                    {"Testcase_Name":"$Scenario_Name","rep_reportid":"$rep_reportid",
+                                                    "status":"$status","StartTime":"$StartTime","EndTime":"$EndTime",
+                                                    "BrowserType":"$BrowserType",
+                                                    # "Teststepdata":"$Teststepdata"
+                                                    }},"passcount":{ "$sum": { "$cond": [ { "$eq": [ "$status", 'Pass' ] }, 1, 0 ] } },                                       
+                                                    }},
+                                                {"$set":{"Totalcount":{"$size":"$Testcase_details"}}},
+                                                {"$group":{"_id":"$_id._id1","TestSuiteData":{"$push":"$$ROOT"}}},
+                                                {"$project":{"TestSuiteData._id._id1":0,"TestSuiteData._id._id2":0,
+                                                # "TestSuiteData.Testcase_details.Teststepdata._id":0,
+                                                # "TestSuiteData.Testcase_details.Teststepdata.reportid":0
+                                                        }},                                    
+                                                {"$group":{"_id":{"_id1":{"$arrayElemAt":["$TestSuiteData.configurekey",0]},
+                                                        "ProfileName":{"$arrayElemAt":["$TestSuiteData.ProfileName",0]}},"Executionsdata":{"$push":"$$ROOT"}}},                                             
+                                                {"$out":"mod_exe"}
+                                            ], allowDiskUse= True)
+                                        
+                                        else:
+                                            dbsession.reports.aggregate([
+                                                {"$match":{"executionid": {"$in":executionids[0]["executionids"]}}},
+                                                {"$lookup":{
+                                                    'from': "testscenarios",
+                                                    'localField': "testscenarioid",
+                                                    'foreignField': "_id",
+                                                    'as': "scenario"}},
+                                                {"$unwind":"$scenario"},
+                                                {"$project":{"_id":0,"scenarioid":"$scenario._id","Scenario_Name":"$scenario.name",
+                                                    "status":"$overallstatus.overallstatus","StartTime":"$overallstatus.StartTime","EndTime":"$overallstatus.EndTime",
+                                                    "BrowserType":"$overallstatus.browserType","executionid":1,"projectid":"$scenario.projectid"}},
+                                                {"$out":"scen_exe"}
+                                                ])
+                                            dbsession.executions.aggregate([
+                                                {"$match":{"_id": {"$in":executionids[0]["executionids"] }}},                                           
+                                                {"$lookup":{
+                                                    'from': "testsuites",
+                                                    'localField': "parent",
+                                                    'foreignField': "_id",
+                                                    'as': "testsuites"}},
+                                                {'$lookup': {
+                                                    'from': "configurekeys",
+                                                    'localField': "configurekey",
+                                                    'foreignField': "token",
+                                                    'as': "config"
+                                                }},
+                                                {"$set":{"TestsuiteName":{"$arrayElemAt":["$testsuites.name",0]},"mindmapid":{"$arrayElemAt":["$testsuites.mindmapid",0]},                                            
+                                                    "ProfileName":{"$arrayElemAt":["$config.executionData.configurename",0]}}},
+                                                {"$project":{"status":1,"TestsuiteName":1,"mindmapid":1,"ProfileName":1,"configurekey":1,"executionListId":1}},
+                                                {"$out":"exe_data"}
+                                                ])
+                                            dbsession.scen_exe.aggregate([
+                                                {"$lookup":{
+                                                    'from': "exe_data",
+                                                    'localField': "executionid",
+                                                    'foreignField': "_id",
+                                                    'as': "execution"}},
+                                                {"$unwind":"$execution"},
+                                                {"$group":{"_id":{"_id1":"$execution.executionListId","_id2":"$execution.mindmapid",
+                                                    "TestsuiteName":"$execution.TestsuiteName","TestsuiteStatus":"$execution.status"},
+                                                    "ProfileName":{"$first":"$execution.ProfileName"},
+                                                    "configurekey":{"$first":"$execution.configurekey"},
+                                                    "projectid":{"$first":"$projectid"},
+                                                    "Testcase_details":{"$push":
+                                                    {"Testcase_Name":"$Scenario_Name",
+                                                    "status":"$status","StartTime":"$StartTime","EndTime":"$EndTime",
+                                                    "BrowserType":"$BrowserType"}},"passcount":{ "$sum": { "$cond": [ { "$eq": [ "$status", 'Pass' ] }, 1, 0 ] } },                                       
+                                                }},
+                                                {"$set":{"Totalcount":{"$size":"$Testcase_details"}}},
+                                                {"$group":{"_id":"$_id._id1","TestSuiteData":{"$push":"$$ROOT"}}},
+                                                {"$project":{"TestSuiteData._id._id1":0,"TestSuiteData._id._id2":0}},                                    
+                                                {"$group":{"_id":{"_id1":{"$arrayElemAt":["$TestSuiteData.configurekey",0]},
+                                                    "ProfileName":{"$arrayElemAt":["$TestSuiteData.ProfileName",0]}},"Executionsdata":{"$push":"$$ROOT"}}},                                             
+                                                {"$out":"mod_exe"}
+                                                ], allowDiskUse= True)
+                                        dbsession.projects.aggregate([
+                                            {"$match":{"_id": {"$in":projId[0]["projectids"]}}},
+                                            {"$lookup":{
+                                                'from': "projecttypekeywords",
+                                                'localField': "type",
+                                                'foreignField': "_id",
+                                                'as': "apptype"}},
+                                            {"$unwind":"$apptype"},
+                                            {"$project":{"projName":"$name","appType":"$apptype.name"}},
+                                            {"$out":"proj_exe"}
+                                                ])
+                                        data=list(dbsession.proj_exe.aggregate([
+                                            {"$lookup":{
+                                                'from': "mod_exe",
+                                                'localField': "_id",
+                                                'foreignField': "Executionsdata.TestSuiteData.projectid",
+                                                'as': "Profile_Details"}},
+                                            {"$project":{"_id":0,"Profile_Details._id._id1":0,"Profile_Details.Executionsdata._id":0,
+                                                "Profile_Details.Executionsdata.TestSuiteData.projectid":0,"Profile_Details.Executionsdata.TestSuiteData.configurekey":0,
+                                                "Profile_Details.Executionsdata.TestSuiteData.ProfileName":0,
+                                                "Profile_Details.Executionsdata.exelistdata":0 }}
+                                            ]))
+                                        for execdata in data:
+                                            for exe_det in execdata["Profile_Details"]:
+                                                exe_det["ProfileName"]=exe_det["_id"]["ProfileName"]
+                                                del exe_det["_id"]
+                                                run=0
+                                                for Executionsdata in exe_det["Executionsdata"]:
+                                                    Executionsdata["Run"]=run+1
+                                                    run=Executionsdata["Run"]
+                                                    for testsuite_data in Executionsdata["TestSuiteData"]:
+                                                        testsuite_data["TestsuiteName"]=testsuite_data["_id"]["TestsuiteName"]
+                                                        testsuite_data["TestsuiteStatus"]=testsuite_data["_id"]["TestsuiteStatus"]
+                                                        del testsuite_data["_id"]                                                     
+                                                        for testcase_data in testsuite_data["Testcase_details"]:
+                                                            if "rep_reportid" in testcase_data:
+                                                                testcase_data["TeststepData"]=list(dbsession.reportitems_exe.find({"reportid":testcase_data["rep_reportid"]},{"reportid":0,"_id":0}))
+                                                                del testcase_data["rep_reportid"]
+                                                            else:
+                                                                break
+
+                                        dbsession.proj_exe.drop()
+                                        dbsession.scen_exe.drop()
+                                        dbsession.mod_exe.drop()
+                                        dbsession.reportitems_exe.drop()
+                                        if data:
+                                                res={'rows':data}
+                                    else:
+                                        res="Number of Reports exceeded the limit, Please try with shorter intervals"
                                 else:
-                                    res="Execution details exceeded the limit of 5000"
+                                    res="No Reports found for the given project during the given startDate and endDate"
                             else:
                                 res="No Exceutions found for the given project during the given startDate and endDate"
                         else:
@@ -856,6 +1067,7 @@ def LoadServices(app, redissession, client ,getClientName):
             dbsession.proj_exe.drop()
             dbsession.scen_exe.drop()
             dbsession.mod_exe.drop()
+            dbsession.reportitems_exe.drop()
             servicesException("fetchExecutionDetail",fetchExecutionDetailexc, True)
         return jsonify(res)
     
@@ -1320,4 +1532,218 @@ def LoadServices(app, redissession, client ,getClientName):
         except Exception as e:
             app.logger.error(f"Error: {str(e)}")
             return jsonify({'rows':'fail','error': 'Internal server error'}), 500
+    @app.route('/reports/fetchDefectExecutionDetail', methods=['POST'])
+    def fetchDefectExecutionDetail():
+        res = {'rows': 'fail'}
+        try:
+            requestdata = json.loads(request.data)
+            app.logger.debug("Inside fetchDefectExecutionDetail.")
+            if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)            
+                dbsession=client[clientName]
+                TF = '%Y-%m-%d %H:%M:%S'
+                startdate = datetime.strptime(requestdata['startDate'], TF)                
+                enddate = datetime.strptime(requestdata['endDate'], TF)            
+                if requestdata["prefixRegexProjName"] != "Default":                    
+                    projId=list(dbsession.projects.aggregate( [{"$match":{"name": { "$regex":requestdata["prefixRegexProjName"], "$options": 'i' } }} ,
+                    {"$group":{"_id":"null","projectids":{"$push":"$_id"}}}]))                    
+                elif type(requestdata["ProjName"]) != str:
+                    projId=list(dbsession.projects.aggregate( [{"$match":{"name": { "$in":requestdata["ProjName"]} }} ,
+                    {"$group":{"_id":"null","projectids":{"$push":"$_id"}}}]))
+                else:
+                    projId=list(dbsession.projects.aggregate( [{"$match":{"name": requestdata["ProjName"] }} ,
+                    {"$group":{"_id":"null","projectids":{"$push":"$_id"}}}]))
+                
+                if len(projId)>0:
+                    testsecnarioids=list(dbsession.testscenarios.aggregate([{"$match":{"projectid":{"$in": projId[0]["projectids"]}}},
+                    {"$group":{"_id":"null","testscenarioids":{"$push":"$_id"}}}]))
+                    if len(testsecnarioids)>0:
+                        testsuiteids=list(dbsession.testsuites.aggregate([{"$match":{"testscenarioids": {"$in":testsecnarioids[0]["testscenarioids"]}}},
+                        {"$group":{"_id":"null","testsuiteids":{"$push":"$_id"}}}]))
+                        if len(testsuiteids)>0:
+                            actualRun_key_check_rep=dbsession.reports.find_one({"actualRun":{"$exists":True}})
+                            if not actualRun_key_check_rep:
+                                dbsession.reports.update_many({},{"$set":{"actualRun":True}})
+                            actualRun_key_check_exe=dbsession.executions.find_one({"actualRun":{"$exists":True}})
+                            if not actualRun_key_check_exe:
+                                dbsession.executions.update_many({},{"$set":{"actualRun":True}})
+                            executionids=list(dbsession.executions.aggregate([{"$match":{"starttime": {"$gte":startdate,"$lte": enddate},"status":{"$nin":["Pass","pass"]},
+                            "$and":[{"actualRun":{"$exists":True}},{"actualRun":requestdata["actualRun"]}],
+                            "parent":{"$in":testsuiteids[0]["testsuiteids"]}}},
+                            {"$group":{"_id":"null","executionids":{"$push":"$_id"},"exceutionids_str":{"$push":{"$toString":"$_id"}}}}]))
+                            if len(executionids)>0:
+                                reportids_rt_archive=list(dbsession.reports.aggregate([{"$match":{"executionid": {"$in":executionids[0]["executionids"]},"status":{"$nin":["Pass","pass"]},"$and":[{"actualRun":{"$exists":True}},{"actualRun":requestdata["actualRun"]}],"reportitems":{"$not":{"$size":0}}}},{"$unwind":"$reportitems"},
+                                {"$group":{"_id":"null","reportids":{"$push":"$_id"},"reportitems_ids":{"$push":"$reportitems"}}}]))
+                                reportids_rt=list(dbsession.reports.aggregate([{"$match":{"executionid": {"$in":executionids[0]["executionids"]},"status":{"$nin":["Pass","pass"]},"$and":[{"actualRun":{"$exists":True}},{"actualRun":requestdata["actualRun"]}],"reportitems":{"$size":0}}},
+                                {"$group":{"_id":"null","reportids":{"$push":"$_id"}}}]))
+                                if len(reportids_rt_archive)>0 or len(reportids_rt)>0:
+                                    dbsession.reportitems_exe_def.drop()
+                                    count=dbsession.reports.find({"executionid": {"$in":executionids[0]["executionids"]}}).count()
+                                    if count <= 5000:
+                                        if len(reportids_rt)>0:
+                                            dbsession.reportitems.aggregate([
+                                                {"$match":{"reportid":{"$in":reportids_rt[0]["reportids"]},"Keyword":{"$ne":"TestCase Name"},"status":{"$in":["Fail","fail","Terminate","terminate","Terminated"]}}},
+                                                {"$project":{"reportid":1,"Step":1,"Comments":1,"StepDescription":1,"Keyword":1,"status":1}},{"$out":"reportitems_exe_def"}
+                                                ])
+                                        elif len(reportids_rt_archive)>0:
+                                            rt_coll=dbsession.list_collection_names(filter={"name": {"$regex": "^reportitems_"}})
+                                            for coll in rt_coll:
+                                                collection = dbsession[coll]
+                                                rt_data=list(collection.find_one({"_id":{"$in":reportids_rt_archive[0]["reportitems_ids"]}},{"_id":1}))
+                                                if len(rt_data)>0:
+                                                    dbsession.reportitems_archive.aggregate([
+                                                        {"$match":{"_id":{"$in":reportids_rt_archive[0]["reportitems_ids"]},
+                                                        # "rows.status":{"$in":["Fail","fail","Terminate","terminate","Terminated"]}
+                                                        }},
+                                                        {"$lookup":{
+                                                            'from': "reports",
+                                                            'localField': "_id",
+                                                            'foreignField': "reportitems",
+                                                            'as': "reports"}},
+                                                        {"$unwind": '$rows'},
+                                                        {"$set": {                                            
+                                                                "Keyword" : '$rows.Keyword',                                           
+                                                                "status" : '$rows.status',
+                                                                "Step" : '$rows.Step ',
+                                                                "Comments" : '$rows.Comments',
+                                                                "StepDescription" : '$rows.StepDescription',
+                                                                "reportitemid":"$_id"
+                                                            }},
+                                                        {"$unset": ['rows','_id','index']},
+                                                        {"$match":{ "Keyword":{"$ne":"TestCase Name"},"status":{"$in":["Fail","fail","Terminate","terminate","Terminated"]}}},
+                                                        {"$project":{"reportid":{"$arrayElemAt":["$reports._id",0]},"Step":1,"Comments":1,"StepDescription":1,"Keyword":1,"status":1}},
+                                                        {"$merge":{"into":"reportitems_exe_def","on":"_id","whenNotMatched":"insert"}}
+                                                        ])
+                                                    break
+                                        dbsession.reports.aggregate([
+                                            {"$match":{"executionid": {"$in":executionids[0]["executionids"]},"status":{"$nin":["Pass","pass"]}}},
+                                            # { "$unwind": { "path": "$reportitems", "preserveNullAndEmptyArrays": True } },
+                                            {"$lookup":{
+                                                'from': "testscenarios",
+                                                'localField': "testscenarioid",
+                                                'foreignField': "_id",
+                                                'as': "scenario"}},
+                                            # {"$lookup":{
+                                            #     'from': "reportitems_exe_def",
+                                            #     'localField': "_id",
+                                            #     'foreignField': "reportid",
+                                            #     'as': "reportitem"}}, 
+                                            # {"$project":{"_id":0,"reportitem._id":0,"reportitem.reportid":0,"reportitem_ar.reportitemid":0}},
+                                            {"$project":{"_id":0,"scenarioid":{"$arrayElemAt":["$scenario._id",0]},"Scenario_Name":{"$arrayElemAt":["$scenario.name",0]},"rep_reportid":"$_id",
+                                                "status":"$overallstatus.overallstatus","StartTime":"$overallstatus.StartTime","EndTime":"$overallstatus.EndTime",
+                                                "BrowserType":"$overallstatus.browserType","executionid":1,"projectid":"$scenario.projectid",
+                                                # "FailedTestStepData":"$reportitem"
+                                                }},
+                                            {"$out":"scen_exe_def"}])
+                                        dbsession.executions.aggregate([
+                                            {"$match":{"_id": {"$in":executionids[0]["executionids"] }}},                                           
+                                            {"$lookup":{
+                                                'from': "testsuites",
+                                                'localField': "parent",
+                                                'foreignField': "_id",
+                                                'as': "testsuites"}},                                       
+                                            {'$lookup': {
+                                                    'from': "configurekeys",
+                                                    'localField': "configurekey",
+                                                    'foreignField': "token",
+                                                    'as': "config"
+                                            }},
+                                            {"$set":{"TestsuiteName":{"$arrayElemAt":["$testsuites.name",0]},"mindmapid":{"$arrayElemAt":["$testsuites.mindmapid",0]},                                            
+                                                "ProfileName":{"$arrayElemAt":["$config.executionData.configurename",0]}}},
+                                            {"$project":{"status":1,"TestsuiteName":1,"mindmapid":1,"ProfileName":1,"configurekey":1,"executionListId":1}},
+                                            {"$out":"exe_data_def"}])
+                                        dbsession.scen_exe_def.aggregate([
+                                            {"$lookup":{
+                                                'from': "exe_data_def",
+                                                'localField': "executionid",
+                                                'foreignField': "_id",
+                                                'as': "execution"}},
+                                            {"$unwind":"$execution"},
+                                            {"$group":{"_id":{"_id1":"$execution.executionListId","_id2":"$execution.mindmapid",
+                                                "TestsuiteName":"$execution.TestsuiteName","TestsuiteStatus":"$execution.status"},
+                                                "ProfileName":{"$first":"$execution.ProfileName"},
+                                                "configurekey":{"$first":"$execution.configurekey"},
+                                                "projectid":{"$first":"$projectid"},
+                                                "Testcase_details":{"$push":
+                                                {"Testcase_Name":"$Scenario_Name",
+                                                "status":"$status","StartTime":"$StartTime","EndTime":"$EndTime",
+                                                "BrowserType":"$BrowserType","rep_reportid":"$rep_reportid"
+                                                # "FailedTestStepdata":"$FailedTestStepData"
+                                                }}                                      
+                                                }},                                            
+                                            {"$group":{"_id":"$_id._id1","TestSuiteData":{"$push":"$$ROOT"}}},
+                                            {"$project":{"TestSuiteData._id._id1":0,"TestSuiteData._id._id2":0,
+                                            # "TestSuiteData.Testcase_details.FailedTestStepdata._id":0,
+                                            #     "TestSuiteData.Testcase_details.FailedTestStepdata.reportid":0
+                                                }},                                    
+                                            {"$group":{"_id":{"_id1":{"$arrayElemAt":["$TestSuiteData.configurekey",0]},
+                                                "ProfileName":{"$arrayElemAt":["$TestSuiteData.ProfileName",0]}},"Executionsdata":{"$push":"$$ROOT"}}},                                             
+                                            {"$out":"mod_exe_def"}
+                                            ])
+                                        dbsession.projects.aggregate([
+                                            {"$match":{"_id": { "$in":projId[0]["projectids"]}}},
+                                            {"$lookup":{
+                                                'from': "projecttypekeywords",
+                                                'localField': "type",
+                                                'foreignField': "_id",
+                                                'as': "apptype"}},
+                                            {"$unwind":"$apptype"},
+                                            {"$project":{"projName":"$name","appType":"$apptype.name"}},{"$out":"proj_exe_def"}
+                                            ])
+                                        data=list(dbsession.proj_exe_def.aggregate([
+                                            {"$lookup":{
+                                                'from': "mod_exe_def",
+                                                'localField': "_id",
+                                                'foreignField': "Executionsdata.TestSuiteData.projectid",
+                                                'as': "Profile_Details"}},
+                                            {"$project":{"_id":0,"Profile_Details._id._id1":0,"Profile_Details.Executionsdata._id":0,
+                                                "Profile_Details.Executionsdata.TestSuiteData.projectid":0,"Profile_Details.Executionsdata.TestSuiteData.ProfileName":0,
+                                                "Profile_Details.Executionsdata.TestSuiteData.configurekey":0,"Profile_Details.Executionsdata.exelistdata":0}}]))
+                                        
+                                        for execdata in data:
+                                                for exe_det in execdata["Profile_Details"]:
+                                                    exe_det["ProfileName"]=exe_det["_id"]["ProfileName"]
+                                                    del exe_det["_id"]
+                                                    run=0
+                                                    for Executionsdata in exe_det["Executionsdata"]:
+                                                        Executionsdata["Run"]=run+1
+                                                        run=Executionsdata["Run"]
+                                                        for testsuite_data in Executionsdata["TestSuiteData"]:
+                                                            testsuite_data["TestsuiteName"]=testsuite_data["_id"]["TestsuiteName"]
+                                                            testsuite_data["TestsuiteStatus"]=testsuite_data["_id"]["TestsuiteStatus"]
+                                                            del testsuite_data["_id"]                                                     
+                                                            for testcase_data in testsuite_data["Testcase_details"]:
+                                                                if "rep_reportid" in testcase_data:
+                                                                    testcase_data["TeststepData"]=list(dbsession.reportitems_exe_def.find({"reportid":testcase_data["rep_reportid"]},{"reportid":0,"_id":0}))
+                                                                    del testcase_data["rep_reportid"]
+                                                                else:
+                                                                    break
+                                        dbsession.proj_exe_def.drop()
+                                        dbsession.scen_exe_def.drop()
+                                        dbsession.mod_exe_def.drop()
+                                        dbsession.reportitems_exe_def.drop()                                
+                                        if data:
+                                                res={'rows':data}
+                                    else:
+                                        res="Number of Reports exceeded the limit, Please try with shorter intervals"
+                                else:
+                                   res= "No  Reports Terminated/Failed found for the given project during the given startDate and endDate"
+                            else:
+                                res="No  Exceutions Terminated/Failed found for the given project during the given startDate and endDate"
+                        else:
+                            res="No Testsuites found for the given project"
+                    else:
+                        res="No Testscenarios found for the given project"
+                else:
+                    res="No Projects found"
+            
+            else:
+                app.logger.warn('Empty data received while fetching execution details')
+        except Exception as  fetchDefectExecutionDetailexc:
+            dbsession.proj_exe_def.drop()
+            dbsession.scen_exe_def.drop()
+            dbsession.mod_exe_def.drop()
+            dbsession.reportitems_exe_def.drop()
+            servicesException("fetchDefectExecutionDetail",fetchDefectExecutionDetailexc, True)
+        return jsonify(res)
 # END OF REPORTS
