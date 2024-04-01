@@ -331,6 +331,8 @@ def updateActiveIceSessions():
                                     for key in lsData:
                                         if key in webPluginList:
                                             ice_plugins_list.append(webPluginList[key])
+                                            if key == "MOBT":
+                                                ice_plugins_list.append("mobileweb")
                                     res["plugins"] = ice_plugins_list
                                     res["license_data"] = lsData
                             else:
