@@ -114,8 +114,10 @@ def LoadServices(app, redissession, client ,getClientName):
                 return jsonify({'error': 'Invalid request data'}), 400
             client_name = getClientName(request_data)
             dbsession = client[client_name]
-            fetch_result = list(dbsession.GenAI_Models.find({"userinfo.userid":request_data['userid']},
-                                                            {"userinfo":0}))
+            # fetch_result = list(dbsession.GenAI_Models.find({"userinfo.userid":request_data['userid']},
+            #                                                 {"userinfo":0}))
+            # {"$or":[{ "userinfo.defaultRole": { "$in": ["Quality Lead", "Quality Manager", "Quality Engineer"] } },{ "userinfo.activeRole": { "$in": ["Quality Lead", "Quality Manager", "Quality Engineer"] } }]}
+            fetch_result = list(dbsession.GenAI_Models.find({},{"userinfo":0}))
 
             if len(fetch_result):
                 return jsonify({'rows':fetch_result, 'message': 'records found'}), 200
@@ -136,7 +138,7 @@ def LoadServices(app, redissession, client ,getClientName):
             client_name = getClientName(request_data)
             dbsession = client[client_name]
 
-            document = dbsession.GenAI_Models.find_one({"_id":ObjectId(request_data["id"]),"userinfo.userid":request_data["userinfo"]["userid"]})
+            document = dbsession.GenAI_Models.find_one({"_id":ObjectId(request_data["id"])})
             if not document:
                 return jsonify({'rows':'fail','error': ' document not found '}), 404
             if "modeltype" in request_data["items"] and request_data["items"]["modeltype"] != document.get("modeltype", ""):
@@ -167,7 +169,7 @@ def LoadServices(app, redissession, client ,getClientName):
             client_name = getClientName(request_data)
             dbsession = client[client_name]
             doc_id = request_data["id"]
-            deleted_document = dbsession.GenAI_Models.find_one_and_delete({"_id":ObjectId(doc_id),"userinfo.userid":request_data["userinfo"]["userid"]})
+            deleted_document = dbsession.GenAI_Models.find_one_and_delete({"_id":ObjectId(doc_id)})
             if not deleted_document:
                 return jsonify({'rows':'fail','error': ' document not found '}), 404
               
@@ -224,8 +226,7 @@ def LoadServices(app, redissession, client ,getClientName):
                 return jsonify({'error': 'Invalid request data'}), 400
             client_name = getClientName(request_data)
             dbsession = client[client_name]
-            fetch_result = list(dbsession.GenAI_Templates.find({"userinfo.userid":request_data['userid']},
-                                                            {"userinfo":0}))
+            fetch_result = list(dbsession.GenAI_Templates.find({},{"userinfo":0}))
 
             if len(fetch_result):
                 return jsonify({'rows':fetch_result, 'message': 'records found'}), 200
@@ -246,13 +247,13 @@ def LoadServices(app, redissession, client ,getClientName):
             client_name = getClientName(request_data)
             dbsession = client[client_name]
 
-            document = dbsession.GenAI_Templates.find_one({"_id":ObjectId(request_data["id"]),"userinfo.userid":request_data["userinfo"]["userid"]})
+            document = dbsession.GenAI_Templates.find_one({"_id":ObjectId(request_data["id"])})
             if not document:
                 return jsonify({'rows':'fail','error': ' document not found '}), 404
             for key,value in request_data["items"].items():
                 document[key] = value
             document.pop("model_details", None)
-            find_model_details = dbsession.GenAI_Models.find_one({"_id":ObjectId(request_data["items"]["model_id"]),"userinfo.userid":request_data["userinfo"]["userid"]},
+            find_model_details = dbsession.GenAI_Models.find_one({"_id":ObjectId(request_data["items"]["model_id"])},
                                                                  {"userinfo":0,"createdAt":0,"updatedAt":0})
             if not find_model_details:
                 return jsonify({'rows':'fail','error': ' document not found '}), 404    
@@ -280,7 +281,7 @@ def LoadServices(app, redissession, client ,getClientName):
             client_name = getClientName(request_data)
             dbsession = client[client_name]
             doc_id = request_data["id"]
-            deleted_document = dbsession.GenAI_Templates.find_one_and_delete({"_id":ObjectId(doc_id),"userinfo.userid":request_data["userinfo"]["userid"]})
+            deleted_document = dbsession.GenAI_Templates.find_one_and_delete({"_id":ObjectId(doc_id)})
             if not deleted_document:
                 return jsonify({'rows':'fail','error': ' document not found '}), 404
               
@@ -288,4 +289,52 @@ def LoadServices(app, redissession, client ,getClientName):
 
         except Exception as e:
             app.logger.error(f"Error: {str(e)}")
-            return jsonify({'rows':'fail','error': 'Internal server error'}), 500                
+            return jsonify({'rows':'fail','error': 'Internal server error'}), 500
+
+    @app.route('/genAI/deleteUploadFile', methods=['POST'])
+    def deleteUploadFile():
+        try:
+            request_data = request.get_json()
+            required_fields = ["id"]
+            if all(field not in request_data for field in required_fields):
+                return jsonify({'error': 'Invalid request data'}), 400
+            client_name = getClientName(request_data)
+            dbsession = client[client_name]
+            doc_id = request_data["id"]
+            deleted_document = dbsession.generateAI_temp.find_one_and_delete({"_id":ObjectId(doc_id)})
+            if not deleted_document:
+                return jsonify({'rows':'fail','error': ' document not found '}), 404
+            else:
+                # melvis db action should be done here
+                addr = "https://avogenerativeai.avoautomation.com"
+                test_url = addr + '/remove_text'
+                file_ids = [deleted_document["melvis_file_id"]] if "melvis_file_id" in deleted_document else []
+                json_data = {"file_ids":file_ids}
+                headers = {'Content-Type':'application/json'}
+                melvis_response = requests.post(test_url,headers=headers,data=json.dumps(json_data),verify = False,timeout=None) 
+                if melvis_response.status_code == 200:
+                    app.logger.info('file deleted successfully')
+                    return jsonify({'rows':'success', 'message': f"{doc_id} file deleted"}), 200
+                elif melvis_response.status_code == 400:
+                    app.logger.error('Bad Request')
+                    return jsonify({'rows':"fail", 'message': 'Bad Request'}), 400
+                elif melvis_response.status_code == 401:
+                    app.logger.error('Unauthorized user')
+                    return jsonify({'rows':"fail", 'message': 'Unauthorized token'}), 401
+                elif melvis_response.status_code == 403:
+                    app.logger.error('user does not have the necessary permissions to access')
+                    return jsonify({'rows':"fail", 'message': 'user does not have the necessary permissions to access'}), 403
+                elif melvis_response.status_code == 404 :
+                    app.logger.error('Source not found')
+                    return jsonify({'rows':"fail", 'message': 'Source not found'}), 404
+                elif melvis_response.status_code == 500 :
+                    app.logger.error('Internal Server Error')
+                    return jsonify({'rows':"fail", 'message': 'Internal Server Error'}), 500
+                elif melvis_response.status_code == 504 :
+                    app.logger.error('Gateway Time-out')
+                    return jsonify({'rows':"fail", 'message': 'Gateway Time-out'}), 504
+                app.logger.info('file deleted done on mongodb')
+                return jsonify({'rows':'success', 'message': f"{doc_id} file deleted"}), 200
+        except Exception as e:
+            app.logger.error(f"Error: {str(e)}")
+            return jsonify({'rows':'fail','error': 'Internal server error'}), 500                    
