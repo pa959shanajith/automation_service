@@ -1441,50 +1441,116 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
         data={}
         try:
             clientName=getClientName(requestdata)             
-            dbsession=client[clientName]
-            #check whether the git configuration name is unique
-            check_gitbranch=list(dbsession.gitconfiguration.find({"gitbranch":{"$exists":False}}))
-            if len(check_gitbranch)>0:
-                dbsession.gitconfiguration.update_many({},{"$set":{"gitbranch":"main"}})
-            chk_gitname = dbsession.gitconfiguration.find_one({"name":requestdata["gitConfigName"]},{"name":1})
-            if chk_gitname!=None and requestdata["action"]=='create':
-                res={"rows":"GitConfig exists"}
-                return res
-            result = dbsession.gitconfiguration.find_one({"gituser":ObjectId(requestdata["userId"]),"projectid":ObjectId(requestdata["projectId"])},{"_id":1})
-            
-            current_time = datetime.now()
-            if requestdata["action"]=='create':
-                if result!=None:
-                    res={"rows":"GitUser exists"}
-                    return res
+            dbsession=client[clientName]            
+            if requestdata["param"]=="git":
+                #check whether the git configuration name is unique
+                check_gitbranch=list(dbsession.gitconfiguration.find({"gitbranch":{"$exists":False}}))
+                if len(check_gitbranch)>0:
+                    dbsession.gitconfiguration.update_many({},{"$set":{"gitbranch":"main"}})
+                if "gitConfigName" in requestdata: 
+                    chk_gitname = dbsession.gitconfiguration.find_one({"name":requestdata["gitConfigName"]},{"name":1})
                 else:
+                    chk_gitname = None
+                if chk_gitname!=None and requestdata["action"]=='create':
+                    res={"rows":"gitConfig exists"}
+                    return res
+                result = dbsession.gitconfiguration.find_one({"gituser":ObjectId(requestdata["userId"]),"projectid":ObjectId(requestdata["projectId"])},{"_id":1})
+                check = dbsession.bitconfiguration.find_one({"bituser":ObjectId(requestdata["userId"]),"projectid":ObjectId(requestdata["projectId"])},{"_id":1})
+                current_time = datetime.now()
+                if requestdata["action"]=='create':
+                    if result!=None:
+                        res={"rows":"gitUser exists"}
+                        return res
+                    elif check != None:                        
+                        res={"rows":"bitConfig exists"}
+                        return res
+                    else:
+                        data['name'] = requestdata["gitConfigName"]
+                        data['gituser'] = ObjectId(requestdata["userId"])
+                        data['projectid'] = ObjectId(requestdata["projectId"])
+                        data['createdon'] = current_time
+                        data['modifiedon'] = current_time
+                        data['gitaccesstoken'] = wrap(requestdata["gitAccToken"],ldap_key)
+                        data['giturl']= requestdata["gitUrl"]
+                        data['gitusername']=requestdata["gitUsername"]
+                        data['gituseremail']=requestdata["gitEmail"]
+                        data['gitbranch']=requestdata["gitbranch"]
+                        dbsession.gitconfiguration.insert_one(data)
+                        res1 = "success"
+                elif requestdata["action"]=='update':
                     data['name'] = requestdata["gitConfigName"]
-                    data['gituser'] = ObjectId(requestdata["userId"])
-                    data['projectid'] = ObjectId(requestdata["projectId"])
-                    data['createdon'] = current_time
                     data['modifiedon'] = current_time
                     data['gitaccesstoken'] = wrap(requestdata["gitAccToken"],ldap_key)
                     data['giturl']= requestdata["gitUrl"]
-                    data['gitusername']=requestdata["gitUsername"]
                     data['gituseremail']=requestdata["gitEmail"]
+                    data['gitusername']=requestdata["gitUsername"]
                     data['gitbranch']=requestdata["gitbranch"]
-                    dbsession.gitconfiguration.insert_one(data)
+                    dbsession.gitconfiguration.update_one({"_id":ObjectId(result["_id"])},{"$set":data})
                     res1 = "success"
-            elif requestdata["action"]=='update':
-                data['name'] = requestdata["gitConfigName"]
-                data['modifiedon'] = current_time
-                data['gitaccesstoken'] = wrap(requestdata["gitAccToken"],ldap_key)
-                data['giturl']= requestdata["gitUrl"]
-                data['gituseremail']=requestdata["gitEmail"]
-                data['gitusername']=requestdata["gitUsername"]
-                data['gitbranch']=requestdata["gitbranch"]
-                dbsession.gitconfiguration.update_one({"_id":ObjectId(result["_id"])},{"$set":data})
-                res1 = "success"
-            elif requestdata["action"]=="delete":
-                if result!=None:
-                    dbsession.gitconfiguration.delete_one({"_id":result["_id"]})
-                res1 = "success"
-            res['rows'] = res1
+                elif requestdata["action"]=="delete":
+                    if result!=None:
+                        dbsession.gitconfiguration.delete_one({"_id":result["_id"]})
+                    res1 = "success"
+                res['rows'] = res1
+            elif requestdata["param"]=="bit":
+                if "bitConfigName" in requestdata: 
+                    chk_bitname = dbsession.bitconfiguration.find_one({"name":requestdata["bitConfigName"]},{"name":1})
+                else:
+                    chk_bitname = None
+                if chk_bitname!=None and requestdata["action"]=='create':
+                    res={"rows":"bitConfig exists"}
+                    return res
+                result = dbsession.bitconfiguration.find_one({"bituser":ObjectId(requestdata["userId"]),"projectid":ObjectId(requestdata["projectId"])},{"_id":1})
+                check = dbsession.gitconfiguration.find_one({"gituser":ObjectId(requestdata["userId"]),"projectid":ObjectId(requestdata["projectId"])},{"_id":1})
+                current_time = datetime.now()
+                if requestdata["action"]=='create':
+                    if result!=None:
+                        res={"rows":"bitUser exists"}
+                        return res
+                    elif check != None:                        
+                        res={"rows":"gitConfig exists"}
+                        return res                 
+                    else:
+                        data['name'] = requestdata["bitConfigName"]
+                        data['bituser'] = ObjectId(requestdata["userId"])
+                        data['projectid'] = ObjectId(requestdata["projectId"])
+                        data['createdon'] = current_time
+                        data['modifiedon'] = current_time
+                        data['bitaccesstoken'] = wrap(requestdata["bitAccToken"],ldap_key)
+                        data['biturl']= requestdata["bitUrl"]
+                        data['bitusername']=requestdata["bitUsername"]
+                        data['workspace']=requestdata["workspace"]
+                        data['bitbranch']=requestdata["bitbranch"]
+                        data['projectkey']=requestdata["projectkey"]
+                        dbsession.bitconfiguration.insert_one(data)
+                        res1 = "success"
+                elif requestdata["action"]=='update':
+                    data['name'] = requestdata["bitConfigName"]
+                    data['modifiedon'] = current_time
+                    data['bitaccesstoken'] = wrap(requestdata["bitAccToken"],ldap_key)
+                    data['biturl']= requestdata["bitUrl"]
+                    data['workspace']=requestdata["workspace"]
+                    data['bitusername']=requestdata["bitUsername"]
+                    data['bitbranch']=requestdata["bitbranch"]
+                    data['projectkey']=requestdata["projectkey"]
+                    dbsession.bitconfiguration.update_one({"_id":ObjectId(result["_id"])},{"$set":data})
+                    res1 = "success"
+                elif requestdata["action"]=="delete":
+                    if result!=None:
+                        dbsession.bitconfiguration.delete_one({"_id":result["_id"]})
+                    res1 = "success"
+                res['rows'] = res1
+            elif requestdata["param"]=="verify":
+                result = dbsession.gitconfiguration.find_one({"gituser":ObjectId(requestdata["userId"]),"projectid":ObjectId(requestdata["projectId"])},{"_id":1})
+                if result == None:
+                    bit_res=result = dbsession.bitconfiguration.find_one({"bituser":ObjectId(requestdata["userId"]),"projectid":ObjectId(requestdata["projectId"])},{"_id":1})
+                    if bit_res !=None:
+                        res1="bit"
+                    else:
+                        res1="noconfig"
+                else:
+                    res1 ="git"
+                res['rows'] = res1   
         except Exception as e:
             app.logger.debug(traceback.format_exc())
             servicesException("gitSaveConfig",e)
@@ -1499,16 +1565,24 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
             requestdata=json.loads(request.data)
             if not isemptyrequest(requestdata):
                 clientName=getClientName(requestdata)            
-                dbsession=client[clientName]
-                check_gitbranch=list(dbsession.gitconfiguration.find({"gitbranch":{"$exists":False}}))
-                if len(check_gitbranch)>0:
-                    dbsession.gitconfiguration.update_many({},{"$set":{"gitbranch":"main"}})
-                result=dbsession.gitconfiguration.find_one({"gituser":ObjectId(requestdata["userId"]),"projectid":ObjectId(requestdata["projectId"])},{'name':1, 'gitaccesstoken':1, 'giturl':1, 'gitusername':1,'gituseremail':1, 'gitbranch':1,'_id':0})
-                if result:
-                    result['gitaccesstoken'] = unwrap(result['gitaccesstoken'],ldap_key)
-                    res={'rows':result}
-                else:
-                    res={'rows':"empty"}    
+                dbsession=client[clientName]                
+                if  requestdata["param"]=="git":
+                    check_gitbranch=list(dbsession.gitconfiguration.find({"gitbranch":{"$exists":False}}))
+                    if len(check_gitbranch)>0:
+                        dbsession.gitconfiguration.update_many({},{"$set":{"gitbranch":"main"}})
+                    result=dbsession.gitconfiguration.find_one({"gituser":ObjectId(requestdata["userId"]),"projectid":ObjectId(requestdata["projectId"])},{'name':1, 'gitaccesstoken':1, 'giturl':1, 'gitusername':1,'gituseremail':1, 'gitbranch':1,'_id':0})
+                    if result:
+                        result['gitaccesstoken'] = unwrap(result['gitaccesstoken'],ldap_key)
+                        res={'rows':result}
+                    else:
+                        res={'rows':"empty"}
+                elif requestdata["param"]=="bit":
+                    result=dbsession.bitconfiguration.find_one({"bituser":ObjectId(requestdata["userId"]),"projectid":ObjectId(requestdata["projectId"])},{'name':1, 'bitaccesstoken':1, 'biturl':1, 'bitusername':1, 'workspace':1,'bitbranch':1,'projectkey':1,'_id':0})
+                    if result:
+                        result['bitaccesstoken'] = unwrap(result['bitaccesstoken'],ldap_key)
+                        res={'rows':result}
+                    else:
+                        res={'rows':"empty"}  
             else:
                 app.logger.warn('Empty data received in git user fetch.')
         except Exception as e:
