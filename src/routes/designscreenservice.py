@@ -425,6 +425,10 @@ def LoadServices(app, redissession, client ,getClientName):
                     else:
                         dbsession.screens.update({"_id":screenId},{"$set": payload})
                         elementid = dbsession.screens.find_one({"_id":screenId},{"elementrepoused" : 1})
+                        del_parentrid = list(dbsession.dataobjects.find({"parent" : ObjectId(elementid["elementrepoused"][0]["_id"]) }))
+                        for parent in del_parentrid:
+                            dbsession.dataobjects.update_many({"_id": ObjectId(parent["_id"]),"$and":[{"parent.1":{"$exists":True}},{"parent":ObjectId(elementid["elementrepoused"][0]["_id"])}]},{"$pull":{"parent":ObjectId(elementid["elementrepoused"][0]["_id"])}})
+                            dbsession.dataobjects.delete_many({"_id":ObjectId(parent["_id"]),"$and":[{"parent":{"$size": 1}},{"parent":ObjectId(elementid["elementrepoused"][0]["_id"])}]})
                         for orderlst in payload["orderlist"]:
                             parentid = dbsession.dataobjects.find_one({"_id":ObjectId(orderlst)},{"parent" : 1})
                             if ObjectId(elementid["elementrepoused"][0]["_id"]) not in parentid["parent"]:
@@ -553,16 +557,24 @@ def LoadServices(app, redissession, client ,getClientName):
                             res={"rows":"Element all ready present"}
                 if data['param'] == 'delElement':
                     dbsession.elementrepository.update({'_id': ObjectId(data['screenId'])},{"$set":{'orderlist' : data["orderList"]}})
+                    scrids = dbsession.elementrepository.find_one({'_id': ObjectId(data['screenId'])},{'screenids' : 1})
                     for deletedid in data["deletedObj"]:
+                        for ids in scrids['screenids']:
+                            dbsession.screens.update({"_id": ObjectId(ids)},{"$pull":{"orderlist": deletedid}})
+                            dbsession.dataobjects.update({'_id': ObjectId(deletedid)},{"$pull":{'parent' : ObjectId(ids)}})
                         dbsession.dataobjects.update({'_id': ObjectId(deletedid)},{"$pull":{'parent' : ObjectId(data["screenId"])}})
                     res= {"rows" : "Success"}
                 if data['param'] == 'delAllElement':                    
                     for orderlist in data['deletedObj']:
-                        list_order = list(dbsession.elementrepository.find({'orderlist': orderlist},{"_id":1, 'orderlist':1}))
+                        list_order = list(dbsession.elementrepository.find({'orderlist': orderlist},{"_id":1, 'orderlist':1, 'screenids' : 1}))
                         for inOrderlist in list_order:                            
                             if orderlist in inOrderlist['orderlist']:
                                 dbsession.elementrepository.update({"_id": inOrderlist['_id']}, {'$pull':{'orderlist': orderlist}})
                                 dbsession.dataobjects.delete_one({'_id': ObjectId(orderlist)})
+                                for screenid in inOrderlist["screenids"]:
+                                    dbsession.screens.update({"_id": ObjectId(screenid)}, {'$pull':{'orderlist': orderlist}})
+
+
                     res= {'rows': "Success"}    
                 elif data["param"] == "mapScrapeData":
                     objList = data["objList"]
