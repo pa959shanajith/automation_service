@@ -383,22 +383,20 @@ def LoadServices(app, redissession, client ,getClientName, *args):
             if param =="git":
                 response = requests.get('https://api.github.com/user/repos', headers=headers, verify=False)                    
                 repos=[]
-                if response.status_code ==200:
-                    repositories = response.json()
+                if response.status_code ==200:                    
                     response=response.json()
-                    for repo in repositories:
+                    for repo in response:
                         repos.append(repo["name"])
                     res="success"
                     return repos,response,res
             elif param=="bit":                
                 url = f'https://api.bitbucket.org/2.0/repositories/{workspace}'
                 response = requests.get(url, headers=headers, verify=False)                    
-                repos=[]                
-                if response.status_code == 200:
-                    repositories = response.json()['values']
+                repos=[]                              
+                if response.status_code == 200:                    
                     response = response.json()['values']
-                    for repo in repositories:
-                        repos.append(repo["name"])
+                    for repo in response:
+                        repos.append(repo["name"])                    
                     res="success"
                     return repos,response,res
             if not response.status_code == 200:
@@ -512,11 +510,12 @@ def LoadServices(app, redissession, client ,getClientName, *args):
                     if not bit_details:
                         res={'rows':'empty'}
                         return res
-                    proj_details = dbsession.bitexpimpdetails.find_one({"bittask":"push","projectid":ObjectId(requestdata["projectId"])},{"repoName":1})
+                    proj_details = dbsession.bitexpimpdetails.find_one({"bittask":"push","projectid":ObjectId(requestdata["projectId"]),"projectkey":bit_details["projectkey"]},{"repoName":1})
                     if proj_details:
                         repo_name=proj_details["repoName"]
                     else:
-                        repo_name= str(requestdata["projectId"])
+                        key=bit_details["projectkey"].lower()
+                        repo_name= str(requestdata["projectId"])+"_"+key
                         # repo_name=wrap(requestdata["projectId"],ldap_key)
                     workspace=bit_details["workspace"]
                     projectkey=bit_details["projectkey"]
@@ -784,7 +783,7 @@ def LoadServices(app, redissession, client ,getClientName, *args):
                     data["version"] = module_data["bitVersion"]
                     data["commitmessage"] = module_data["bitComMsgRef"]
                     data["parent"] = bit_details["_id"]
-                    data["projectkey"] = "PROJ"
+                    data["projectkey"] = bit_details["projectkey"]
                     data["exportbitid"] = None
                     dbsession.bitexpimpdetails.insert(data)
                 res={'rows':'Success'}
@@ -1451,7 +1450,7 @@ def LoadServices(app, redissession, client ,getClientName, *args):
                                     },{"$out":"gitexpimpdetails"}])               
                     expName=list(dbsession.gitexpimpdetails.find({"projectid":ObjectId(requestdata["projectId"]),"gittask":"push"},{"commitmessage":1,"version":1,"_id":0}))
                 else:
-                    expName=list(dbsession.bitexpimpdetails.find({"projectid":ObjectId(requestdata["projectId"]),"gittask":"push"},{"commitmessage":1,"version":1,"_id":0}))
+                    expName=list(dbsession.bitexpimpdetails.find({"projectid":ObjectId(requestdata["projectId"]),"bittask":"push"},{"commitmessage":1,"version":1,"_id":0}))
                 if requestdata["query"] =="exportgit":
                     ver=[]
                     for version in expName:
