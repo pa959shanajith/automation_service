@@ -391,14 +391,25 @@ def LoadServices(app, redissession, client ,getClientName, *args):
                     return repos,response,res
             elif param=="bit":                
                 url = f'https://api.bitbucket.org/2.0/repositories/{workspace}'
-                response = requests.get(url, headers=headers, verify=False)                    
-                repos=[]                              
-                if response.status_code == 200:                    
-                    response = response.json()['values']
-                    for repo in response:
-                        repos.append(repo["name"])                    
-                    res="success"
-                    return repos,response,res
+                repos = []
+                response_det=[]
+                # Start with the first page
+                page = 1
+
+                while True:
+                    params = {'page': page, 'pagelen': 100} 
+                    response = requests.get(url, headers=headers,  params=params, verify=False)                     
+                    if response.status_code == 200:
+                        data = response.json()["values"]
+                        response_det.extend(data)                       
+                        for repo in data:
+                            repos.append(repo["name"])                        
+                        if not data:
+                            res="success"
+                            return repos,response_det,res
+                        else:page += 1        
+                    else:
+                        break
             if not response.status_code == 200:
                 if response.status_code == 401:
                     res = "Invalid token"
@@ -420,13 +431,23 @@ def LoadServices(app, redissession, client ,getClientName, *args):
                         branch_names = [branch['name'] for branch in branches]
                         res="success"
                         return res,branch_names
-                else:
-                    branch_response = requests.get(f"{api_url}/repositories/{workspace}/{repo_name}/refs/branches" , headers=headers)
-                    if branch_response.status_code == 200:
-                        branches = branch_response.json()["values"]
-                        branch_names = [branch['name'] for branch in branches]
-                        res="success"
-                        return res,branch_names
+                else:                    
+                    url = f'{api_url}/repositories/{workspace}/{repo_name}/refs/branches'
+                    branch_names = []
+                    page = 1
+                    while True:
+                        params = {'page': page, 'pagelen': 100} 
+                        branch_response = requests.get(url, headers=headers,  params=params, verify=False)                     
+                        if branch_response.status_code == 200:
+                            branches = branch_response.json()["values"]                                                
+                            for branch_name in branches:
+                                branch_names.append(branch_name['name'])                        
+                            if not branches:
+                                res="success"
+                                return res,branch_names
+                            else:page += 1        
+                        else:
+                            break
                 if not branch_response.status_code == 200:
                     if branch_response.status_code == 401:
                         res = "Invalid token"
