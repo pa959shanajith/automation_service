@@ -423,21 +423,23 @@ def LoadServices(app, redissession, client ,getClientName):
                             for order in payload["orderlist"]:
                                 dbsession.dataobjects.update({"_id": ObjectId(order)}, {"$push":{"parent": ObjectId(screen)}})
                     else:
-                        dbsession.screens.update({"_id":screenId},{"$set": payload})
-                        elementid = dbsession.screens.find_one({"_id":screenId},{"elementrepoused" : 1})
-                        del_parentrid = list(dbsession.dataobjects.find({"parent" : ObjectId(elementid["elementrepoused"][0]["_id"]) }))
-                        for parent in del_parentrid:
-                            dbsession.dataobjects.update_many({"_id": ObjectId(parent["_id"]),"$and":[{"parent.1":{"$exists":True}},{"parent":ObjectId(elementid["elementrepoused"][0]["_id"])}]},{"$pull":{"parent":ObjectId(elementid["elementrepoused"][0]["_id"])}})
-                            dbsession.dataobjects.delete_many({"_id":ObjectId(parent["_id"]),"$and":[{"parent":{"$size": 1}},{"parent":ObjectId(elementid["elementrepoused"][0]["_id"])}]})
-                        for orderlst in payload["orderlist"]:
-                            parentid = dbsession.dataobjects.find_one({"_id":ObjectId(orderlst)},{"parent" : 1})
-                            if ObjectId(elementid["elementrepoused"][0]["_id"]) not in parentid["parent"]:
-                                dbsession.dataobjects.update({"_id": ObjectId(orderlst)}, {"$push":{"parent": ObjectId(elementid["elementrepoused"][0]["_id"])}})
-                            elif data["deletedObj"]:
-                                for parent in data["deletedObj"]:
-                                    dbsession.dataobjects.update_many({"_id": ObjectId(parent),"$and":[{"parent.1":{"$exists":True}},{"parent":ObjectId(elementid["elementrepoused"][0]["_id"])}]},{"$pull":{"parent":ObjectId(elementid["elementrepoused"][0]["_id"])}})
-                                    dbsession.dataobjects.delete_many({"_id":ObjectId(parent),"$and":[{"parent":{"$size": 1}},{"parent":ObjectId(elementid["elementrepoused"][0]["_id"])}]})
-                        dbsession.elementrepository.update({"_id":ObjectId(elementid["elementrepoused"][0]["_id"])},{"$set": payload})
+                        if len(data["deletedObj"]) == 0:
+                            dbsession.screens.update({"_id":screenId},{"$set": payload})
+                            elementid = dbsession.screens.find_one({"_id":screenId},{"elementrepoused" : 1})
+                            if elementid:
+                                del_parentrid = list(dbsession.dataobjects.find({"parent" : ObjectId(elementid["elementrepoused"][0]["_id"]) }))
+                                for parent in del_parentrid:
+                                    dbsession.dataobjects.update_many({"_id": ObjectId(parent["_id"]),"$and":[{"parent.1":{"$exists":True}},{"parent":ObjectId(elementid["elementrepoused"][0]["_id"])}]},{"$pull":{"parent":ObjectId(elementid["elementrepoused"][0]["_id"])}})
+                                    dbsession.dataobjects.delete_many({"_id":ObjectId(parent["_id"]),"$and":[{"parent":{"$size": 1}},{"parent":ObjectId(elementid["elementrepoused"][0]["_id"])}]})
+                            for orderlst in payload["orderlist"]:
+                                parentid = dbsession.dataobjects.find_one({"_id":ObjectId(orderlst)},{"parent" : 1})
+                                if ObjectId(elementid["elementrepoused"][0]["_id"]) not in parentid["parent"]:
+                                    dbsession.dataobjects.update({"_id": ObjectId(orderlst)}, {"$push":{"parent": ObjectId(elementid["elementrepoused"][0]["_id"])}})
+                                # elif data["deletedObj"]:
+                                    # for parent in data["deletedObj"]:
+                                        # dbsession.dataobjects.update_many({"_id": ObjectId(parent),"$and":[{"parent.1":{"$exists":True}},{"parent":ObjectId(elementid["elementrepoused"][0]["_id"])}]},{"$pull":{"parent":ObjectId(elementid["elementrepoused"][0]["_id"])}})
+                                        # dbsession.dataobjects.delete_many({"_id":ObjectId(parent),"$and":[{"parent":{"$size": 1}},{"parent":ObjectId(elementid["elementrepoused"][0]["_id"])}]})
+                            dbsession.elementrepository.update({"_id":ObjectId(elementid["elementrepoused"][0]["_id"])},{"$set": payload})
 
                     res={"rows":"Success"}
                 if data['param'] == 'renameElenemt':
@@ -597,7 +599,15 @@ def LoadServices(app, redissession, client ,getClientName):
                     if len(del_obj)>0:
                         dbsession.dataobjects.update_many({"_id":{"$in":del_obj},"$and":[{"parent.1":{"$exists":True}},{"parent":screenId}]},{"$pull":{"parent":screenId}})
                         dbsession.dataobjects.delete_many({"_id":{"$in":del_obj},"$and":[{"parent":{"$size": 1}},{"parent":screenId}]})
-                    dbsession.screens.update({"_id":screenId},{"$set":{"modifiedby":modifiedby,'modifiedbyrole':modifiedbyrole,"modifiedon" : datetime.now(), "orderlist":orderList}})
+                    elementid = dbsession.elementrepository.find_one({"_id": screenId})
+                    if elementid:
+                        for screen in elementid["screenids"]:
+                            screen_Id = dbsession.screens.update({"_id":ObjectId(screen)},{"$set":{"modifiedby":modifiedby,'modifiedbyrole':modifiedbyrole,"modifiedon" : datetime.now(), "orderlist":orderList}})
+                            screen_Id = dbsession.elementrepository.update({"_id":screenId},{"$set":{"modifiedby":modifiedby,'modifiedbyrole':modifiedbyrole,"modifiedon" : datetime.now(), "orderlist":orderList}})
+                            dbsession.dataobjects.update_many({"_id":{"$in":del_obj},"$and":[{"parent.1":{"$exists":True}},{"parent":ObjectId(screen)}]},{"$pull":{"parent":ObjectId(screen)}})
+                            dbsession.dataobjects.delete_many({"_id":{"$in":del_obj},"$and":[{"parent":{"$size": 1}},{"parent":ObjectId(screen)}]})
+                    else:
+                        dbsession.screens.update({"_id":screenId},{"$set":{"modifiedby":modifiedby,'modifiedbyrole':modifiedbyrole,"modifiedon" : datetime.now(), "orderlist":orderList}})
                     res = {"rows":"Success"}
                 elif data["param"] == "crossReplaceScrapeData":
                     req=[]
