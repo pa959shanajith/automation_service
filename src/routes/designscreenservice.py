@@ -628,10 +628,12 @@ def LoadServices(app, redissession, client ,getClientName):
                             importedorderlist.append(data_obj["view"][i]['_id'])
                             data_obj["view"][i]['_id'] = ObjectId(data_obj["view"][i]['_id'])
                         result=dbsession.dataobjects.find_one({'_id':data_obj["view"][i]['_id']},{"parent":1})
+                        elem_Id = dbsession.screens.find_one({"_id": screenId},{"elementrepoused._id":1})
                         if result == None:
-                            data_obj["view"][i]["parent"] = [screenId]
+                            data_obj["view"][i]["parent"] = [screenId,ObjectId(elem_Id["elementrepoused"][0]["_id"])]
                             data_push.append(data_obj["view"][i])
                         else:
+                            result["parent"].append(ObjectId(elem_Id["elementrepoused"][0]["_id"]))
                             temp=result['parent']
                             if screenId not in temp:
                                 temp.append(screenId)
@@ -650,6 +652,9 @@ def LoadServices(app, redissession, client ,getClientName):
                     if len(data_push)>0 or len(data_up)>0:
                         dbsession.dataobjects.update_many({"$and":[{"parent.1":{"$exists":True}},{"parent":screenId}]},{"$pull":{"parent":screenId}})
                         dbsession.dataobjects.delete_many({"$and":[{"parent":{"$size": 1}},{"parent":screenId}]})
+                        if elem_Id["elementrepoused"][0]["_id"]:
+                            dbsession.dataobjects.update_many({"$and":[{"parent.1":{"$exists":True}},{"parent":ObjectId(elem_Id["elementrepoused"][0]["_id"])}]},{"$pull":{"parent":ObjectId(elem_Id["elementrepoused"][0]["_id"])}})
+                            dbsession.dataobjects.delete_many({"$and":[{"parent":{"$size": 1}},{"parent":ObjectId(elem_Id["elementrepoused"][0]["_id"])}]})
                         for row in data_push:
                             req.append(InsertOne(row))
                         for row in data_up:
@@ -661,13 +666,17 @@ def LoadServices(app, redissession, client ,getClientName):
                             if "scrapedurl" in data_obj:
                                 scrapedurl = data_obj["scrapedurl"]
                                 dbsession.screens.update({"_id":screenId},{"$set":{"screenshot":screenshot,"scrapedurl":scrapedurl,"modifiedby":modifiedby, 'modifiedbyrole':modifiedbyrole,"modifiedon" : datetime.now(), 'orderlist': orderlist}})
+                                dbsession.elementrepository.update({"_id":ObjectId(elem_Id["elementrepoused"][0]["_id"])},{"$set":{"screenshot":screenshot,"scrapedurl":scrapedurl,"modifiedby":modifiedby, 'modifiedbyrole':modifiedbyrole,"modifiedon" : datetime.now(), 'orderlist': orderlist}})
                             else:
                                 dbsession.screens.update({"_id":screenId},{"$set":{"screenshot":screenshot,"modifiedby":modifiedby, 'modifiedbyrole':modifiedbyrole,"modifiedon" : datetime.now(), 'orderlist': orderlist}})
+                                dbsession.elementrepository.update({"_id":ObjectId(elem_Id["elementrepoused"][0]["_id"])},{"$set":{"screenshot":screenshot,"modifiedby":modifiedby, 'modifiedbyrole':modifiedbyrole,"modifiedon" : datetime.now(), 'orderlist': orderlist}})
                         elif 'scrapeinfo' in data_obj:
                             scrapeinfo=data_obj['scrapeinfo']
                             dbsession.screens.update({"_id":screenId},{"$set":{"scrapedurl":scrapeinfo["endPointURL"],"modifiedby":modifiedby,'modifiedbyrole':modifiedbyrole, 'scrapeinfo':scrapeinfo,"modifiedon" : datetime.now()}})
+                            dbsession.elementrepository.update({"_id":ObjectId(elem_Id["elementrepoused"][0]["_id"])},{"$set":{"scrapedurl":scrapeinfo["endPointURL"],"modifiedby":modifiedby,'modifiedbyrole':modifiedbyrole, 'scrapeinfo':scrapeinfo,"modifiedon" : datetime.now()}})
                         else:
                             dbsession.screens.update({"_id":screenId},{"$set":{"modifiedby":modifiedby, 'modifiedbyrole':modifiedbyrole,"modifiedon" : datetime.now()}})
+                            dbsession.elementrepository.update({"_id":ObjectId(elem_Id["elementrepoused"][0]["_id"])},{"$set":{"modifiedby":modifiedby, 'modifiedbyrole':modifiedbyrole,"modifiedon" : datetime.now()}})
                         res={"rows":"Success"}
                     else:
                         res={"rows":"fail"}
