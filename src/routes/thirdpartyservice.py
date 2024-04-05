@@ -254,6 +254,32 @@ def LoadServices(app, redissession, client ,getClientName, *args):
 
                     dbsession.thirdpartyintegration.insert_one(requestdata)
                     res= {"rows":"success"}
+                elif (requestdata['query'] == 'saveMapping_Testrail'):
+                    requestdata["type"] = "Testrail"
+                    testcaselist=list(dbsession.thirdpartyintegration.find({"type":"Testrail","testscenarioid":requestdata["testscenarioid"]}))
+                    if len(testcaselist) > 0 :
+                        testIds = testcaselist[0]['testid']
+                        suiteIds = testcaselist[0]['suiteid']
+                        projectIds = testcaselist[0]['projectid']
+                        testname = testcaselist[0]['testname']
+    
+                        for i in range(len(requestdata['testid'])):
+                            appendingBool = True
+                            for j in range(len(testIds)):
+                                if requestdata['testid'][i] == testIds[j] :
+                                    appendingBool = False
+                                    break
+                            if appendingBool:
+                                testIds.append(requestdata['testid'][i])
+                                suiteIds.append(requestdata['suiteid'][i])
+                                projectIds.append(requestdata['projectid'][i])
+                                testname.append(requestdata['testname'][i])
+                                
+                        dbsession.thirdpartyintegration.update_one({"type":"Testrail","testscenarioid":requestdata["testscenarioid"]},{'$set': {"testid":testIds,"suiteid":suiteIds,"projectid":projectIds,"testname":testname}})
+                        res= {"rows":"success"}
+                    else : 
+                        dbsession.thirdpartyintegration.insert_one(requestdata)
+                        res= {"rows":"success"}
             else:
                 app.logger.warn('Empty data received. getting saveIntegrationDetails_ICE.')
         except Exception as e:
@@ -385,6 +411,30 @@ def LoadServices(app, redissession, client ,getClientName, *args):
                                 else:
                                     result=[]            
                     res= {"rows":result}
+                elif(requestdata['query'] == 'TestrailDetails'):
+                    if "testscenarioid" in requestdata:
+                        result=list(dbsession.thirdpartyintegration.find({"type":"Testrail","testscenarioid":requestdata["testscenarioid"]}))
+                        res= {"rows":result}
+                    else :
+                        result = []
+                        projectlist=list(dbsession.users.find({"_id":ObjectId(requestdata["userid"])},{"projects":1}))
+                        if len(projectlist) > 0:
+                            projects = projectlist[0]['projects']
+                            scenariolist=list(dbsession.testscenarios.find({"projectid":{'$in':projects},"deleted":False,"$where":"this.parent.length>0"},{"name":1,"_id":1}))
+                            if len(scenariolist) > 0:
+                                scenarios = {str(i['_id']):i['name'] for i in scenariolist}
+                                TestrailMapList=list(dbsession.thirdpartyintegration.find({"type":"Testrail","testscenarioid":{'$in':list(scenarios.keys())}}))
+                                
+                                if len(TestrailMapList) > 0:
+                                    for mapping in TestrailMapList:
+                                        mapping['testscenarioname']=[]
+                                        for scenarioId in list(mapping['testscenarioid']):
+                                            if scenarioId in scenarios:
+                                                mapping['testscenarioname'].append(scenarios[scenarioId])
+                                            else:
+                                                mapping['testscenarioid'].remove(scenarioId)
+                                    result.extend(TestrailMapList)
+                        res= {"rows":result}
             else:
                 app.logger.warn('Empty data received. getting QcMappedList.')
         except Exception as e:
@@ -589,6 +639,37 @@ def LoadServices(app, redissession, client ,getClientName, *args):
                         if len(req)!=0:
                             dbsession.thirdpartyintegration.bulk_write(req)
                             res= {"rows":"success"}
+                    elif requestdata['screenType']=='Testrail':
+                        app.logger.debug("Inside updateMapDetails_ICE - Testrail unsync")
+                        req=[]
+                        for mapObj in requestdata["mapList"]:
+                            result1 = list(dbsession.thirdpartyintegration.find({"_id":ObjectId(mapObj["mapid"]),"type":"Testrail"}))
+                            if "testscenarioid" in mapObj:
+                                #updating scenarioid
+                                scenarioid = mapObj["testscenarioid"]
+                                for i in scenarioid:
+                                    result1[0]['testscenarioid'].remove(i)
+                                if len(result1[0]['testscenarioid']) == 0 :
+                                    req.append(DeleteOne({"_id":ObjectId(mapObj["mapid"]),"type":"Testrail"}))
+                                else:
+                                    req.append(UpdateOne({"_id":ObjectId(mapObj["mapid"])}, {'$set': {"testscenarioid":result1[0]['testscenarioid']}}))
+                            elif "testCaseNames" in mapObj:
+                                #updating testcase
+                                testname = mapObj["testCaseNames"]
+                                for i in range(len(testname)):
+                                    index = result1[0]['testname'].index(testname[i])
+                                    del result1[0]['testid'][index]
+                                    del result1[0]['testname'][index]
+                                    del result1[0]['suiteid'][index]
+                                    del result1[0]['projectid'][index]
+                                    
+                                if len(result1[0]['testname']) == 0 :
+                                    req.append(DeleteOne({"_id":ObjectId(mapObj["mapid"]),"type":"Testrail"}))
+                                else:
+                                    req.append(UpdateOne({"_id":ObjectId(mapObj["mapid"])}, {'$set': {"testid":result1[0]['testid'], "testname":result1[0]['testname'],"suiteid":result1[0]['suiteid'],"projectid":result1[0]['projectid']}}))
+                        if len(req)!=0:
+                            dbsession.thirdpartyintegration.bulk_write(req)
+                        res= {"rows":"success"}
             else:
                 app.logger.warn('Empty data received. updating after unsyc.')
         except Exception as e:

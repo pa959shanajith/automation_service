@@ -52,17 +52,28 @@ def LoadServices(app, redissession, client ,getClientName):
                 else:
                     screen_id = ObjectId(requestdata['screenid'])
                 if (requestdata['query'] == 'getscrapedata'):
-                    screen_query=dbsession.screens.find_one({"_id":screen_id,"deleted":False})
+                    if(requestdata['params']=="elementRepo"):
+                        screen_query=dbsession.elementrepository.find_one({"_id":screen_id,"deleted":False})
+                    else:
+                        screen_query=dbsession.screens.find_one({"_id":screen_id,"deleted":False})
+
+                      
                     if (screen_query != []):
                         dataobj_query = list(dbsession.dataobjects.find({"parent" :screen_id}))
                         if "scrapeinfo" in screen_query and 'header' in screen_query["scrapeinfo"]:
                             dataobj_query = [screen_query["scrapeinfo"]]
+                        for data in dataobj_query:
+                            if len(data["parent"]) > 2:
+                                data["reused"] = True
+                            else:
+                                data["reused"] = False
                         res["rows"] = { "view": dataobj_query, "name":screen_query["name"],
                                         "createdthrough": (screen_query["createdthrough"] if ("createdthrough" in screen_query) else ""),
                                         "scrapedurl": (screen_query["scrapedurl"] if ("scrapedurl" in screen_query) else ""),
                                         "mirror": (screen_query["screenshot"] if ("screenshot" in screen_query) else ""),
-                                        "reuse": True if(len(screen_query["parent"])>1) else False,
-                                        "orderlist": (screen_query["orderlist"] if ("orderlist" in screen_query) else [])
+                                        "reuse": True if("parent" in screen_query and len(screen_query["parent"])>1) else False,
+                                        "orderlist": (screen_query["orderlist"] if ("orderlist" in screen_query) else []),
+                                        "elementrepoused" :screen_query["elementrepoused"][0] if ("elementrepoused" in screen_query) else []
                                       }
                         for scraped_obj in res["rows"]["view"]:
                             xpath_string=scraped_obj["xpath"].split(';')
@@ -150,22 +161,62 @@ def LoadServices(app, redissession, client ,getClientName):
 
 
     # Creating a function to update steps if webservice screen is saved
-    def updateTestStep(dbsession,to_update_teststep,screen_detail):
-         steps = [ 
-                        {
-                            "stepNo" : 1,
-                            "custname" : "WebService List",
-                            "keywordVal" : "setEndPointURL",
-                            "inputVal" : [ 
-                                screen_detail['endPointURL'] if 'endPointURL' in screen_detail else ""
-                            ],
-                            "outputVal" : "",
-                            "appType" : "Webservice",
-                            "remarks" : "",
-                            "addDetails" : "",
-                            "cord" : ""
-                        }, 
-                        {
+    def updateTestStep(dbsession,to_update_teststep,screen_detail,old_screen_detail):
+        #  TO-do authinfo add krna hai
+         supported_steps = ["setMethods","setParam","setWholeBody","setHeaderTemplate","setBasicAuth","setOAuth2.0","setBearerToken"]
+         keyword_to_info =  {
+                            'setEndPointURL': "endPointURL",
+                            'setMethods': "method",
+                            'setHeaderTemplate':"header",
+                            'setParam':"param",
+                            'setWholeBody' : "body",
+                            'setBasicAuth':'authKeyword',
+                            'setOAuth2.0': 'authKeyword',
+                            'setBearerToken':'authKeyword'
+                        }
+         steps = [
+             {
+                "stepNo" : 1,
+                "custname" : "WebService List",
+                "keywordVal" : "setEndPointURL",
+                "inputVal" : [ 
+                    screen_detail['endPointURL'] if 'endPointURL' in screen_detail else ""
+                ],
+                "outputVal" : "",
+                "appType" : "Webservice",
+                "remarks" : "",
+                "addDetails" : "",
+                "cord" : ""
+            }
+         ]
+         check_for_endpoint_url = False
+         if old_screen_detail != {}:
+             for step in to_update_teststep['steps']:
+                if step['keywordVal'] == 'setEndPointURL' and step['inputVal'][0] == screen_detail['endPointURL']:
+                    check_for_endpoint_url = True
+                    continue
+                if check_for_endpoint_url:
+                    if step['keywordVal'] == 'executeRequest':
+                        break
+                    if step['keywordVal'] not in supported_steps:
+                        steps.append(step)
+                    else:
+                        info = keyword_to_info[step['keywordVal']]
+                        if( info == 'authKeyword'):
+                            if old_screen_detail[info] != screen_detail[info]:
+                                continue
+                            if screen_detail[info] == step['keywordVal']:
+                                info = 'authInput'
+                            elif screen_detail[info] != step['keywordVal']:
+                                screen_detail[info]=step['keywordVal']
+                                screen_detail['authInput']=step['inputVal'][0]
+
+                        if old_screen_detail[info] == screen_detail[info] and screen_detail[info]!=step['inputVal'][0]:
+                            screen_detail[info]=step['inputVal'][0]
+
+
+         if(screen_detail['method']):
+            steps.append({
                             "stepNo" : 2,
                             "custname" : "WebService List",
                             "keywordVal" : "setMethods",
@@ -177,12 +228,12 @@ def LoadServices(app, redissession, client ,getClientName):
                             "remarks" : "",
                             "addDetails" : "",
                             "cord" : ""
-                        }]
+                        })
          if(screen_detail['header']):
-             steps.append({
+            steps.append({
                             "stepNo" : len(steps)+1,
                             "custname" : "WebService List",
-                            "keywordVal" : "setHeader",
+                            "keywordVal" : "setHeaderTemplate",
                             "inputVal" : [ 
                                 screen_detail['header'] if 'header' in screen_detail else ""
                             ],
@@ -193,7 +244,7 @@ def LoadServices(app, redissession, client ,getClientName):
                             "cord" : ""
                         })
          if(screen_detail['body']):
-             steps.append({
+            steps.append({
                             "stepNo" : len(steps)+1,
                             "custname" : "WebService List",
                             "keywordVal" : "setWholeBody",
@@ -206,9 +257,8 @@ def LoadServices(app, redissession, client ,getClientName):
                             "addDetails" : "",
                             "cord" : ""
                         })
-
          if(screen_detail['param']):
-             steps.append({
+            steps.append({
                 "stepNo" : len(steps)+1,
                 "custname" : "WebService List",
                 "keywordVal" : "setParam",
@@ -220,8 +270,22 @@ def LoadServices(app, redissession, client ,getClientName):
                 "remarks" : "",
                 "addDetails" : "",
                 "cord" : ""
+            })
+         if("authKeyword" in screen_detail and screen_detail['authKeyword']):
+            steps.append({
+                "stepNo" : len(steps)+1,
+                "custname" : "WebService List",
+                "keywordVal" : screen_detail['authKeyword'],
+                "inputVal" : [ 
+                    screen_detail['authInput']
+                ],
+                "outputVal" : "",
+                "appType" : "Webservice",
+                "remarks" : "",
+                "addDetails" : "",
+                "cord" : ""
             }) 
-
+         
          steps.append( {
             "stepNo" : len(steps)+1,
             "custname" : "WebService List",
@@ -235,7 +299,28 @@ def LoadServices(app, redissession, client ,getClientName):
             "addDetails" : "",
             "cord" : ""
         })
-         dbsession.testcases.update_one({'_id':to_update_teststep['_id']},{'$set':{'steps':steps}})
+
+                 #  check_for_endpoint_url = False
+         
+         required_steps = []
+         step_count = 1
+         check_for_endpoint_url = False
+         for step in to_update_teststep['steps']:
+             if step['keywordVal'] == 'setEndPointURL' and step['inputVal'][0] == screen_detail['endPointURL']:
+                 check_for_endpoint_url = True
+             if check_for_endpoint_url:
+                 if step['keywordVal'] == 'executeRequest':
+                     check_for_endpoint_url = False
+                     for updated_step in steps:
+                        updated_step['stepNo'] = step_count
+                        required_steps.append(updated_step)
+                        step_count+=1
+             else:
+                 step['stepNo'] = step_count
+                 required_steps.append(step)
+                 step_count+=1
+         required_steps = steps if len(required_steps) == 0 else required_steps
+         dbsession.testcases.update_one({'_id':to_update_teststep['_id']},{'$set':{'steps':required_steps}})
 
     # update/delete/insert opertaions on the screen data
     @app.route('/design/updateScreen_ICE',methods=['POST'])
@@ -293,10 +378,16 @@ def LoadServices(app, redissession, client ,getClientName):
                             data_push.append(data_obj[i])
                             
                         if (data_push != []):
-                            insertedObjIds = dbsession.dataobjects.insert(data_push)
-                            dbsession.dataobjects.update_many({"_id":{"$in":insertedObjIds}},
-                            {"$set":{"identifier":[{"id":1,"identifier":'xpath'},{"id":2,"identifier":'id' },{"id":3, "identifier":'rxpath' },{ "id":4,"identifier":'name' },{"id":5,"identifier":'classname'},{"id":6,"identifier":'cssselector'},{"id":7,"identifier":'href'},{"id":8,"identifier":'label'}]}})
-
+                            for i in range(len(data_push)):
+                                if "_id" in data_push[i]:
+                                   insertedObjIds = [{ObjectId(data_push[i]["_id"])}]
+                                   dbsession.dataobjects.update({'_id': ObjectId(data_push[i]["_id"])},{"$push":{'parent':screenId}})
+                                else:
+                                    insertedObjIds = dbsession.dataobjects.insert(data_push)
+                                    dbsession.dataobjects.update_many({"_id":{"$in":insertedObjIds}},
+                                    {"$set":{"identifier":[{"id":1,"identifier":'xpath'},{"id":2,"identifier":'id' },{"id":3, "identifier":'rxpath' },{ "id":4,"identifier":'name' },{"id":5,"identifier":'classname'},{"id":6,"identifier":'cssselector'},{"id":7,"identifier":'href'},{"id":8,"identifier":'label'}]}})
+                                    break
+                                    
                             for index in range(len(orderList)):
                                 if (orderList[index] in tempOrderId_index_dict):
                                     addedObjIndex = tempOrderId_index_dict[orderList[index]]
@@ -306,9 +397,16 @@ def LoadServices(app, redissession, client ,getClientName):
                             screenshot = data['addedObj']['mirror']
                             if "scrapedurl" in data['addedObj']:
                                 scrapedurl = data['addedObj']["scrapedurl"]
-                                dbsession.screens.update({"_id":screenId},{"$set":{"screenshot":screenshot,"scrapedurl":scrapedurl}})
+                                if 'elementrepo' in data:
+                                        dbsession.elementrepository.update({"_id":screenId},{"$set":{"screenshot":screenshot,"scrapedurl":scrapedurl}})
+                                else:
+                                        dbsession.screens.update({"_id":screenId},{"$set":{"screenshot":screenshot,"scrapedurl":scrapedurl}})
                             else:
-                                dbsession.screens.update({"_id":screenId},{"$set":{"screenshot":screenshot}})
+                                if 'elementrepo' in data:
+                                    dbsession.elementrepository.update({"_id":screenId},{"$set":{"screenshot":screenshot}})
+                                else:
+                                    dbsession.screens.update({"_id":screenId},{"$set":{"screenshot":screenshot}})
+
                         elif 'scrapeinfo' in data['addedObj']:
                             scrapeinfo=data['addedObj']['scrapeinfo']
                             dbsession.screens.update({"_id":screenId},{"$set":{"scrapedurl":scrapeinfo["endPointURL"], 'scrapeinfo':scrapeinfo}})
@@ -317,9 +415,169 @@ def LoadServices(app, redissession, client ,getClientName):
                     if (len(orderList)<=0):
                         payload['screenshot'] = ""
                         payload['scrapedurl'] = ""
+                    if 'elementrepo' in data:
+                        dbsession.elementrepository.update({"_id":screenId},{"$set": payload})
+                        scrId = dbsession.elementrepository.find_one({"_id":screenId},{"screenids":1})
+                        for screen in scrId["screenids"]:
+                            dbsession.screens.update({"_id":ObjectId(screen)},{"$set": payload})
+                            for order in payload["orderlist"]:
+                                dbsession.dataobjects.update({"_id": ObjectId(order)}, {"$push":{"parent": ObjectId(screen)}})
+                    else:
+                        if len(data["deletedObj"]) == 0:
+                            dbsession.screens.update({"_id":screenId},{"$set": payload})
+                            elementid = dbsession.screens.find_one({"_id":screenId},{"elementrepoused" : 1})
+                            if elementid:
+                                del_parentrid = list(dbsession.dataobjects.find({"parent" : ObjectId(elementid["elementrepoused"][0]["_id"]) }))
+                                for parent in del_parentrid:
+                                    dbsession.dataobjects.update_many({"_id": ObjectId(parent["_id"]),"$and":[{"parent.1":{"$exists":True}},{"parent":ObjectId(elementid["elementrepoused"][0]["_id"])}]},{"$pull":{"parent":ObjectId(elementid["elementrepoused"][0]["_id"])}})
+                                    dbsession.dataobjects.delete_many({"_id":ObjectId(parent["_id"]),"$and":[{"parent":{"$size": 1}},{"parent":ObjectId(elementid["elementrepoused"][0]["_id"])}]})
+                            for orderlst in payload["orderlist"]:
+                                parentid = dbsession.dataobjects.find_one({"_id":ObjectId(orderlst)},{"parent" : 1})
+                                if ObjectId(elementid["elementrepoused"][0]["_id"]) not in parentid["parent"]:
+                                    dbsession.dataobjects.update({"_id": ObjectId(orderlst)}, {"$push":{"parent": ObjectId(elementid["elementrepoused"][0]["_id"])}})
+                                # elif data["deletedObj"]:
+                                    # for parent in data["deletedObj"]:
+                                        # dbsession.dataobjects.update_many({"_id": ObjectId(parent),"$and":[{"parent.1":{"$exists":True}},{"parent":ObjectId(elementid["elementrepoused"][0]["_id"])}]},{"$pull":{"parent":ObjectId(elementid["elementrepoused"][0]["_id"])}})
+                                        # dbsession.dataobjects.delete_many({"_id":ObjectId(parent),"$and":[{"parent":{"$size": 1}},{"parent":ObjectId(elementid["elementrepoused"][0]["_id"])}]})
+                            dbsession.elementrepository.update({"_id":ObjectId(elementid["elementrepoused"][0]["_id"])},{"$set": payload})
 
-                    dbsession.screens.update({"_id":screenId},{"$set": payload})
                     res={"rows":"Success"}
+                if data['param'] == 'renameElenemt':
+                    dbsession.dataobjects.update_one({'_id': ObjectId(data['modifiedObj'][0]["id"])},{'$set':{'custname':data['modifiedObj'][0]["custname"]}})
+                    res={"rows":"Success"}
+                if data["param"] == 'updateMindmapTestcaseScreen':
+                    updateteststeps = None
+                    mindmapdata=dbsession.mindmaps.find_one({"_id": ObjectId(data["moduleID"]),"projectid": ObjectId(data["projectID"])})
+                    for testscenario in mindmapdata['testscenarios']:
+                        if testscenario["_id"] == ObjectId(data['parent']):
+                            for screen in testscenario['screens']:
+                                if screen["_id"] == ObjectId(data['currentScreen']):
+                                    if(len(screen['testcases']) >0):
+                                        updateteststeps = screen['testcases'][0]
+                                        updatescreen = screen["_id"]
+                                        res={"row":updateteststeps}
+                                        break
+                            
+                            if(updateteststeps != None):
+                                for screen in testscenario['screens']:
+                                    if screen["_id"] == ObjectId(data['updateScreen']):
+                                        dbsession.mindmaps.update_one(   {
+                                                "_id": mindmapdata["_id"],
+                                                "testscenarios._id": ObjectId(data['parent']),
+                                                "testscenarios.screens._id": ObjectId(data["updateScreen"])
+                                            },
+                                            {
+                                                "$push": {
+                                                    "testscenarios.$.screens.$[screen].testcases": updateteststeps
+                                                }
+                                            },
+                                            array_filters=[{"screen._id": ObjectId(data["updateScreen"])}]
+                                        )
+                                        dbsession.mindmaps.update_one(
+                                            {
+                                                "_id": mindmapdata["_id"],
+                                                "testscenarios._id": ObjectId(data['parent'])
+                                            },
+                                            {
+                                                "$pull": {
+                                                    "testscenarios.$[scenario].screens": {"_id": ObjectId(data["currentScreen"])}
+                                                }
+                                            },
+                                            array_filters=[{"scenario._id": ObjectId(data['parent'])}]
+                                        )
+                                        dbsession.testcases.update({"_id":updateteststeps,"screenid":updatescreen},{"$set":{"screenid":ObjectId(data['updateScreen'])}})
+                                        break
+                            for screen in testscenario['screens']:
+                                screen_ids = []
+                                screen_ids.append(screen["_id"])
+                                    # Check if all elements in screen_ids are not equal to ObjectId(data['updateScreen'])
+                                if all(item != ObjectId(data['updateScreen']) for item in screen_ids):
+                                    dbsession.mindmaps.update_one(
+                                        {
+                                            "_id": mindmapdata["_id"],
+                                            "testscenarios._id": ObjectId(data['parent']),
+                                            "testscenarios.screens._id": ObjectId(data["currentScreen"])
+                                        },
+                                        {
+                                            "$set": {
+                                                "testscenarios.$[scenario].screens.$[screen]._id": ObjectId(data["updateScreen"])
+                                            }
+                                        },
+                                        array_filters=[
+                                            {"scenario._id": ObjectId(data['parent'])},
+                                            {"screen._id": ObjectId(data["currentScreen"])}
+                                        ]
+                                    )
+                                    if updateteststeps != None:
+                                        dbsession.testcases.update({"_id":updateteststeps,"screenid":updatescreen},{"$set":{"screenid":ObjectId(data['updateScreen'])}})
+                            dbsession.screens.update({"_id":ObjectId( data["updateScreen"])},{'$push':{'parent': ObjectId(data['parent'])}})
+                    res={"rows":data['moduleID']}
+                if data['param'] == 'updateOrderList':
+                    currentrepository=dbsession.elementrepository.find_one({"_id":ObjectId(data["elementrepoid"]["id"])})
+                    scrapedurl=currentrepository['scrapedurl']
+                    screenshot=currentrepository['screenshot']
+                    dbsession.screens.update({"_id":ObjectId( data["screenId"])},{'$set':{'orderlist':data["orderList"],'elementrepoused':[{"_id":data["elementrepoid"]['id'], "name":data["elementrepoid"]['name']}],'screenshot':screenshot,'scrapedurl':scrapedurl}})
+                    eleid = dbsession.elementrepository.find_one({"_id": ObjectId(data["elementrepoid"]["id"])}, {"screenids": 1})
+                    if data["screenId"] not in eleid["screenids"]:
+                        dbsession.elementrepository.update({"_id":ObjectId(data["elementrepoid"]["id"])},{'$push':{'screenids':data["screenId"]}})
+                    for ordId in data['orderList']:
+                        dbsession.dataobjects.update({'_id': ObjectId(ordId)},{"$push":{'parent':ObjectId(data["screenId"])}})
+                    res={"rows": "Success"}
+                if data['param'] =='updateOrderListAndRemoveParentId':
+                    currentrepository=dbsession.elementrepository.find_one({"_id":ObjectId(data["elementrepoid"]["id"])})
+                    scrapedurl=currentrepository['scrapedurl']
+                    screenshot=currentrepository['screenshot']
+                    eleid = dbsession.elementrepository.find_one({"_id": ObjectId(data["elementrepoid"]["id"])}, {"screenids": 1})
+                    if data["screenId"] not in eleid["screenids"]:
+                        dbsession.elementrepository.update({"_id":ObjectId(data["elementrepoid"]["id"])},{'$push':{'screenids':data["screenId"]}})
+                    for dataobject in data['oldOrderList']:
+                        dbsession.dataobjects.update({'_id': ObjectId(dataobject)},{"$pull":{'parent' : ObjectId(data["screenId"])}})
+                    for dataobject in data['orderList']:
+                        # existingparent=dbsession.dataobjects.find_one({"_id":ObjectId(dataobject)})['parent']
+                        dbsession.dataobjects.update({'_id': ObjectId(dataobject)},{"$push":{'parent' : ObjectId(data["screenId"])}})
+                        # dbsession.dataobjects.update({"_id":ObjectId(dataobject)},{'$pull':{'parent':ObjectId(data['screenId'])}})
+                    dbsession.screens.update({"_id":ObjectId(data['screenId'])},{"$set":{'orderlist':data['orderList'],'elementrepoused':[{"_id":data["elementrepoid"]['id'], "name":data["elementrepoid"]['name']}], 'screenshot':screenshot,'scrapedurl':scrapedurl}})
+                    res={"rows": "Success"}
+                if data["param"] == 'screenPaste':
+                    for ordlist in data['orderList']:
+                        existingorderlist=dbsession.elementrepository.find_one({"_id": ObjectId(data["screenId"])},{'orderlist': ordlist, "screenids" : 1})
+                        object_id_hex = str(existingorderlist['_id'])        
+                        if ordlist != object_id_hex:
+                            dbsession.elementrepository.update({"_id":ObjectId( data["screenId"])},{'$push':{'orderlist': ordlist}})
+                            dataid = dbsession.dataobjects.find_one({'_id': ObjectId(ordlist)},{'parent':1})
+                            if ObjectId(data["screenId"]) not in  dataid["parent"]:
+                                dbsession.dataobjects.update({'_id': ObjectId(ordlist)},{"$push":{'parent':ObjectId(data["screenId"])}})
+                            if existingorderlist["screenids"]:
+                                for orderids in existingorderlist["screenids"]:
+                                    dbsession.screens.update({"_id":ObjectId( orderids)},{'$push':{'orderlist': ordlist}})
+                                    dataid = dbsession.dataobjects.find_one({'_id': ObjectId(ordlist)},{'parent':1})
+                                    if ObjectId(orderids) not in  dataid["parent"]:
+                                        dbsession.dataobjects.update({'_id': ObjectId(ordlist)},{"$push":{'parent':ObjectId(orderids)}})
+
+                            res={"rows": "Success"}
+                        else:
+                            res={"rows":"Element all ready present"}
+                if data['param'] == 'delElement':
+                    dbsession.elementrepository.update({'_id': ObjectId(data['screenId'])},{"$set":{'orderlist' : data["orderList"]}})
+                    scrids = dbsession.elementrepository.find_one({'_id': ObjectId(data['screenId'])},{'screenids' : 1})
+                    for deletedid in data["deletedObj"]:
+                        for ids in scrids['screenids']:
+                            dbsession.screens.update({"_id": ObjectId(ids)},{"$pull":{"orderlist": deletedid}})
+                            dbsession.dataobjects.update({'_id': ObjectId(deletedid)},{"$pull":{'parent' : ObjectId(ids)}})
+                        dbsession.dataobjects.update({'_id': ObjectId(deletedid)},{"$pull":{'parent' : ObjectId(data["screenId"])}})
+                    res= {"rows" : "Success"}
+                if data['param'] == 'delAllElement':                    
+                    for orderlist in data['deletedObj']:
+                        list_order = list(dbsession.elementrepository.find({'orderlist': orderlist},{"_id":1, 'orderlist':1, 'screenids' : 1}))
+                        for inOrderlist in list_order:                            
+                            if orderlist in inOrderlist['orderlist']:
+                                dbsession.elementrepository.update({"_id": inOrderlist['_id']}, {'$pull':{'orderlist': orderlist}})
+                                dbsession.dataobjects.delete_one({'_id': ObjectId(orderlist)})
+                                for screenid in inOrderlist["screenids"]:
+                                    dbsession.screens.update({"_id": ObjectId(screenid)}, {'$pull':{'orderlist': orderlist}})
+
+
+                    res= {'rows': "Success"}    
                 elif data["param"] == "mapScrapeData":
                     objList = data["objList"]
                     orderList = data['orderList']
@@ -341,7 +599,15 @@ def LoadServices(app, redissession, client ,getClientName):
                     if len(del_obj)>0:
                         dbsession.dataobjects.update_many({"_id":{"$in":del_obj},"$and":[{"parent.1":{"$exists":True}},{"parent":screenId}]},{"$pull":{"parent":screenId}})
                         dbsession.dataobjects.delete_many({"_id":{"$in":del_obj},"$and":[{"parent":{"$size": 1}},{"parent":screenId}]})
-                    dbsession.screens.update({"_id":screenId},{"$set":{"modifiedby":modifiedby,'modifiedbyrole':modifiedbyrole,"modifiedon" : datetime.now(), "orderlist":orderList}})
+                    elementid = dbsession.elementrepository.find_one({"_id": screenId})
+                    if elementid:
+                        for screen in elementid["screenids"]:
+                            screen_Id = dbsession.screens.update({"_id":ObjectId(screen)},{"$set":{"modifiedby":modifiedby,'modifiedbyrole':modifiedbyrole,"modifiedon" : datetime.now(), "orderlist":orderList}})
+                            screen_Id = dbsession.elementrepository.update({"_id":screenId},{"$set":{"modifiedby":modifiedby,'modifiedbyrole':modifiedbyrole,"modifiedon" : datetime.now(), "orderlist":orderList}})
+                            dbsession.dataobjects.update_many({"_id":{"$in":del_obj},"$and":[{"parent.1":{"$exists":True}},{"parent":ObjectId(screen)}]},{"$pull":{"parent":ObjectId(screen)}})
+                            dbsession.dataobjects.delete_many({"_id":{"$in":del_obj},"$and":[{"parent":{"$size": 1}},{"parent":ObjectId(screen)}]})
+                    else:
+                        dbsession.screens.update({"_id":screenId},{"$set":{"modifiedby":modifiedby,'modifiedbyrole':modifiedbyrole,"modifiedon" : datetime.now(), "orderlist":orderList}})
                     res = {"rows":"Success"}
                 elif data["param"] == "crossReplaceScrapeData":
                     req=[]
@@ -385,6 +651,7 @@ def LoadServices(app, redissession, client ,getClientName):
                     data_push=[]
                     if "view" in scrapeinfo:
                         data_obj=scrapeinfo.pop("view")
+                    old_screen_detail = list(dbsession.screens.find({"_id":screenId},{'scrapeinfo':1}))
                     dbsession.screens.update({"_id":screenId},{"$set":{"scrapedurl":scrapeinfo["endPointURL"],"modifiedby":modifiedby,'modifiedbyrole':modifiedbyrole, 'scrapeinfo':scrapeinfo,"modifiedon" : datetime.now()}})
                     Old_obj = list(dbsession.dataobjects.find({"parent":screenId}))
                     for d in data_obj:
@@ -415,8 +682,10 @@ def LoadServices(app, redissession, client ,getClientName):
                     # Code to add details in the teststeps
                     to_update_teststep =  list(dbsession.testcases.find({"screenid":screenId}))
                     screen_detail = list(dbsession.screens.find({"_id":screenId}))
-                    updateTestStep(dbsession,to_update_teststep[0],screen_detail[0]['scrapeinfo'])
-                    
+
+                    old_screen_detail  = old_screen_detail[0]['scrapeinfo'] if 'scrapeinfo' in old_screen_detail[0] else {}
+                    updateTestStep(dbsession,to_update_teststep[0],screen_detail[0]['scrapeinfo'],old_screen_detail)
+
 
                     res={"rows":"Success"}
                 elif data["param"] == "importScrapeData":

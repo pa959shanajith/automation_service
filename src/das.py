@@ -165,6 +165,15 @@ def addroutes():
 
     import devopsservice
     devopsservice.LoadServices(app, redissession, client,getClientName)
+
+    import visualanalysis
+    visualanalysis.LoadServices(app, redissession, client,getClientName)
+
+    import rasa
+    rasa.LoadServices(app, redissession, client,getClientName)
+
+    import constructprompt
+    constructprompt.LoadServices(app, redissession, client,getClientName)
     
     if os.path.exists(gitpath):
         os.environ["GIT_PYTHON_GIT_EXECUTABLE"] = gitpath
@@ -185,6 +194,9 @@ def addroutes():
 
     import reportsservice
     reportsservice.LoadServices(app, redissession, client,getClientName)
+
+    import genAI
+    genAI.LoadServices(app, redissession, client,getClientName)
 
     import utilitiesservice
     utilitiesservice.LoadServices(app, redissession, client,getClientName)
@@ -319,6 +331,8 @@ def updateActiveIceSessions():
                                     for key in lsData:
                                         if key in webPluginList:
                                             ice_plugins_list.append(webPluginList[key])
+                                            if key == "MOBT":
+                                                ice_plugins_list.append("mobileweb")
                                     res["plugins"] = ice_plugins_list
                                     res["license_data"] = lsData
                             else:
