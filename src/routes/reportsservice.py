@@ -68,15 +68,15 @@ def LoadServices(app, redissession, client ,getClientName):
                     for prj_ids in list_of_modules:
                         listofmodules.append(prj_ids["_id"])
                     if len(list_of_modules) == 0 :
-                        progressStep = 0
+                        progressStep = 1
                     keyDetails =dbsession.configurekeys.find({"executionData.batchInfo.projectId":ids["_id"]}).count()
                     if len(list_of_modules) > 0 and keyDetails == 0 :
-                        progressStep = 1
+                        progressStep = 2
                     executionList=list(dbsession.testsuites.find({"mindmapid":{"$in":listofmodules}},{"_id":1}))
                     if len(list_of_modules) > 0 and keyDetails > 0 and len(executionList) == 0 :
-                            progressStep = 2
-                    elif len(executionList) > 0:
                             progressStep = 3
+                    elif len(executionList) > 0:
+                            progressStep = 4
                     ids["progressStep"]=progressStep
             
                 res= {"rows":queryresult}
@@ -1082,7 +1082,7 @@ def LoadServices(app, redissession, client ,getClientName):
             if 'configurekey' in requestdata:
                 configurekey= requestdata['configurekey']
                 reports = dbsession.executions.aggregate([{"$match":{"configurekey":configurekey}},{"$group":{"_id":"$executionListId",
-                                                                    "modStatus":{"$push":{"_id":"$_id","status":"$status"}},"startDate":{"$first":"$starttime"}}},
+                                                                    "modStatus":{"$push":{"_id":"$_id","status":"$status"}},"startDate":{"$first":"$starttime"},"endDate":{"$first":"$endtime"}}},
                                                                     {'$lookup':{
                                                                                         'from':"reports",
                                                                                         'localField':"modStatus._id",
@@ -1090,7 +1090,7 @@ def LoadServices(app, redissession, client ,getClientName):
                                                                                         'as':"reportdata"
                                                                                         }
                                                                                     },
-                                                                                    {"$project":{"_id":1,"modStatus":"$modStatus.status","scestatus":"$reportdata.status","startDate":1}},{"$sort":{"startDate":-1}}
+                                                                                    {"$project":{"_id":1,"modStatus":"$modStatus.status","scestatus":"$reportdata.status","startDate":1,'endDate':1}},{"$sort":{"startDate":-1}}
                                                                                     ])
             
             else:
@@ -1100,7 +1100,8 @@ def LoadServices(app, redissession, client ,getClientName):
                     {"$project": {
                         "_id":1,
                         "status":1,
-                        "starttime": 1
+                        "starttime": 1,
+                        "endtime":1
                     }},
                     {"$lookup": {
                         'from':"reports",
@@ -1111,7 +1112,7 @@ def LoadServices(app, redissession, client ,getClientName):
                     {"$project":{"_id":1,
                         "modstatus":["$status"],
                         "scestatus":"$reportdata.status",
-                        "starttime":1}},
+                        "starttime":1,"endtime":1}},
                     {"$sort":{"startDate":-1}}
                 ])
             result = list(reports)
@@ -1147,18 +1148,18 @@ def LoadServices(app, redissession, client ,getClientName):
                                                                         'foreignField':"executionid",
                                                                         'as':"reports"
                                                                         } },
-                                                                        {"$project":{'modulename':{"$arrayElemAt":["$testsuites.name",0]},"status":1,"scenarioStatus":"$reports.status"}}
+                                                                        {"$project":{'modulename':{"$arrayElemAt":["$testsuites.name",0]},"status":1,"scenarioStatus":"$reports.status","ellapsedTime":"$reports.overallstatus.EllapsedTime"}}
                                                                         ])
             elif (requestdata["param"] == "scenarioStatus"): 
                 executionid = requestdata['executionId']
                 reports=dbsession.reports.aggregate([{"$match":{"executionid":ObjectId(executionid)}},
-                                                            {"$project":{"testscenarioid":1,"status":1}},
+                                                            {"$project":{"testscenarioid":1,"status":1,"overallstatus":1}},
                                                             {'$lookup':{'from':"testscenarios",
                                                                         'localField':"testscenarioid",
                                                                         'foreignField':"_id",
                                                                         'as':"testscenarios"
                                                                          }
-                                                            },{"$project":{'scenarioname':{"$arrayElemAt":["$testscenarios.name",0]},"status":1}}])
+                                                            },{"$project":{'scenarioname':{"$arrayElemAt":["$testscenarios.name",0]},"status":1,"ellapsedTime":"$overallstatus.EllapsedTime"}}])
 
             result = list(reports)  
             res['rows'] = result    
