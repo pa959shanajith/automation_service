@@ -1113,7 +1113,7 @@ def LoadServices(app, redissession, client ,getClientName):
                     {"$project":{"_id":1,
                         "modstatus":["$status"],
                         "scestatus":"$reportdata.status",
-                        "startDate":1,"endDate":1,"ellapsedTime":"$reportdata.overallstatus.EllapsedTime","reportdata":1,"executionListId":1}},
+                        "startDate":1,"endDate":1,"ellapsedTime":"$reportdata.overallstatus.EllapsedTime","executionListId":1}},
                     {"$sort":{"startDate":-1}}
                 ])
             result = list(reports)
