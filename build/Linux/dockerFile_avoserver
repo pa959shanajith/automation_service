@@ -13,5 +13,5 @@ COPY ./NGINX/server.key /etc/nginx/
 RUN chmod +x /avo_run.sh
 RUN chmod +x /home/DAS/run.sh
 RUN chmod +x /home/webapp/run.sh
-EXPOSE 443 8443
+EXPOSE 443
 ENTRYPOINT ["/avo_run.sh"]
