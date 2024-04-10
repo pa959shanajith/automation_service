@@ -352,10 +352,14 @@ def LoadServices(app, redissession, client ,getClientName):
                     modifiedby = ObjectId(data["userId"])
                     screenId = ObjectId(data['screenId'])
                     orderList = data['orderList']
+                    elem_Id = dbsession.screens.find_one({"_id": screenId},{"elementrepoused._id":1})
                     if('deletedObj' in data and len(data['deletedObj'])>0):
                         data_push = [ObjectId(i) for i in data['deletedObj']]
                         dbsession.dataobjects.update_many({"_id":{"$in":data_push},"$and":[{"parent.1":{"$exists":True}},{"parent":screenId}]},{"$pull":{"parent":screenId}})
                         dbsession.dataobjects.delete_many({"_id":{"$in":data_push},"$and":[{"parent":{"$size": 1}},{"parent":screenId}]})
+                        if elem_Id["elementrepoused"][0]["_id"]:
+                            dbsession.dataobjects.update_many({"$and":[{"parent.1":{"$exists":True}},{"parent":ObjectId(elem_Id["elementrepoused"][0]["_id"])}]},{"$pull":{"parent":ObjectId(elem_Id["elementrepoused"][0]["_id"])}})
+                            dbsession.dataobjects.delete_many({"$and":[{"parent":{"$size": 1}},{"parent":ObjectId(elem_Id["elementrepoused"][0]["_id"])}]})
                     if('modifiedObj' in data and len(data['modifiedObj'])>0):
                         data_obj=data["modifiedObj"]
                         for i in data_obj:
