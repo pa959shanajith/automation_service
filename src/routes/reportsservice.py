@@ -1090,7 +1090,7 @@ def LoadServices(app, redissession, client ,getClientName):
                                                                                         'as':"reportdata"
                                                                                         }
                                                                                     },
-                                                                                    {"$project":{"_id":1,"modStatus":"$modStatus.status","scestatus":"$reportdata.status","startDate":1,'endDate':1}},{"$sort":{"startDate":-1}}
+                                                                                    {"$project":{"_id":1,"modStatus":"$modStatus.status","scestatus":"$reportdata.status","startDate":1,'endDate':1,"ellapsedTime":"$reportdata.overallstatus.EllapsedTime"}},{"$sort":{"startDate":-1}}
                                                                                     ])
             
             else:
@@ -1100,8 +1100,9 @@ def LoadServices(app, redissession, client ,getClientName):
                     {"$project": {
                         "_id":1,
                         "status":1,
-                        "starttime": 1,
-                        "endtime":1
+                        "startDate": "$starttime",
+                        "endDate":"$endtime",
+                        "executionListId":1
                     }},
                     {"$lookup": {
                         'from':"reports",
@@ -1112,7 +1113,7 @@ def LoadServices(app, redissession, client ,getClientName):
                     {"$project":{"_id":1,
                         "modstatus":["$status"],
                         "scestatus":"$reportdata.status",
-                        "starttime":1,"endtime":1}},
+                        "startDate":1,"endDate":1,"ellapsedTime":"$reportdata.overallstatus.EllapsedTime","executionListId":1}},
                     {"$sort":{"startDate":-1}}
                 ])
             result = list(reports)
