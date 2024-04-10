@@ -1417,9 +1417,10 @@ def LoadServices(app, redissession, client ,getClientName):
             client_name = getClientName(request_data)
             dbsession = client[client_name]
             app.logger.debug("fetching execution details")
-            
-            # find_query = {'executionListId': { '$in' : request_data["executionListIds"]}}
-            find_query = {'executionListId': { '$in' : request_data["executionListIds"]}} if request_data["type"] == "jobId" else {'executionData.testcaseRefId': { '$in' : request_data["testcaseIds"]}}
+            if("type" in request_data and request_data["type"] == "testcaseId"):
+                find_query = {'executionData.testcaseRefId': { '$in' : request_data["testcaseIds"]}}
+            else:
+                find_query = {'executionListId': { '$in' : request_data["executionListIds"]}}
             projection = {"executionListId":1,"configkey":1,'executionData':1}
             execution_result = list(dbsession.executionlist.find(find_query,projection))
             # print(execution_result)
