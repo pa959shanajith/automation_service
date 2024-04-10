@@ -30,7 +30,7 @@ def LoadServices(app, redissession, client ,getClientName):
 
                 # GEtting data parameterization
                 for testsuite in requestdata['executionData']['batchInfo']:
-                    testsuiteData = list(dbsession.testsuites.find({'mindmapid':ObjectId(testsuite['testsuiteId'])}))
+                    testsuiteData = list(dbsession.testsuites.find({'cycleid':ObjectId(requestdata['executionData']['batchInfo'][0]["cycleId"]),'mindmapid':ObjectId(testsuite['testsuiteId'])}))
                     # sorting the data
                     requestdata['executionData']['donotexe']['current'][testsuite['testsuiteId']].sort()
 
@@ -281,11 +281,18 @@ def LoadServices(app, redissession, client ,getClientName):
                     
                     scenarioids = []
                     for ts in mindmapdata["testscenarios"]:
-                        scenarioids.append({
-                                '_id': ts['_id'],
-                                'name': requiredScenarioDict[ts['_id']]
-                            })
-
+                        if "tag" in ts:
+                            scenarioids.append({
+                                    '_id': ts['_id'],
+                                    'name': requiredScenarioDict[ts['_id']],
+                                    'tag' : ts['tag']
+                                })
+                        else:
+                            scenarioids.append({
+                                    '_id': ts['_id'],
+                                    'name': requiredScenarioDict[ts['_id']],
+                                    # 'tag' : ts['tag']
+                                })
                     
                     processedData[processedDataIndex]['scenarios'] = scenarioids
                     processedDataIndex+=1

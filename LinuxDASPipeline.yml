@@ -1,0 +1,111 @@
+name: LinuxDASPipeline
+trigger: none
+
+pool:
+  name: armocipool
+
+resources:
+  pipelines:
+  - pipeline: LinuxDASPipeline 
+    source: Build-AvoAssure
+    trigger: true
+steps:
+- script: |
+    rm -rf s/avoassure 
+    rm -rf $(System.ArtifactsDirectory)/*    #####
+  displayName: 'Remove s/avoassure directory and files in $(ArtifactStagingDirectory)'
+
+- task: DownloadBuildArtifacts@1
+  inputs:
+    buildType: 'specific'
+    project: 'c5d3a8af-ebac-4015-ad8b-72c66fcf8fbd'
+    pipeline: '182'
+    buildVersionToDownload: 'latest'
+    downloadType: 'single'
+    artifactName: 'dependencies'
+    downloadPath: '$(System.ArtifactsDirectory)'
+
+- script: |
+    unzip -j $(Build.ArtifactStagingDirectory)/dependencies/dependencies.zip -d $(Build.ArtifactStagingDirectory)
+    rm -rf dependencies
+    ls $(System.ArtifactsDirectory)
+  displayName: ' unzipping dependencies folder'
+
+- checkout: git://$(System.TeamProject)/DAS  
+  persistCredentials: true
+  clean: true
+  path: s/avoassure
+
+- task: CmdLine@2
+  inputs:
+    script: |
+      BranchName=$(cat $(System.ArtifactsDirectory)/BranchName.txt)
+      echo "Branch Name is:$BranchName"
+      echo $(Build.SourceBranch)
+      cd s/avosssure
+      git checkout $BranchName
+      ls
+
+- script: |
+    rm -rf DAS.zip DAS publish
+  displayName: 'remove files, directories'
+
+- script: |
+    mkdir DAS
+    cp -r das_internals DAS
+    cp -r src DAS
+    cp -r build DAS
+  displayName: 'copy all DAS files to DAS'
+
+- script: |
+    cd DAS
+    echo "create Data db and place data.db, server config at appropriate location"
+    ls
+    python3.7 das_internals/utility/db_utility.py
+    mkdir -p das_internals/logs/das
+    mv data.db das_internals/logs
+    cp src/server_config.json .
+    sed -i 's|"exportImportpath":"D:\\\\source_code\\\\WebServer\\\\assets"|"exportImportpath":"/home/webapp/assets"|g'  server_config.json
+    echo "placed data.db and server config"
+    ls
+    echo "copy build related files and run.sh"
+    cp build/Linux/build.py .
+    cp build/Linux/combine.py .
+    cp build/Linux/run.sh .
+    chmod a+x run.sh
+    echo "copied  build related files and run.sh"
+    ls
+    echo "building DAS"
+    python3.7 build.py
+    echo "DAS build complete"
+    ls
+    cp  build/Linux/dockerFile_avoserver .
+    cp  build/Linux/avo_run.sh .
+    cp  build/Linux/redis.conf .
+    cp -r build/Linux/NGINX .
+    cp build/Linux/run_webapp.sh .
+    echo "copied docker related files"
+    rm -rf build.py build combine.py requirement.txt  src
+    echo "removed unwanted files"
+    ls
+  displayName: 'place all required files for DAS'
+
+- script: |
+    echo "before zip"
+    echo $(pwd)
+    ls
+    zip -y -r DAS.zip DAS
+    echo "after zip"
+    echo $(pwd)
+    ls
+    echo "current directory"
+    ls
+    cp DAS.zip $(Build.ArtifactStagingDirectory)
+    echo "copied DAS.zip to BuildArtifactStagingDirectory"
+    ls $(Build.ArtifactStagingDirectory)
+  displayName: 'zip DAS'
+
+- task: PublishPipelineArtifact@1
+  displayName: 'Publish Pipeline Artifact'
+  inputs:
+    targetPath: '$(Build.ArtifactStagingDirectory)/DAS.zip'

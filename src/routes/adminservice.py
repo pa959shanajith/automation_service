@@ -60,6 +60,50 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
             servicesException("getAvailablePlugins", getallusersexc, True)
             return jsonify(res)
 
+    def createUser(dbsession,requestdata,lsData):
+        result=dbsession.users.find_one({"$or":[ {"name":requestdata['name']}, {"email":requestdata["email"]}]},{"name":1,"email":1})
+        if result!=None:
+            return {"rows":"exists"}
+        else:
+            requestdata["defaultrole"]=ObjectId(requestdata["defaultrole"])
+            requestdata["createdby"]=ObjectId(requestdata["createdby"])
+            requestdata["createdbyrole"]=ObjectId(requestdata["createdbyrole"])
+            requestdata["modifiedby"]=ObjectId(requestdata["createdby"])
+            requestdata["modifiedbyrole"]=ObjectId(requestdata["createdbyrole"])
+            requestdata["createdon"]=datetime.now()
+            requestdata["modifiedon"]=datetime.now()
+            requestdata["deactivated"]="false"
+            requestdata["addroles"]=[]
+            result=list(dbsession.projects.find({"name":"Sample Project"},{"_id":1}))
+            if result:
+                requestdata["projects"]=[result[0]["_id"]]
+                requestdata["projectlevelrole"] = [{"_id":str(result[0]["_id"]), "assignedrole":str(requestdata["defaultrole"])}]
+            else:
+                requestdata["projects"]=[]
+            requestdata["welcomeStepNo"] = 0
+            if "Trial" in lsData["LicenseTypes"]:
+                requestdata["firstTimeLogin"] = True
+            if requestdata["auth"]["type"] in ["inhouse", "ldap"]:
+                requestdata["invalidCredCount"]=0
+                requestdata["auth"]["passwordhistory"]=[]
+                requestdata["auth"]["defaultpasstime"]=""
+                requestdata["auth"]["defaultpassword"]=""
+                requestdata["auth"]["verificationpasstime"]=""
+                requestdata["auth"]["verificationpassword"]=""
+            if (requestdata["defaultrole"] == ObjectId("5db0022cf87fdec084ae49ab") and "isadminuser" in requestdata and requestdata["isadminuser"]==True):
+                dbsession.users.insert_one(requestdata)
+            else:
+                if "isadminuser" in requestdata :
+                    del requestdata["isadminuser"]
+                dbsession.users.insert_one(requestdata)
+            userData = {
+                "uid":requestdata["_id"],
+                "email":requestdata["email"],
+                "username": requestdata["name"],
+                "firstname":requestdata["firstname"],
+                "lastname":requestdata["lastname"]
+            }
+            return {"rows":{"status":"success", "userData":userData}}
 
     # Service to create/edit/delete users in Avo Assure
     @app.route('/admin/manageUserDetails',methods=['POST'])
@@ -95,49 +139,7 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
                     dbsession.tasks.update_many({"reviewer":ObjectId(requestdata["userid"]),"status":{"$ne":'complete'}},{"$set":{"status":"inprogress","reviewer":""}})
                     res={"rows":"success"}
                 elif(action=="create"):
-                    result=dbsession.users.find_one({"$or":[ {"name":requestdata['name']}, {"email":requestdata["email"]}]},{"name":1,"email":1})
-                    if result!=None:
-                        res={"rows":"exists"}
-                    else:
-                        requestdata["defaultrole"]=ObjectId(requestdata["defaultrole"])
-                        requestdata["createdby"]=ObjectId(requestdata["createdby"])
-                        requestdata["createdbyrole"]=ObjectId(requestdata["createdbyrole"])
-                        requestdata["modifiedby"]=ObjectId(requestdata["createdby"])
-                        requestdata["modifiedbyrole"]=ObjectId(requestdata["createdbyrole"])
-                        requestdata["createdon"]=datetime.now()
-                        requestdata["modifiedon"]=datetime.now()
-                        requestdata["deactivated"]="false"
-                        requestdata["addroles"]=[]
-                        result=list(dbsession.projects.find({"name":"Sample Project"},{"_id":1}))
-                        if result:
-                            requestdata["projects"]=[result[0]["_id"]]
-                            requestdata["projectlevelrole"] = [{"_id":str(result[0]["_id"]), "assignedrole":str(requestdata["defaultrole"])}]
-                        else:
-                            requestdata["projects"]=[]
-                        requestdata["welcomeStepNo"] = 0
-                        if "Trial" in lsData["LicenseTypes"]:
-                            requestdata["firstTimeLogin"] = True
-                        if requestdata["auth"]["type"] in ["inhouse", "ldap"]:
-                            requestdata["invalidCredCount"]=0
-                            requestdata["auth"]["passwordhistory"]=[]
-                            requestdata["auth"]["defaultpasstime"]=""
-                            requestdata["auth"]["defaultpassword"]=""
-                            requestdata["auth"]["verificationpasstime"]=""
-                            requestdata["auth"]["verificationpassword"]=""
-                        if (requestdata["defaultrole"] == ObjectId("5db0022cf87fdec084ae49ab") and "isadminuser" in requestdata and requestdata["isadminuser"]==True):
-                            dbsession.users.insert_one(requestdata)
-                        else:
-                            if "isadminuser" in requestdata :
-                                del requestdata["isadminuser"]
-                            dbsession.users.insert_one(requestdata)
-                        userData = {
-                            "uid":requestdata["_id"],
-                            "email":requestdata["email"],
-                            "username": requestdata["name"],
-                            "firstname":requestdata["firstname"],
-                            "lastname":requestdata["lastname"]
-                        }
-                        res={"rows":{"status":"success", "userData":userData}}
+                    res = createUser(dbsession,requestdata,lsData)
                 elif (action=="update"):
                     checkuser=list(dbsession.users.find({"email":requestdata["email"]},{"name":1,"email":1}))
                     if checkuser!=None and ((len(checkuser) == 1 and checkuser[0]["name"] != requestdata["name"]) or len(checkuser) > 1):
@@ -203,6 +205,13 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
                     update_query["welcomeStepNo"]= requestdata["user"]["welcomeStepNo"]
                     dbsession.users.update_one({"_id":result["_id"]},{"$set":update_query})
                     res={"rows":"success"}
+
+                elif(action == "createMultipleLdapUsers"):
+                    for users in requestdata['users']:
+                        if(users == 'InvalidUser'):
+                            res['usersData'].append(users)
+                            continue
+                        res["usersData"].append(createUser(dbsession,users,lsData))
             else:
                 app.logger.warn('Empty data received. manage users.')
         except Exception as e:
@@ -537,7 +546,7 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
                         if result1: prj_list.append(result1)
                     res={"rows":prj_list}
                 elif requestdata["type"] == "domaindetails":
-                    result=list(dbsession.projects.find({"domain":requestdata["id"]},{"name":1}))
+                    result=list(dbsession.projects.find({"domain":{ '$regex': '^(banking|Banking)$', '$options': 'i' }},{"name":1}))
                     res={"rows":result}
                 elif requestdata["type"] == "projectsdetails":
                     result=dbsession.projects.find_one({"_id":ObjectId(requestdata["id"])},{"releases":1,"domain":1,"name":1,"type":1})
@@ -770,6 +779,29 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
                     for i in requestdata["projectids"]:
                         projects.append(ObjectId(i))
                     result=dbsession.users.update_one({"_id":ObjectId(requestdata["userid"])},{"$set":{"projects":projects}})
+                    if len(requestdata["projectids"])>0:
+                        for i in requestdata["projectids"]:
+                            user = dbsession.users.find_one({"_id":ObjectId(requestdata["userid"])})
+                            default_role_id = list(dbsession.permissions.find({ "_id": user["defaultrole"] }, {"_id": 1}))
+                            project_exists=dbsession.users.find_one({"_id":ObjectId(requestdata["userid"]),"projects":ObjectId(i)})
+                            if project_exists:
+                                projectlevelroles=[]
+                                if len(project_exists['projectlevelrole'])>0:
+                                    for project1 in project_exists['projectlevelrole']:
+                                        if project1["_id"] == i:
+                                            project1["assignedrole"] =str(default_role_id[0]["_id"])
+                                            projectlevelroles.append(project1)
+                                        else:
+                                            projectlevelroles.append(project1)
+                                else:
+                                    for j in requestdata['projectids']:
+                                        project1={}
+                                        project1['_id'] = j
+                                        project1["assignedrole"] =str(default_role_id[0]["_id"])
+                                        projectlevelroles.append(project1)
+                    else:
+                        projectlevelroles=[]
+                    result=dbsession.users.update_one({"_id":ObjectId(requestdata["userid"])},{"$set":{"projectlevelrole":projectlevelroles}})
                     res={'rows':'success'}
                 elif (requestdata['alreadyassigned'] == True):
                     result=[]
@@ -777,18 +809,48 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
                         result.append(ObjectId(i))
                     diff_pro=list(set(assigned_pro) - set(result))
                     remove_pro=[]
-                    for k,v in project.items():
+                    if isinstance(requestdata['domainid'], list):
                         for i in range(0,len(diff_pro)):
-                            if k != requestdata["domainid"] and diff_pro[i] in v:
-                                result.append(diff_pro[i])
-                            elif k == requestdata["domainid"] and diff_pro[i] in v:
-                                remove_pro.append(diff_pro[i])
-                                username=dbsession.users.find_one({'_id':ObjectId(requestdata["userid"])})["name"]
-                                findquery = {"projectid":diff_pro[i],"currentlyinuse":username}
-                                listofmodules=list(dbsession.mindmaps.find(findquery))
-                                for module in listofmodules:
-                                    dbsession.mindmaps.update_one({'_id':module['_id']},{"$set":{"currentlyinuse":""}})
+                            remove_pro.append(diff_pro[i])
+                            username=dbsession.users.find_one({'_id':ObjectId(requestdata["userid"])})["name"]
+                            findquery = {"projectid":diff_pro[i],"currentlyinuse":username}
+                            listofmodules=list(dbsession.mindmaps.find(findquery))
+                            for module in listofmodules:
+                                dbsession.mindmaps.update_one({'_id':module['_id']},{"$set":{"currentlyinuse":""}})
+                    else:
+                        for k,v in project.items():
+                            for i in range(0,len(diff_pro)):
+                                if k != requestdata['domainid'] and diff_pro[i] in v:
+                                    result.append(diff_pro[i])
+                                elif k == requestdata['domainis'] and diff_pro[i] in v:
+                                    remove_pro.append(diff_pro[i])
+                                    username=dbsession.users.find_one({'_id':ObjectId(requestdata["userid"])})["name"]
+                                    findquery = {"projectid":diff_pro[i],"currentlyinuse":username}
+                                    listofmodules=list(dbsession.mindmaps.find(findquery))
+                                    for module in listofmodules:
+                                        dbsession.mindmaps.update_one({'_id':module['_id']},{"$set":{"currentlyinuse":""}})
                     result=dbsession.users.update_one({"_id":ObjectId(requestdata["userid"])},{"$set":{"projects":result}})
+                    if len(requestdata["projectids"])>0:
+                        projectlevelroles=[]
+                        for i in requestdata["projectids"]:
+                            user = dbsession.users.find_one({"_id":ObjectId(requestdata["userid"])})
+                            default_role_id = list(dbsession.permissions.find({ "_id": user["defaultrole"] }, {"_id": 1}))
+                            project_exists=dbsession.users.find_one({"_id":ObjectId(requestdata["userid"]),"projects":ObjectId(i)})
+                            if project_exists:
+                                if i not in [project['_id'] for project in project_exists['projectlevelrole']]:
+                                    project1={}
+                                    project1["_id"] = i
+                                    project1["assignedrole"] =str(default_role_id[0]["_id"])
+                                    projectlevelroles.append(project1)
+                                else:
+                                    for project1 in project_exists['projectlevelrole']:
+                                        if project1["_id"] == i:
+                                            project1["assignedrole"] =str(default_role_id[0]["_id"])
+                                            projectlevelroles.append(project1)
+                                            break
+                    else:
+                        projectlevelroles=[]
+                    result=dbsession.users.update_one({"_id":ObjectId(requestdata["userid"])},{"$set":{"projectlevelrole":projectlevelroles}})
                     dbsession.tasks.delete_many({"projectid":{"$in":remove_pro},"assignedto":ObjectId(requestdata["userid"]),"status":{"$ne":'complete'}})
                     dbsession.tasks.delete_many({"projectid":{"$in":remove_pro},"owner":ObjectId(requestdata["userid"]),"status":{"$ne":'complete'}})
                     dbsession.tasks.update_many({"projectid":{"$in":remove_pro},"reviewer":ObjectId(requestdata["userid"]),"status":{"$ne":'complete'}},{"$set":{"status":"inprogress","reviewer":""}})
@@ -819,7 +881,7 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
                     projectids=[]
                     for i in requestdata["projectid"]:
                         projectids.append(ObjectId(i))
-                    result=list(dbsession.projects.find({"_id":{"$in":projectids},"domain":requestdata["domain"]},{"name":1}))
+                    result=list(dbsession.projects.find({"_id":{"$in":projectids},"domain":{ "$regex": '^(Banking|banking)$', "$options": 'i' }},{"name":1}))
                     res={"rows":result}
                 else:
                     res={'rows':'fail'}
@@ -889,6 +951,48 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
                 app.logger.warn('Empty data received. get ice provisions.')
         except Exception as fetchICEexc:
             servicesException("fetchICE", fetchICEexc, True)
+        return jsonify(res)
+
+    @app.route('/admin/multipleProvisionICE',methods=['POST'])
+    def multipleiceprovisions():
+        app.logger.debug("Inside multipleiceprovisions")
+        res={'rows':['fail']}
+        try:
+            requestdata=json.loads(request.data)
+            if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)             
+                dbsession=client[clientName]
+                app.logger.debug("Inside multipleProvisionICE. Query: "+'multipleIceProvision')
+                
+                res['rows'] = []
+                for data in requestdata['tokensInfo']:
+                    if data == 'invalidUsername':
+                        res["rows"].append("invalidUsername")
+                        continue
+                    token=str(uuid.uuid4())
+                    token_query={"icename": data["icename"], "icetype": data["icetype"]}
+                    token_exists = len(list(dbsession.icetokens.find(token_query, {"icename":1})))!=0
+                    data["token"]=token
+                    data["status"]=PROVISION_STATUS
+                    data["poolid"] = "None"
+                    data[PROVISION_STATUS+"on"]=datetime.now()
+                    #user_notexists = True
+                    #To restrict multiple ICE provsioning for the same user
+                    if data["icetype"]=="normal":
+                        data["provisionedto"]=ObjectId(data["provisionedto"])
+                        #user_notexists = len(list(dbsession.icetokens.find({"provisionedto":data["provisionedto"]},{"provisionedto":1})))==0
+                    if not token_exists: # and user_notexists
+                        #currently only icetype and user combination is unique
+                        dbsession.icetokens.insert_one(data)
+                        enc_token=wrap(token+'@'+data["icetype"]+'@'+data["icename"],ice_das_key)
+                        res["rows"].append({'generatedToken':enc_token,'tokeninfo':data})
+                    else:
+                        res["rows"].append("DuplicateIceName")
+            else:
+                app.logger.warn('Empty data received. multipleiceprovisions - Admin.')
+        except Exception as multipleProvisionICEexc:
+            servicesException("multipleProvisionICE", multipleProvisionICEexc, True)
+            res['rows'].append('fail')
         return jsonify(res)
 
     @app.route('/admin/provisionICE',methods=['POST'])
@@ -1337,45 +1441,116 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
         data={}
         try:
             clientName=getClientName(requestdata)             
-            dbsession=client[clientName]
-            #check whether the git configuration name is unique
-            chk_gitname = dbsession.gitconfiguration.find_one({"name":requestdata["gitConfigName"]},{"name":1})
-            if chk_gitname!=None and requestdata["action"]=='create':
-                res={"rows":"GitConfig exists"}
-                return res
-            result = dbsession.gitconfiguration.find_one({"gituser":ObjectId(requestdata["userId"]),"projectid":ObjectId(requestdata["projectId"])},{"_id":1})
-            
-            current_time = datetime.now()
-            if requestdata["action"]=='create':
-                if result!=None:
-                    res={"rows":"GitUser exists"}
-                    return res
+            dbsession=client[clientName]            
+            if requestdata["param"]=="git":
+                #check whether the git configuration name is unique
+                check_gitbranch=list(dbsession.gitconfiguration.find({"gitbranch":{"$exists":False}}))
+                if len(check_gitbranch)>0:
+                    dbsession.gitconfiguration.update_many({},{"$set":{"gitbranch":"main"}})
+                if "gitConfigName" in requestdata: 
+                    chk_gitname = dbsession.gitconfiguration.find_one({"name":requestdata["gitConfigName"]},{"name":1})
                 else:
+                    chk_gitname = None
+                if chk_gitname!=None and requestdata["action"]=='create':
+                    res={"rows":"gitConfig exists"}
+                    return res
+                result = dbsession.gitconfiguration.find_one({"gituser":ObjectId(requestdata["userId"]),"projectid":ObjectId(requestdata["projectId"])},{"_id":1})
+                check = dbsession.bitconfiguration.find_one({"bituser":ObjectId(requestdata["userId"]),"projectid":ObjectId(requestdata["projectId"])},{"_id":1})
+                current_time = datetime.now()
+                if requestdata["action"]=='create':
+                    if result!=None:
+                        res={"rows":"gitUser exists"}
+                        return res
+                    elif check != None:                        
+                        res={"rows":"bitConfig exists"}
+                        return res
+                    else:
+                        data['name'] = requestdata["gitConfigName"]
+                        data['gituser'] = ObjectId(requestdata["userId"])
+                        data['projectid'] = ObjectId(requestdata["projectId"])
+                        data['createdon'] = current_time
+                        data['modifiedon'] = current_time
+                        data['gitaccesstoken'] = wrap(requestdata["gitAccToken"],ldap_key)
+                        data['giturl']= requestdata["gitUrl"]
+                        data['gitusername']=requestdata["gitUsername"]
+                        data['gituseremail']=requestdata["gitEmail"]
+                        data['gitbranch']=requestdata["gitbranch"]
+                        dbsession.gitconfiguration.insert_one(data)
+                        res1 = "success"
+                elif requestdata["action"]=='update':
                     data['name'] = requestdata["gitConfigName"]
-                    data['gituser'] = ObjectId(requestdata["userId"])
-                    data['projectid'] = ObjectId(requestdata["projectId"])
-                    data['createdon'] = current_time
                     data['modifiedon'] = current_time
                     data['gitaccesstoken'] = wrap(requestdata["gitAccToken"],ldap_key)
                     data['giturl']= requestdata["gitUrl"]
-                    data['gitusername']=requestdata["gitUsername"]
                     data['gituseremail']=requestdata["gitEmail"]
-                    dbsession.gitconfiguration.insert_one(data)
+                    data['gitusername']=requestdata["gitUsername"]
+                    data['gitbranch']=requestdata["gitbranch"]
+                    dbsession.gitconfiguration.update_one({"_id":ObjectId(result["_id"])},{"$set":data})
                     res1 = "success"
-            elif requestdata["action"]=='update':
-                data['name'] = requestdata["gitConfigName"]
-                data['modifiedon'] = current_time
-                data['gitaccesstoken'] = wrap(requestdata["gitAccToken"],ldap_key)
-                data['giturl']= requestdata["gitUrl"]
-                data['gituseremail']=requestdata["gitEmail"]
-                data['gitusername']=requestdata["gitUsername"]
-                dbsession.gitconfiguration.update_one({"_id":ObjectId(result["_id"])},{"$set":data})
-                res1 = "success"
-            elif requestdata["action"]=="delete":
-                if result!=None:
-                    dbsession.gitconfiguration.delete_one({"_id":result["_id"]})
-                res1 = "success"
-            res['rows'] = res1
+                elif requestdata["action"]=="delete":
+                    if result!=None:
+                        dbsession.gitconfiguration.delete_one({"_id":result["_id"]})
+                    res1 = "success"
+                res['rows'] = res1
+            elif requestdata["param"]=="bit":
+                if "bitConfigName" in requestdata: 
+                    chk_bitname = dbsession.bitconfiguration.find_one({"name":requestdata["bitConfigName"]},{"name":1})
+                else:
+                    chk_bitname = None
+                if chk_bitname!=None and requestdata["action"]=='create':
+                    res={"rows":"bitConfig exists"}
+                    return res
+                result = dbsession.bitconfiguration.find_one({"bituser":ObjectId(requestdata["userId"]),"projectid":ObjectId(requestdata["projectId"])},{"_id":1})
+                check = dbsession.gitconfiguration.find_one({"gituser":ObjectId(requestdata["userId"]),"projectid":ObjectId(requestdata["projectId"])},{"_id":1})
+                current_time = datetime.now()
+                if requestdata["action"]=='create':
+                    if result!=None:
+                        res={"rows":"bitUser exists"}
+                        return res
+                    elif check != None:                        
+                        res={"rows":"gitConfig exists"}
+                        return res                 
+                    else:
+                        data['name'] = requestdata["bitConfigName"]
+                        data['bituser'] = ObjectId(requestdata["userId"])
+                        data['projectid'] = ObjectId(requestdata["projectId"])
+                        data['createdon'] = current_time
+                        data['modifiedon'] = current_time
+                        data['bitaccesstoken'] = wrap(requestdata["bitAccToken"],ldap_key)
+                        data['biturl']= requestdata["bitUrl"]
+                        data['bitusername']=requestdata["bitUsername"]
+                        data['workspace']=requestdata["workspace"]
+                        data['bitbranch']=requestdata["bitbranch"]
+                        data['projectkey']=requestdata["projectkey"]
+                        dbsession.bitconfiguration.insert_one(data)
+                        res1 = "success"
+                elif requestdata["action"]=='update':
+                    data['name'] = requestdata["bitConfigName"]
+                    data['modifiedon'] = current_time
+                    data['bitaccesstoken'] = wrap(requestdata["bitAccToken"],ldap_key)
+                    data['biturl']= requestdata["bitUrl"]
+                    data['workspace']=requestdata["workspace"]
+                    data['bitusername']=requestdata["bitUsername"]
+                    data['bitbranch']=requestdata["bitbranch"]
+                    data['projectkey']=requestdata["projectkey"]
+                    dbsession.bitconfiguration.update_one({"_id":ObjectId(result["_id"])},{"$set":data})
+                    res1 = "success"
+                elif requestdata["action"]=="delete":
+                    if result!=None:
+                        dbsession.bitconfiguration.delete_one({"_id":result["_id"]})
+                    res1 = "success"
+                res['rows'] = res1
+            elif requestdata["param"]=="verify":
+                result = dbsession.gitconfiguration.find_one({"gituser":ObjectId(requestdata["userId"]),"projectid":ObjectId(requestdata["projectId"])},{"_id":1})
+                if result == None:
+                    bit_res=result = dbsession.bitconfiguration.find_one({"bituser":ObjectId(requestdata["userId"]),"projectid":ObjectId(requestdata["projectId"])},{"_id":1})
+                    if bit_res !=None:
+                        res1="bit"
+                    else:
+                        res1="noconfig"
+                else:
+                    res1 ="git"
+                res['rows'] = res1   
         except Exception as e:
             app.logger.debug(traceback.format_exc())
             servicesException("gitSaveConfig",e)
@@ -1390,13 +1565,24 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
             requestdata=json.loads(request.data)
             if not isemptyrequest(requestdata):
                 clientName=getClientName(requestdata)            
-                dbsession=client[clientName]
-                result=dbsession.gitconfiguration.find_one({"gituser":ObjectId(requestdata["userId"]),"projectid":ObjectId(requestdata["projectId"])},{'name':1, 'gitaccesstoken':1, 'giturl':1, 'gitusername':1,'gituseremail':1, '_id':0})
-                if result:
-                    result['gitaccesstoken'] = unwrap(result['gitaccesstoken'],ldap_key)
-                    res={'rows':result}
-                else:
-                    res={'rows':"empty"}    
+                dbsession=client[clientName]                
+                if  requestdata["param"]=="git":
+                    check_gitbranch=list(dbsession.gitconfiguration.find({"gitbranch":{"$exists":False}}))
+                    if len(check_gitbranch)>0:
+                        dbsession.gitconfiguration.update_many({},{"$set":{"gitbranch":"main"}})
+                    result=dbsession.gitconfiguration.find_one({"gituser":ObjectId(requestdata["userId"]),"projectid":ObjectId(requestdata["projectId"])},{'name':1, 'gitaccesstoken':1, 'giturl':1, 'gitusername':1,'gituseremail':1, 'gitbranch':1,'_id':0})
+                    if result:
+                        result['gitaccesstoken'] = unwrap(result['gitaccesstoken'],ldap_key)
+                        res={'rows':result}
+                    else:
+                        res={'rows':"empty"}
+                elif requestdata["param"]=="bit":
+                    result=dbsession.bitconfiguration.find_one({"bituser":ObjectId(requestdata["userId"]),"projectid":ObjectId(requestdata["projectId"])},{'name':1, 'bitaccesstoken':1, 'biturl':1, 'bitusername':1, 'workspace':1,'bitbranch':1,'projectkey':1,'_id':0})
+                    if result:
+                        result['bitaccesstoken'] = unwrap(result['bitaccesstoken'],ldap_key)
+                        res={'rows':result}
+                    else:
+                        res={'rows':"empty"}  
             else:
                 app.logger.warn('Empty data received in git user fetch.')
         except Exception as e:
@@ -1687,6 +1873,27 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
         except Exception as e:
             servicesException("getDetails_Zephyr",e)
         return jsonify(res)
+    
+    #Fetch TestRail data 
+    @app.route('/admin/getDetails_TestRail', methods=['POST'])
+    def getDetails_TestRail():
+        app.logger.info("Inside getDetails_TestRail")
+        res={'rows':'fail'}
+        try:
+            requestdata=json.loads(request.data)
+            if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)             
+                dbsession=client[clientName]
+                result=dbsession.userpreference.find_one({"user":ObjectId(requestdata["userId"])}, {'TestRail':1, '_id':0})
+                if result:
+                    res={'rows':result['TestRail']}
+                else:
+                    res={'rows':"empty"}    
+            else:
+                app.logger.warn('Empty data received in getDetails_TestRail fetch.')
+        except Exception as e:
+            servicesException("getDetails_TestRail",e)
+        return jsonify(res)
 
     #manage ZEPHYR Details
     @app.route('/admin/manageZephyrDetails',methods=['POST'])
@@ -1738,6 +1945,56 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
         except Exception as e:
             app.logger.debug(traceback.format_exc())
             servicesException("manageZephyrDetails",e)
+        return jsonify(res)
+    
+
+    #manage TestRail Details
+    @app.route('/admin/manageTestRailDetails',methods=['POST'])
+    def manageTestRailDetails():
+        app.logger.info("Inside manageTestRailDetails")
+        res={'rows':'fail'}
+        data={}
+        try:
+            requestdata=json.loads(request.data)
+            if not isemptyrequest(requestdata):
+                clientName=getClientName(requestdata)             
+                dbsession=client[clientName]
+                TestRailObject = {}
+                userObject = dbsession.userpreference.find_one({"user":ObjectId(requestdata["userId"])})
+                if 'TestRailUrl' in requestdata :
+                    TestRailObject["url"] = requestdata["TestRailUrl"]
+                if 'TestRailUsername' in requestdata and 'TestRailToken' in requestdata :
+                    TestRailObject["username"] = requestdata["TestRailUsername"]
+                    TestRailObject["API_Key"] = requestdata["TestRailToken"]
+                if requestdata["action"]=="delete":
+                    if userObject==None:
+                        return jsonify({'rows':'fail'})
+                    elif userObject != None and 'TestRail' in userObject:
+                        dbsession.userpreference.update_one({"_id":userObject["_id"]},{"$unset":{ 'TestRail':""}})
+                elif requestdata["action"]=='create':
+                    if userObject != None and 'TestRail' in userObject:
+                        return jsonify({'rows':'fail'})
+                    else:
+                        if userObject==None:
+                            data['user'] = ObjectId(requestdata["userId"])
+                            data['TestRail'] = TestRailObject
+                            dbsession.userpreference.insert_one(data)
+                        else:
+                            data['TestRail'] = TestRailObject
+                            dbsession.userpreference.update_one({"_id":ObjectId(userObject["_id"])},{"$set":data})
+                elif requestdata["action"]=='update':
+                    if userObject==None:
+                        return jsonify({'rows':'fail'})
+                    else:
+                        data['TestRail'] = TestRailObject
+                        dbsession.userpreference.update_one({"_id":ObjectId(userObject["_id"])},{"$set":data})
+                return jsonify({'rows':'success'})
+            else:
+                return jsonify({'rows':'fail'})
+        except Exception as e:
+            print(e)
+            app.logger.debug(traceback.format_exc())
+            servicesException("manageTestRailDetails",e)
         return jsonify(res)
 
     #service to map avo discover configuration
@@ -2046,4 +2303,43 @@ def LoadServices(app, redissession, client,getClientName,licensedata,*args):
                 app.logger.warn('Empty data received. update project.')
         except Exception as getUsersexc:
             servicesException("getUsers_ICE", getUsersexc, True)
+        return jsonify(res)
+    
+
+    @app.route('/admin/unLock_TestSuites', methods=['POST'])
+    def unLockTestSites():
+        app.logger.debug("Inside unlocktestsuites")
+        res={'rows':'fail'}
+        try:
+            requestdata = json.loads(request.data)
+            clientName=getClientName(requestdata)
+            dbsession=client[clientName]
+            if not isemptyrequest(requestdata):
+                if requestdata['qurey'] == "empty":
+                    mindmapData = list(dbsession.mindmaps.find({}, {'_id': 1 , 'name': 1 ,'currentlyinuse': 1, 'type':1 }))
+                    filtered_data = []
+                    for mind in mindmapData:
+                        if mind['currentlyinuse'] != '':
+                            # Perform filtering or processing on the data
+                            # For example, you could append the mind to the filtered_data list
+                            filtered_data.append(mind)
+
+                    res = {'rows': filtered_data}
+                elif requestdata['qurey'] == "unlock":
+                    dbsession.mindmaps.update_one({'_id':ObjectId(requestdata['id'])},{"$set":{"currentlyinuse":""}}) 
+                    res = {'rows': requestdata['name']}
+                elif requestdata['qurey'] == "projectDomain":
+                    projectDomainName = []
+                    for projectidss in requestdata['projectidss']:
+                        # Assuming dbsession.projects is your collection and you're using MongoDB
+                        # Assuming requestdata['projectidss'] is a list of dictionaries with 'projectid' keys
+                        project_domain = dbsession.projects.find_one({'_id': ObjectId(projectidss['projectid'])}, {"domain": 1})
+                        if project_domain:
+                            projectDomainName.append(project_domain.get("domain", None))
+
+                    res = {'rows': projectDomainName}
+            else:
+                app.logger.warn('Empty Data received.')
+        except Exception as unlocktestsuitexc:
+            servicesException("unLockTestSites", unlocktestsuitexc, True)
         return jsonify(res)
