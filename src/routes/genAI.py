@@ -188,7 +188,7 @@ def LoadServices(app, redissession, client ,getClientName):
                 return jsonify({'error': 'Invalid request data'}), 400
             client_name = getClientName(request_data)
             dbsession = client[client_name]
-            find_model_details = dbsession.GenAI_Models.find_one({"_id":ObjectId(request_data["model_id"]),"userinfo.userid":request_data["userinfo"]["userid"]},
+            find_model_details = dbsession.GenAI_Models.find_one({"_id":ObjectId(request_data["model_id"])},
                                                                  {"userinfo":0,"createdAt":0,"updatedAt":0})
             if not find_model_details:
                 return jsonify({'rows':'fail','error': ' document not found '}), 404
